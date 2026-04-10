@@ -1543,8 +1543,11 @@ body.lang-en .yaku-tag .en {
         color: #f1c40f;
     }
 
-/* 🌐 言語切替のグローバル対応（リザルト画面など全体で連動） */
-body .ja {
+/* =====================================================================
+        🌐 言語切替の完全グローバル対応（図鑑・リザルトなど全体で連動）
+   ===================================================================== */
+/* デフォルト（中国語モード） */
+body .ja, body .en {
     display: none;
 }
 
@@ -1552,12 +1555,30 @@ body .zh {
     display: inline;
 }
 
+/* 日本語モード */
+body.lang-ja .zh, body.lang-ja .en {
+    display: none;
+}
+
 body.lang-ja .ja {
     display: inline;
 }
 
-body.lang-ja .zh {
+/* 英語モード */
+body.lang-en .zh, body.lang-en .ja {
     display: none;
+}
+
+body.lang-en .en {
+    display: inline;
+}
+
+/* =====================================================================
+        🛠️ 役図鑑のレイアウト微調整
+   ===================================================================== */
+/* コンプリート率の上の見切れ（余白不足）を修正 */
+#tab-yaku-dex > div:first-child {
+    margin-top: 15px !important;
 }
 
 /* 🎨 新しい点数別タグカラー（PDF準拠） */
@@ -2116,4 +2137,150 @@ body.lang-ja .zh {
     font-size: 14px;
     color: #bdc3c7;
     margin-bottom: 5px;
+}
+
+/* ==========================================
+   🏅 役図鑑：熟練度ランク別デザイン
+   ========================================== */
+
+/* 共通：ランクがついた時の基本（グレーアウト解除） */
+.yaku-dex-card.bronze, .yaku-dex-card.silver,
+.yaku-dex-card.gold, .yaku-dex-card.platinum {
+    filter: none;
+    background: rgba(44, 62, 80, 0.9);
+}
+
+/* 🥉 銅ランク（1回〜） */
+.yaku-dex-card.bronze {
+    border-color: #cd7f32;
+    box-shadow: 0 0 10px rgba(205, 127, 50, 0.4);
+}
+
+/* 🥈 銀ランク */
+.yaku-dex-card.silver {
+    border-color: #bdc3c7;
+    box-shadow: 0 0 15px rgba(189, 195, 199, 0.5);
+    background: linear-gradient(135deg, #2c3e50, #7f8c8d);
+}
+
+/* 🥇 金ランク */
+.yaku-dex-card.gold {
+    border-color: #f1c40f;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
+    background: linear-gradient(135deg, #2c3e50, #967e12);
+}
+
+/* 💎 プラチナランク（最強） */
+@keyframes platinum-glow {
+    0% {
+        box-shadow: 0 0 15px #fff, 0 0 30px #00d2d3;
+    }
+
+    50% {
+        box-shadow: 0 0 25px #fff, 0 0 50px #00d2d3;
+    }
+
+    100% {
+        box-shadow: 0 0 15px #fff, 0 0 30px #00d2d3;
+    }
+}
+
+.yaku-dex-card.platinum {
+    border-color: #fff;
+    border-width: 3px;
+    animation: platinum-glow 3s infinite ease-in-out;
+    background: linear-gradient(135deg, #2c3e50, #00d2d3);
+}
+
+    /* ランクバッジのテキスト色 */
+    .yaku-dex-card.platinum .dex-points {
+        color: #fff !important;
+        text-shadow: 0 0 10px #00d2d3;
+    }
+
+.yaku-dex-card.gold .dex-points {
+    color: #f1c40f !important;
+}
+
+.yaku-dex-card.silver .dex-points {
+    color: #bdc3c7 !important;
+}
+
+.yaku-dex-card.bronze .dex-points {
+    color: #cd7f32 !important;
+}
+
+/* ==========================================
+   🏆 役図鑑：Tier別グループ配置
+   ========================================== */
+/* 図鑑のカードサイズを少し小さくして、Tier見出しを入れるスペースを作る */
+.yaku-dex-card {
+    width: 270px; /* 240pxから縮小 */
+    min-height: 40px; /* 110pxから縮小 */
+    flex-direction: column; /* 縦並びを維持 */
+}
+
+/* 役図鑑全体のグリッド配置を調整 */
+#yaku-dex-container {
+    display: flex;
+    flex-direction: column; /* Tierごとに縦に並べる */
+    gap: 30px; /* Tierグループ間の隙間 */
+}
+
+/* Tierごとのグループの箱 */
+.yaku-dex-tier-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* 見出しとカード群の隙間 */
+}
+
+/* Tierごとの見出し */
+.yaku-dex-tier-header {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f1c40f; /* 金色で見やすく */
+    border-bottom: 2px solid #f1c40f;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    text-align: left; /* 左寄せ */
+}
+
+/* Tierごとのカード群のグリッド */
+.yaku-dex-card-grid {
+    display: flex;
+    flex-wrap: wrap; /* 横に並べて折り返す */
+    gap: 15px; /* カード同士の隙間 */
+    justify-content: flex-start; /* 左寄せ */
+}
+
+/* 役タイトルのサイズ調整 */
+.dex-yaku-name {
+    font-size: 16px !important; /* 18pxから縮小 */
+}
+
+/* 熟練度ランクバッジのテキスト色を調整 */
+.yaku-dex-card.platinum .dex-points {
+    color: #fff !important;
+    text-shadow: 0 0 10px #00d2d3;
+    font-size: 12px !important;
+}
+
+.yaku-dex-card.gold .dex-points {
+    color: #f1c40f !important;
+    font-size: 12px !important;
+}
+
+.yaku-dex-card.silver .dex-points {
+    color: #bdc3c7 !important;
+    font-size: 12px !important;
+}
+
+.yaku-dex-card.bronze .dex-points {
+    color: #cd7f32 !important;
+    font-size: 12px !important;
+}
+
+/* 🌟 コンプリート率の上の見切れ修正（！important を外して調整可能に） */
+#tab-yaku-dex > div:first-child {
+    margin-top: 15px;
 }

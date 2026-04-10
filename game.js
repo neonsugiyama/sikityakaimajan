@@ -163,7 +163,7 @@ let playerStats = {
     maxScoreHand: null,
     currentWinStreak: 0,
     maxWinStreak: 0,
-    yakuCollected: [],
+    yakuCollected: {},
     jokerSwapCount: 0,
     secondCharlestonCount: 0,
     hanakanCount: 0,
@@ -350,13 +350,24 @@ function toggleYakuLang() {
 
 // 🇨🇳 日本語への翻訳辞書
 const yakuJaMap = {
-    "天胡": "天和", "地胡": "地和", "七星攬月": "大七星", "清幺九": "清老頭",
-    "十八羅漢": "四槓子", "大四風会": "大四喜", "一色四節高": "一色四連刻", "一色四歩高": "一色四連順",
-    "小四風会": "小四喜", "陰陽両儀": "黒一色", "寒江独釣": "裸単騎", "十三幺九": "国士無双",
-    "三節高": "三連刻", "一気化三清": "三風刻", "十二金釵": "三槓子", "混幺九": "混老頭",
-    "清龍": "一気通貫", "碰碰胡": "対々和", "下雨": "暗槓",
-    "双同刻": "二同刻", "刮風": "明槓", "字刻": "字刻", "無番和": "無役",
-    "無花果": "無花", "槓上開花": "嶺上開花", "花天月地": "海底河底"
+    // 64点
+    "天胡": "天和", "地胡": "地和", "七星攬月": "大七星", "清幺九": "清老頭", "連七対": "連七対", "九連宝燈": "九連宝燈",
+    // 32点
+    "十八羅漢": "四槓子", "大四風会": "大四喜", "一色四節高": "一色四連刻", "一色四歩高": "一色四連順", "紅孔雀": "紅孔雀", "七星不靠": "七星不靠",
+    // 16点
+    "小四風会": "小四喜", "緑一色": "緑一色", "字一色": "字一色", "陰陽両儀": "黒一色", "大三元": "大三元", "全大": "全大", "全中": "全中", "全小": "全小", "寒江独釣": "裸単騎", "十三幺九": "国士無双",
+    // 8点
+    "三節高": "三連刻", "三同刻": "三同刻", "断紅胡": "断紅胡", "一気化三清": "三風刻", "十二金釵": "三槓子", "混幺九": "混老頭",
+    // 6点
+    "大于五": "大于五", "小于五": "小于五", "清一色": "清一色", "清龍": "一気通貫", "五門斉": "五門斉", "推不倒": "推不倒",
+    // 4点
+    "七対": "七対", "小三元": "小三元", "碰碰胡": "対々和", "下雨": "暗槓",
+    // 2点
+    "双同刻": "二同刻", "混一色": "混一色", "刮風": "明槓", "断么": "断么", "字刻": "字刻", "全単": "全単",
+    // 1点
+    "無番和": "無役",
+    // 特殊
+    "無花果": "無花", "槓上開花": "嶺上開花", "槍槓": "槍槓", "妙手回春": "妙手回春", "花天月地": "海底河底"
 };
 // 🇯🇵 中国語の役名を日本語名に翻訳する関数
 function getJaYakuName(zhName) { return yakuJaMap[zhName] || zhName; }
@@ -424,14 +435,15 @@ function closeYakuList() {
 
 // 🎖️ 役の点数（強さ）に応じて、CSSの色分け用クラス名を返す関数
 function getYakuTierClass(yakuName) {
-    const tier64 = ["天胡", "天和", "地胡", "地和", "七星攬月", "大七星", "清幺九", "清老頭", "連七対", "九連宝燈"];
-    const tier32 = ["十八羅漢", "四槓子", "大四風会", "大四喜", "一色四節高", "一色四連刻", "一色四歩高", "一色四連順", "紅孔雀", "七星不靠"];
-    const tier16 = ["小四風会", "小四喜", "緑一色", "字一色", "陰陽両儀", "黒一色", "大三元", "全大", "全中", "全小", "寒江独釣", "裸単騎", "十三幺九", "国士無双"];
-    const tier8 = ["三節高", "三連刻", "三同刻", "断紅胡", "一気化三清", "三風刻", "十二金釵", "三槓子", "混幺九", "混老頭"];
-    const tier6 = ["大于五", "小于五", "清一色", "清龍", "一気通貫", "五門斉", "推不倒"];
-    const tier4 = ["七対", "小三元", "碰碰胡", "対々和", "下雨", "暗槓"];
-    const tier2 = ["双同刻", "二同刻", "混一色", "刮風", "明槓", "断么", "字刻", "全単"];
-    const tierMulti = ["無花果", "無花", "槓上開花", "嶺上開花", "槍槓", "妙手回春", "花天月地", "海底"];
+    const tier64 = ["天胡", "地胡", "七星攬月", "清幺九", "連七対", "九連宝燈"];
+    const tier32 = ["十八羅漢", "大四風会", "一色四節高", "一色四歩高", "紅孔雀", "七星不靠"];
+    const tier16 = ["小四風会", "緑一色", "字一色", "陰陽両儀", "大三元", "全大", "全中", "全小", "寒江独釣", "十三幺九"];
+    const tier8 = ["三節高", "三同刻", "断紅胡", "一気化三清", "十二金釵", "混幺九"];
+    const tier6 = ["大于五", "小于五", "清一色", "清龍", "五門斉", "推不倒"];
+    const tier4 = ["七対", "小三元", "碰碰胡", "下雨"];
+    const tier2 = ["双同刻", "混一色", "刮風", "断么", "字刻", "全単"];
+    const tier1 = ["無番和"];
+    const tierMulti = ["無花果", "槓上開花", "槍槓", "妙手回春", "花天月地"];
 
     if (tier64.includes(yakuName)) return "yaku-tier-64";
     if (tier32.includes(yakuName)) return "yaku-tier-32";
@@ -440,8 +452,8 @@ function getYakuTierClass(yakuName) {
     if (tier6.includes(yakuName)) return "yaku-tier-6";
     if (tier4.includes(yakuName)) return "yaku-tier-4";
     if (tier2.includes(yakuName)) return "yaku-tier-2";
+    if (tier1.includes(yakuName)) return "yaku-tier-1";
     if (tierMulti.includes(yakuName)) return "yaku-tier-multi";
-
     return "yaku-tier-1";
 }
 
@@ -2303,11 +2315,18 @@ async function handleRoundEnd() {
                     winTile: res.details.length > 0 ? res.details[0].tile : ""
                 };
             }
+            if (Array.isArray(playerStats.yakuCollected)) {
+                let migrated = {};
+                playerStats.yakuCollected.forEach(y => migrated[y] = 1);
+                playerStats.yakuCollected = migrated;
+            }
+
             for (let detail of res.details) {
                 for (let y of detail.yaku) {
-                    if (!playerStats.yakuCollected.includes(y)) {
-                        playerStats.yakuCollected.push(y);
+                    if (!playerStats.yakuCollected[y]) {
+                        playerStats.yakuCollected[y] = 0;
                     }
+                    playerStats.yakuCollected[y]++;
                 }
             }
         }
@@ -2640,7 +2659,7 @@ function renderAchievements() {
         { id: "clutch", icon: "👑", title: "1点の重み", desc: "1点でアガり3着以上をもぎ取った回数", val: playerStats.clutch1PointCount, tiers: [1, 5, 10], unit: "回" }
     ];
 
-    let gridHtml = `<div class="achieve-grid">`;
+    let gridHtml = ``;
 
     achievements.forEach(a => {
         let rank = 0;
@@ -2683,28 +2702,73 @@ function renderAchievements() {
 
     // --- 2. 📜 役コレクター図鑑タブの描画 ---
     const dexContainer = document.getElementById('yaku-dex-container');
-    let dexHtml = ``;
-    const allYakuList = Object.keys(yakuJaMap); // ここを1回だけに修正！
+    dexContainer.innerHTML = '';
+
+    const allYakuList = Object.keys(yakuJaMap);
     let collectedCount = 0;
 
+    // 分類用の箱（1点役「yaku-tier-1」も確実に拾うように修正）
+    let yakuByTier = { "64": [], "32": [], "16": [], "8": [], "6": [], "4": [], "2": [], "multi": [] };
+
     allYakuList.forEach(yakuZh => {
-        let isCollected = playerStats.yakuCollected.includes(yakuZh);
-        let yakuJa = getJaYakuName(yakuZh);
-        let badgeClass = isCollected ? "yaku-dex-card unlocked" : "yaku-dex-card locked";
-        let displayName = isCollected ? yakuJa : "？？？";
+        let tierClass = getYakuTierClass(yakuZh);
+        let key = "2"; // デフォルトを「2点・1点」に設定
 
-        if (isCollected) collectedCount++;
+        if (tierClass.includes("64")) key = "64";
+        else if (tierClass.includes("32")) key = "32";
+        else if (tierClass.includes("16")) key = "16";
+        else if (tierClass.includes("8")) key = "8";
+        else if (tierClass.includes("6")) key = "6";
+        else if (tierClass.includes("4")) key = "4";
+        else if (tierClass.includes("multi")) key = "multi";
 
-        dexHtml += `
-            <div class="${badgeClass}">
-                <div class="dex-title-area">
-                    <span class="dex-yaku-name">${displayName}</span>
-                    <span class="dex-count-badge" style="visibility: ${isCollected ? 'visible' : 'hidden'};">取得済</span>
-                </div>
-            </div>`;
+        if (yakuByTier[key]) yakuByTier[key].push(yakuZh);
     });
 
-    dexContainer.innerHTML = dexHtml;
+    const tierNameMap = {
+        "64": { ja: "👑 64点役", zh: "64点", en: "64 Points" },
+        "32": { ja: "🔥 32点役", zh: "32点", en: "32 Points" },
+        "16": { ja: "⚔️ 16点役", zh: "16点", en: "16 Points" },
+        "8": { ja: "🔮 8点役", zh: "8点", en: "8 Points" },
+        "6": { ja: "💎 6点役", zh: "6点", en: "6 Points" },
+        "4": { ja: "🛡️ 4点役", zh: "4点", en: "4 Points" },
+        "2": { ja: "🛡️ 2点・1点役", zh: "2点・1点", en: "2/1 Points" },
+        "multi": { ja: "✨ 特殊役 (乗算)", zh: "特殊", en: "Special" }
+    };
+
+    ["64", "32", "16", "8", "6", "4", "2", "multi"].forEach(tierKey => {
+        const yakuList = yakuByTier[tierKey];
+        if (yakuList.length === 0) return;
+
+        let names = tierNameMap[tierKey];
+        let tierHtml = `
+            <div class="yaku-dex-tier-group">
+                <div class="yaku-dex-tier-header">
+                    <span class="zh">${names.zh}</span><span class="ja">${names.ja}</span><span class="en">${names.en}</span>
+                </div>
+                <div class="yaku-dex-card-grid">`;
+
+        yakuList.forEach(yakuZh => {
+            let count = playerStats.yakuCollected[yakuZh] || 0;
+            if (count > 0) collectedCount++;
+            let rankClass = getYakuRankClass(yakuZh, count);
+
+            tierHtml += `
+                <div class="yaku-dex-card ${rankClass}">
+                    <div class="dex-title-area" style="margin-bottom: 0;">
+                        <span class="dex-yaku-name">
+                            <span class="zh">${yakuZh}</span>
+                            <span class="ja">${getJaYakuName(yakuZh)}</span>
+                            <span class="en">${getEnYakuName(yakuZh)}</span>
+                        </span>
+                        <span class="dex-points">和了: ${count} 回</span>
+                    </div>
+                </div>`;
+        });
+        tierHtml += `</div></div>`;
+        dexContainer.innerHTML += tierHtml;
+    });
+
     document.getElementById('dex-comp-count').innerText = collectedCount;
     document.getElementById('dex-total-count').innerText = allYakuList.length;
 }
@@ -2915,6 +2979,29 @@ function closeMyPage() {
     playSE('click');
 }
 
+// 🏅 役の点数と回数から熟練度ランクを判定する関数
+function getYakuRankClass(yakuName, count) {
+    if (count <= 0) return "locked";
+
+    const tier = getYakuTierClass(yakuName);
+    let thresholds = { silver: 50, gold: 200, platinum: 1000 }; // デフォルト（Common）
+
+    if (tier === "yaku-tier-64") {
+        thresholds = { silver: 3, gold: 5, platinum: 10 }; // 超激レア
+    } else if (tier === "yaku-tier-32" || tier === "yaku-tier-16") {
+        thresholds = { silver: 10, gold: 30, platinum: 100 }; // レア
+    } else if (tier === "yaku-tier-8" || tier === "yaku-tier-6") {
+        thresholds = { silver: 20, gold: 50, platinum: 200 }; // 中堅
+    } else if (tier === "yaku-tier-multi") {
+        thresholds = { silver: 30, gold: 100, platinum: 500 }; // 特殊
+    }
+
+    if (count >= thresholds.platinum) return "platinum";
+    if (count >= thresholds.gold) return "gold";
+    if (count >= thresholds.silver) return "silver";
+    return "bronze";
+}
+
 // ==========================================
 // ★ デバッグ用：ダミーデータの注入
 // ==========================================
@@ -2957,10 +3044,10 @@ function injectDummyData() {
         winTile: "5s"
     };
 
-    playerStats.yakuCollected = [
-        "天胡", "九連宝燈", "十八羅漢", "大三元", "清一色", "対々和", "七対", "混一色",
-        "小三元", "無花果", "槓上開花", "妙手回春", "花天月地", "無番和", "断么", "刮風", "下雨"
-    ];
+    playerStats.yakuCollected = {
+        "天胡": 12, "九連宝燈": 2, "十八羅漢": 1, "大三元": 4, "清一色": 15, "対々和": 42, "七対": 28, "混一色": 33,
+        "小三元": 8, "無花果": 50, "槓上開花": 100, "妙手回春": 5, "花天月地": 3, "無番和": 1000, "断么": 120, "刮風": 45, "下雨": 30
+    };
 
     saveGameData();
     alert("ダミーデータを注入しました！\n画面をリロードして反映します。");
