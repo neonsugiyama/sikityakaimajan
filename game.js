@@ -2872,6 +2872,33 @@ function updateProfileUI() {
         [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => { handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px;">`; });
         if (winTile) handTiles.innerHTML += `<div style="width:10px;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:1px solid #f1c40f;">`;
     }
+    updateHomeStats();
+}
+
+// ホーム画面の「累計スコア」と「役図鑑進捗」を更新する処理
+function updateHomeStats() {
+    // 1. 生涯累計スコアの計算と反映
+    let totalScore = playerStats.totalScoreSum || 0;
+    const scoreEl = document.getElementById('home-lifetime-score');
+    if (scoreEl) {
+        scoreEl.innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 14px; color: #aaa;">点</span>`;
+    }
+
+    // 2. 役図鑑コンプリート率の計算と反映
+    let yakuData = playerStats.yakuCollected || {};
+    let collectedCount = Object.values(yakuData).filter(count => count > 0).length;
+    let totalYaku = 45; // 全役数
+    let progressPercent = Math.min(Math.floor((collectedCount / totalYaku) * 100), 100);
+
+    const textEl = document.getElementById('home-yaku-progress-text');
+    const barEl = document.getElementById('home-yaku-progress-bar');
+
+    if (textEl && barEl) {
+        textEl.innerText = `${collectedCount} / ${totalYaku} 役 (${progressPercent}%)`;
+        setTimeout(() => {
+            barEl.style.width = `${progressPercent}%`;
+        }, 100);
+    }
 }
 
 // 📊 マイページ（詳細戦績）の描画

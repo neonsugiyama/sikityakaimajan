@@ -2228,7 +2228,9 @@ body.lang-en .en {
 
 #prof-name {
     max-width: 100%;
-    overflow: hidden;
+    line-height: 1.2; /* 行の高さを少し広げて文字全体を収める */
+    padding-bottom: 5px; /* 下部に見切れ防止の余白を作る */
+    overflow: visible;
     white-space: nowrap;
     text-overflow: ellipsis; /* 🌟 はみ出た分を「...」に省略する */
 }

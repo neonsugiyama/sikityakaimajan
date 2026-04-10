@@ -27,11 +27,30 @@
         <div id="mode-select-container">
             <div class="profile-panel">
                 <div id="prof-name" class="profile-name-large">あなた</div>
-                <div id="prof-rank" class="profile-rank-badge">【茶会見習い】 R:1500</div>
+                <div id="prof-rank" class="profile-rank-badge">【よわい】 R:1500</div>
 
                 <div style="color: #aaa; font-size: 14px; margin-bottom: 5px;">直近20戦の順位推移</div>
                 <div style="width: 100%; height: 180px; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 10px; box-sizing: border-box;">
                     <canvas id="prof-history-chart"></canvas>
+                </div>
+
+                <div style="margin: 30px 0; display: flex; flex-direction: column; gap: 15px;">
+
+                    <div style="background: rgba(0,0,0,0.4); border-left: 4px solid #f39c12; padding: 15px; border-radius: 4px;">
+                        <div style="font-size: 12px; color: #f39c12; letter-spacing: 1px; margin-bottom: 5px; font-weight: bold;">LIFETIME TOTAL SCORE</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #fff;" id="home-lifetime-score">0 <span style="font-size: 14px; color: #aaa;">点</span></div>
+                    </div>
+
+                    <div style="background: rgba(0,0,0,0.4); border-left: 4px solid #9b59b6; padding: 15px; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
+                            <div style="font-size: 12px; color: #9b59b6; letter-spacing: 1px; font-weight: bold;">役図鑑コンプリート</div>
+                            <div style="font-size: 14px; color: #fff; font-weight: bold;" id="home-yaku-progress-text">0 / 45 役 (0%)</div>
+                        </div>
+                        <div style="width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden;">
+                            <div id="home-yaku-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); transition: width 1s ease-in-out;"></div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div id="best-hand-area" class="best-hand-preview">
