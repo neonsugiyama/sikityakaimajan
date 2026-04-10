@@ -941,7 +941,7 @@ function getYakuTierClass(yakuName) {
 
         async function apiCall(endpoint, params = {}) {
             try {
-                let url = `http://127.0.0.1:8080${endpoint}`;
+                let url = `http://127.0.0.1:8000${endpoint}`;
 
                 // キャッシュ破壊用のパラメータを追加
                 params._t = new Date().getTime();
@@ -1041,7 +1041,7 @@ function getYakuTierClass(yakuName) {
 
             try {
                 // ここも 127.0.0.1 に変更し、キャッシュ破壊の記述を追加
-                const res = await fetch(`http://127.0.0.1:8080/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
+                const res = await fetch(`http://127.0.0.1:8000/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
                 const data = await res.json();
 
                 currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));

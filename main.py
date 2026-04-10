@@ -4,8 +4,31 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
+# 🌟 追加：HTMLファイルを返すためのモジュール
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# CSSやJSなどの静的ファイルを読み込めるようにする
+app.mount("/static", StaticFiles(directory="."), name="static")
+
+# トップページ（http://localhost:8000/）にアクセスした時に index2.html を返す
+@app.get("/")
+def read_root():
+    return FileResponse("index2.html")
+
+@app.get("/style.css")
+def read_css():
+    return FileResponse("style.css")
+
+@app.get("/game.js")
+def read_js():
+    return FileResponse("game.js")
+
+app.mount("/images", StaticFiles(directory="images"), name="images")
+app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 
 # ==========================================
 # 1. 辞書と定義
