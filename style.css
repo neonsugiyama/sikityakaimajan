@@ -2070,91 +2070,101 @@ body.lang-en .en {
         }
 
 /* ==========================================
-   📜 進化した「役コレクター図鑑（大型カード）」
+   📜 役図鑑：全体レイアウト
    ========================================== */
-.yaku-dex-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 15px;
-    padding: 10px;
+#yaku-dex-container {
+    display: flex;
+    flex-direction: column; /* Tierごとに縦に並べる */
+    gap: 30px; /* グループ間の隙間 */
 }
 
+/* Tierごとの見出し */
+.yaku-dex-tier-header {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f1c40f;
+    border-bottom: 2px solid #f1c40f;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+/* Tier内のカードを横並びにするエリア */
+.yaku-dex-card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: flex-start;
+}
+
+/* ==========================================
+   🃏 役カード（個別の枠）の基本設定
+   ========================================== */
 .yaku-dex-card {
+    width: 270px; /* 横幅 */
+    min-height: 40px; /* 最小の高さ */
+    padding: 15px;
     background: rgba(0, 0, 0, 0.6);
     border: 2px solid #555;
     border-radius: 10px;
-    padding: 15px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     transition: transform 0.2s, box-shadow 0.2s;
     position: relative;
     overflow: hidden;
 }
 
-    /* 未取得の役は暗くしてシルエット風に */
-    .yaku-dex-card.locked {
-        filter: grayscale(100%) brightness(0.4);
-        border-color: #333;
-    }
-
-    .yaku-dex-card.unlocked {
-        border-color: #f1c40f;
-        background: linear-gradient(135deg, rgba(44, 62, 80, 0.8), rgba(0, 0, 0, 0.8));
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }
-
-        .yaku-dex-card.unlocked:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 15px rgba(241, 196, 15, 0.3);
-        }
-
+/* 役名と回数を左右に分ける親の箱 */
 .dex-title-area {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* 左右に限界まで引き離す */
     align-items: center;
-    margin-bottom: 10px;
+    width: 100%;
 }
 
+/* 役の名前（「天和」など） */
 .dex-yaku-name {
-    font-size: 20px;
+    font-size: 20px !important;
     font-weight: bold;
     color: #fff;
     text-shadow: 1px 1px 2px #000;
 }
 
-.dex-count-badge {
-    background: #e74c3c;
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 3px 10px;
-    border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-}
-
+/* 和了回数（「和了: 5回」など） */
 .dex-points {
-    font-size: 14px;
+    font-size: 15px !important;
+    font-weight: bold;
     color: #bdc3c7;
-    margin-bottom: 5px;
+    text-shadow: 1px 1px 1px #000;
+    margin-left: auto;
 }
 
 /* ==========================================
-   🏅 役図鑑：熟練度ランク別デザイン
+   🏅 熟練度ランク別デザイン（色・輝き）
    ========================================== */
 
-/* 共通：ランクがついた時の基本（グレーアウト解除） */
+/* 未取得：グレーアウト */
+.yaku-dex-card.locked {
+    filter: grayscale(100%) brightness(0.4);
+    border-color: #333;
+}
+
+/* 取得済み共通：グレーアウト解除 */
 .yaku-dex-card.bronze, .yaku-dex-card.silver,
 .yaku-dex-card.gold, .yaku-dex-card.platinum {
     filter: none;
-    background: rgba(44, 62, 80, 0.9);
 }
 
-/* 🥉 銅ランク（1回〜） */
+/* 🥉 銅ランク (1回〜) */
 .yaku-dex-card.bronze {
     border-color: #cd7f32;
     box-shadow: 0 0 10px rgba(205, 127, 50, 0.4);
 }
+
+    .yaku-dex-card.bronze .dex-points {
+        color: #cd7f32 !important;
+    }
 
 /* 🥈 銀ランク */
 .yaku-dex-card.silver {
@@ -2163,6 +2173,10 @@ body.lang-en .en {
     background: linear-gradient(135deg, #2c3e50, #7f8c8d);
 }
 
+    .yaku-dex-card.silver .dex-points {
+        color: #bdc3c7 !important;
+    }
+
 /* 🥇 金ランク */
 .yaku-dex-card.gold {
     border-color: #f1c40f;
@@ -2170,7 +2184,11 @@ body.lang-en .en {
     background: linear-gradient(135deg, #2c3e50, #967e12);
 }
 
-/* 💎 プラチナランク（最強） */
+    .yaku-dex-card.gold .dex-points {
+        color: #f1c40f !important;
+    }
+
+/* 💎 プラチナランク */
 @keyframes platinum-glow {
     0% {
         box-shadow: 0 0 15px #fff, 0 0 30px #00d2d3;
@@ -2192,95 +2210,11 @@ body.lang-en .en {
     background: linear-gradient(135deg, #2c3e50, #00d2d3);
 }
 
-    /* ランクバッジのテキスト色 */
     .yaku-dex-card.platinum .dex-points {
         color: #fff !important;
-        text-shadow: 0 0 10px #00d2d3;
     }
 
-.yaku-dex-card.gold .dex-points {
-    color: #f1c40f !important;
-}
-
-.yaku-dex-card.silver .dex-points {
-    color: #bdc3c7 !important;
-}
-
-.yaku-dex-card.bronze .dex-points {
-    color: #cd7f32 !important;
-}
-
-/* ==========================================
-   🏆 役図鑑：Tier別グループ配置
-   ========================================== */
-/* 図鑑のカードサイズを少し小さくして、Tier見出しを入れるスペースを作る */
-.yaku-dex-card {
-    width: 270px; /* 240pxから縮小 */
-    min-height: 40px; /* 110pxから縮小 */
-    flex-direction: column; /* 縦並びを維持 */
-}
-
-/* 役図鑑全体のグリッド配置を調整 */
-#yaku-dex-container {
-    display: flex;
-    flex-direction: column; /* Tierごとに縦に並べる */
-    gap: 30px; /* Tierグループ間の隙間 */
-}
-
-/* Tierごとのグループの箱 */
-.yaku-dex-tier-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* 見出しとカード群の隙間 */
-}
-
-/* Tierごとの見出し */
-.yaku-dex-tier-header {
-    font-size: 20px;
-    font-weight: bold;
-    color: #f1c40f; /* 金色で見やすく */
-    border-bottom: 2px solid #f1c40f;
-    padding-bottom: 8px;
-    margin-bottom: 10px;
-    text-align: left; /* 左寄せ */
-}
-
-/* Tierごとのカード群のグリッド */
-.yaku-dex-card-grid {
-    display: flex;
-    flex-wrap: wrap; /* 横に並べて折り返す */
-    gap: 15px; /* カード同士の隙間 */
-    justify-content: flex-start; /* 左寄せ */
-}
-
-/* 役タイトルのサイズ調整 */
-.dex-yaku-name {
-    font-size: 16px !important; /* 18pxから縮小 */
-}
-
-/* 熟練度ランクバッジのテキスト色を調整 */
-.yaku-dex-card.platinum .dex-points {
-    color: #fff !important;
-    text-shadow: 0 0 10px #00d2d3;
-    font-size: 12px !important;
-}
-
-.yaku-dex-card.gold .dex-points {
-    color: #f1c40f !important;
-    font-size: 12px !important;
-}
-
-.yaku-dex-card.silver .dex-points {
-    color: #bdc3c7 !important;
-    font-size: 12px !important;
-}
-
-.yaku-dex-card.bronze .dex-points {
-    color: #cd7f32 !important;
-    font-size: 12px !important;
-}
-
-/* 🌟 コンプリート率の上の見切れ修正（！important を外して調整可能に） */
+/* 🌟 コンプリート率の上の見切れ修正 */
 #tab-yaku-dex > div:first-child {
     margin-top: 15px;
 }
