@@ -1,8 +1,8 @@
-﻿/* style.css の一番上に文字化け防止のおまじないを書いておくのがオススメです */
+﻿/* 🔤 文字化け防止のおまじない */
 @charset "UTF-8";
 
 /* =====================================================================
-        ★ 画面全体と雀卓のベース設定
+        📺 画面全体と雀卓のベース設定
         ===================================================================== */
 body {
     background-color: #0a0a0a;
@@ -28,7 +28,7 @@ body {
 }
 
 /* =====================================================================
-        ★ 牌のサイズ調整エリア
+        🀄 牌の基本サイズ設定
         ===================================================================== */
 .tile {
     background-color: #ecf0f1;
@@ -62,7 +62,7 @@ body {
 }
 
 /* =====================================================================
-        ★ 捨て牌（河）の配置エリア
+        🗑️ 捨て牌（河）の配置エリア
         ===================================================================== */
 .river {
     position: absolute;
@@ -99,7 +99,7 @@ body {
 }
 
 /* =====================================================================
-        ★ 手牌の配置エリア
+        🖐️ 手牌の配置エリア
         ===================================================================== */
 .hand {
     position: absolute;
@@ -155,7 +155,7 @@ body {
     }
 
 /* =====================================================================
-        ★ 副露（鳴き牌）エリア
+        📢 副露（鳴き牌）エリア
         ==================================================================== */
 .meld {
     position: absolute;
@@ -222,7 +222,7 @@ body {
 }
 
 /* =====================================================================
-        ★ アガリ牌（Win Zone）エリア
+        🏆 アガリ牌（Win Zone）エリア
         ===================================================================== */
 .win-zone {
     position: absolute;
@@ -241,71 +241,70 @@ body {
         height: 34px;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
     }
-/* 縦の影を強調 */
 
-/* ★ 最後の行のはみ出しを防ぐため、下部の余白(padding-bottom)を広めに確保 */
+/* ⬇️ あなた（下側）の全体枠 */
 .win-zone-0 {
     bottom: 10px;
     right: 10px;
     max-width: 275px;
     flex-direction: row-reverse;
     flex-wrap: wrap-reverse;
-    padding-bottom: 23px;
+    padding-bottom: 23px; /* はみ出し防止のクッション */
 }
 
+/* ⬇️ CPU 2（上側）の全体枠 */
 .win-zone-2 {
     top: 10px;
     left: calc(50% - 630px);
     max-width: 275px;
-    padding-bottom: 23px;
+    padding-bottom: 23px; /* はみ出し防止のクッション */
 }
 
 /* ⬇️ CPU 1（右側）の全体枠 */
 .win-zone-1 {
     right: 10px;
     top: 10px;
-    max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
+    max-height: 150px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
     flex-direction: column;
     flex-wrap: wrap-reverse;
     padding-right: 15px;
-    padding-top: 20px; /* 🌟追加：上の牌が枠外に突き抜けないためのクッション */
+    padding-top: 20px; /* 🛡️ 上の牌が枠外に突き抜けないためのクッション */
 }
 
 /* ⬇️ CPU 3（左側）の全体枠 */
 .win-zone-3 {
     left: 10px;
     bottom: 10px;
-    max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
+    max-height: 150px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
     flex-direction: column-reverse;
     flex-wrap: wrap;
     padding-left: 15px;
-    padding-bottom: 20px; /* 🌟追加：下の牌が枠外に突き抜けないためのクッション */
+    padding-bottom: 20px; /* 🛡️ 下の牌が枠外に突き抜けないためのクッション */
 }
 
-/* ★ アガリ牌の重なり調整 */
+/* 📐 アガリ牌の重なり調整（上下） */
 .win-zone-0 .tile, .win-zone-2 .tile {
     margin-bottom: -12px;
     margin-left: 0;
 }
 
-/* ⬇️ CPU 1（右側）の牌１つ１つの重なり具合 */
+/* 📐 CPU 1（右側）の牌１つ１つの重なり具合 */
 .win-zone-1 .tile {
     transform: rotate(-90deg);
-    margin-top: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。(-18pxなどにするとさらに密着) */
-    margin-left: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
+    margin-top: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
+    margin-left: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
 }
-/* ※ズレの原因だった「:first-child」の特別扱いは削除しました！ */
 
-/* ⬇️ CPU 3（左側）の牌１つ１つの重なり具合 */
+/* 📐 CPU 3（左側）の牌１つ１つの重なり具合 */
 .win-zone-3 .tile {
     transform: rotate(90deg);
-    margin-bottom: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。 */
-    margin-right: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
+    margin-bottom: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
+    margin-right: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
     margin-top: 0;
 }
 
 /* =====================================================================
-        ★ 中央情報パネル
+        ℹ️ 中央情報パネル・メッセージ関連
         ===================================================================== */
 .center-info {
     position: absolute;
@@ -341,11 +340,11 @@ body {
     font-size: 18px;
 }
 
-/* ★ タイマー表示エリア */
+/* ⏳ タイマー表示エリア */
 #timer-display {
     position: absolute;
     bottom: 200px;
-    left: calc(50% + 160px); /* オートプレイボタンの右横 */
+    left: calc(50% + 160px);
     font-size: 32px;
     font-weight: 900;
     color: #2ecc71;
@@ -360,7 +359,7 @@ body {
     transition: color 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
-/* ★ 中央ポップアップメッセージ用 */
+/* 💬 中央ポップアップメッセージ用 */
 #center-message {
     position: absolute;
     top: 45%;
@@ -380,7 +379,7 @@ body {
     white-space: nowrap;
 }
 
-/* ★ サイコロ＆交換メッセージ演出用 */
+/* 🎲 サイコロ＆交換メッセージ演出用 */
 #dice-overlay {
     position: absolute;
     top: 50%;
@@ -400,7 +399,7 @@ body {
     line-height: 1.2;
 }
 
-/* ★ 空を飛ぶ牌のアニメーション設定 */
+/* 💨 空を飛ぶ牌（チャールストン時）のアニメーション設定 */
 .flying-pack {
     position: absolute;
     display: flex;
@@ -416,7 +415,7 @@ body {
         border-radius: 3px;
     }
 
-/* ★ チャールストン時の各プレイヤーの意思表示（過 / 3枚差し出し） */
+/* 🔄 チャールストン時の各プレイヤーの意思表示（過 / 3枚差し出し） */
 .charleston-status {
     position: absolute;
     z-index: 60;
@@ -482,7 +481,7 @@ body {
 }
 
 /* =====================================================================
-        ★ プレイヤー情報（名前・点数）のデザイン設定と独立配置
+        👤 プレイヤー情報（名前・点数）のデザイン設定と独立配置
         ===================================================================== */
 .player-name {
     background: rgba(0,0,0,0.8);
@@ -581,7 +580,7 @@ body {
 }
 
 /* =====================================================================
-        ★ スコア精算アニメーションのリッチなデザイン定義
+        💰 スコア精算アニメーションのリッチなデザイン定義
         ===================================================================== */
 .pos-round-score-0 {
     position: absolute;
@@ -672,7 +671,7 @@ body {
 }
 
 /* =====================================================================
-        ★ 待ち牌確認・オートプレイUIパネル ＆ ボタン
+        👁️ 待ち牌確認・オートプレイUIパネル ＆ ボタン
         ===================================================================== */
 .pos-waits-btn {
     position: absolute;
@@ -784,9 +783,9 @@ body {
     }
 
 /* =====================================================================
-        ★ その他のアクションUI
+        🕹️ その他のアクションUI（ポン・カンなどのボタン）
         ===================================================================== */
-/* 🌟 新設：2つの箱をまとめて横に並べるための親枠 */
+/* 📦 複数ボタンのグループを横に並べる親枠 */
 .action-wrapper {
     position: absolute;
     bottom: 80px;
@@ -797,10 +796,10 @@ body {
     gap: 10px;
     z-index: 200;
     pointer-events: none;
-    width: 1000px; /* 横幅を広めにとる */
+    width: 1000px;
 }
 
-/* 🌟 修正：絶対配置(position: absolute)を解除して単なる横並びの箱にする */
+/* 🍱 アクションボタンを横並びに配置するコンテナ */
 .action-layer {
     display: flex;
     flex-wrap: wrap;
@@ -873,17 +872,17 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.95); /* 少し濃くしました */
+    background: rgba(0,0,0,0.95);
     display: none;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start; /* ★ centerからflex-startに変更し、上から順に配置 */
-    padding: 80px 0; /* ★ 上下の余白を追加 */
+    justify-content: flex-start;
+    padding: 80px 0;
     z-index: 1000;
-    overflow-y: auto; /* ★ 縦方向のスクロールを有効にする */
+    overflow-y: auto;
 }
 
-    /* スクロールバーのデザインを少しオシャレに */
+    /* 📜 スクロールバーのデザイン */
     #overlay::-webkit-scrollbar {
         width: 10px;
     }
@@ -898,7 +897,7 @@ body {
         border-radius: 5px;
     }
 
-/* ★ 役タグの共通ベース設定 */
+/* 🏷️ 役タグの共通ベース設定 */
 .yaku-tag {
     display: inline-block;
     padding: 4px 10px;
@@ -911,7 +910,7 @@ body {
     box-sizing: border-box;
 }
 
-/* 🌟 点数別タグカラー（完全版） */
+/* 🎨 点数別タグカラー（完全版） */
 .yaku-tier-1, .yaku-tier-2, .yaku-tier-4 { /* 1, 2, 4点：標準的な緑 */
     background: #27ae60;
     box-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -965,14 +964,15 @@ body {
     background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
     background-size: 300% 300%;
     animation: shine-gold 2.5s infinite ease-in-out;
-    color: #fff !important; /* 🌟 強制的に白文字！ */
+    color: #fff !important; /* 🤍 文字色を白に強制 */
     border: 1px solid #ffeaa7;
     text-shadow: 1px 1px 0 #5c2c06, -1px -1px 0 #5c2c06, 1px -1px 0 #5c2c06, -1px 1px 0 #5c2c06, 2px 2px 4px #000;
     font-weight: 900;
     padding: 5px 14px;
     font-size: 15px;
 }
-/* 🌟 言語切替（3か国語対応） */
+
+/* 🌐 言語切替（3か国語対応） */
 .yaku-tag .ja, .yaku-tag .en {
     display: none;
 }
@@ -1036,9 +1036,8 @@ body.lang-en .yaku-tag .en {
     line-height: 1.4;
 }
 
-
 /* =====================================================================
-        ★ 鳴き・アガリのエフェクト
+        ✨ 鳴き・アガリ等の特殊エフェクト
         ===================================================================== */
 .call-wrap-0 {
     position: absolute;
@@ -1138,7 +1137,7 @@ body.lang-en .yaku-tag .en {
     color: #ff9ff3 !important;
 }
 
-/* ★ デバッグパネルのスタイル */
+/* 🛠️ デバッグパネルのスタイル */
 .debug-panel {
     position: absolute;
     top: 10px;
@@ -1167,7 +1166,7 @@ body.lang-en .yaku-tag .en {
         background: #e74c3c;
     }
 
-/* 🌟 手出し用のエフェクト（黄色く光る） */
+/* 💫 手出し用のエフェクト（黄色く光る） */
 @keyframes flash-tedashi {
     0% {
         box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.9);
@@ -1180,7 +1179,7 @@ body.lang-en .yaku-tag .en {
     }
 }
 
-/* 🌟 ツモ切り用のエフェクト（青白く光る） */
+/* 💫 ツモ切り用のエフェクト（青白く光る） */
 @keyframes flash-tsumogiri {
     0% {
         box-shadow: 0 0 20px 8px rgba(100, 200, 255, 0.9);
@@ -1201,11 +1200,7 @@ body.lang-en .yaku-tag .en {
     animation: flash-tsumogiri 1.5s ease-out forwards;
 }
 
-/* 🌟 2. 天胡・地胡の閃光エフェクト */
-#flash-overlay {
-    /* (中略：さっき直したフラッシュの設定) */
-}
-
+/* ⚡ 天胡・地胡の閃光エフェクト */
 .flash-animate {
     animation: flash-animation 1.5s ease-out;
 }
@@ -1234,7 +1229,7 @@ body.lang-en .yaku-tag .en {
     animation: popupSpecial 1.5s forwards;
 }
 
-/* 🌟 JokerSwap専用の色 */
+/* 🃏 JokerSwap専用の色 */
 .call-text.joker-swap-style {
     color: #00d2d3 !important;
     text-shadow: 0 0 15px #0abde3, 0 0 30px #0abde3, 3px 3px 3px #000 !important;
@@ -1267,17 +1262,17 @@ body.lang-en .yaku-tag .en {
     }
 }
 
-/* 🌟 ここから下を追加！！：天胡・地胡の巨大文字表示スタイル */
+/* 🎆 天胡・地胡の巨大文字表示スタイル */
 #big-yaku-text {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.5);
-    font-size: 220px; /* 🌟 140pxから220pxへ超巨大化！ */
+    font-size: 220px;
     font-weight: 900;
     color: #fff;
-    -webkit-text-stroke: 4px #f1c40f; /* 🌟 追加：文字の周りに黄金の極太フチ取りをつける */
-    text-shadow: 0 15px 0px #8e44ad, 0 0 60px #e67e22, 0 0 90px #e74c3c, 0 0 150px #c0392b; /* 燃えるオーラも限界突破 */
+    -webkit-text-stroke: 4px #f1c40f;
+    text-shadow: 0 15px 0px #8e44ad, 0 0 60px #e67e22, 0 0 90px #e74c3c, 0 0 150px #c0392b;
     opacity: 0;
     z-index: 10000;
     pointer-events: none;
@@ -1298,11 +1293,11 @@ body.lang-en .yaku-tag .en {
 
     10% {
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1.6); /* 🌟 ドカン！と1.6倍サイズで画面に飛び出す */
+        transform: translate(-50%, -50%) scale(1.6);
     }
 
     15% {
-        transform: translate(-50%, -50%) scale(1.1); /* 🌟 少し引いてドッシリ構える */
+        transform: translate(-50%, -50%) scale(1.1);
     }
 
     85% {
@@ -1312,17 +1307,17 @@ body.lang-en .yaku-tag .en {
 
     100% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(2.0); /* 🌟 消える時はさらに手前に迫りながら消える */
+        transform: translate(-50%, -50%) scale(2.0);
     }
 }
 
-/* 🌟 手番プレイヤーの強調表示（文字が見やすいように背景を暗く固定） */
+/* 🎯 手番プレイヤーの強調表示 */
 .active-turn {
-    color: #f1c40f !important; /* 文字は目立つ黄金色 */
-    background: rgba(0, 0, 0, 0.75) !important; /* 背景をしっかり黒くして透過を防ぐ */
-    border: 2px solid #f1c40f !important; /* 枠線も黄金色 */
-    box-shadow: 0 0 15px rgba(241, 196, 15, 0.8) !important; /* 外側に光を放つ */
-    transform: scale(1.1); /* 少し大きくする */
+    color: #f1c40f !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    border: 2px solid #f1c40f !important;
+    box-shadow: 0 0 15px rgba(241, 196, 15, 0.8) !important;
+    transform: scale(1.1);
     transition: all 0.3s ease;
     z-index: 100;
 }
@@ -1338,27 +1333,35 @@ body.lang-en .yaku-tag .en {
 }
 
 /* =====================================================================
-★ タイトル画面
-===================================================================== */
+        👑 タイトル画面
+        ===================================================================== */
 #title-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    /* 深い夜のようなグラデーション背景 */
     background: radial-gradient(circle at center, #2c3e50 0%, #112240 60%, #0a0a0a 100%);
-    z-index: 30000; /* 設定画面よりさらに手前に出す */
+    z-index: 30000;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    transition: opacity 1s ease-out; /* ふわっと消えるエフェクト用 */
+    transition: opacity 1s ease-out;
 }
 
-/* 全体をゆっくり上下にフワフワさせる */
 .title-content {
-    animation: float-title 4s ease-in-out infinite;
+    /* 🛑 クリックしやすくするためフワフワ移動を停止 */
+    animation: none !important;
+    width: 1280px;
+    height: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%; /* 🎯 画面のど真ん中に配置 */
 }
 
 .game-title {
@@ -1442,12 +1445,12 @@ body.lang-en .yaku-tag .en {
     .btn-sub:hover {
         background: #f1c40f;
         color: black;
-        box-shadow: 0 0 15px #f1c40f; /* 光るエフェクトもついでに足しておきます！ */
+        box-shadow: 0 0 15px #f1c40f;
     }
 
 /* =====================================================================
-★ モーダル画面共通（遊び方・役一覧など）
-===================================================================== */
+        📚 モーダル画面共通（遊び方・役一覧など）
+        ===================================================================== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1492,7 +1495,7 @@ body.lang-en .yaku-tag .en {
     flex-grow: 1;
 }
 
-    /* スクロールバーの装飾 */
+    /* 📜 スクロールバーの装飾 */
     .modal-scroll-area::-webkit-scrollbar {
         width: 8px;
     }
@@ -1507,7 +1510,7 @@ body.lang-en .yaku-tag .en {
         border-radius: 4px;
     }
 
-    /* 遊び方画面の見出し・テキスト */
+    /* 📖 遊び方画面の見出し・テキスト */
     .modal-scroll-area h3 {
         color: #3498db;
         border-bottom: 2px solid #3498db;
@@ -1521,7 +1524,7 @@ body.lang-en .yaku-tag .en {
         color: #ecf0f1;
     }
 
-/* 🌟 言語切替ボタンと表示制御 */
+/* 🌐 言語切替ボタンと表示制御 */
 .btn-toggle-lang {
     background: #34495e;
     color: #ecf0f1;
@@ -1540,7 +1543,7 @@ body.lang-en .yaku-tag .en {
         color: #f1c40f;
     }
 
-/* 🌟 言語切替のグローバル対応（リザルト画面など全体で連動させる） */
+/* 🌐 言語切替のグローバル対応（リザルト画面など全体で連動） */
 body .ja {
     display: none;
 }
@@ -1557,8 +1560,7 @@ body.lang-ja .zh {
     display: none;
 }
 
-
-/* 🌟 新しい点数別タグカラー（PDF準拠） */
+/* 🎨 新しい点数別タグカラー（PDF準拠） */
 .yaku-tier-64 { /* 64点：黄金の明滅 */
     background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
     background-size: 300% 300%;
@@ -1602,7 +1604,7 @@ body.lang-ja .zh {
     font-weight: bold;
 }
 
-/* 役一覧のグリッドデザイン */
+/* 📜 役一覧のグリッドデザイン */
 .yaku-category {
     margin-bottom: 25px;
 }
@@ -1610,6 +1612,9 @@ body.lang-ja .zh {
     .yaku-category h3 {
         color: #e67e22;
         border-bottom: 2px solid #e67e22;
+        /* 詰 余白を極限まで削る */
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
     }
 
 .yaku-grid {
@@ -1637,28 +1642,28 @@ body.lang-ja .zh {
     line-height: 1.4;
 }
 
-/* 🌟 役一覧の手牌例（牌姿）用のスタイル（スマート修正版） */
+/* 🀄 役一覧の手牌例（牌姿） */
 .yaku-example {
     display: flex;
     flex-wrap: wrap;
-    gap: 1px; /* 牌と牌の隙間を極限まで詰める */
+    gap: 1px;
     margin-top: 6px;
-    background: rgba(0,0,0,0.3); /* 背景の主張も少し抑えめに */
+    background: rgba(0,0,0,0.3);
     padding: 3px;
     border-radius: 4px;
     align-items: center;
     border-left: 3px solid #3498db;
 }
 
-    /* 🌟 !important をつけて、他のサイズ設定に絶対に負けないように強制する */
+    /* 📏 他のサイズ設定を上書きして強制的に小さくする */
     .yaku-example img {
-        width: 24px !important; /* 🌟 思い切って小さく！ */
+        width: 24px !important;
         height: 34px !important;
         border-radius: 2px;
         box-shadow: 1px 1px 1px rgba(0,0,0,0.8);
     }
 
-/* 🌟 役一覧のタブナビゲーション用スタイル */
+/* 📑 役一覧のタブナビゲーション */
 .yaku-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -1685,7 +1690,7 @@ body.lang-ja .zh {
         background: #34495e;
         color: #fff;
     }
-    /* 選ばれているタブの強調デザイン */
+
     .yaku-tab-btn.active {
         background: #e67e22;
         color: #fff;
@@ -1694,18 +1699,8 @@ body.lang-ja .zh {
         transform: scale(1.05);
     }
 
-/* 🌟 役カテゴリーの見出しの余白を極限まで削る */
-.yaku-category h3 {
-    margin-top: 0 !important; /* 上の余白を完全にゼロにする */
-    margin-bottom: 8px !important; /* 下の余白も少し詰める */
-}
-/* 🌟 タイトル画面の上下フワフワ移動を止める（エイムブレ防止） */
-.title-content {
-    animation: none !important;
-}
-
 /* ==========================================
-   ★ モード選択画面
+   🎮 モード選択画面
    ========================================== */
 #mode-select-screen {
     position: absolute;
@@ -1716,35 +1711,45 @@ body.lang-ja .zh {
     background: #0a0a0a;
     z-index: 250;
     display: none;
-    flex-direction: row; /* 🌟 横並びに変更 */
+    flex-direction: row;
     align-items: stretch;
     justify-content: center;
 }
 
-/* 左半分：プロフィールエリア */
+#mode-select-container {
+    width: 1280px;
+    height: 800px;
+    display: flex;
+    flex-direction: row;
+    position: absolute;
+    top: 50%;
+    left: 50%; /* 🎯 画面のど真ん中に配置 */
+}
+
+/* 👤 左半分：プロフィールエリア */
 .profile-panel {
     flex: 1;
     background: rgba(0, 0, 0, 0.3);
     border-right: 2px solid rgba(255, 255, 255, 0.05);
-    padding: 40px 60px; /* 🌟 上下の余白を少し詰める */
+    padding: 40px 60px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 20px; /* 🌟 要素間の隙間を詰める（40px -> 20px） */
+    gap: 20px;
 }
 
-/* 右半分：メニューエリア */
+/* 📋 右半分：メニューエリア */
 .menu-panel {
     flex: 1;
-    padding: 40px 60px; /* 🌟 こちらも上下の余白を詰める */
+    padding: 40px 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 }
 
-/* 名前とレートの表示 */
+/* 🏷️ 名前とレートの表示 */
 .profile-name-large {
     font-size: 48px;
     font-weight: bold;
@@ -1758,7 +1763,7 @@ body.lang-ja .zh {
     margin-bottom: 20px;
 }
 
-/* 直近の戦績（小さい丸や四角で並べる） */
+/* 📊 直近の戦績 */
 .history-container {
     display: flex;
     gap: 8px;
@@ -1796,7 +1801,7 @@ body.lang-ja .zh {
     color: white;
 }
 
-/* 最高打点の牌姿表示 */
+/* 🀄 最高打点の牌姿表示 */
 .best-hand-preview {
     background: rgba(0,0,0,0.4);
     padding: 15px;
@@ -1806,7 +1811,7 @@ body.lang-ja .zh {
     border-left: 4px solid #f1c40f;
 }
 
-/* マイページモーダル内の戦績リスト用 */
+/* 📈 マイページモーダル内の戦績リスト用 */
 .stats-list {
     width: 100%;
     display: grid;
@@ -1822,10 +1827,12 @@ body.lang-ja .zh {
     text-align: center;
 }
 
+/* 🖱️ モード選択ボタン群 */
 .mode-btn {
-    width: 420px; /* 🌟 幅を少しだけスマートに */
-    padding: 16px; /* 🌟 高さを抑えるために22pxから16pxに変更 */
-    margin: 8px 12px; /* 🌟 上下マージンを減らす */
+    /* 📏 幅調整 */
+    width: 420px;
+    padding: 16px;
+    margin: 8px 12px;
     font-size: 22px;
     font-weight: bold;
     color: white;
@@ -1878,7 +1885,7 @@ body.lang-ja .zh {
     }
 
 /* ==========================================
-   ★ 実績（アチーブメント）画面
+   🏅 実績（アチーブメント）画面
    ========================================== */
 .achieve-grid {
     display: grid;
@@ -1940,7 +1947,7 @@ body.lang-ja .zh {
     font-weight: bold;
 }
 
-/* 🌟 メダルの色 */
+/* 🏅 メダルの色定義 */
 .medal-none {
     filter: grayscale(100%) opacity(0.3);
 }
@@ -1964,7 +1971,7 @@ body.lang-ja .zh {
     background: rgba(241,196,15,0.1);
 }
 
-/* 役コレクター図鑑用 */
+/* 📜 役コレクター図鑑用 */
 .yaku-collection-grid {
     display: flex;
     flex-wrap: wrap;
@@ -1988,28 +1995,3 @@ body.lang-ja .zh {
         border-color: #9b59b6;
         font-weight: bold;
     }
-
-/* ==========================================
-   ★ 自動スケール用のコンテナ設定 (完全中央固定)
-   ========================================== */
-.title-content {
-    width: 1280px;
-    height: 800px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 50%;
-    left: 50%; /* 🌟 画面のど真ん中に配置 */
-}
-
-#mode-select-container {
-    width: 1280px;
-    height: 800px;
-    display: flex;
-    flex-direction: row;
-    position: absolute;
-    top: 50%;
-    left: 50%; /* 🌟 画面のど真ん中に配置 */
-}

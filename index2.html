@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>四季茶会麻雀</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <div id="title-screen">
         <div class="title-content">
             <h1 class="game-title">四季茶会麻雀</h1>
@@ -23,22 +23,18 @@
     </div>
 
     <div id="mode-select-screen">
-
         <div id="mode-select-container">
-
             <div class="profile-panel">
                 <div id="prof-name" class="profile-name-large">あなた</div>
-                <div id="prof-rank" class="profile-rank-badge">【茶会見習い】 R:1500</div>
+                <div id="prof-rank" class="profile-rank-badge">【よわい】 R:1500</div>
 
                 <div style="color: #aaa; font-size: 14px;">直近の戦績</div>
-                <div id="prof-history" class="history-container">
-                </div>
+                <div id="prof-history" class="history-container"></div>
 
                 <div id="best-hand-area" class="best-hand-preview">
                     <div style="font-size: 12px; color: #f1c40f; margin-bottom: 8px;">PERSONAL BEST SCORE</div>
                     <div id="best-score-val" style="font-size: 24px; font-weight: bold; color: #fff;">0 点</div>
-                    <div id="best-hand-tiles" style="display: flex; gap: 2px; margin-top: 5px;">
-                    </div>
+                    <div id="best-hand-tiles" style="display: flex; gap: 2px; margin-top: 5px;"></div>
                 </div>
             </div>
 
@@ -56,23 +52,18 @@
 
                 <button onclick="backToTitle()" style="margin-top: 20px; color: #666; background: none; border: none; cursor: pointer;">◀ タイトルへ戻る</button>
             </div>
-
         </div>
     </div>
 
     <div id="mypage-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 600px;">
             <h2 style="color: #3498db; border-bottom: 2px solid #3498db; padding-bottom: 10px;">👤 マイページ</h2>
-
             <div style="margin: 20px 0; text-align: center;">
                 <div style="font-size: 14px; color: #aaa;">プレイヤー名</div>
                 <input type="text" id="input-player-name" maxlength="10" style="font-size: 24px; padding: 8px; background: #222; color: #fff; border: 1px solid #444; text-align: center; border-radius: 5px; width: 80%;">
                 <button class="btn-blue" onclick="saveNewName()" style="margin-top: 10px; padding: 5px 20px;">名前を変更</button>
             </div>
-
-            <div class="stats-list" id="detailed-stats">
-            </div>
-
+            <div class="stats-list" id="detailed-stats"></div>
             <button onclick="closeMyPage()" class="btn-red" style="width: 100%; margin-top: 20px;">戻る</button>
         </div>
     </div>
@@ -80,18 +71,15 @@
     <div id="achievement-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="width: 95%; max-width: 900px; height: 85vh;">
             <h2 style="color: #f1c40f; border-bottom: 2px solid #f1c40f; padding-bottom: 10px; margin-bottom: 20px;">🏆 プレイヤー実績</h2>
-
-            <div class="modal-scroll-area" id="achieve-container">
-            </div>
-
+            <div class="modal-scroll-area" id="achieve-container"></div>
             <div style="text-align: center; margin-top: 20px;">
                 <button onclick="closeAchievements()" style="padding: 12px 30px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #c0392b;">閉じる</button>
             </div>
         </div>
     </div>
+
     <div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 20000; justify-content: center; align-items: center;">
         <div style="background: #2c3e50; border: 3px solid #34495e; border-radius: 15px; padding: 20px 40px; width: 400px; color: white; box-shadow: 0 0 30px rgba(0,0,0,0.9);">
-
             <h2 onclick="secretClick()" style="text-align: center; color: #f1c40f; margin-top: 0; border-bottom: 2px solid #555; padding-bottom: 10px; cursor: pointer; user-select: none;">⚙️ 設定 (Settings)</h2>
 
             <div style="margin-bottom: 20px;">
@@ -149,6 +137,7 @@
             </div>
         </div>
     </div>
+
     <div id="howto-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 700px;">
             <h2 class="modal-title">📖 遊び方 (How to Play)</h2>
@@ -220,7 +209,6 @@
             </div>
 
             <div class="modal-scroll-area" id="yaku-list-container">
-
                 <div id="tab-64" class="yaku-tab-content" style="display: block;">
                     <div class="yaku-category">
                         <h3 style="color: #f1c40f;">👑 64点役</h3>
@@ -499,7 +487,6 @@
                     </div>
                 </div>
 
-
                 <div id="tab-4" class="yaku-tab-content" style="display: none;">
                     <div class="yaku-category">
                         <h3 style="color: #2ecc71;">🛡️ 4点役</h3>
@@ -666,6 +653,7 @@
     <div class="table">
         <div id="center-message"></div>
         <div id="dice-overlay"></div>
+
         <div class="center-info">
             <div id="round-info-center">第 -- 局</div>
             <div id="wall-count">山: --</div>
@@ -751,8 +739,10 @@
 
         <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
         <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
+
         <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
         <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
+
         <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
         <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
 
