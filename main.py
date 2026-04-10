@@ -4,25 +4,25 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
-# 🌟 追加：HTMLファイルを返すためのモジュール
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# CSSやJSなどの静的ファイルを読み込めるようにする
 app.mount("/static", StaticFiles(directory="."), name="static")
 
-# トップページ（http://localhost:8000/）にアクセスした時に index2.html を返す
+# 🌐 トップページ（HTML）をブラウザに返すAPI
 @app.get("/")
 def read_root():
     return FileResponse("index2.html")
 
+# 🎨 デザイン（CSS）をブラウザに返すAPI
 @app.get("/style.css")
 def read_css():
     return FileResponse("style.css")
 
+# 🧠 フロントエンドの動き（JS）をブラウザに返すAPI
 @app.get("/game.js")
 def read_js():
     return FileResponse("game.js")
@@ -76,6 +76,8 @@ OVERRIDE_RULES = {
 # ==========================================
 # 2. AIロジック
 # ==========================================
+
+# 🔍 指定した牌が、場（捨て牌や他家の副露）に何枚見えているかを数える関数
 def get_visible_count(t, game_state):
     count = 0
     for i in range(4):
@@ -84,10 +86,12 @@ def get_visible_count(t, game_state):
             count += m["tiles"].count(t)
     return count
 
+# 🔢 牌の文字列（"3p"など）から数字だけを抽出する（字牌・四季牌は -1）
 def get_tile_num(t):
     if "p" in t or "s" in t or "m" in t: return int(t[0])
     return -1
 
+# 🎯 CPUの性格と現在の手牌から、狙うべき役（目標）を決定する関数
 def determine_target(cpu_idx, hand_list, game_state):
     personality = game_state.cpu_personalities[cpu_idx]
     jokers = sum(1 for t in hand_list if t in SEASON_TILES)
@@ -147,6 +151,7 @@ def determine_target(cpu_idx, hand_list, game_state):
         
     return "混一色/清一色"
 
+# ⚖️ 目標（Target）と盤面状況から、特定の牌の「重要度（残す価値）」を点数化する関数
 def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     target = determine_target(cpu_idx, hand_list, game_state)
     
@@ -175,9 +180,9 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     if count >= 3: score += 120
 
     # 🌟 フェーズ2：性格による価値観の違い（大物手 vs スピード）
-    # personality => 1:大物手, 2:大物手, 3:速攻, 4:速攻
+    # personality => 1:打点, 2:打点, 3:速攻, 4:速攻
     if personality in [1, 2]: 
-        # スナイパー・ギャンブラー（大物手派）
+        # スナイパー・ギャンブラー（打点派）
         if idx in HONORS: score += 40 # 字牌を大事にする（役牌、字一色、混一色狙い）
         if t_num in [1, 9]: score += 30 # 端牌を大事にする（清幺九、チャンタ狙い）
     else: 
@@ -190,7 +195,6 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     if t == "發": score += 15
 
     target = determine_target(cpu_idx, hand_list, game_state)
-    # （これ以降の `if target in ["七星不靠", "十三幺九"]:` などの処理はそのまま）
 
     # 🌟 修正：七星不靠と十三幺九の評価を完全に分離する！
     if target == "七星不靠":
@@ -273,6 +277,7 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     score += random.randint(0, 5) 
     return score
 
+# 🧩 手牌の構成（面子と雀頭の組み合わせパターン）を再帰的にすべて洗い出す関数
 def parse_hand(tiles, jokers):
     valid_parses = []
     def find_melds(t, j, pongs, chows, pair_idx, start_idx=0):
@@ -308,6 +313,7 @@ def parse_hand(tiles, jokers):
             tiles[i] += actual_pair
     return valid_parses
 
+# 🃏 オールマイティ（Joker）として使われた鳴きパターンを、すべての可能な牌の組み合わせに展開する関数
 def expand_wild_melds(parses):
     expanded = []
     for p in parses:
@@ -320,6 +326,7 @@ def expand_wild_melds(parses):
             expanded.append(p)
     return expanded
 
+# 🧮 成立した役のリストから、重複ルールの除外処理を行って最終的な点数を計算する関数
 def calc_yaku_score(yaku_list):
     filtered = list(dict.fromkeys(yaku_list))
     if "七星攬月" in filtered: filtered = [y for y in filtered if y in ["七星攬月", "無花果"]]
@@ -342,6 +349,7 @@ def calc_yaku_score(yaku_list):
         
     return b_score * mult, b_score, mult, filtered
 
+# 💰 【超重要コア】手牌と状況（ツモ/ロン等）を受け取り、アガリ判定・役・点数計算をすべて行う関数
 def evaluate_hand(data):
     closed_str = data.get("closed_tiles", "")
     melds = data.get("melds", [])
@@ -393,7 +401,6 @@ def evaluate_hand(data):
     has_season_in_hand = any(t in SEASON_TILES for t in closed_list)
     if not has_season_in_hand: base_attr.append("無花果")
 
-    # 🌟 修正2：スナップショットと捨て牌数を使った「絶対に狂わない」判定
     is_tsumo = ctx.get("is_tsumo", False)
     is_first = ctx.get("is_first_turn", False)
     any_meld = ctx.get("any_meld_occurred", False)
@@ -572,6 +579,7 @@ def evaluate_hand(data):
     final_score, base_score, multiplier, display_names = best_result
     return {"score": final_score, "base_score": base_score, "multiplier": multiplier, "yaku": display_names}
 
+# 🔎 現在の手牌から「アガリ牌（テンパイ待ち牌）」のリストをすべて取得する関数
 def get_waits_for_hand(hand_list, melds):
     waits = []
     closed_str = " ".join(hand_list)
@@ -582,6 +590,7 @@ def get_waits_for_hand(hand_list, melds):
         if "error" not in res: waits.append(t)
     return waits
 
+# 🚫 アガリ放棄防止用：カンをしても既存のアガリ待ち牌が崩れないかを判定する関数
 def is_kan_valid_for_player(player_idx, kan_type, tile):
     win_tiles = game.win_tiles[player_idx]
     if not win_tiles: return True 
@@ -618,8 +627,7 @@ def is_kan_valid_for_player(player_idx, kan_type, tile):
     if last_drawn in temp_hand_new:
         temp_hand_new.remove(last_drawn)
     new_waits = get_waits_for_hand(temp_hand_new, melds)
-    
-    # 🌟 修正箇所：旧来の「完全に一致しなければダメ」という縛りを削除し、
+
     # 「過去のアガリ牌(win_tiles)が、新しい待ち(new_waits)に全て含まれているか」で判定する
     if not set(win_tiles).issubset(set(new_waits)):
         return False 
@@ -629,6 +637,8 @@ def is_kan_valid_for_player(player_idx, kan_type, tile):
 # ==========================================
 # 3. 四人対局用 ゲームエンジン
 # ==========================================
+
+# 🎲 4人対局のゲーム進行状況（手牌、捨て牌、点数、ターン等）を管理するクラス
 class GameState:
     def __init__(self):
         self.current_round = 1
@@ -668,6 +678,7 @@ class GameState:
 
 game = GameState()
 
+# 📦 フロントエンド（JS）に送付するための、安全な盤面データをまとめる関数
 def get_safe_state(player_idx=0, extra_data=None):
     res = {
         "status": "success",
@@ -689,11 +700,13 @@ def get_safe_state(player_idx=0, extra_data=None):
     if extra_data: res.update(extra_data)
     return res
 
+# 🚀 新しいゲームを初期化してスタートするAPI
 @app.get("/start")
 def start_game():
     game.__init__()
     return get_safe_state()
 
+# 🔄 次の局（ラウンド）へ進め、親の更新とスコアの集計を行うAPI
 @app.get("/next_round")
 def next_round():
     sorted_indices = sorted(range(4), key=lambda i: (game.scores[i], -((i - game.dealer) % 4)), reverse=True)
@@ -708,6 +721,7 @@ def next_round():
     game.reset_round()
     return get_safe_state()
 
+# 🀄 第1交換（チャールストン）：不要牌を3枚選んで他家と交換するAPI
 @app.get("/charleston")
 def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
     try:
@@ -748,6 +762,7 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
     except Exception as e:
         return {"error": str(e)}
 
+# 🀄 第2交換：希望者のみで再度不要牌を交換するAPI
 @app.get("/second_charleston")
 def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false"):
     try:
@@ -814,6 +829,7 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         traceback.print_exc()
         return {"error": f"サーバー内部エラー(/second_charleston): {str(e)}"}
 
+# 🎯 プレイヤーが山から牌を1枚ツモるAPI
 @app.get("/draw")
 def draw_tile(player_idx: int = 0):
     if not game.wall: return {"error": "流局"}
@@ -824,6 +840,7 @@ def draw_tile(player_idx: int = 0):
     game.just_drawn = player_idx 
     return get_safe_state(0, {"drawn_tile": tile})
 
+# 🗑️ プレイヤーが牌を捨てる（打牌）API
 @app.get("/discard")
 def discard_tile(player_idx: int = 0, tile: str = ""):
     game.is_first_turn[player_idx] = False 
@@ -840,6 +857,7 @@ def discard_tile(player_idx: int = 0, tile: str = ""):
         return get_safe_state()
     return {"error": "通信エラー: 牌が見つかりません"}
 
+# 🤖 CPUのターン処理（ツモ、アガリ判定、鳴き判断、打牌）を全自動で行うAPI
 @app.get("/cpu_turn")
 def cpu_turn(cpu_idx: int):
     try:
@@ -856,7 +874,7 @@ def cpu_turn(cpu_idx: int):
             "is_first_turn": game.is_first_turn[cpu_idx],
             "any_meld_occurred": game.any_meld_occurred,
             "is_dealer": game.dealer == cpu_idx,
-            "discards_count": game.discards_count # 🌟 これが抜けていました！
+            "discards_count": game.discards_count
         }
 
         win_data = {
@@ -993,12 +1011,11 @@ def cpu_turn(cpu_idx: int):
                     temp_hand.remove(d_candidate)
                     is_all_odds = all((x in SEASON_TILES or (x in TILE_NAMES and TILE_NAMES.index(x) in ODDS)) for x in temp_hand)
                     
-                    # 🌟 今回追加：七星不靠のロマン派もドアホ防止を解除する
                     jokers_count = sum(1 for x in game.hands[cpu_idx] if x in SEASON_TILES)
                     is_qixing_roment = (target == "七星不靠" and game.cpu_personalities[cpu_idx] in [1, 2] and jokers_count == 1)
                     
                     if not is_all_odds and not is_qixing_roment:
-                        continue # ドアホ防止1
+                        continue
                         
                 temp_hand = list(game.hands[cpu_idx])
                 temp_hand.remove(d_candidate)
@@ -1017,7 +1034,7 @@ def cpu_turn(cpu_idx: int):
                         temp_hand.remove(t)
                         is_all_odds = all((x in SEASON_TILES or (x in TILE_NAMES and TILE_NAMES.index(x) in ODDS)) for x in temp_hand)
                         if is_all_odds:
-                            valid_discards.append(t) # 🌟 例外：ドアホ防止2の解除
+                            valid_discards.append(t)
                     else:
                         valid_discards.append(t)
                         
@@ -1040,6 +1057,7 @@ def cpu_turn(cpu_idx: int):
         traceback.print_exc()
         return {"error": str(e)}
 
+# ⚡ 誰かが牌を捨てた時、CPUがロンや鳴き（ポン・カン）をするか判定・実行するAPI
 @app.get("/check_cpu_reaction")
 def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
     try:
@@ -1066,7 +1084,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                 "is_first_turn": game.is_first_turn[i],
                 "any_meld_occurred": game.any_meld_occurred,
                 "is_dealer": game.dealer == i,
-                "discards_count": game.discards_count # 🌟 これを必ず入れる！
+                "discards_count": game.discards_count
             }
 
             data = {"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx}
@@ -1160,6 +1178,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🗣️ プレイヤーが他家の捨て牌から鳴く（ポン・明槓・花槓）処理を行うAPI
 @app.get("/meld")
 def process_meld(player_idx: int = 0, type: str = "", tile: str = ""):
     try:
@@ -1205,6 +1224,7 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = ""):
     except Exception as e:
         return {"error": str(e)}
 
+# 🗣️ プレイヤーが自分自身のツモ番で鳴く（暗槓・加槓・暗花槓など）処理を行うAPI
 @app.get("/self_meld")
 def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false"):
     try:
@@ -1267,7 +1287,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                 return get_safe_state(0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
 
             for m in game.melds[player_idx]:
-                if m["type"] == "pong" and m["tiles"][0] == tile: # ★ 修正：Minkanをアップグレードしないようにする
+                if m["type"] == "pong" and m["tiles"][0] == tile:
                     m["type"] = "minkan" 
                     m["tiles"].append(tile)
                     break
@@ -1276,7 +1296,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
             if season not in game.hands[player_idx]: return {"error": "同期エラー：指定された四季牌が足りません。"}
             game.hands[player_idx].remove(season)
             for m in game.melds[player_idx]:
-                if m["type"] == "pong" and m["tiles"][0] == tile: # ★ 修正：Minkanをアップグレードしないようにする
+                if m["type"] == "pong" and m["tiles"][0] == tile:
                     m["type"] = "hanakan"
                     m["tiles"] = [tile, season, tile, tile]
                     break
@@ -1294,6 +1314,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🃏 他家の花槓に対して、正規の牌を渡して四季牌（Joker）を強奪するAPI
 @app.get("/joker_swap")
 def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0):
     try:
@@ -1320,6 +1341,7 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
     except Exception as e:
         return {"error": str(e)}
 
+# 🏆 プレイヤーが「ツモ」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_tsumo")
 def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false"):
     try:
@@ -1337,7 +1359,7 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
             "is_first_turn": game.is_first_turn[player_idx], 
             "any_meld_occurred": game.any_meld_occurred,
             "is_dealer": game.dealer == player_idx,
-            "discards_count": game.discards_count # 🌟 これを必ず入れる！
+            "discards_count": game.discards_count
         }
         
         # 🌟 ここでしっかり変数を定義して、役と点数を計算します
@@ -1357,6 +1379,7 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🏆 プレイヤーが「ロン」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_ron")
 def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false"):
     try:
@@ -1396,7 +1419,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
             "is_first_turn": game.is_first_turn[player_idx],
             "any_meld_occurred": game.any_meld_occurred,
             "is_dealer": game.dealer == player_idx,
-            "discards_count": game.discards_count # 🌟 これを必ず入れる！
+            "discards_count": game.discards_count
         }
         
         # 🌟 ここでしっかり変数を定義して、役と点数を計算します
@@ -1418,6 +1441,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🔍 プレイヤーの手牌が現在アガれる状態（役があるか）を事前にチェックするAPI
 @app.get("/check_win")
 def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false"):
     hand = list(game.hands[player_idx])
@@ -1446,7 +1470,7 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
         "is_first_turn": game.is_first_turn[player_idx],
         "any_meld_occurred": game.any_meld_occurred,
         "is_dealer": game.dealer == player_idx,
-        "discards_count": game.discards_count # 🌟 これを必ず入れる！
+        "discards_count": game.discards_count
     }
     
     if is_ron_bool and last_tile:
@@ -1468,6 +1492,7 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
     if "error" in res: return {"can_win": False, "reason": res["error"]}
     return {"can_win": True, "score": res["score"], "yaku": res["yaku"]}
 
+# 📊 局の終了時に、全員の和了履歴から最終的な点数移動と順位を計算するAPI
 @app.get("/calculate_round_scores")
 def calculate_round_scores():
     results = []
@@ -1505,6 +1530,7 @@ def calculate_round_scores():
             
     return {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
 
+# 💡 プレイヤーのターン中、現在実行可能な「自摸鳴き（暗槓や加槓など）」のリストを返すAPI
 @app.get("/get_valid_self_melds")
 def get_valid_self_melds(player_idx: int = 0):
     valid_melds = []
@@ -1555,6 +1581,7 @@ def get_valid_self_melds(player_idx: int = 0):
                     
     return {"valid_melds": valid_melds}
 
+# 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
 def debug_setup(scenario: str):
     game.reset_round()
@@ -1913,7 +1940,6 @@ def debug_setup(scenario: str):
         game.hands[0] = ["東","東","東","東","南","南","西","西","北","北","白","白","發"]
         game.wall = ["發"]
 
-    # --- この下に既存のコードが続きます ---
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
 
@@ -1922,6 +1948,7 @@ def debug_setup(scenario: str):
         
     return get_safe_state()
 
+# 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
 def get_waits(player_idx: int = 0):
     hand = list(game.hands[player_idx])
