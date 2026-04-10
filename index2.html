@@ -1,0 +1,776 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>四季茶会麻雀</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="title-screen">
+        <div class="title-content">
+            <h1 class="game-title">四季茶会麻雀</h1>
+            <p class="game-subtitle">- サブタイトル -</p>
+            <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+                <button id="btn-start" class="btn-start" onclick="showModeSelect()">GAME START</button>
+                <div style="display: flex; gap: 20px;">
+                    <button class="btn-sub" onclick="openHowTo()">遊び方</button>
+                    <button class="btn-sub" onclick="openYakuList()">役一覧</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mode-select-screen">
+
+        <div id="mode-select-container">
+
+            <div class="profile-panel">
+                <div id="prof-name" class="profile-name-large">あなた</div>
+                <div id="prof-rank" class="profile-rank-badge">【茶会見習い】 R:1500</div>
+
+                <div style="color: #aaa; font-size: 14px;">直近の戦績</div>
+                <div id="prof-history" class="history-container">
+                </div>
+
+                <div id="best-hand-area" class="best-hand-preview">
+                    <div style="font-size: 12px; color: #f1c40f; margin-bottom: 8px;">PERSONAL BEST SCORE</div>
+                    <div id="best-score-val" style="font-size: 24px; font-weight: bold; color: #fff;">0 点</div>
+                    <div id="best-hand-tiles" style="display: flex; gap: 2px; margin-top: 5px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-panel">
+                <h2 style="color: #f1c40f; font-size: 24px; margin-bottom: 20px;">MODE SELECT</h2>
+                <button class="mode-btn mode-btn-disabled">🌐 オンライン対人戦</button>
+                <button class="mode-btn mode-btn-disabled">🤝 友人戦</button>
+                <button class="mode-btn mode-btn-primary" onclick="startCpuGame()">🤖 CPU戦 (1人プレイ)</button>
+
+                <div style="width: 300px; border-top: 1px solid #333; margin: 15px 0;"></div>
+
+                <button class="mode-btn" style="background: #8e44ad;" onclick="openAchievements()">🏆 実績を確認</button>
+                <button class="mode-btn" style="background: #2980b9;" onclick="openMyPage()">👤 マイページ / 詳細戦績</button>
+                <button class="mode-btn" style="background: #27ae60;" onclick="openSettings()">⚙️ 設定 (Settings)</button>
+
+                <button onclick="backToTitle()" style="margin-top: 20px; color: #666; background: none; border: none; cursor: pointer;">◀ タイトルへ戻る</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="mypage-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 style="color: #3498db; border-bottom: 2px solid #3498db; padding-bottom: 10px;">👤 マイページ</h2>
+
+            <div style="margin: 20px 0; text-align: center;">
+                <div style="font-size: 14px; color: #aaa;">プレイヤー名</div>
+                <input type="text" id="input-player-name" maxlength="10" style="font-size: 24px; padding: 8px; background: #222; color: #fff; border: 1px solid #444; text-align: center; border-radius: 5px; width: 80%;">
+                <button class="btn-blue" onclick="saveNewName()" style="margin-top: 10px; padding: 5px 20px;">名前を変更</button>
+            </div>
+
+            <div class="stats-list" id="detailed-stats">
+            </div>
+
+            <button onclick="closeMyPage()" class="btn-red" style="width: 100%; margin-top: 20px;">戻る</button>
+        </div>
+    </div>
+
+    <div id="achievement-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 95%; max-width: 900px; height: 85vh;">
+            <h2 style="color: #f1c40f; border-bottom: 2px solid #f1c40f; padding-bottom: 10px; margin-bottom: 20px;">🏆 プレイヤー実績</h2>
+
+            <div class="modal-scroll-area" id="achieve-container">
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="closeAchievements()" style="padding: 12px 30px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #c0392b;">閉じる</button>
+            </div>
+        </div>
+    </div>
+    <div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 20000; justify-content: center; align-items: center;">
+        <div style="background: #2c3e50; border: 3px solid #34495e; border-radius: 15px; padding: 20px 40px; width: 400px; color: white; box-shadow: 0 0 30px rgba(0,0,0,0.9);">
+
+            <h2 onclick="secretClick()" style="text-align: center; color: #f1c40f; margin-top: 0; border-bottom: 2px solid #555; padding-bottom: 10px; cursor: pointer; user-select: none;">⚙️ 設定 (Settings)</h2>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: flex; justify-content: space-between;">
+                    <span>進行スピード</span> <span id="settings-speed-label">x1.0</span>
+                </label>
+                <input type="range" id="settings-speed-slider" min="0.5" max="5.0" step="0.5" value="1.0" style="width: 100%; cursor: pointer;" oninput="changeSpeed(this.value); document.getElementById('settings-speed-label').innerText = 'x' + parseFloat(this.value).toFixed(1);">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: flex; justify-content: space-between;">
+                    <span>BGM 音量</span> <span id="settings-bgm-label">30%</span>
+                </label>
+                <input type="range" id="settings-bgm-slider" min="0" max="1" step="0.05" value="0.3" style="width: 100%; cursor: pointer;" oninput="updateMasterBGM(this.value)">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: bold; display: flex; justify-content: space-between;">
+                    <span>効果音・ボイス 音量</span> <span id="settings-se-label">100%</span>
+                </label>
+                <input type="range" id="settings-se-slider" min="0" max="1" step="0.05" value="1.0" style="width: 100%; cursor: pointer;" oninput="updateMasterSE(this.value, true)">
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">卓のマット色 (グラデーション)</label>
+                <div style="display: flex; gap: 10px; justify-content: center; align-items: center; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                    <div style="text-align: center;">
+                        <span style="font-size: 12px; color: #bdc3c7; display: block; margin-bottom: 3px;">中央の色</span>
+                        <input type="color" id="table-color-1" value="#1a5e3a" oninput="updateTableGradient()" style="width: 50px; height: 40px; cursor: pointer; border: none; background: none;">
+                    </div>
+                    <span style="font-weight:bold; font-size: 20px; color: #7f8c8d;">〜</span>
+                    <div style="text-align: center;">
+                        <span style="font-size: 12px; color: #bdc3c7; display: block; margin-bottom: 3px;">外側の色</span>
+                        <input type="color" id="table-color-2" value="#0d3b22" oninput="updateTableGradient()" style="width: 50px; height: 40px; cursor: pointer; border: none; background: none;">
+                    </div>
+                </div>
+            </div>
+
+            <div id="dev-mode-container" style="display: none; margin-bottom: 25px; border-top: 1px solid #555; padding-top: 15px;">
+                <hr style="border-color: #555; margin: 10px 0;">
+                <button onclick="injectDummyData()" style="margin:2px; padding:5px 15px; background:#f39c12; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; width:95%;">👑 ダミー実績データを注入</button>
+                <label style="font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <span>🔧 開発者モード (テストツール表示)</span>
+                    <input type="checkbox" id="settings-dev-mode" onchange="toggleDevMode(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+                </label>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <button onclick="closeSettings(); openHowTo();" style="width: 100%; padding: 12px; background: #2980b9; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #1f618d; transition: 0.2s;" onmouseover="this.style.background='#3498db'" onmouseout="this.style.background='#2980b9'">📖 遊び方 (How to Play) を確認</button>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resetSettings()" style="flex: 1; padding: 12px; background: #7f8c8d; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #636e72;">↺ 初期設定</button>
+                <button onclick="closeSettings()" style="flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #c0392b;">閉じる</button>
+            </div>
+        </div>
+    </div>
+    <div id="howto-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <h2 class="modal-title">📖 遊び方 (How to Play)</h2>
+            <div class="modal-scroll-area">
+                <h3>🀄 使用する牌と基本ルール</h3>
+                <p>筒子、索子、1・9萬、字牌 各4枚と、四季牌（春夏秋冬 各1枚）の<strong>合計112枚</strong>を使用します。</p>
+                <p>
+                    副露は<strong>碰（ポン）と槓（ガン）のみ</strong>で、チーはできません。<br>
+                    暗槓は伏せて宣言することが可能です。<br>
+                    王牌やドラはなく、海底牌を引かずに終局を宣言することも可能です。全4局を行い、和了点+順位点（1位300点、2位200点、3位100点、4位0点）の合計スコアを競います。<br>
+                    <strong>同点の場合は、親（荘家）からの席順</strong>で上位が決まります。<br>
+                    その局で最も合計スコアが高かった人が次の局の親となります。
+                </p>
+
+                <h3>🔄 換三張とSecondCharlston</h3>
+                <p>
+                    配牌後、手牌から不要な牌を3枚選んで他家と<strong>「第1交換（換三張）」</strong>を行います。誰と交換するかはサイコロの出目で決まります。<br>
+                    1回目の交換後、親から順番に意思表明を行い、二人以上が合意すれば<strong>「第2交換 (Second Charleston)」</strong>を行うことができます。
+                </p>
+
+                <h3>🃏 四季牌と花槓、Joker Swap</h3>
+                <p>「春・夏・秋・冬」はすべての牌の代わりになる<strong>万能牌（Joker）</strong>として使え、そのまま捨てることも可能です。</p>
+                <p>
+                    <strong>【花槓 (ホァガン)】</strong><br>
+                    手牌の暗刻に四季牌1枚を合わせて明槓扱いとすることができます（点数も明槓として計算）。<br>
+                    他家が打牌した四季牌を含めて鳴くことはできません。また、四季牌を含めた碰や、四季牌を2枚以上使用した花槓は不可です。なお、<strong>加槓の形で行う花槓に対しては槍槓できません。</strong>
+                </p>
+                <p>
+                    <strong>【Joker Swap】</strong><br>
+                    他家が花槓をしている時、自分の手番でその身代わりとなっている本来の牌を持っていれば、Swapして四季牌を奪い取ることができます！
+                </p>
+
+                <h3>🏆 和了後の継続プレイと槓</h3>
+                <p>
+                    本作は誰かが和了しても局が継続します（和了によって自摸順は変わりません）。<br>
+                    和了の成立後は、自摸牌と手牌を入れ替えることはできません（ツモ切り限定）。<br>
+                    ただし、<strong>副露を含めない手牌に四季牌が含まれていない場合のみ</strong>、和了後でも自摸牌での加槓・暗槓が認められます（すでに成立した和了の待ちが消える槓や、送り槓は不可）。<br>
+                    和了後にカンを行った場合、<strong>カン以前の和了に対しても、カン後に成立した役を追加して計算</strong>します。
+                </p>
+
+                <h3>✨ 特殊な和了と役</h3>
+                <p>
+                    <strong>振聴（フリテン）は一切ありません</strong>が、全ての牌で和了れる多面張での槍槓はできません。<br>
+                    また、奇数牌のみを集める「全単」は、暗槓・明槓・花槓・碰を一切していなければ、通常の面子構成を無視して和了することができます。<br>
+                    <strong>和了は上家側が優先（頭ハネ）されます。</strong>
+                </p>
+            </div>
+            <button class="btn-act btn-red" style="display: block; margin: 20px auto 0;" onclick="closeHowTo()">閉じる</button>
+        </div>
+    </div>
+
+    <div id="yaku-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 95%; max-width: 1100px; height: 90vh;">
+            <h2 class="modal-title">📜 役一覧 (Yaku List)</h2>
+
+            <div style="text-align: center; margin-bottom: 10px;">
+                <button class="btn-toggle-lang" onclick="toggleYakuLang()">🔄 表記切替: <span id="current-lang-label">中国語</span></button>
+            </div>
+
+            <div class="yaku-tabs">
+                <button class="yaku-tab-btn active" onclick="switchYakuTab(event, 'tab-64')">64点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-32')">32点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-16')">16点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-8')">8点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-6')">6点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-4')">4点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-2')">2点・1点</button>
+                <button class="yaku-tab-btn" onclick="switchYakuTab(event, 'tab-multi')">特殊</button>
+            </div>
+
+            <div class="modal-scroll-area" id="yaku-list-container">
+
+                <div id="tab-64" class="yaku-tab-content" style="display: block;">
+                    <div class="yaku-category">
+                        <h3 style="color: #f1c40f;">👑 64点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">天胡</span><span class="ja">天和</span><span class="en">Heavenly hand</span></span></div>
+                                <div class="yaku-card-desc">親の第1自摸和了。</div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">地胡</span><span class="ja">地和</span><span class="en">Blessing hand</span></span></div>
+                                <div class="yaku-card-desc">副露が発生していない状況での子の第1自摸和了と、それ以前の和了（人和）。</div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">七星攬月</span><span class="ja">大七星</span><span class="en">Big seven stars</span></span></div>
+                                <div class="yaku-card-desc">7種の字牌がすべて対子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">清幺九</span><span class="ja">清老頭</span><span class="en">All terminal</span></span></div>
+                                <div class="yaku-card-desc">1と9の牌のみで構成された対々和。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/1p.png"><img src="images/1p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">連七対</span><span class="ja">連七対</span><span class="en">Seven shifted pairs</span></span></div>
+                                <div class="yaku-card-desc">1色で7つの連続した対子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/8p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">九連宝燈</span><span class="ja">九連宝燈</span><span class="en">Nine gates</span></span></div>
+                                <div class="yaku-card-desc">1色のみを使った1112345678999と、1～9のどれかで和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><span style="color:#fff; margin:0 3px;">+</span><img src="images/1s.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-32" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #e67e22;">🔥 32点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">十八羅漢</span><span class="ja">四槓子</span><span class="en">Four kang</span></span></div>
+                                <div class="yaku-card-desc">4回の槓をして和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">大四風会</span><span class="ja">大四喜</span><span class="en">Big four winds</span></span></div>
+                                <div class="yaku-card-desc">風牌4種すべてを刻子(槓子)にする。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/1m.png"><img src="images/1m.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">一色四節高</span><span class="ja">一色四連刻</span><span class="en">Four shifted pong</span></span></div>
+                                <div class="yaku-card-desc">1色で4つ連続した刻子(槓子)。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/發.png"><img src="images/發.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">一色四歩高</span><span class="ja">一色四連順</span><span class="en">Four shifted chow</span></span></div>
+                                <div class="yaku-card-desc">1色で1又は2ずつずれている4つの順子。</div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(1つずれ)</span><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/北.png"><img src="images/北.png">
+                                </div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(2つずれ)</span><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/北.png"><img src="images/北.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">紅孔雀</span><span class="ja">紅孔雀</span><span class="en">Red peacock</span></span></div>
+                                <div class="yaku-card-desc">1,5,7,9の索子と中で構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/7s.png"><img src="images/7s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">七星不靠</span><span class="ja">七星不靠</span><span class="en">Knitted & honors</span></span></div>
+                                <div class="yaku-card-desc">字牌7種と各色重複のない筋(147,258,369)の14種。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/南.png"><img src="images/西.png"><img src="images/北.png"><img src="images/白.png"><img src="images/發.png"><img src="images/中.png"><img src="images/1m.png"><img src="images/2p.png"><img src="images/5p.png"><img src="images/8p.png"><img src="images/3s.png"><img src="images/6s.png"><img src="images/9s.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-16" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #e74c3c;">⚔️ 16点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">小四風会</span><span class="ja">小四喜</span><span class="en">Little four winds</span></span></div>
+                                <div class="yaku-card-desc">風牌3種が刻子、1種が雀頭。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/南.png"><img src="images/南.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">緑一色</span><span class="ja">緑一色</span><span class="en">All green</span></span></div>
+                                <div class="yaku-card-desc">2,3,4,6,8の索子と發のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/2s.png"><img src="images/2s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">字一色</span><span class="ja">字一色</span><span class="en">All honor</span></span></div>
+                                <div class="yaku-card-desc">字牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">陰陽両儀</span><span class="ja">黒一色</span><span class="en">Monochrome tiles</span></span></div>
+                                <div class="yaku-card-desc">2,4,8の筒子と風牌と白のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">大三元</span><span class="ja">大三元</span><span class="en">Big dragons</span></span></div>
+                                <div class="yaku-card-desc">三元牌(白發中)すべてを刻子(槓子)にする。</div>
+                                <div class="yaku-example">
+                                    <img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png"><img src="images/中.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/5p.png"><img src="images/5p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全大</span><span class="ja">全大</span><span class="en">Upper tiles</span></span></div>
+                                <div class="yaku-card-desc">7,8,9の数牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/9m.png"><img src="images/9m.png"><img src="images/9m.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/9s.png"><img src="images/9s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全中</span><span class="ja">全中</span><span class="en">Middle tiles & Red</span></span></div>
+                                <div class="yaku-card-desc">4,5,6の数牌と中のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/中.png"><img src="images/中.png"><img src="images/中.png"><img src="images/5s.png"><img src="images/5s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全小</span><span class="ja">全小</span><span class="en">Lower tiles</span></span></div>
+                                <div class="yaku-card-desc">1,2,3の数牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/3p.png"><img src="images/3p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">寒江独釣</span><span class="ja">裸単騎</span><span class="en">All melded hand</span></span></div>
+                                <div class="yaku-card-desc">すべての面子を副露し、最後の1枚で単騎待ち。</div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(全副露)</span><img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">十三幺九</span><span class="ja">国士無双</span><span class="en">Thirteen orphans</span></span></div>
+                                <div class="yaku-card-desc">1,9,字牌を1枚ずつと、その中のどれか1枚で和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/9m.png"><img src="images/1p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/南.png"><img src="images/西.png"><img src="images/北.png"><img src="images/白.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-8" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #9b59b6;">🔮 8点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">三節高</span><span class="ja">三連刻</span><span class="en">Three shifted pong</span></span></div>
+                                <div class="yaku-card-desc">1色又は3色で3つ連続した刻子。</div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(1色)</span><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/東.png"><img src="images/東.png">
+                                </div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(3色)</span><img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3s.png"><img src="images/3s.png"><img src="images/3s.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/東.png"><img src="images/東.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">三同刻</span><span class="ja">三同刻</span><span class="en">Triple pong</span></span></div>
+                                <div class="yaku-card-desc">3色で同じ数の刻子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/南.png"><img src="images/南.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">断紅胡</span><span class="ja">断紅胡</span><span class="en">Two toned hand</span></span></div>
+                                <div class="yaku-card-desc">赤色が含まれない牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/西.png"><img src="images/西.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">一気化三清</span><span class="ja">三風刻</span><span class="en">Big three winds</span></span></div>
+                                <div class="yaku-card-desc">風牌3種が刻子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">十二金釵</span><span class="ja">三槓子</span><span class="en">Three kang</span></span></div>
+                                <div class="yaku-card-desc">3回の槓をして和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">混幺九</span><span class="ja">混老頭</span><span class="en">Terminal & Honor</span></span></div>
+                                <div class="yaku-card-desc">1,9,字牌の刻子と雀頭のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/1s.png"><img src="images/1s.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-6" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #3498db;">💎 6点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">大于五</span><span class="ja">大于五</span><span class="en">Upper four</span></span></div>
+                                <div class="yaku-card-desc">6,7,8,9の数牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/9s.png"><img src="images/9s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">小于五</span><span class="ja">小于五</span><span class="en">Lower four</span></span></div>
+                                <div class="yaku-card-desc">1,2,3,4の数牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4p.png"><img src="images/4p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">清一色</span><span class="ja">清一色</span><span class="en">Full flush</span></span></div>
+                                <div class="yaku-card-desc">1色の数牌のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">清龍</span><span class="ja">一気通貫</span><span class="en">Pure straight</span></span></div>
+                                <div class="yaku-card-desc">1色で123, 456, 789の順子を揃える。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/北.png"><img src="images/北.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">五門斉</span><span class="ja">五門斉</span><span class="en">All types</span></span></div>
+                                <div class="yaku-card-desc">萬子、筒子、索子、風牌、三元牌の全てを含んで和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/中.png"><img src="images/中.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">推不倒</span><span class="ja">推不倒</span><span class="en">Reversible tiles</span></span></div>
+                                <div class="yaku-card-desc">上下対称の牌(筒子1234589, 索子245689, 白)のみで構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/2s.png"><img src="images/2s.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div id="tab-4" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #2ecc71;">🛡️ 4点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">七対</span><span class="ja">七対</span><span class="en">Seven pairs</span></span></div>
+                                <div class="yaku-card-desc">4枚使いを認める七対子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">小三元</span><span class="ja">小三元</span><span class="en">Little dragons</span></span></div>
+                                <div class="yaku-card-desc">三元牌の2種が刻子、1種が雀頭。</div>
+                                <div class="yaku-example">
+                                    <img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">碰碰胡</span><span class="ja">対々和</span><span class="en">All pong</span></span></div>
+                                <div class="yaku-card-desc">すべて刻子で和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/9m.png"><img src="images/9m.png"><img src="images/9m.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">下雨</span><span class="ja">暗槓</span><span class="en">Concealed kang</span></span></div>
+                                <div class="yaku-card-desc">暗槓が含まれる。</div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(暗槓)</span><img src="images/ura.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-2" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #2ecc71;">🛡️ 2点役・1点役</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">双同刻</span><span class="ja">二同刻</span><span class="en">Double pong</span></span></div>
+                                <div class="yaku-card-desc">2色で同じ数の刻子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">混一色</span><span class="ja">混一色</span><span class="en">Half flush</span></span></div>
+                                <div class="yaku-card-desc">1色の数牌と字牌で構成。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">刮風</span><span class="ja">明槓</span><span class="en">Melded kang</span></span></div>
+                                <div class="yaku-card-desc">明槓が含まれる。</div>
+                                <div class="yaku-example">
+                                    <span style="font-size:12px; color:#aaa; margin-right:5px;">(明槓)</span><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/南.png"><img src="images/南.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">断么</span><span class="ja">断么</span><span class="en">All simples</span></span></div>
+                                <div class="yaku-card-desc">1,9,字牌を含まない。</div>
+                                <div class="yaku-example">
+                                    <img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/8p.png"><img src="images/8p.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">字刻</span><span class="ja">字刻</span><span class="en">Character pong</span></span></div>
+                                <div class="yaku-card-desc">萬子もしくは字牌の刻子。</div>
+                                <div class="yaku-example">
+                                    <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/南.png"><img src="images/南.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">全単</span><span class="ja">全単</span><span class="en">All odds</span></span></div>
+                                <div class="yaku-card-desc">奇数牌のみ。面子構成を無視して和了可能（副露不可）。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/3p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/3s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/9s.png"><img src="images/9s.png">
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-1">1点: <span class="zh">無番和</span><span class="ja">無役</span><span class="en">Chicken hand</span></span></div>
+                                <div class="yaku-card-desc">他の役が一切ない和了。</div>
+                                <div class="yaku-example">
+                                    <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/9s.png"><img src="images/9s.png">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-multi" class="yaku-tab-content" style="display: none;">
+                    <div class="yaku-category">
+                        <h3 style="color: #00d2d3;">✨ 特殊効果 (点数乗算)</h3>
+                        <div class="yaku-grid">
+                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x3: <span class="zh">無花果</span><span class="ja">無花</span><span class="en">No season tiles</span></span></div><div class="yaku-card-desc">副露を含めない手牌に四季牌(Joker)がない状態で和了。</div></div>
+                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槓上開花</span><span class="ja">嶺上開花</span><span class="en">Replacement tile</span></span></div><div class="yaku-card-desc">槓後の嶺上牌で自摸和了。</div></div>
+                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槍槓</span><span class="ja">槍槓</span><span class="en">Robbing kang</span></span></div><div class="yaku-card-desc">他家の加槓牌で和了。</div></div>
+                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">妙手回春</span><span class="ja">妙手回春</span><span class="en">Draw the Spring</span></span></div><div class="yaku-card-desc">春(Joker)で自摸和了。</div></div>
+                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">花天月地</span><span class="ja">海底河底</span><span class="en">Last tile</span></span></div><div class="yaku-card-desc">海底牌で和了。</div></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <button class="btn-act btn-red" style="display: block; margin: 20px auto 0;" onclick="closeYakuList()">閉じる</button>
+        </div>
+    </div>
+
+    <div class="debug-panel">
+        <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
+        <button class="debug-btn" onclick="loadDebugScenario('tenhou')">① 天胡 テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chiihou')">② 地胡 テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('jokerswap')">③ CPU JokerSwap</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chankan')">④ 槍槓 テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('kan_jokerswap')">⑤ 槓→JokerSwap→嶺上</button>
+        <button class="debug-btn" onclick="loadDebugScenario('kan_menzu_hakai')">⑥ 面子破壊カン テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('max_buttons')">⑦ 最大ボタン発生 テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('kokushi_13')">⑧ 国士13面待ち</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chuuren')">⑨ 純正九連宝燈</button>
+        <button class="debug-btn" onclick="loadDebugScenario('post_win_swap')">⑩ 和了後JokerSwap</button>
+        <button class="debug-btn" onclick="loadDebugScenario('haitei_kan')">⑪ 海底＆嶺上複合</button>
+        <button class="debug-btn" onclick="loadDebugScenario('joker_pair_kan')">⑫ 四季牌暗槓テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chankan_with_joker')">⑬ 槍槓 (Joker待ち)</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chitoi_joker')">⑭ 七対子＋複数Joker</button>
+        <button class="debug-btn" onclick="loadDebugScenario('shikantsu')">⑮ 十八羅漢（四槓子）限界UI</button>
+        <button class="debug-btn" onclick="loadDebugScenario('conflict_call')">⑯ ポン・ロン同時発生</button>
+        <button class="debug-btn" onclick="loadDebugScenario('all_seasons')">⑰ 四季牌4枚フル装備</button>
+        <button class="debug-btn" onclick="loadDebugScenario('chuuren_post_win_kan')">⑱ 九連和了後の1s暗槓</button>
+        <button class="debug-btn" onclick="loadDebugScenario('bug_renchitoi')">⑲ 連七対バグ確認</button>
+        <button class="debug-btn" onclick="loadDebugScenario('bug_cpu_loop')">⑳ CPU無限ツモ確認</button>
+        <button class="debug-btn" onclick="loadDebugScenario('bug_ui_tenhou')">㉑ 天胡UI/オーラ確認</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_haitei_stop')">㉒ 海底停止テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_player_chankan')">㉓ プレイヤーの槍槓テスト</button>
+        <button class="debug-btn" onclick="loadDebugScenario('ankan_tenhou')">㉔ 暗槓→嶺上天胡</button>
+        <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">㉕ 1巡目全部待ち(地胡)</button>
+        <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">㉖ CPU天胡</button>
+        <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">㉗ CPU地胡</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_zentan_flower')">㉘ 全単のフリテン花牌切り</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_qixing_flower')">㉙ 七星のフリテン花牌切り</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_pass')">㉚ 十三幺九の見逃し（ロマン）</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_win')">㉛ 十三幺九の妥協ロン（終盤）</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_chankan_all_waits')">㉜ 全部待ちの槍槓禁止</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_kankou_dokuchou')">㉝ 寒江独釣の吸収</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_daisuufoukai')">㉞ 大四風会の吸収</button>
+        <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉟ 字一色＋七対子</button>
+    </div>
+
+    <div id="overlay">
+        <h1 id="win-label-text" style="font-size: 60px; color: #f1c40f; margin: 0 0 10px 0; text-shadow: 2px 2px 10px #e67e22;"></h1>
+        <div id="win-score" style="font-size: 60px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);"></div>
+        <div id="win-hand-display"></div>
+        <div id="win-yaku" style="margin: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90%; max-width: 900px;"></div>
+    </div>
+
+    <div id="result-controls" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: none; gap: 15px; align-items: center; background: rgba(0,0,0,0.85); padding: 10px 25px; border-radius: 12px; border: 2px solid #f39c12; z-index: 10000; box-shadow: 0 0 20px rgba(0,0,0,0.9);">
+        <div id="result-timer-text" style="font-size: 24px; font-weight: bold; color: #f1c40f; margin-right: 15px;">次へ: 8s</div>
+        <button class="btn-act btn-blue" onclick="takeResultScreenshot()" style="display: block; padding: 10px 20px; font-size: 18px;">📷 スクショ保存</button>
+        <button class="btn-act btn-gray" onclick="skipResultWait()" style="display: block; padding: 10px 20px; font-size: 18px;">⏭ スキップ</button>
+    </div>
+
+    <div class="table">
+        <div id="center-message"></div>
+        <div id="dice-overlay"></div>
+        <div class="center-info">
+            <div id="round-info-center">第 -- 局</div>
+            <div id="wall-count">山: --</div>
+            <div id="msg"></div>
+        </div>
+
+        <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
+
+        <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
+        <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
+        <div id="c-status-2" class="charleston-status pos-c-status-2"></div>
+        <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
+
+        <div class="pos-name-0">
+            <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
+        </div>
+        <div class="pos-score-0"><div id="player-score-0" class="player-score"></div></div>
+        <div class="pos-round-score-0"><div id="player-round-score-0" class="player-round-score"></div></div>
+
+        <div class="pos-waits-btn">
+            <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
+        </div>
+        <div class="pos-auto-btn">
+            <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
+        </div>
+
+        <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
+            <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
+        </div>
+
+        <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
+        <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
+        <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
+
+        <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
+        <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
+        <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
+
+        <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
+        <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
+        <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
+
+        <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
+        <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
+        <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
+        <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
+
+        <div id="charleston-ui">
+            <div>
+                <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
+                <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
+                <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;" onclick="execExchange()">交換決定！</button>
+            </div>
+        </div>
+
+        <div id="charleston-confirm-ui">
+            <div>
+                <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
+                <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
+                <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(true)">はい、参加する</button>
+                <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(false)">いいえ</button>
+            </div>
+        </div>
+
+        <div id="win-zone-0" class="win-zone win-zone-0" style="display:none;"></div>
+        <div id="win-zone-1" class="win-zone win-zone-1" style="display:none;"></div>
+        <div id="win-zone-2" class="win-zone win-zone-2" style="display:none;"></div>
+        <div id="win-zone-3" class="win-zone win-zone-3" style="display:none;"></div>
+
+        <div class="action-wrapper">
+            <div class="action-layer" id="opponent-actions">
+                <button id="btn-win" class="btn-act btn-red">アガリ！</button>
+                <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
+                <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
+                <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
+                <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
+
+                <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
+                <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
+            </div>
+            <div class="action-layer" id="self-actions"></div>
+        </div>
+
+        <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
+        <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
+        <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
+        <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
+        <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
+        <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
+
+        <div id="waits-panel" class="waits-panel" style="display:none;">
+            <div class="waits-header">
+                <span>待ち牌・残り枚数</span>
+                <button onclick="hideWaitsPanel()">×</button>
+            </div>
+            <div id="waits-list" class="waits-list"></div>
+        </div>
+
+        <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
+    </div>
+
+    <div id="flash-overlay"></div>
+    <div id="special-yaku-overlay"></div>
+    <div id="big-yaku-text"></div>
+
+    <script src="game.js"></script>
+</body>
+</html>

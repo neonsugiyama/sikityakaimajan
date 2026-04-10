@@ -1,0 +1,109 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>新・四季牌ジェネレーター</title>
+    <style>
+        body {
+            background: #2c3e50;
+            color: white;
+            font-family: sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .preview-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        svg {
+            background: transparent;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            border-radius: 20px;
+        }
+
+        button {
+            background: #f1c40f;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #333;
+        }
+
+            button:hover {
+                transform: scale(1.05);
+                background: #f39c12;
+            }
+    </style>
+</head>
+<body>
+    <h1>🌸 新・四季牌 ジェネレーター ❄️</h1>
+    <p>文字を大きくし、背景にモチーフを薄く忍ばせました。<br>左上の番号も削除しています。<br>「PNGで一括ダウンロード」を押して、<code>images</code> フォルダに入れてください。</p>
+
+    <div class="preview-container" id="svg-container"></div>
+
+    <button onclick="downloadAll()">📥 PNGで一括ダウンロード</button>
+
+    <script>
+        // 牌のデザイン定義（数字は削除しました）
+        const seasons = [
+            { name: "春", color: "#d63384", icon: "🌸" },
+            { name: "夏", color: "#2980b9", icon: "🌻" },
+            { name: "秋", color: "#d35400", icon: "🍁" },
+            { name: "冬", color: "#2c3e50", icon: "❄️" }
+        ];
+
+        const container = document.getElementById('svg-container');
+
+        // SVG要素を生成して画面に表示
+        seasons.forEach(s => {
+            const svgStr = `
+                    <svg id="svg-${s.name}" width="200" height="280" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="5" width="190" height="270" rx="20" fill="#f8f9fa" stroke="#bdc3c7" stroke-width="4"/>
+                        <rect x="15" y="15" width="170" height="250" rx="10" fill="#ffffff" stroke="#ecf0f1" stroke-width="2"/>
+
+                        <text x="100" y="150" font-size="180" text-anchor="middle" dominant-baseline="middle" opacity="0.25">${s.icon}</text>
+
+                        <text x="100" y="160" font-family="'HG正楷書体-PRO', 'BIZ UDP楷書', 'Kaiti', serif" font-size="180" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="${s.color}">${s.name}</text>
+
+                        </svg>
+                `;
+            container.innerHTML += svgStr;
+        });
+
+        // SVGをPNG画像に変換してダウンロードする処理
+        function downloadAll() {
+            seasons.forEach(s => {
+                const svg = document.getElementById(`svg-${s.name}`);
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const canvas = document.createElement("canvas");
+                canvas.width = 200;
+                canvas.height = 280;
+                const ctx = canvas.getContext("2d");
+
+                const img = new Image();
+                const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                const url = URL.createObjectURL(svgBlob);
+
+                img.onload = function () {
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    const a = document.createElement("a");
+                    a.download = `${s.name}.png`; // そのまま使えるファイル名
+                    a.href = canvas.toDataURL("image/png");
+                    a.click();
+                };
+                img.src = url;
+            });
+        }
+    </script>
+</body>
+</html>

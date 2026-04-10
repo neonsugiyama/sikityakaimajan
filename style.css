@@ -1,0 +1,2015 @@
+﻿/* style.css の一番上に文字化け防止のおまじないを書いておくのがオススメです */
+@charset "UTF-8";
+
+/* =====================================================================
+        ★ 画面全体と雀卓のベース設定
+        ===================================================================== */
+body {
+    background-color: #0a0a0a;
+    color: white;
+    font-family: sans-serif;
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100vw;
+}
+
+.table {
+    position: relative;
+    width: 1280px;
+    height: 800px;
+    background-color: #1a5e3a;
+    border-radius: 10px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    transform-origin: center center;
+}
+
+/* =====================================================================
+        ★ 牌のサイズ調整エリア
+        ===================================================================== */
+.tile {
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 3px;
+}
+
+.hand-0 .tile {
+    width: 36px;
+    height: 50px;
+}
+
+.hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
+    width: 28px;
+    height: 39px;
+}
+
+.meld-0 .tile {
+    width: 32px;
+    height: 45px;
+}
+
+.meld-1 .tile, .meld-2 .tile, .meld-3 .tile {
+    width: 28px;
+    height: 39px;
+}
+
+.river .tile {
+    width: 28px;
+    height: 39px;
+}
+
+/* =====================================================================
+        ★ 捨て牌（河）の配置エリア
+        ===================================================================== */
+.river {
+    position: absolute;
+    display: grid;
+    grid-template-columns: repeat(6, max-content);
+    gap: 2px;
+    width: 190px;
+}
+
+.river-0 {
+    top: calc(50% + 105px);
+    left: calc(50% - 95px);
+}
+
+.river-1 {
+    top: calc(50% + 95px);
+    left: calc(50% + 110px);
+    transform-origin: top left;
+    transform: rotate(-90deg);
+}
+
+.river-2 {
+    top: calc(50% - 105px);
+    left: calc(50% - 95px);
+    transform-origin: top center;
+    transform: rotate(180deg);
+}
+
+.river-3 {
+    top: calc(50% + 95px);
+    right: calc(50% + 110px);
+    transform-origin: top right;
+    transform: rotate(90deg);
+}
+
+/* =====================================================================
+        ★ 手牌の配置エリア
+        ===================================================================== */
+.hand {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 50;
+}
+
+.hand-0 {
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+    .hand-0 .tile {
+        cursor: pointer;
+        transition: 0.1s;
+    }
+
+        .hand-0 .tile:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 0 10px white;
+        }
+
+.hand-1 {
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .hand-1 .tile {
+        transform: rotate(-90deg);
+        margin: -6px 0;
+    }
+
+.hand-2 {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.hand-3 {
+    left: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .hand-3 .tile {
+        transform: rotate(90deg);
+        margin: -6px 0;
+    }
+
+/* =====================================================================
+        ★ 副露（鳴き牌）エリア
+        ==================================================================== */
+.meld {
+    position: absolute;
+    display: flex;
+    gap: 5px;
+    z-index: 100;
+}
+
+.meld-0 {
+    bottom: 70px;
+    left: calc(50% - 303px);
+    flex-direction: row;
+}
+
+.meld-1 {
+    right: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+}
+
+.meld-2 {
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row;
+}
+
+.meld-3 {
+    left: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+}
+
+    .meld-1 .meld-group, .meld-3 .meld-group {
+        flex-direction: column;
+        width: 40px;
+        height: max-content;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+.meld-1 .tile {
+    transform: rotate(-90deg);
+    margin: -6px 0;
+    display: block;
+}
+
+.meld-3 .tile {
+    transform: rotate(90deg);
+    margin: -6px 0;
+    display: block;
+}
+
+.meld-group {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 5px;
+}
+
+/* =====================================================================
+        ★ アガリ牌（Win Zone）エリア
+        ===================================================================== */
+.win-zone {
+    position: absolute;
+    border: 2px solid #f1c40f;
+    padding: 5px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+    .win-zone .tile {
+        width: 24px;
+        height: 34px;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
+    }
+/* 縦の影を強調 */
+
+/* ★ 最後の行のはみ出しを防ぐため、下部の余白(padding-bottom)を広めに確保 */
+.win-zone-0 {
+    bottom: 10px;
+    right: 10px;
+    max-width: 275px;
+    flex-direction: row-reverse;
+    flex-wrap: wrap-reverse;
+    padding-bottom: 23px;
+}
+
+.win-zone-2 {
+    top: 10px;
+    left: calc(50% - 630px);
+    max-width: 275px;
+    padding-bottom: 23px;
+}
+
+/* ⬇️ CPU 1（右側）の全体枠 */
+.win-zone-1 {
+    right: 10px;
+    top: 10px;
+    max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
+    flex-direction: column;
+    flex-wrap: wrap-reverse;
+    padding-right: 15px;
+    padding-top: 20px; /* 🌟追加：上の牌が枠外に突き抜けないためのクッション */
+}
+
+/* ⬇️ CPU 3（左側）の全体枠 */
+.win-zone-3 {
+    left: 10px;
+    bottom: 10px;
+    max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
+    flex-direction: column-reverse;
+    flex-wrap: wrap;
+    padding-left: 15px;
+    padding-bottom: 20px; /* 🌟追加：下の牌が枠外に突き抜けないためのクッション */
+}
+
+/* ★ アガリ牌の重なり調整 */
+.win-zone-0 .tile, .win-zone-2 .tile {
+    margin-bottom: -12px;
+    margin-left: 0;
+}
+
+/* ⬇️ CPU 1（右側）の牌１つ１つの重なり具合 */
+.win-zone-1 .tile {
+    transform: rotate(-90deg);
+    margin-top: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。(-18pxなどにするとさらに密着) */
+    margin-left: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
+}
+/* ※ズレの原因だった「:first-child」の特別扱いは削除しました！ */
+
+/* ⬇️ CPU 3（左側）の牌１つ１つの重なり具合 */
+.win-zone-3 .tile {
+    transform: rotate(90deg);
+    margin-bottom: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。 */
+    margin-right: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
+    margin-top: 0;
+}
+
+/* =====================================================================
+        ★ 中央情報パネル
+        ===================================================================== */
+.center-info {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    padding: 5px 5px;
+    border-radius: 15px;
+    text-align: center;
+    border: 3px solid #f1c40f;
+    z-index: 100;
+    min-width: 120px;
+}
+
+#round-info-center {
+    font-size: 22px;
+    font-weight: bold;
+    color: #f1c40f;
+    margin-bottom: 5px;
+}
+
+#wall-count {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+}
+
+#msg {
+    margin-top: 8px;
+    color: #3498db;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* ★ タイマー表示エリア */
+#timer-display {
+    position: absolute;
+    bottom: 200px;
+    left: calc(50% + 160px); /* オートプレイボタンの右横 */
+    font-size: 32px;
+    font-weight: 900;
+    color: #2ecc71;
+    background: rgba(0,0,0,0.85);
+    border: 3px solid #2ecc71;
+    padding: 5px 20px;
+    border-radius: 30px;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    box-shadow: 0 0 15px rgba(0,0,0,0.8);
+    z-index: 100;
+    display: none;
+    transition: color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+/* ★ 中央ポップアップメッセージ用 */
+#center-message {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    border: 2px solid #f39c12;
+    color: white;
+    padding: 20px 40px;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    z-index: 500;
+    box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+    display: none;
+    white-space: nowrap;
+}
+
+/* ★ サイコロ＆交換メッセージ演出用 */
+#dice-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 60px;
+    font-weight: bold;
+    color: white;
+    background: rgba(0,0,0,0.85);
+    padding: 20px 50px;
+    border-radius: 15px;
+    border: 3px solid #f1c40f;
+    z-index: 600;
+    display: none;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(241, 196, 15, 0.8);
+    line-height: 1.2;
+}
+
+/* ★ 空を飛ぶ牌のアニメーション設定 */
+.flying-pack {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 550;
+    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+    .flying-pack .tile {
+        width: 28px;
+        height: 39px;
+        box-shadow: 2px 2px 15px rgba(0,0,0,0.9);
+        border-radius: 3px;
+    }
+
+/* ★ チャールストン時の各プレイヤーの意思表示（過 / 3枚差し出し） */
+.charleston-status {
+    position: absolute;
+    z-index: 60;
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: center;
+}
+
+    .charleston-status .tile {
+        width: 26px;
+        height: 36px;
+        border-radius: 3px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+    }
+
+.pos-c-status-0 {
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.pos-c-status-1 {
+    right: 120px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .pos-c-status-1 .tile {
+        transform: rotate(-90deg);
+        margin: -4px 0;
+    }
+
+.pos-c-status-2 {
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.pos-c-status-3 {
+    left: 120px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .pos-c-status-3 .tile {
+        transform: rotate(90deg);
+        margin: -4px 0;
+    }
+
+.guo-stamp {
+    font-size: 32px;
+    font-family: "Kaiti", "Yu Mincho", serif;
+    color: #e74c3c;
+    border: 3px solid #e74c3c;
+    border-radius: 5px;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.9);
+    transform: rotate(-15deg);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+}
+
+/* =====================================================================
+        ★ プレイヤー情報（名前・点数）のデザイン設定と独立配置
+        ===================================================================== */
+.player-name {
+    background: rgba(0,0,0,0.8);
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #3498db;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.player-score {
+    background: rgba(0,0,0,0.8);
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #2ecc71;
+    color: #2ecc71;
+    text-align: center;
+    transition: transform 0.2s;
+    white-space: nowrap;
+    width: 130px;
+    box-sizing: border-box;
+}
+
+.dealer-mark {
+    color: #e74c3c;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.pos-name-0 {
+    position: absolute;
+    bottom: 180px;
+    left: calc(50% - 300px);
+    transform: translateX(-50%);
+    z-index: 40;
+}
+
+.pos-name-1 {
+    position: absolute;
+    right: 170px;
+    top: calc(50% + 160px);
+    transform: translateY(-50%);
+    z-index: 40;
+}
+
+.pos-name-2 {
+    position: absolute;
+    top: 180px;
+    left: calc(50% + 300px);
+    transform: translateX(-50%);
+    z-index: 40;
+}
+
+.pos-name-3 {
+    position: absolute;
+    left: 170px;
+    top: calc(50% - 160px);
+    transform: translateY(-50%);
+    z-index: 40;
+}
+
+.pos-score-0 {
+    position: absolute;
+    bottom: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+}
+
+.pos-score-1 {
+    position: absolute;
+    left: calc(50% + 90px);
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    z-index: 40;
+}
+
+.pos-score-2 {
+    position: absolute;
+    top: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+}
+
+.pos-score-3 {
+    position: absolute;
+    left: calc(50% - 90px);
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    z-index: 40;
+}
+
+/* =====================================================================
+        ★ スコア精算アニメーションのリッチなデザイン定義
+        ===================================================================== */
+.pos-round-score-0 {
+    position: absolute;
+    bottom: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-1 {
+    position: absolute;
+    right: 320px;
+    top: 50%;
+    transform: translateY(20%);
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-2 {
+    position: absolute;
+    top: 250px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-3 {
+    position: absolute;
+    left: 320px;
+    top: 50%;
+    transform: translateY(20%);
+    z-index: 200;
+    text-align: center;
+}
+
+.player-round-score {
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.5s;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.show-score {
+    opacity: 1;
+    transform: translateY(-40px);
+}
+
+.score-main-plus {
+    font-size: 54px;
+    font-weight: 900;
+    color: #f1c40f;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #f39c12;
+    line-height: 1.1;
+}
+
+.score-main-minus {
+    font-size: 54px;
+    font-weight: 900;
+    color: #e74c3c;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #c0392b;
+    line-height: 1.1;
+}
+
+.score-main-zero {
+    font-size: 54px;
+    font-weight: 900;
+    color: #bdc3c7;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px rgba(0,0,0,0.8);
+    line-height: 1.1;
+}
+
+.score-rank-plus {
+    font-size: 22px;
+    font-weight: bold;
+    color: #00cec9;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
+    margin-top: 5px;
+}
+
+.score-rank-zero {
+    font-size: 22px;
+    font-weight: bold;
+    color: #95a5a6;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
+    margin-top: 5px;
+}
+
+/* =====================================================================
+        ★ 待ち牌確認・オートプレイUIパネル ＆ ボタン
+        ===================================================================== */
+.pos-waits-btn {
+    position: absolute;
+    bottom: 136px;
+    left: calc(50% - 230px);
+    z-index: 50;
+}
+
+.pos-auto-btn {
+    position: absolute;
+    bottom: 136px;
+    left: calc(50% + 120px);
+    z-index: 50;
+}
+
+.btn-waits {
+    background: #e67e22;
+    color: white;
+    border: none;
+    padding: 4px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 3px #d35400;
+    transition: 0.1s;
+}
+
+    .btn-waits:not(:disabled):active {
+        transform: translateY(3px);
+        box-shadow: 0 0 #d35400;
+    }
+
+    .btn-waits:not(:disabled):hover {
+        background: #f39c12;
+    }
+
+    .btn-waits:disabled {
+        background: #95a5a6;
+        color: #bdc3c7;
+        box-shadow: none;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+.waits-panel {
+    position: absolute;
+    bottom: 230px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.95);
+    border: 2px solid #e67e22;
+    border-radius: 8px;
+    padding: 10px 20px;
+    z-index: 300;
+    min-width: 250px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+.waits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #f1c40f;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #555;
+}
+
+    .waits-header button {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .waits-header button:hover {
+            color: #ff7675;
+        }
+
+.waits-list {
+    display: flex;
+    gap: 15px 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 580px;
+    margin: 0 auto;
+}
+
+.wait-item {
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+    .wait-item .tile {
+        width: 32px;
+        height: 45px;
+        margin-bottom: 5px;
+    }
+
+/* =====================================================================
+        ★ その他のアクションUI
+        ===================================================================== */
+/* 🌟 新設：2つの箱をまとめて横に並べるための親枠 */
+.action-wrapper {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    z-index: 200;
+    pointer-events: none;
+    width: 1000px; /* 横幅を広めにとる */
+}
+
+/* 🌟 修正：絶対配置(position: absolute)を解除して単なる横並びの箱にする */
+.action-layer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-act {
+    padding: 12px 20px;
+    font-size: 20px;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: none;
+    font-weight: bold;
+    pointer-events: auto;
+}
+
+.btn-red {
+    background: #e74c3c;
+    box-shadow: 0 5px #c0392b;
+}
+
+.btn-blue {
+    background: #3498db;
+    box-shadow: 0 5px #2980b9;
+}
+
+.btn-green {
+    background: #2ecc71;
+    box-shadow: 0 5px #27ae60;
+}
+
+.btn-purple {
+    background: #9b59b6;
+    box-shadow: 0 5px #8e44ad;
+}
+
+.btn-gray {
+    background: #7f8c8d;
+    box-shadow: 0 5px #636e72;
+}
+
+#charleston-ui, #charleston-confirm-ui {
+    position: absolute;
+    top: 75%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 300;
+    display: none;
+}
+
+    #charleston-ui div, #charleston-confirm-ui div {
+        background: rgba(0,0,0,0.9);
+        padding: 10px 10px;
+        border: 3px solid #3498db;
+        border-radius: 10px;
+    }
+
+.selected-exchange {
+    transform: translateY(-15px) !important;
+    box-shadow: 0 0 15px #e74c3c !important;
+}
+
+#overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95); /* 少し濃くしました */
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* ★ centerからflex-startに変更し、上から順に配置 */
+    padding: 80px 0; /* ★ 上下の余白を追加 */
+    z-index: 1000;
+    overflow-y: auto; /* ★ 縦方向のスクロールを有効にする */
+}
+
+    /* スクロールバーのデザインを少しオシャレに */
+    #overlay::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    #overlay::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.1);
+        border-radius: 5px;
+    }
+
+    #overlay::-webkit-scrollbar-thumb {
+        background: #f39c12;
+        border-radius: 5px;
+    }
+
+/* ★ 役タグの共通ベース設定 */
+.yaku-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin: 2px;
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+    box-sizing: border-box;
+}
+
+/* 🌟 点数別タグカラー（完全版） */
+.yaku-tier-1, .yaku-tier-2, .yaku-tier-4 { /* 1, 2, 4点：標準的な緑 */
+    background: #27ae60;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    border: 1px solid #2ecc71;
+}
+
+.yaku-tier-6, .yaku-tier-8 { /* 6, 8点：オレンジ */
+    background: #d35400;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+    border: 1px solid #e67e22;
+}
+
+.yaku-tier-16 { /* 16点：深紅 */
+    background: #c0392b;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+    border: 1px solid #e74c3c;
+}
+
+.yaku-tier-32 { /* 32点：紫 */
+    background: linear-gradient(135deg, #8e44ad, #9b59b6);
+    box-shadow: 0 0 10px rgba(155, 89, 182, 0.9);
+    border: 1px solid #d2b4de;
+}
+
+.yaku-tier-multi { /* 乗算役：サイバー */
+    background: linear-gradient(135deg, #2980b9, #8e44ad);
+    color: #fff;
+    box-shadow: 0 0 12px #00d2d3, inset 0 0 5px #00d2d3;
+    border: 1px solid #74b9ff;
+    font-weight: bold;
+}
+
+@keyframes shine-gold {
+    0% {
+        background-position: 0% 50%;
+        box-shadow: 0 0 15px #f1c40f, inset 0 0 5px #fff;
+    }
+
+    50% {
+        background-position: 100% 50%;
+        box-shadow: 0 0 35px #f39c12, inset 0 0 15px #fff;
+    }
+
+    100% {
+        background-position: 0% 50%;
+        box-shadow: 0 0 15px #f1c40f, inset 0 0 5px #fff;
+    }
+}
+
+.yaku-tier-64 { /* 64点：黄金 */
+    background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
+    background-size: 300% 300%;
+    animation: shine-gold 2.5s infinite ease-in-out;
+    color: #fff !important; /* 🌟 強制的に白文字！ */
+    border: 1px solid #ffeaa7;
+    text-shadow: 1px 1px 0 #5c2c06, -1px -1px 0 #5c2c06, 1px -1px 0 #5c2c06, -1px 1px 0 #5c2c06, 2px 2px 4px #000;
+    font-weight: 900;
+    padding: 5px 14px;
+    font-size: 15px;
+}
+/* 🌟 言語切替（3か国語対応） */
+.yaku-tag .ja, .yaku-tag .en {
+    display: none;
+}
+
+body.lang-ja .yaku-tag .zh {
+    display: none;
+}
+
+body.lang-ja .yaku-tag .ja {
+    display: inline;
+}
+
+body.lang-ja .yaku-tag .en {
+    display: none;
+}
+
+body.lang-en .yaku-tag .zh {
+    display: none;
+}
+
+body.lang-en .yaku-tag .ja {
+    display: none;
+}
+
+body.lang-en .yaku-tag .en {
+    display: inline;
+}
+
+/* 役一覧のグリッドデザイン */
+.yaku-category {
+    margin-bottom: 25px;
+}
+
+    .yaku-category h3 {
+        color: #e67e22;
+        border-bottom: 2px solid #e67e22;
+    }
+
+.yaku-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.yaku-card {
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #7f8c8d;
+    width: calc(50% - 5px);
+    box-sizing: border-box;
+}
+
+.yaku-card-title {
+    margin-bottom: 8px;
+}
+
+.yaku-card-desc {
+    font-size: 13px;
+    color: #bdc3c7;
+    line-height: 1.4;
+}
+
+
+/* =====================================================================
+        ★ 鳴き・アガリのエフェクト
+        ===================================================================== */
+.call-wrap-0 {
+    position: absolute;
+    bottom: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 400;
+    pointer-events: none;
+}
+
+.call-wrap-1 {
+    position: absolute;
+    right: 280px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 400;
+    pointer-events: none;
+}
+
+.call-wrap-2 {
+    position: absolute;
+    top: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 400;
+    pointer-events: none;
+}
+
+.call-wrap-3 {
+    position: absolute;
+    left: 280px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 400;
+    pointer-events: none;
+}
+
+.call-text {
+    font-size: 80px;
+    font-weight: bold;
+    color: #f1c40f;
+    text-shadow: 3px 3px 0 #c0392b, -1px -1px 0 #c0392b, 1px -1px 0 #c0392b, -1px 1px 0 #c0392b, 0 0 20px #e74c3c;
+    opacity: 0;
+    transform: scale(0.5);
+    white-space: nowrap;
+}
+
+@keyframes popupCall {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    20% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+
+    40% {
+        transform: scale(1.0);
+    }
+
+    80% {
+        opacity: 1;
+        transform: scale(1.0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+.call-active {
+    animation: popupCall 1s forwards;
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+.blink-text {
+    animation: blink 1.5s infinite;
+    color: #ff9ff3 !important;
+}
+
+/* ★ デバッグパネルのスタイル */
+.debug-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: rgba(0,0,0,0.8);
+    padding: 10px;
+    border: 1px solid #e74c3c;
+    border-radius: 5px;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.debug-btn {
+    background: #c0392b;
+    color: white;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+    .debug-btn:hover {
+        background: #e74c3c;
+    }
+
+/* 🌟 手出し用のエフェクト（黄色く光る） */
+@keyframes flash-tedashi {
+    0% {
+        box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.9);
+        transform: scale(1.1);
+    }
+
+    100% {
+        box-shadow: 0 0 0px 0px rgba(255, 215, 0, 0);
+        transform: scale(1.0);
+    }
+}
+
+/* 🌟 ツモ切り用のエフェクト（青白く光る） */
+@keyframes flash-tsumogiri {
+    0% {
+        box-shadow: 0 0 20px 8px rgba(100, 200, 255, 0.9);
+        transform: scale(1.1);
+    }
+
+    100% {
+        box-shadow: 0 0 0px 0px rgba(100, 200, 255, 0);
+        transform: scale(1.0);
+    }
+}
+
+.discard-tedashi {
+    animation: flash-tedashi 1.5s ease-out forwards;
+}
+
+.discard-tsumogiri {
+    animation: flash-tsumogiri 1.5s ease-out forwards;
+}
+
+/* 🌟 2. 天胡・地胡の閃光エフェクト */
+#flash-overlay {
+    /* (中略：さっき直したフラッシュの設定) */
+}
+
+.flash-animate {
+    animation: flash-animation 1.5s ease-out;
+}
+
+@keyframes flash-animation {
+    0% {
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.6;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+/* 🌟 中ランク役（乗算役など）専用の豪華スタイル */
+.call-text.special-yaku {
+    font-size: 100px;
+    color: #fffa65;
+    text-shadow: 0 0 10px #ff9f1a, 0 0 20px #ff9f1a, 2px 2px 5px #000;
+    font-style: italic;
+    letter-spacing: 0.1em;
+    animation: popupSpecial 1.5s forwards;
+}
+
+/* 🌟 JokerSwap専用の色 */
+.call-text.joker-swap-style {
+    color: #00d2d3 !important;
+    text-shadow: 0 0 15px #0abde3, 0 0 30px #0abde3, 3px 3px 3px #000 !important;
+    font-style: italic;
+}
+
+@keyframes popupSpecial {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) rotate(-10deg);
+    }
+
+    15% {
+        opacity: 1;
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    30% {
+        transform: scale(1.0) rotate(0deg);
+    }
+
+    80% {
+        opacity: 1;
+        transform: scale(1.0) translateY(-20px);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.2) translateY(-40px);
+    }
+}
+
+/* 🌟 ここから下を追加！！：天胡・地胡の巨大文字表示スタイル */
+#big-yaku-text {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    font-size: 220px; /* 🌟 140pxから220pxへ超巨大化！ */
+    font-weight: 900;
+    color: #fff;
+    -webkit-text-stroke: 4px #f1c40f; /* 🌟 追加：文字の周りに黄金の極太フチ取りをつける */
+    text-shadow: 0 15px 0px #8e44ad, 0 0 60px #e67e22, 0 0 90px #e74c3c, 0 0 150px #c0392b; /* 燃えるオーラも限界突破 */
+    opacity: 0;
+    z-index: 10000;
+    pointer-events: none;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+.big-yaku-active {
+    animation: big-yaku-pop 3.5s forwards;
+}
+
+@keyframes big-yaku-pop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.3);
+    }
+
+    10% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.6); /* 🌟 ドカン！と1.6倍サイズで画面に飛び出す */
+    }
+
+    15% {
+        transform: translate(-50%, -50%) scale(1.1); /* 🌟 少し引いてドッシリ構える */
+    }
+
+    85% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.0); /* 🌟 消える時はさらに手前に迫りながら消える */
+    }
+}
+
+/* 🌟 手番プレイヤーの強調表示（文字が見やすいように背景を暗く固定） */
+.active-turn {
+    color: #f1c40f !important; /* 文字は目立つ黄金色 */
+    background: rgba(0, 0, 0, 0.75) !important; /* 背景をしっかり黒くして透過を防ぐ */
+    border: 2px solid #f1c40f !important; /* 枠線も黄金色 */
+    box-shadow: 0 0 15px rgba(241, 196, 15, 0.8) !important; /* 外側に光を放つ */
+    transform: scale(1.1); /* 少し大きくする */
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+@keyframes aura-animation {
+    0% {
+        box-shadow: 0 0 10px 2px rgba(255, 255, 100, 0.5);
+    }
+
+    100% {
+        box-shadow: 0 0 20px 8px rgba(255, 255, 100, 0.9);
+    }
+}
+
+/* =====================================================================
+★ タイトル画面
+===================================================================== */
+#title-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    /* 深い夜のようなグラデーション背景 */
+    background: radial-gradient(circle at center, #2c3e50 0%, #112240 60%, #0a0a0a 100%);
+    z-index: 30000; /* 設定画面よりさらに手前に出す */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: opacity 1s ease-out; /* ふわっと消えるエフェクト用 */
+}
+
+/* 全体をゆっくり上下にフワフワさせる */
+.title-content {
+    animation: float-title 4s ease-in-out infinite;
+}
+
+.game-title {
+    font-size: 110px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    color: #fff;
+    text-shadow: 0 0 20px #f39c12, 0 0 40px #e67e22, 5px 5px 15px rgba(0,0,0,0.9);
+    margin: 0;
+    letter-spacing: 15px;
+}
+
+.pro-mark {
+    color: #f1c40f;
+    font-style: italic;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 130px;
+    text-shadow: 0 0 30px #f1c40f, 3px 3px 5px #000;
+}
+
+.game-subtitle {
+    font-size: 35px;
+    color: #bdc3c7;
+    letter-spacing: 25px;
+    margin-top: 10px;
+    margin-bottom: 80px;
+    text-shadow: 2px 2px 5px #000;
+}
+
+.btn-start {
+    background: linear-gradient(45deg, #e74c3c, #c0392b);
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+    padding: 20px 70px;
+    border: 3px solid #f1c40f;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.6), inset 0 0 15px rgba(255,255,255,0.4);
+    transition: all 0.2s;
+    letter-spacing: 5px;
+    font-family: 'Arial Black', sans-serif;
+}
+
+    .btn-start:hover {
+        transform: scale(1.1) translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.8), 0 0 40px #f1c40f;
+        background: linear-gradient(45deg, #ff7675, #e74c3c);
+    }
+
+    .btn-start:active {
+        transform: scale(0.95);
+        box-shadow: 0 5px 10px rgba(0,0,0,0.6);
+    }
+
+@keyframes float-title {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+.btn-sub {
+    background: rgba(0,0,0,0.6);
+    color: #f1c40f;
+    border: 2px solid #f1c40f;
+    padding: 10px 30px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+    .btn-sub:hover {
+        background: #f1c40f;
+        color: black;
+        box-shadow: 0 0 15px #f1c40f; /* 光るエフェクトもついでに足しておきます！ */
+    }
+
+/* =====================================================================
+★ モーダル画面共通（遊び方・役一覧など）
+===================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.85);
+    z-index: 35000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #2c3e50;
+    border: 3px solid #f39c12;
+    border-radius: 15px;
+    padding: 20px 30px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    color: white;
+    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-title {
+    text-align: center;
+    color: #f1c40f;
+    margin-top: 0;
+    border-bottom: 2px solid #555;
+    padding-bottom: 10px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    letter-spacing: 2px;
+}
+
+.modal-scroll-area {
+    overflow-y: auto;
+    padding-right: 15px;
+    flex-grow: 1;
+}
+
+    /* スクロールバーの装飾 */
+    .modal-scroll-area::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal-scroll-area::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+    }
+
+    .modal-scroll-area::-webkit-scrollbar-thumb {
+        background: #f39c12;
+        border-radius: 4px;
+    }
+
+    /* 遊び方画面の見出し・テキスト */
+    .modal-scroll-area h3 {
+        color: #3498db;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 5px;
+        margin-top: 25px;
+    }
+
+    .modal-scroll-area p {
+        line-height: 1.6;
+        font-size: 16px;
+        color: #ecf0f1;
+    }
+
+/* 🌟 言語切替ボタンと表示制御 */
+.btn-toggle-lang {
+    background: #34495e;
+    color: #ecf0f1;
+    border: 2px solid #7f8c8d;
+    padding: 8px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+    .btn-toggle-lang:hover {
+        background: #2c3e50;
+        border-color: #f1c40f;
+        color: #f1c40f;
+    }
+
+/* 🌟 言語切替のグローバル対応（リザルト画面など全体で連動させる） */
+body .ja {
+    display: none;
+}
+
+body .zh {
+    display: inline;
+}
+
+body.lang-ja .ja {
+    display: inline;
+}
+
+body.lang-ja .zh {
+    display: none;
+}
+
+
+/* 🌟 新しい点数別タグカラー（PDF準拠） */
+.yaku-tier-64 { /* 64点：黄金の明滅 */
+    background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
+    background-size: 300% 300%;
+    animation: shine-gold 2.5s infinite ease-in-out;
+    color: #000;
+    border: 1px solid #ffeaa7;
+    font-weight: 900;
+}
+
+.yaku-tier-32 { /* 32点：高貴な紫 */
+    background: linear-gradient(135deg, #8e44ad, #9b59b6);
+    box-shadow: 0 0 10px rgba(155, 89, 182, 0.9);
+    border: 1px solid #d2b4de;
+}
+
+.yaku-tier-16 { /* 16点：目を引く深紅 */
+    background: #c0392b;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+    border: 1px solid #e74c3c;
+}
+
+.yaku-tier-8 { /* 8点：少し良いオレンジ */
+    background: #d35400;
+    border: 1px solid #e67e22;
+}
+
+.yaku-tier-6 { /* 6点：青 */
+    background: #2980b9;
+    border: 1px solid #3498db;
+}
+
+.yaku-tier-4, .yaku-tier-2, .yaku-tier-1 { /* 4, 2, 1点：標準的な緑 */
+    background: #27ae60;
+    border: 1px solid #2ecc71;
+}
+
+.yaku-tier-multi { /* 乗算役：サイバーな輝き */
+    background: linear-gradient(135deg, #2980b9, #8e44ad);
+    box-shadow: 0 0 12px #00d2d3, inset 0 0 5px #00d2d3;
+    border: 1px solid #74b9ff;
+    font-weight: bold;
+}
+
+/* 役一覧のグリッドデザイン */
+.yaku-category {
+    margin-bottom: 25px;
+}
+
+    .yaku-category h3 {
+        color: #e67e22;
+        border-bottom: 2px solid #e67e22;
+    }
+
+.yaku-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.yaku-card {
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #7f8c8d;
+    width: calc(50% - 5px);
+    box-sizing: border-box;
+}
+
+.yaku-card-title {
+    margin-bottom: 8px;
+}
+
+.yaku-card-desc {
+    font-size: 13px;
+    color: #bdc3c7;
+    line-height: 1.4;
+}
+
+/* 🌟 役一覧の手牌例（牌姿）用のスタイル（スマート修正版） */
+.yaku-example {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px; /* 牌と牌の隙間を極限まで詰める */
+    margin-top: 6px;
+    background: rgba(0,0,0,0.3); /* 背景の主張も少し抑えめに */
+    padding: 3px;
+    border-radius: 4px;
+    align-items: center;
+    border-left: 3px solid #3498db;
+}
+
+    /* 🌟 !important をつけて、他のサイズ設定に絶対に負けないように強制する */
+    .yaku-example img {
+        width: 24px !important; /* 🌟 思い切って小さく！ */
+        height: 34px !important;
+        border-radius: 2px;
+        box-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+    }
+
+/* 🌟 役一覧のタブナビゲーション用スタイル */
+.yaku-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    justify-content: center;
+    border-bottom: 2px solid #555;
+    padding-bottom: 10px;
+}
+
+.yaku-tab-btn {
+    background: #2c3e50;
+    color: #bdc3c7;
+    border: 2px solid #7f8c8d;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+    transition: all 0.2s ease;
+}
+
+    .yaku-tab-btn:hover {
+        background: #34495e;
+        color: #fff;
+    }
+    /* 選ばれているタブの強調デザイン */
+    .yaku-tab-btn.active {
+        background: #e67e22;
+        color: #fff;
+        border-color: #f39c12;
+        box-shadow: 0 0 15px rgba(243, 156, 18, 0.6);
+        transform: scale(1.05);
+    }
+
+/* 🌟 役カテゴリーの見出しの余白を極限まで削る */
+.yaku-category h3 {
+    margin-top: 0 !important; /* 上の余白を完全にゼロにする */
+    margin-bottom: 8px !important; /* 下の余白も少し詰める */
+}
+/* 🌟 タイトル画面の上下フワフワ移動を止める（エイムブレ防止） */
+.title-content {
+    animation: none !important;
+}
+
+/* ==========================================
+   ★ モード選択画面
+   ========================================== */
+#mode-select-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0a;
+    z-index: 250;
+    display: none;
+    flex-direction: row; /* 🌟 横並びに変更 */
+    align-items: stretch;
+    justify-content: center;
+}
+
+/* 左半分：プロフィールエリア */
+.profile-panel {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border-right: 2px solid rgba(255, 255, 255, 0.05);
+    padding: 40px 60px; /* 🌟 上下の余白を少し詰める */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px; /* 🌟 要素間の隙間を詰める（40px -> 20px） */
+}
+
+/* 右半分：メニューエリア */
+.menu-panel {
+    flex: 1;
+    padding: 40px 60px; /* 🌟 こちらも上下の余白を詰める */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 名前とレートの表示 */
+.profile-name-large {
+    font-size: 48px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.profile-rank-badge {
+    font-size: 20px;
+    color: #f1c40f;
+    margin-bottom: 20px;
+}
+
+/* 直近の戦績（小さい丸や四角で並べる） */
+.history-container {
+    display: flex;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.history-item {
+    width: 35px;
+    height: 35px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.rank-1 {
+    background: #e74c3c;
+    color: white;
+}
+
+.rank-2 {
+    background: #e67e22;
+    color: white;
+}
+
+.rank-3 {
+    background: #34495e;
+    color: white;
+}
+
+.rank-4 {
+    background: #7f8c8d;
+    color: white;
+}
+
+/* 最高打点の牌姿表示 */
+.best-hand-preview {
+    background: rgba(0,0,0,0.4);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: auto;
+    width: 100%;
+    border-left: 4px solid #f1c40f;
+}
+
+/* マイページモーダル内の戦績リスト用 */
+.stats-list {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.stats-item {
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.mode-btn {
+    width: 420px; /* 🌟 幅を少しだけスマートに */
+    padding: 16px; /* 🌟 高さを抑えるために22pxから16pxに変更 */
+    margin: 8px 12px; /* 🌟 上下マージンを減らす */
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    background: #34495e;
+    border: 2px solid #2c3e50;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 6px #2c3e50;
+    text-align: left;
+    padding-left: 30px;
+}
+
+    .mode-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px #2c3e50;
+        filter: brightness(1.2);
+    }
+
+    .mode-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px #2c3e50;
+    }
+
+.mode-btn-primary {
+    background: #e67e22;
+    border-color: #d35400;
+    box-shadow: 0 4px #d35400;
+}
+
+    .mode-btn-primary:hover {
+        box-shadow: 0 6px #d35400;
+    }
+
+    .mode-btn-primary:active {
+        box-shadow: 0 2px #d35400;
+    }
+
+.mode-btn-disabled {
+    background: #7f8c8d;
+    border-color: #555;
+    color: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+    .mode-btn-disabled:hover {
+        transform: none;
+        filter: none;
+    }
+
+/* ==========================================
+   ★ 実績（アチーブメント）画面
+   ========================================== */
+.achieve-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    padding: 10px;
+}
+
+.achieve-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.achieve-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.achieve-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 5px;
+    color: #ecf0f1;
+}
+
+.achieve-desc {
+    font-size: 12px;
+    color: #bdc3c7;
+    margin-bottom: 10px;
+    height: 30px;
+}
+
+.achieve-progress-bg {
+    width: 100%;
+    background: #2c3e50;
+    height: 10px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+}
+
+.achieve-progress-bar {
+    height: 100%;
+    background: #3498db;
+    transition: width 0.5s;
+}
+
+.achieve-status {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* 🌟 メダルの色 */
+.medal-none {
+    filter: grayscale(100%) opacity(0.3);
+}
+
+.medal-bronze {
+    color: #cd7f32;
+    border-color: #cd7f32;
+    box-shadow: 0 0 10px rgba(205,127,50,0.3);
+}
+
+.medal-silver {
+    color: #bdc3c7;
+    border-color: #bdc3c7;
+    box-shadow: 0 0 10px rgba(189,195,199,0.4);
+}
+
+.medal-gold {
+    color: #f1c40f;
+    border-color: #f1c40f;
+    box-shadow: 0 0 15px rgba(241,196,15,0.6);
+    background: rgba(241,196,15,0.1);
+}
+
+/* 役コレクター図鑑用 */
+.yaku-collection-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.yaku-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid #555;
+    background: #2c3e50;
+    color: #7f8c8d;
+}
+
+    .yaku-badge.acquired {
+        background: #8e44ad;
+        color: white;
+        border-color: #9b59b6;
+        font-weight: bold;
+    }
+
+/* ==========================================
+   ★ 自動スケール用のコンテナ設定 (完全中央固定)
+   ========================================== */
+.title-content {
+    width: 1280px;
+    height: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%; /* 🌟 画面のど真ん中に配置 */
+}
+
+#mode-select-container {
+    width: 1280px;
+    height: 800px;
+    display: flex;
+    flex-direction: row;
+    position: absolute;
+    top: 50%;
+    left: 50%; /* 🌟 画面のど真ん中に配置 */
+}
