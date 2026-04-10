@@ -144,9 +144,10 @@ function loadSettings() {
         audioState.bgmOn = config.bgmOn;
         const btn = document.getElementById('btn-toggle-bgm');
         if (!audioState.bgmOn && btn) {
-            btn.innerText = "🔇 BGM: OFF";
-            btn.style.color = "#95a5a6";
-            btn.style.borderColor = "#95a5a6";
+            btn.innerText = "🔇";
+            btn.title = "BGM切替: OFF";
+            btn.style.color = "#e74c3c";
+            btn.style.borderColor = "rgba(231, 76, 60, 0.4)";
         }
     }
 }
@@ -583,19 +584,23 @@ function toggleBGM() {
     if (audioState.bgmOn) {
         if (audioState.initialized) sounds.bgm.play().catch(e => console.log(e));
         if (btn) {
-            btn.innerText = "🎵 BGM: ON";
-            btn.style.color = "#2ecc71";
-            btn.style.borderColor = "#2ecc71";
+            btn.innerText = "🎵"; // アイコンのみ
+            btn.title = "BGM切替: ON";
+            // 🌟 ひっそり佇むための透過カラー
+            btn.style.color = "rgba(255,255,255,0.5)";
+            btn.style.borderColor = "rgba(255,255,255,0.25)";
         }
     } else {
         sounds.bgm.pause();
         if (btn) {
-            btn.innerText = "🔇 BGM: OFF";
-            btn.style.color = "#95a5a6";
-            btn.style.borderColor = "#95a5a6";
+            btn.innerText = "🔇"; // ミュートアイコン
+            btn.title = "BGM切替: OFF";
+            // 🌟 OFF時は気づきやすいように少し赤く、でも透過させる
+            btn.style.color = "rgba(231, 76, 60, 0.6)";
+            btn.style.borderColor = "rgba(231, 76, 60, 0.3)";
         }
     }
-    saveSettings(); // 🌟 切り替えた状態を保存
+    saveSettings();
     playSE('click');
 }
 
@@ -1028,7 +1033,8 @@ function safeUpdate(data) {
 
 // ℹ️ 画面四隅のプレイヤー名、点数、レート、親マークなどを更新する関数
 function updateInfoUI() {
-    document.getElementById('round-info-center').innerText = `第 ${currentRound} 局`;
+    const roundTextEl = document.getElementById('round-text');
+    if (roundTextEl) roundTextEl.innerText = `第 ${currentRound} 局`;
 
     for (let i = 0; i < 4; i++) {
         let nameEl = document.getElementById(`player-name-${i}`);
@@ -2333,8 +2339,6 @@ async function handleRoundEnd() {
     }
 
     // 📊 詳細戦績の更新
-    game.win_records[0].forEach(ctx => { if (ctx.is_tsumo) playerStats.totalTsumoWins++; });
-    if (myMelds.length > 0) playerStats.totalCalls++;
     saveGameData();
 
     for (let res of calcData.results) {

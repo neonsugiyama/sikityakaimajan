@@ -4,323 +4,317 @@
     <meta charset="UTF-8">
     <title>四季茶会麻雀 Pro - フルマックス配置テスト</title>
     <style>
-        /* =====================================================================
-★ 画面全体と雀卓のベース設定
-===================================================================== */
-        body {
-            background-color: #0a0a0a;
-            color: white;
-            font-family: sans-serif;
-            margin: 0;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        .table {
-            position: relative;
-            width: 1280px;
-            height: 800px;
-            background-color: #1a5e3a;
-            border-radius: 10px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-            transform-origin: center center;
-        }
-
-        /* =====================================================================
-★ 牌のサイズ調整エリア
-===================================================================== */
-        .tile {
-            background-color: #ecf0f1;
-            border: 1px solid #bdc3c7;
-            border-radius: 3px;
-        }
-
-        .hand-0 .tile {
-            width: 36px;
-            height: 50px;
-        }
-
-        .hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
-            width: 28px;
-            height: 39px;
-        }
-
-        .meld-0 .tile {
-            width: 32px;
-            height: 45px;
-        }
-
-        .meld-1 .tile, .meld-2 .tile, .meld-3 .tile {
-            width: 28px;
-            height: 39px;
-        }
-
-        .river .tile {
-            width: 28px;
-            height: 39px;
-        }
-
-        /* =====================================================================
-★ 捨て牌（河）の配置エリア
-===================================================================== */
-        .river {
-            position: absolute;
-            display: grid;
-            grid-template-columns: repeat(6, 32px);
-            gap: 1px;
-            width: 190px;
-        }
-
-        .river-0 {
-            top: calc(50% + 105px);
-            left: calc(50% - 95px);
-        }
-
-        .river-1 {
-            top: calc(50% + 95px);
-            left: calc(50% + 110px);
-            transform-origin: top left;
-            transform: rotate(-90deg);
-        }
-
-        .river-2 {
-            top: calc(50% - 105px);
-            left: calc(50% - 95px);
-            transform-origin: top center;
-            transform: rotate(180deg);
-        }
-
-        .river-3 {
-            top: calc(50% + 95px);
-            right: calc(50% + 110px);
-            transform-origin: top right;
-            transform: rotate(90deg);
-        }
-
-        /* =====================================================================
-★ 手牌の配置エリア
-===================================================================== */
-        .hand {
-            position: absolute;
-            display: flex;
-            gap: 2px;
-            z-index: 50;
-        }
-
-        .hand-0 {
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-            .hand-0 .tile {
-                cursor: pointer;
-                transition: 0.1s;
-            }
-
-                .hand-0 .tile:hover {
-                    transform: translateY(-10px);
-                    box-shadow: 0 0 10px white;
+                /* =====================================================================
+        ★ 画面全体と雀卓のベース設定
+        ===================================================================== */
+                body {
+                    background-color: #0a0a0a;
+                    color: white;
+                    font-family: sans-serif;
+                    margin: 0;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    width: 100vw;
                 }
 
-        .hand-1 {
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-        }
+                .table {
+                    position: relative;
+                    width: 1280px;
+                    height: 800px;
+                    background-color: #1a5e3a;
+                    border-radius: 10px;
+                    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+                    transform-origin: center center;
+                }
 
-            .hand-1 .tile {
-                transform: rotate(-90deg);
-                margin: -8px 0;
-            }
+                /* =====================================================================
+        ★ 牌のサイズ調整エリア
+        ===================================================================== */
+                .tile {
+                    background-color: #ecf0f1;
+                    border: 1px solid #bdc3c7;
+                    border-radius: 3px;
+                }
 
-        .hand-2 {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
+                .hand-0 .tile {
+                    width: 36px;
+                    height: 50px;
+                }
 
-        .hand-3 {
-            left: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-        }
+                .hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
+                    width: 28px;
+                    height: 39px;
+                }
 
-            .hand-3 .tile {
-                transform: rotate(90deg);
-                margin: -8px 0;
-            }
+                .meld-0 .tile {
+                    width: 32px;
+                    height: 45px;
+                }
 
-        /* =====================================================================
-★ 副露（鳴き牌）エリア
-==================================================================== */
-        .meld {
-            position: absolute;
-            display: flex;
-            gap: 5px;
-            z-index: 100;
-        }
+                .meld-1 .tile, .meld-2 .tile, .meld-3 .tile {
+                    width: 28px;
+                    height: 39px;
+                }
 
-        .meld-0 {
-            bottom: 70px;
-            left: calc(50% - 303px);
-            flex-direction: row;
-        }
+                .river .tile {
+                    width: 28px;
+                    height: 39px;
+                }
 
-        .meld-1 {
-            right: 100px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: grid;
-            grid-template-columns: repeat(2, max-content);
-        }
+                /* =====================================================================
+        ★ 捨て牌（河）の配置エリア（最大24枚）
+        ===================================================================== */
+                .river {
+                    position: absolute;
+                    display: grid;
+                    grid-template-columns: repeat(6, 32px);
+                    gap: 1px;
+                    width: 190px;
+                }
 
-        .meld-2 {
-            top: 70px;
-            left: calc(50% - 270px);
-            flex-direction: row;
-        }
+                .river-0 {
+                    top: calc(50% + 105px);
+                    left: calc(50% - 95px);
+                }
 
-        .meld-3 {
-            left: 100px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: grid;
-            grid-template-columns: repeat(2, max-content);
-        }
+                .river-1 {
+                    top: calc(50% + 95px);
+                    left: calc(50% + 110px);
+                    transform-origin: top left;
+                    transform: rotate(-90deg);
+                }
 
-            .meld-1 .meld-group, .meld-3 .meld-group {
-                flex-direction: column;
-                width: 40px;
-                height: max-content;
-                align-items: center;
-                justify-content: flex-start;
-            }
+                .river-2 {
+                    top: calc(50% - 105px);
+                    left: calc(50% - 95px);
+                    transform-origin: top center;
+                    transform: rotate(180deg);
+                }
 
-        .meld-1 .tile {
-            transform: rotate(-90deg);
-            margin: -6px 0;
-            display: block;
-        }
+                .river-3 {
+                    top: calc(50% + 95px);
+                    right: calc(50% + 110px);
+                    transform-origin: top right;
+                    transform: rotate(90deg);
+                }
 
-        .meld-3 .tile {
-            transform: rotate(90deg);
-            margin: -6px 0;
-            display: block;
-        }
+                /* =====================================================================
+        ★ 手牌の配置エリア（最大14枚）
+        ===================================================================== */
+                .hand {
+                    position: absolute;
+                    display: flex;
+                    gap: 2px;
+                    z-index: 50;
+                }
 
-        .meld-group {
-            display: flex;
-            gap: 2px;
-            padding: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-        }
+                .hand-0 {
+                    bottom: 10px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                }
 
-        /* =====================================================================
-★ アガリ牌（Win Zone）エリア
-===================================================================== */
-        .win-zone {
-            position: absolute;
-            border: 2px solid #f1c40f;
-            padding: 5px;
-            border-radius: 5px;
-            background: rgba(0,0,0,0.6);
-            z-index: 100;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2px;
-        }
+                    .hand-0 .tile {
+                        cursor: pointer;
+                        transition: 0.1s;
+                    }
 
-            .win-zone .tile {
-                width: 24px;
-                height: 34px;
-                box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
-            }
-        /* 縦の影を強調 */
+                        .hand-0 .tile:hover {
+                            transform: translateY(-10px);
+                            box-shadow: 0 0 10px white;
+                        }
 
-        /* ★ 最後の行のはみ出しを防ぐため、下部の余白(padding-bottom)を広めに確保 */
-        .win-zone-0 {
-            bottom: 10px;
-            right: 10px;
-            max-width: 275px;
-            flex-direction: row-reverse;
-            flex-wrap: wrap-reverse;
-            padding-bottom: 23px;
-        }
+                .hand-1 {
+                    right: 30px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    flex-direction: column;
+                }
 
-        .win-zone-2 {
-            top: 10px;
-            left: calc(50% - 630px);
-            max-width: 275px;
-            padding-bottom: 23px;
-        }
+                    .hand-1 .tile {
+                        transform: rotate(-90deg);
+                        margin: -8px 0;
+                    }
 
-        /* ⬇️ CPU 1（右側）の全体枠 */
-        .win-zone-1 {
-            right: 10px;
-            top: 10px;
-            max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
-            flex-direction: column;
-            flex-wrap: wrap-reverse;
-            padding-right: 15px;
-            padding-top: 20px; /* 🌟追加：上の牌が枠外に突き抜けないためのクッション */
-        }
+                .hand-2 {
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                }
 
-        /* ⬇️ CPU 3（左側）の全体枠 */
-        .win-zone-3 {
-            left: 10px;
-            bottom: 10px;
-            max-height: 150px; /* 💡1列の最大高さ。これを超えると新しい列に改行されます */
-            flex-direction: column-reverse;
-            flex-wrap: wrap;
-            padding-left: 15px;
-            padding-bottom: 20px; /* 🌟追加：下の牌が枠外に突き抜けないためのクッション */
-        }
+                .hand-3 {
+                    left: 30px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    flex-direction: column;
+                }
 
-        /* ★ アガリ牌の重なり調整 */
-        .win-zone-0 .tile, .win-zone-2 .tile {
-            margin-bottom: -12px;
-            margin-left: 0;
-        }
+                    .hand-3 .tile {
+                        transform: rotate(90deg);
+                        margin: -8px 0;
+                    }
 
-        /* ⬇️ CPU 1（右側）の牌１つ１つの重なり具合 */
-        .win-zone-1 .tile {
-            transform: rotate(-90deg);
-            margin-top: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。(-18pxなどにするとさらに密着) */
-            margin-left: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
-        }
-        /* ※ズレの原因だった「:first-child」の特別扱いは削除しました！ */
+                /* =====================================================================
+        ★ 副露（鳴き牌）エリア（最大16枚：4カン）
+        ==================================================================== */
+                .meld {
+                    position: absolute;
+                    display: flex;
+                    gap: 5px;
+                    z-index: 100;
+                }
 
-        /* ⬇️ CPU 3（左側）の牌１つ１つの重なり具合 */
-        .win-zone-3 .tile {
-            transform: rotate(90deg);
-            margin-bottom: -15px; /* 💡【縦の重なり】マイナスが大きいほど深く重なります。 */
-            margin-right: 2px; /* 💡【横のスキマ】改行して列が増えた時の横の間隔。広げたい場合はここを5px等に増やします */
-            margin-top: 0;
-        }
+                .meld-0 {
+                    bottom: 70px;
+                    left: calc(50% - 303px);
+                    flex-direction: row;
+                }
 
-        /* =====================================================================
-★ 中央情報パネル
-===================================================================== */
+                .meld-1 {
+                    right: 100px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    display: grid;
+                    grid-template-columns: repeat(2, max-content);
+                }
+
+                .meld-2 {
+                    top: 70px;
+                    left: calc(50% - 270px);
+                    flex-direction: row;
+                }
+
+                .meld-3 {
+                    left: 100px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    display: grid;
+                    grid-template-columns: repeat(2, max-content);
+                }
+
+                    .meld-1 .meld-group, .meld-3 .meld-group {
+                        flex-direction: column;
+                        width: 40px;
+                        height: max-content;
+                        align-items: center;
+                        justify-content: flex-start;
+                    }
+
+                .meld-1 .tile {
+                    transform: rotate(-90deg);
+                    margin: -6px 0;
+                    display: block;
+                }
+
+                .meld-3 .tile {
+                    transform: rotate(90deg);
+                    margin: -6px 0;
+                    display: block;
+                }
+
+                .meld-group {
+                    display: flex;
+                    gap: 2px;
+                    padding: 4px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 5px;
+                }
+
+                /* =====================================================================
+        ★ アガリ牌（Win Zone）エリア（限界45枚想定）
+        ===================================================================== */
+                .win-zone {
+                    position: absolute;
+                    border: 2px solid #f1c40f;
+                    padding: 5px;
+                    border-radius: 5px;
+                    background: rgba(0,0,0,0.6);
+                    z-index: 100;
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 2px;
+                }
+
+                    .win-zone .tile {
+                        width: 24px;
+                        height: 34px;
+                        box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
+                    }
+
+                .win-zone-0 {
+                    bottom: 10px;
+                    right: 10px;
+                    max-width: 275px;
+                    flex-direction: row-reverse;
+                    flex-wrap: wrap-reverse;
+                    padding-bottom: 23px;
+                }
+
+                .win-zone-2 {
+                    top: 10px;
+                    left: calc(50% - 630px);
+                    max-width: 275px;
+                    padding-bottom: 23px;
+                }
+
+                .win-zone-1 {
+                    right: 10px;
+                    top: 10px;
+                    max-height: 150px;
+                    flex-direction: column;
+                    flex-wrap: wrap-reverse;
+                    padding-right: 15px;
+                    padding-top: 20px;
+                }
+
+                .win-zone-3 {
+                    left: 10px;
+                    bottom: 10px;
+                    max-height: 150px;
+                    flex-direction: column-reverse;
+                    flex-wrap: wrap;
+                    padding-left: 15px;
+                    padding-bottom: 20px;
+                }
+
+                .win-zone-0 .tile, .win-zone-2 .tile {
+                    margin-bottom: -12px;
+                    margin-left: 0;
+                }
+
+                .win-zone-1 .tile {
+                    transform: rotate(-90deg);
+                    margin-top: -15px;
+                    margin-left: 2px;
+                }
+
+                .win-zone-3 .tile {
+                    transform: rotate(90deg);
+                    margin-bottom: -15px;
+                    margin-right: 2px;
+                    margin-top: 0;
+                }
+
+                /* =====================================================================
+        ★ 中央情報パネル・プレイヤー情報
+        ===================================================================== */
+        /* 🌟 中央情報パネル */
         .center-info {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            padding: 5px 5px;
+            background: rgba(0,0,0,0.85);
+            padding: 10px 15px;
             border-radius: 15px;
             text-align: center;
             border: 3px solid #f1c40f;
-            z-index: 100;
-            min-width: 120px;
+            z-index: 150;
+            min-width: 140px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.7);
         }
 
         #round-info-center {
@@ -328,366 +322,45 @@
             font-weight: bold;
             color: #f1c40f;
             margin-bottom: 5px;
+            position: relative; /* ボタンの基準点 */
+            display: block;
         }
 
         #wall-count {
             font-size: 24px;
             font-weight: bold;
             color: white;
+            margin-bottom: 5px;
         }
 
-        #msg {
-            margin-top: 8px;
-            color: #3498db;
-            font-weight: bold;
-            font-size: 18px;
-        }
-
-        /* ★ タイマー表示エリア */
-        #timer-display {
-            position: absolute;
-            bottom: 200px;
-            left: calc(50% + 160px); /* オートプレイボタンの右横 */
-            font-size: 32px;
-            font-weight: 900;
-            color: #2ecc71;
-            background: rgba(0,0,0,0.85);
-            border: 3px solid #2ecc71;
-            padding: 5px 20px;
-            border-radius: 30px;
-            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-            box-shadow: 0 0 15px rgba(0,0,0,0.8);
-            z-index: 100;
-            display: none;
-            transition: color 0.3s, border-color 0.3s, box-shadow 0.3s;
-        }
-
-        /* ★ 中央ポップアップメッセージ用 */
-        #center-message {
-            position: absolute;
-            top: 45%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.85);
-            border: 2px solid #f39c12;
-            color: white;
-            padding: 20px 40px;
-            border-radius: 10px;
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
-            z-index: 500;
-            box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
-            display: none;
-            white-space: nowrap;
-        }
-
-        /* ★ サイコロ＆交換メッセージ演出用 */
-        #dice-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 60px;
-            font-weight: bold;
-            color: white;
-            background: rgba(0,0,0,0.85);
-            padding: 20px 50px;
-            border-radius: 15px;
-            border: 3px solid #f1c40f;
-            z-index: 600;
-            display: none;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(241, 196, 15, 0.8);
-            line-height: 1.2;
-        }
-
-        /* ★ 空を飛ぶ牌のアニメーション設定 */
-        .flying-pack {
-            position: absolute;
+        /* 🌟 BGMボタン専用：ひっそり佇む設定 */
+        .btn-mini-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.25);
+            color: rgba(255,255,255,0.5);
+            font-size: 10px;
             display: flex;
-            gap: 2px;
-            z-index: 550;
-            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-
-            .flying-pack .tile {
-                width: 28px;
-                height: 39px;
-                box-shadow: 2px 2px 15px rgba(0,0,0,0.9);
-                border-radius: 3px;
-            }
-
-        /* ★ チャールストン時の各プレイヤーの意思表示（過 / 3枚差し出し） */
-        .charleston-status {
-            position: absolute;
-            z-index: 60;
-            display: flex;
-            gap: 2px;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+            padding: 0;
+            background: transparent;
+            position: absolute;
+            top: 50%;
+            right: -10px;
+            transform: translateY(-50%);
         }
 
-            .charleston-status .tile {
-                width: 26px;
-                height: 36px;
-                border-radius: 3px;
-                box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            .btn-mini-icon:hover {
+                border-color: rgba(255,255,255,0.6);
+                color: #fff;
+                background: rgba(255,255,255,0.1);
             }
 
-        .pos-c-status-0 {
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .pos-c-status-1 {
-            right: 120px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-        }
-
-            .pos-c-status-1 .tile {
-                transform: rotate(-90deg);
-                margin: -4px 0;
-            }
-
-        .pos-c-status-2 {
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .pos-c-status-3 {
-            left: 120px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-        }
-
-            .pos-c-status-3 .tile {
-                transform: rotate(90deg);
-                margin: -4px 0;
-            }
-
-        .guo-stamp {
-            font-size: 32px;
-            font-family: "Kaiti", "Yu Mincho", serif;
-            color: #e74c3c;
-            border: 3px solid #e74c3c;
-            border-radius: 5px;
-            padding: 4px 8px;
-            background: rgba(255,255,255,0.9);
-            transform: rotate(-15deg);
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-        }
-
-        /* =====================================================================
-★ プレイヤー情報（名前・点数）のデザイン設定と独立配置
-===================================================================== */
-        .player-name {
-            background: rgba(0,0,0,0.8);
-            padding: 5px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-            border: 2px solid #3498db;
-            text-align: center;
-            white-space: nowrap;
-        }
-
-        .player-score {
-            background: rgba(0,0,0,0.8);
-            padding: 5px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-            border: 2px solid #2ecc71;
-            color: #2ecc71;
-            text-align: center;
-            transition: transform 0.2s;
-            white-space: nowrap;
-        }
-
-        .dealer-mark {
-            color: #e74c3c;
-            font-weight: bold;
-            margin-right: 5px;
-        }
-
-        .pos-name-0 {
-            position: absolute;
-            bottom: 180px;
-            left: calc(50% - 300px);
-            transform: translateX(-50%);
-            z-index: 40;
-        }
-
-        .pos-name-1 {
-            position: absolute;
-            right: 170px;
-            top: calc(50% + 160px);
-            transform: translateY(-50%);
-            z-index: 40;
-        }
-
-        .pos-name-2 {
-            position: absolute;
-            top: 180px;
-            left: calc(50% + 300px);
-            transform: translateX(-50%);
-            z-index: 40;
-        }
-
-        .pos-name-3 {
-            position: absolute;
-            left: 170px;
-            top: calc(50% - 160px);
-            transform: translateY(-50%);
-            z-index: 40;
-        }
-
-        .pos-score-0 {
-            position: absolute;
-            bottom: 300px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 40;
-        }
-
-        .pos-score-1 {
-            position: absolute;
-            left: calc(50% + 90px);
-            top: 50%;
-            transform: translate(-50%, -50%) rotate(-90deg);
-            z-index: 40;
-        }
-
-        .pos-score-2 {
-            position: absolute;
-            top: 300px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 40;
-        }
-
-        .pos-score-3 {
-            position: absolute;
-            left: calc(50% - 90px);
-            top: 50%;
-            transform: translate(-50%, -50%) rotate(90deg);
-            z-index: 40;
-        }
-
-        /* =====================================================================
-★ スコア精算アニメーションのリッチなデザイン定義
-===================================================================== */
-        .pos-round-score-0 {
-            position: absolute;
-            bottom: 180px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            text-align: center;
-        }
-
-        .pos-round-score-1 {
-            position: absolute;
-            right: 320px;
-            top: 50%;
-            transform: translateY(20%);
-            z-index: 200;
-            text-align: center;
-        }
-
-        .pos-round-score-2 {
-            position: absolute;
-            top: 250px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            text-align: center;
-        }
-
-        .pos-round-score-3 {
-            position: absolute;
-            left: 320px;
-            top: 50%;
-            transform: translateY(20%);
-            z-index: 200;
-            text-align: center;
-        }
-
-        .player-round-score {
-            opacity: 0;
-            transition: opacity 0.5s, transform 0.5s;
-            pointer-events: none;
-            white-space: nowrap;
-        }
-
-        .show-score {
-            opacity: 1;
-            transform: translateY(-40px);
-        }
-
-        .score-main-plus {
-            font-size: 54px;
-            font-weight: 900;
-            color: #f1c40f;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #f39c12;
-            line-height: 1.1;
-        }
-
-        .score-main-minus {
-            font-size: 54px;
-            font-weight: 900;
-            color: #e74c3c;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #c0392b;
-            line-height: 1.1;
-        }
-
-        .score-main-zero {
-            font-size: 54px;
-            font-weight: 900;
-            color: #bdc3c7;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px rgba(0,0,0,0.8);
-            line-height: 1.1;
-        }
-
-        .score-rank-plus {
-            font-size: 22px;
-            font-weight: bold;
-            color: #00cec9;
-            text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
-            margin-top: 5px;
-        }
-
-        .score-rank-zero {
-            font-size: 22px;
-            font-weight: bold;
-            color: #95a5a6;
-            text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
-            margin-top: 5px;
-        }
-
-        /* =====================================================================
-★ 待ち牌確認・オートプレイUIパネル ＆ ボタン
-===================================================================== */
-        .pos-waits-btn {
-            position: absolute;
-            bottom: 150px;
-            left: calc(50% - 230px);
-            z-index: 50;
-        }
-
-        .pos-auto-btn {
-            position: absolute;
-            bottom: 150px;
-            left: calc(50% + 120px);
-            z-index: 50;
-        }
-
+        /* 🌟 元の状態に戻すボタン用スタイル */
         .btn-waits {
             background: #e67e22;
             color: white;
@@ -701,427 +374,327 @@
             transition: 0.1s;
         }
 
-            .btn-waits:not(:disabled):active {
+            .btn-waits:active {
                 transform: translateY(3px);
                 box-shadow: 0 0 #d35400;
             }
 
-            .btn-waits:not(:disabled):hover {
-                background: #f39c12;
-            }
-
-            .btn-waits:disabled {
-                background: #95a5a6;
-                color: #bdc3c7;
-                box-shadow: none;
-                cursor: not-allowed;
-                transform: none !important;
-            }
-
-        .waits-panel {
-            position: absolute;
-            bottom: 230px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.95);
-            border: 2px solid #e67e22;
-            border-radius: 8px;
-            padding: 10px 20px;
-            z-index: 300;
-            min-width: 250px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
-
-        .waits-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: #f1c40f;
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #555;
-        }
-
-            .waits-header button {
-                background: none;
-                border: none;
-                color: #e74c3c;
-                font-size: 20px;
-                font-weight: bold;
-                cursor: pointer;
-            }
-
-                .waits-header button:hover {
-                    color: #ff7675;
+                .player-name {
+                    background: rgba(0,0,0,0.8);
+                    padding: 5px 15px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    font-size: 16px;
+                    border: 2px solid #3498db;
+                    text-align: center;
+                    white-space: nowrap;
                 }
 
-        .waits-list {
-            display: flex;
-            gap: 15px 5px;
-            justify-content: center;
-            flex-wrap: wrap;
-            max-width: 580px;
-            margin: 0 auto;
-        }
+                .player-score {
+                    background: rgba(0,0,0,0.8);
+                    padding: 5px 15px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    font-size: 16px;
+                    border: 2px solid #2ecc71;
+                    color: #2ecc71;
+                    text-align: center;
+                    white-space: nowrap;
+                }
 
-        .wait-item {
-            width: 60px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            white-space: nowrap;
-        }
+                .pos-name-0 {
+                    position: absolute;
+                    bottom: 180px;
+                    left: calc(50% - 300px);
+                    transform: translateX(-50%);
+                    z-index: 40;
+                }
 
-            .wait-item .tile {
-                width: 32px;
-                height: 45px;
-                margin-bottom: 5px;
-            }
+                .pos-name-1 {
+                    position: absolute;
+                    right: 170px;
+                    top: calc(50% + 160px);
+                    transform: translateY(-50%);
+                    z-index: 40;
+                }
 
-        /* =====================================================================
-★ その他のアクションUI
-===================================================================== */
-        .action-layer {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            z-index: 200;
-            width: 800px;
-            pointer-events: none;
-        }
+                .pos-name-2 {
+                    position: absolute;
+                    top: 180px;
+                    left: calc(50% + 300px);
+                    transform: translateX(-50%);
+                    z-index: 40;
+                }
 
-        .btn-act {
-            padding: 12px 20px;
-            font-size: 20px;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            display: none;
-            font-weight: bold;
-            pointer-events: auto;
-        }
+                .pos-name-3 {
+                    position: absolute;
+                    left: 170px;
+                    top: calc(50% - 160px);
+                    transform: translateY(-50%);
+                    z-index: 40;
+                }
 
-        .btn-red {
-            background: #e74c3c;
-            box-shadow: 0 5px #c0392b;
-        }
+                .pos-score-0 {
+                    position: absolute;
+                    bottom: 300px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 40;
+                }
 
-        .btn-blue {
-            background: #3498db;
-            box-shadow: 0 5px #2980b9;
-        }
+                .pos-score-1 {
+                    position: absolute;
+                    left: calc(50% + 90px);
+                    top: 50%;
+                    transform: translate(-50%, -50%) rotate(-90deg);
+                    z-index: 40;
+                }
 
-        .btn-green {
-            background: #2ecc71;
-            box-shadow: 0 5px #27ae60;
-        }
+                .pos-score-2 {
+                    position: absolute;
+                    top: 300px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 40;
+                }
 
-        .btn-purple {
-            background: #9b59b6;
-            box-shadow: 0 5px #8e44ad;
-        }
+                .pos-score-3 {
+                    position: absolute;
+                    left: calc(50% - 90px);
+                    top: 50%;
+                    transform: translate(-50%, -50%) rotate(90deg);
+                    z-index: 40;
+                }
 
-        .btn-gray {
-            background: #7f8c8d;
-            box-shadow: 0 5px #636e72;
-        }
 
-        #charleston-ui, #charleston-confirm-ui {
-            position: absolute;
-            top: 75%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 300;
-            display: none;
-        }
+                /* =====================================================================
+        👁️ 待ち牌確認・オートプレイUIパネル ＆ ボタン（提供CSSを適用）
+        ===================================================================== */
+                .pos-waits-btn {
+                    position: absolute;
+                    bottom: 136px;
+                    left: calc(50% - 230px);
+                    z-index: 50;
+                }
 
-            #charleston-ui div, #charleston-confirm-ui div {
-                background: rgba(0,0,0,0.9);
-                padding: 10px 10px;
-                border: 3px solid #3498db;
-                border-radius: 10px;
-            }
+                .pos-auto-btn {
+                    position: absolute;
+                    bottom: 136px;
+                    left: calc(50% + 120px);
+                    z-index: 50;
+                }
 
-        .selected-exchange {
-            transform: translateY(-15px) !important;
-            box-shadow: 0 0 15px #e74c3c !important;
-        }
+                .btn-waits {
+                    background: #e67e22;
+                    color: white;
+                    border: none;
+                    padding: 4px 15px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    font-size: 15px;
+                    cursor: pointer;
+                    box-shadow: 0 3px #d35400;
+                    transition: 0.1s;
+                }
 
-        #overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95); /* 少し濃くしました */
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start; /* ★ centerからflex-startに変更し、上から順に配置 */
-            padding: 80px 0; /* ★ 上下の余白を追加 */
-            z-index: 1000;
-            overflow-y: auto; /* ★ 縦方向のスクロールを有効にする */
-        }
+                    .btn-waits:not(:disabled):active {
+                        transform: translateY(3px);
+                        box-shadow: 0 0 #d35400;
+                    }
 
-            /* スクロールバーのデザインを少しオシャレに */
-            #overlay::-webkit-scrollbar {
-                width: 10px;
-            }
+                    .btn-waits:not(:disabled):hover {
+                        background: #f39c12;
+                    }
 
-            #overlay::-webkit-scrollbar-track {
-                background: rgba(255,255,255,0.1);
-                border-radius: 5px;
-            }
+                    .btn-waits:disabled {
+                        background: #95a5a6;
+                        color: #bdc3c7;
+                        box-shadow: none;
+                        cursor: not-allowed;
+                        transform: none !important;
+                    }
 
-            #overlay::-webkit-scrollbar-thumb {
-                background: #f39c12;
-                border-radius: 5px;
-            }
+                .waits-panel {
+                    position: absolute;
+                    bottom: 230px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.95);
+                    border: 2px solid #e67e22;
+                    border-radius: 8px;
+                    padding: 10px 20px;
+                    z-index: 300;
+                    min-width: 250px;
+                    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+                }
 
-        .yaku-tag {
-            display: inline-block;
-            background: #f39c12;
-            padding: 8px 15px;
-            border-radius: 20px;
-            margin: 5px;
-            font-size: 20px;
-            font-weight: bold;
-        }
+                .waits-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    color: #f1c40f;
+                    font-weight: bold;
+                    font-size: 16px;
+                    margin-bottom: 10px;
+                    padding-bottom: 5px;
+                    border-bottom: 1px solid #555;
+                }
 
-        /* =====================================================================
-★ 鳴き・アガリのエフェクト
-===================================================================== */
-        .call-wrap-0 {
-            position: absolute;
-            bottom: 200px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 400;
-            pointer-events: none;
-        }
+                    .waits-header button {
+                        background: none;
+                        border: none;
+                        color: #e74c3c;
+                        font-size: 20px;
+                        font-weight: bold;
+                        cursor: pointer;
+                    }
 
-        .call-wrap-1 {
-            position: absolute;
-            right: 280px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 400;
-            pointer-events: none;
-        }
+                        .waits-header button:hover {
+                            color: #ff7675;
+                        }
 
-        .call-wrap-2 {
-            position: absolute;
-            top: 200px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 400;
-            pointer-events: none;
-        }
+                .waits-list {
+                    display: flex;
+                    gap: 15px 5px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                    max-width: 580px;
+                    margin: 0 auto;
+                }
 
-        .call-wrap-3 {
-            position: absolute;
-            left: 280px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 400;
-            pointer-events: none;
-        }
+                .wait-item {
+                    width: 60px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    white-space: nowrap;
+                }
 
-        .call-text {
-            font-size: 80px;
-            font-weight: bold;
-            color: #f1c40f;
-            text-shadow: 3px 3px 0 #c0392b, -1px -1px 0 #c0392b, 1px -1px 0 #c0392b, -1px 1px 0 #c0392b, 0 0 20px #e74c3c;
-            opacity: 0;
-            transform: scale(0.5);
-            white-space: nowrap;
-        }
+                    .wait-item .tile {
+                        width: 32px;
+                        height: 45px;
+                        margin-bottom: 5px;
+                    }
 
-        @keyframes popupCall {
-            0% {
-                opacity: 0;
-                transform: scale(0.5);
-            }
+                /* =====================================================================
+        🕹️ その他のアクションUI（ポン・カンなどのボタン）（提供CSSを適用）
+        ===================================================================== */
+                /* 📦 複数ボタンのグループを横に並べる親枠 */
+                .action-wrapper {
+                    position: absolute;
+                    bottom: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    justify-content: center;
+                    gap: 10px;
+                    z-index: 200;
+                    pointer-events: none;
+                    width: 1000px;
+                }
 
-            20% {
-                opacity: 1;
-                transform: scale(1.2);
-            }
+                /* 🍱 アクションボタンを横並びに配置するコンテナ */
+                .action-layer {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    gap: 10px;
+                }
 
-            40% {
-                transform: scale(1.0);
-            }
+                .btn-act {
+                    padding: 12px 20px;
+                    font-size: 20px;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    display: none;
+                    font-weight: bold;
+                    pointer-events: auto;
+                }
 
-            80% {
-                opacity: 1;
-                transform: scale(1.0);
-            }
+                .btn-red {
+                    background: #e74c3c;
+                    box-shadow: 0 5px #c0392b;
+                }
 
-            100% {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-        }
+                .btn-blue {
+                    background: #3498db;
+                    box-shadow: 0 5px #2980b9;
+                }
 
-        .call-active {
-            animation: popupCall 1s forwards;
-        }
+                .btn-green {
+                    background: #2ecc71;
+                    box-shadow: 0 5px #27ae60;
+                }
 
-        @keyframes blink {
-            0% {
-                opacity: 1;
-                transform: scale(1.1);
-            }
+                .btn-purple {
+                    background: #9b59b6;
+                    box-shadow: 0 5px #8e44ad;
+                }
 
-            50% {
-                opacity: 0.5;
-                transform: scale(1);
-            }
-
-            100% {
-                opacity: 1;
-                transform: scale(1.1);
-            }
-        }
-
-        .blink-text {
-            animation: blink 1.5s infinite;
-            color: #ff9ff3 !important;
-        }
-
-        /* ★ デバッグパネルのスタイル */
-        .debug-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border: 1px solid #e74c3c;
-            border-radius: 5px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .debug-btn {
-            background: #c0392b;
-            color: white;
-            border: none;
-            padding: 5px;
-            cursor: pointer;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-
-            .debug-btn:hover {
-                background: #e74c3c;
-            }
+                .btn-gray {
+                    background: #7f8c8d;
+                    box-shadow: 0 5px #636e72;
+                }
     </style>
 </head>
 <body>
 
     <div class="table">
         <div class="center-info">
-            <div id="round-info-center">第 -- 局</div>
-            <div id="wall-count">山: --</div>
-            <div id="msg"></div>
+            <div id="round-info-center">
+                <span>第 1 局</span>
+                <button class="btn-mini-icon" title="BGM切替">🎵</button>
+            </div>
+            <div id="wall-count">山: 60</div>
         </div>
 
-        <div id="timer-display" style="display:block;">⏱ <span id="timer-sec">60</span>s</div>
-
-        <div id="c-status-0" class="charleston-status pos-c-status-0"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"></div>
-        <div id="c-status-1" class="charleston-status pos-c-status-1"><div class="guo-stamp">過</div></div>
-        <div id="c-status-2" class="charleston-status pos-c-status-2"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"></div>
-        <div id="c-status-3" class="charleston-status pos-c-status-3"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"></div>
-
-        <div class="pos-name-0"><div id="player-name-0" class="player-name">あなた</div></div>
-        <div class="pos-score-0"><div id="player-score-0" class="player-score">持ち点: 25000</div></div>
-        <div class="pos-round-score-0"><div id="player-round-score-0" class="player-round-score"></div></div>
-
-        <div class="pos-waits-btn">
+        <div style="position: absolute; bottom: 136px; left: calc(50% - 250px); display: flex; gap: 10px; z-index: 50;">
+            <button class="btn-waits" style="background:#9b59b6; box-shadow: 0 3px #8e44ad;">役一覧</button>
             <button id="btn-show-waits" class="btn-waits">待ち牌確認</button>
         </div>
-        <div class="pos-auto-btn">
+
+        <div style="position: absolute; bottom: 136px; left: calc(50% + 50px); display: flex; gap: 10px; z-index: 50;">
             <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;">オート(和了後): OFF</button>
         </div>
 
-        <div class="pos-name-1"><div id="player-name-1" class="player-name">CPU 1</div></div>
-        <div class="pos-score-1"><div id="player-score-1" class="player-score">持ち点: 25000</div></div>
-        <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
 
-        <div class="pos-name-2"><div id="player-name-2" class="player-name">CPU 2</div></div>
-        <div class="pos-score-2"><div id="player-score-2" class="player-score">持ち点: 25000</div></div>
-        <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
 
-        <div class="pos-name-3"><div id="player-name-3" class="player-name">CPU 3</div></div>
-        <div class="pos-score-3"><div id="player-score-3" class="player-score">持ち点: 25000</div></div>
-        <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
+        <div class="pos-name-0"><div class="player-name">あなた</div></div>
+        <div class="pos-score-0"><div class="player-score">持ち点: 25000</div></div>
+        <div class="pos-name-1"><div class="player-name">CPU 1</div></div>
+        <div class="pos-score-1"><div class="player-score">持ち点: 25000</div></div>
+        <div class="pos-name-2"><div class="player-name">CPU 2</div></div>
+        <div class="pos-score-2"><div class="player-score">持ち点: 25000</div></div>
+        <div class="pos-name-3"><div class="player-name">CPU 3</div></div>
+        <div class="pos-score-3"><div class="player-score">持ち点: 25000</div></div>
 
-        <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
-        <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
-        <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
-        <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
-
-        <div id="charleston-ui">
-            <div>
-                <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
-                <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
-                <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;">交換決定！</button>
+        <div class="action-wrapper">
+            <div class="action-layer" id="opponent-actions" style="display:flex;">
+                <button class="btn-act btn-red" style="display:block;">アガリ！</button>
+                <button class="btn-act btn-blue" style="display:block;">ポン</button>
+                <button class="btn-act btn-green" style="display:block;">花槓</button>
+                <button class="btn-act btn-blue" style="display:block;">大明槓</button>
+                <button class="btn-act btn-gray" style="display:block;">スルー</button>
             </div>
+            <div class="action-layer" id="self-actions"></div>
         </div>
+    
 
-        <div id="charleston-confirm-ui">
-            <div>
-                <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
-                <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
-                <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;">はい、参加する</button>
-                <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;">いいえ</button>
-            </div>
-        </div>
-
-        <div id="win-zone-0" class="win-zone win-zone-0" style="display:flex;"></div>
-        <div id="win-zone-1" class="win-zone win-zone-1" style="display:flex;"></div>
-        <div id="win-zone-2" class="win-zone win-zone-2" style="display:flex;"></div>
-        <div id="win-zone-3" class="win-zone win-zone-3" style="display:flex;"></div>
-
-        <div class="action-layer" id="opponent-actions" style="display:flex;">
-            <button id="btn-win" class="btn-act btn-red" style="display:block;">アガリ！</button>
-            <button id="btn-pon" class="btn-act btn-blue" style="display:block;">ポン</button>
-            <button id="btn-hanakan" class="btn-act btn-green" style="display:block;">花槓</button>
-            <button id="btn-kan" class="btn-act btn-blue" style="display:block;">大明槓</button>
-            <button id="btn-skip" class="btn-act btn-gray" style="display:block;">スルー</button>
-        </div>
-        <div class="action-layer" id="self-actions" style="bottom: 80px;"></div>
-
+        <div id="win-zone-0" class="win-zone win-zone-0"></div>
+        <div id="win-zone-1" class="win-zone win-zone-1"></div>
+        <div id="win-zone-2" class="win-zone win-zone-2"></div>
+        <div id="win-zone-3" class="win-zone win-zone-3"></div>
         <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
         <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
         <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
         <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
         <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
         <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
-
-        <div id="waits-panel" class="waits-panel" style="display:none;">
-            <div class="waits-header">
-                <span>待ち牌・残り枚数</span>
-                <button>×</button>
-            </div>
-            <div id="waits-list" class="waits-list"></div>
-        </div>
-
-        <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
     </div>
 
     <script>
@@ -1133,7 +706,6 @@
         window.addEventListener('resize', resizeGame);
         window.addEventListener('DOMContentLoaded', resizeGame);
 
-        // ダミー牌描画関数（通常）
         function fillTiles(id, count, tileName) {
             const el = document.getElementById(id);
             for (let i = 0; i < count; i++) {
@@ -1144,7 +716,6 @@
             }
         }
 
-        // ダミー牌描画関数（副露・鳴き牌用：4枚1組のカンをセット）
         function fillMelds(id, setCount, tileName) {
             const el = document.getElementById(id);
             for (let i = 0; i < setCount; i++) {
@@ -1160,7 +731,6 @@
             }
         }
 
-        // 🌟 新追加：順番がわかるようにバラバラの牌を描画する関数
         function fillTilesSequence(id, count) {
             const el = document.getElementById(id);
             const tileKinds = [
@@ -1173,38 +743,37 @@
             for (let i = 0; i < count; i++) {
                 const img = document.createElement('img');
                 img.className = 'tile';
-                // 配列から順番に牌を取得（34枚を超えたら最初に戻る）
                 img.src = `images/${tileKinds[i % tileKinds.length]}.png`;
 
-                // ★ 先ほど追加した z-index の調整（自分:0 と 下家:1 は奥に潜り込ませる）
                 if (id.includes('-0') || id.includes('-1')) {
                     img.style.zIndex = 1000 + i;
                 }
-
                 el.appendChild(img);
             }
         }
 
-        // ★ 手牌（最大14枚）
+        // ★ フルマックス描画の実行！
+        // 1. 手牌（最大14枚）
         fillTiles('hand-0', 14, '1p');
         fillTiles('hand-1', 14, 'ura');
         fillTiles('hand-2', 14, 'ura');
         fillTiles('hand-3', 14, 'ura');
 
-        // ★ 河（4段ギリギリまで＝24枚）
+        // 2. 河（4段ギリギリまで＝24枚）
         for (let i = 0; i < 4; i++) fillTiles(`river-${i}`, 24, '5s');
 
-        // ★ 鳴き（最大4副露 × 4枚のカン）
+        // 3. 鳴き（最大4副露 × 4枚のカン = 16枚）
         fillMelds('meld-0', 4, '中');
         fillMelds('meld-1', 4, '發');
         fillMelds('meld-2', 4, '白');
         fillMelds('meld-3', 4, '東');
 
-        // 🌟 和了牌の大量積みテスト（順番にバラバラの牌を34枚セット）
-        fillTilesSequence('win-zone-0', 34);
-        fillTilesSequence('win-zone-1', 34);
-        fillTilesSequence('win-zone-2', 34);
-        fillTilesSequence('win-zone-3', 34);
+        // 4. アガリ牌（Win Zone）
+        // 理論上の限界突破・45連射のマシンガン和了を想定！
+        fillTilesSequence('win-zone-0', 45);
+        fillTilesSequence('win-zone-1', 45);
+        fillTilesSequence('win-zone-2', 45);
+        fillTilesSequence('win-zone-3', 45);
 
     </script>
 </body>

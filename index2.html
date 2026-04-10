@@ -789,19 +789,18 @@
     </div>
 
     <div class="table">
-        <div style="position: absolute; top: 15px; left: 15px; z-index: 100;">
-            <button id="btn-toggle-bgm" onclick="toggleBGM()" style="background: rgba(0,0,0,0.6); color: #2ecc71; border: 2px solid #2ecc71; padding: 5px 10px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s;">
-                🎵 BGM: ON
-            </button>
-        </div>
-
         <div id="center-message"></div>
         <div id="dice-overlay"></div>
+
         <div class="center-info">
-            <div id="round-info-center">第 -- 局</div>
+            <div id="round-info-center">
+                <span id="round-text">第 -- 局</span>
+                <button id="btn-toggle-bgm" class="btn-mini-icon" onclick="toggleBGM()" title="BGM切替: ON">🎵</button>
+            </div>
             <div id="wall-count">山: --</div>
             <div id="msg"></div>
         </div>
+
         <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
         <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
         <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
@@ -817,6 +816,7 @@
         <div class="pos-round-score-0">
             <div id="player-round-score-0" class="player-round-score"></div>
         </div>
+
         <div class="pos-waits-btn">
             <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
         </div>
