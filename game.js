@@ -2927,26 +2927,36 @@ function openMyPage() {
     // 🌟 2. 生涯累計獲得スコア
     document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
 
-    // 順位分布回数
-    document.getElementById('stat-rank-1').innerText = playerStats.rankCounts[0] || 0;
-    document.getElementById('stat-rank-2').innerText = playerStats.rankCounts[1] || 0;
-    document.getElementById('stat-rank-3').innerText = playerStats.rankCounts[2] || 0;
-    document.getElementById('stat-rank-4').innerText = playerStats.rankCounts[3] || 0;
-
     // 🌟 3. レーダーチャートの描画
-    // レーダーは最大100なので、回数や点数は「100%」になる上限値を仮決めして正規化します
-    // ※ 手数は50回でMAX、打点は500点でMAXとして計算（ゲームバランスに合わせて数字はイジってください！）
-    let chartAvgWins = Math.min((avgWins / 50) * 100, 100);
-    let chartAvgScore = Math.min((avgWinScore / 500) * 100, 100);
 
+    // 1. トップ率：そのまま（0〜100%）
+    // topRate はそのまま使用
+
+    // 2. 手数（最大60回）：ルート補正をかけて、序盤からグラフを大きく見せる！
+    let chartAvgWins = Math.min(Math.sqrt(avgWins / 60) * 100, 100);
+
+    // 3. パワー（平均打点）：最大2000点と仮定してルート補正！
+    // （例：平均500点でも、ルート補正でグラフは 50% まで伸びる）
+    let chartAvgScore = Math.min(Math.sqrt(avgWinScore / 2000) * 100, 100);
+
+    // 4. 無花果率（最大100%）：これはそのままでもOKですが、強プレイヤーの基準を80%に設定して直線補正
+    // （無花果率が80%あれば、グラフ上では100%の頂点に到達する）
+    let chartMuhana = Math.min((muhanaRate / 80) * 100, 100);
+
+    // 5. 天運（特殊ドロー率）：超レアなので最大値を 15% くらいに設定して直線補正
+    // （15%出せていれば「天運MAX」としてグラフが頂点に達する）
+    let chartLuckRate = Math.min((luckRate / 15) * 100, 100);
+
+    // レーダーチャートの更新処理へ渡す
     if (radarChart) radarChart.destroy();
     const ctxRadar = document.getElementById('mypage-radar-chart').getContext('2d');
     radarChart = new Chart(ctxRadar, {
         type: 'radar',
         data: {
-            labels: ['トップ率', '手数 (コンボ)', 'パワー (打点)', '無花果 (バフ)', '天運 (ドロー)'],
+            labels: ['トップ率', '1局平均和了', '1局平均スコア', '無花果率', '天運'],
             datasets: [{
-                data: [topRate, chartAvgWins, chartAvgScore, muhanaRate, luckRate],
+                // 🌟 ここで補正済みの変数をセット！
+                data: [topRate, chartAvgWins, chartAvgScore, chartMuhana, chartLuckRate],
                 backgroundColor: 'rgba(52, 152, 219, 0.4)',
                 borderColor: '#3498db',
                 pointBackgroundColor: '#f1c40f',
@@ -2960,9 +2970,69 @@ function openMyPage() {
         }
     });
 
-    // 🌟 4. 円グラフの描画 (既存のまま)
+    // 🌟 4. 円グラフの描画
     if (pieChart) pieChart.destroy();
     const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
+
+    // 引き出し線とパーセンテージを直接描画するプラグイン
+    const customOutLabelPlugin = {
+        id: 'customOutLabels',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            const data = chart.data.datasets[0].data;
+            const meta = chart.getDatasetMeta(0);
+            const total = data.reduce((a, b) => a + b, 0);
+
+            if (total === 0) return;
+
+            meta.data.forEach((arc, index) => {
+                const value = data[index];
+                if (value === 0) return; // 0回の順位は線を引かない
+
+                const percentage = ((value / total) * 100).toFixed(1) + '%';
+                const labelText = chart.data.labels[index];
+                const displayText = `${labelText}: ${percentage} (${value}回)`;
+
+                // 角度と座標の計算
+                const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+                const r = arc.outerRadius; // 円の半径
+                const x = arc.x; // 円の中心X
+                const y = arc.y; // 円の中心Y
+
+                // ① 線のスタート地点（円の縁）
+                const startX = x + Math.cos(midAngle) * r;
+                const startY = y + Math.sin(midAngle) * r;
+
+                // ② 線の折れ曲がり地点（少し外側へ）
+                const lineExt = 15;
+                const midX = x + Math.cos(midAngle) * (r + lineExt);
+                const midY = y + Math.sin(midAngle) * (r + lineExt);
+
+                // ③ 線のゴール地点（左右に水平に伸ばす）
+                const isRight = midX > x; // 右半分か左半分か判定
+                const endX = isRight ? midX + 15 : midX - 15;
+
+                // 線の描画
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(endX, midY);
+                // 🌟 線の色を、それぞれの順位の色に合わせる！
+                ctx.strokeStyle = chart.data.datasets[0].backgroundColor[index];
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // テキストの描画
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.textAlign = isRight ? 'left' : 'right';
+                ctx.textBaseline = 'middle';
+                // 線の先端から少し離して文字を書く
+                ctx.fillText(displayText, isRight ? endX + 5 : endX - 5, midY);
+            });
+        }
+    };
+
     pieChart = new Chart(ctxPie, {
         type: 'doughnut',
         data: {
@@ -2974,9 +3044,18 @@ function openMyPage() {
                 borderWidth: 2
             }]
         },
+        plugins: [customOutLabelPlugin], // 🌟 ここで自作プラグインをセット！
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'right', labels: { color: '#fff', font: { size: 14 } } } }
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                // 🌟 外側に文字と線を描くため、グラフ自体の上下左右に十分な余白を作る
+                padding: { left: 65, right: 65, top: 20, bottom: 20 }
+            },
+            plugins: {
+                legend: { display: false }, // デフォルト凡例は非表示
+                tooltip: { enabled: false } // 常に表示されるので、ホバーフキダシはOFF
+            }
         }
     });
 

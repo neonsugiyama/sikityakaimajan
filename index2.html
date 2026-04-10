@@ -90,12 +90,24 @@
                         <div class="stats-card">
                             <h3 class="stats-card-title">総合指標</h3>
                             <div class="stats-grid">
-                                <div class="stats-item"><span class="label">総ゲーム数</span><span class="val" id="stat-total-games">0</span></div>
-                                <div class="stats-item"><span class="label">最大連勝数</span><span class="val" style="color: #f1c40f;" id="stat-max-streak">0 連勝</span></div>
-                                <div class="stats-item"><span class="label">平均順位</span><span class="val highlight" id="stat-avg-rank">0.00</span></div>
-                                <div class="stats-item"><span class="label">トップ率</span><span class="val" id="stat-top-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">連対率（2位以上）</span><span class="val" id="stat-rentai-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">ラス回避率</span><span class="val" id="stat-rasu-kaihi">0.00%</span></div>
+                                <div class="stats-item" title="今までプレイした合計ゲーム数です。">
+                                    <span class="label">総ゲーム数</span><span class="val" id="stat-total-games">0</span>
+                                </div>
+                                <div class="stats-item" title="連続で1位（トップ）を獲得した最大回数です。">
+                                    <span class="label">最大連勝数</span><span class="val" style="color: #f1c40f;" id="stat-max-streak">0 連勝</span>
+                                </div>
+                                <div class="stats-item" title="全ゲームの順位の平均値です。">
+                                    <span class="label">平均順位</span><span class="val highlight" id="stat-avg-rank">0.00</span>
+                                </div>
+                                <div class="stats-item" title="全ゲームのうち、1位（トップ）になった確率です。">
+                                    <span class="label">トップ率</span><span class="val" id="stat-top-rate">0.00%</span>
+                                </div>
+                                <div class="stats-item" title="全ゲームのうち、1位または2位になった確率です。">
+                                    <span class="label">連対率</span><span class="val" id="stat-rentai-rate">0.00%</span>
+                                </div>
+                                <div class="stats-item" title="全ゲームのうち、最下位（ラス）を回避した確率です。">
+                                    <span class="label">ラス回避率</span><span class="val" id="stat-rasu-kaihi">0.00%</span>
+                                </div>
                             </div>
                         </div>
 
@@ -113,23 +125,29 @@
                             <div style="width: 100%; height: 200px; display: flex; justify-content: center;">
                                 <canvas id="mypage-rank-pie-chart"></canvas>
                             </div>
-                            <div style="display: flex; justify-content: space-around; margin-top: 10px; font-size: 14px; font-weight: bold;">
-                                <span style="color:#e74c3c;">1位: <span id="stat-rank-1">0</span>回</span>
-                                <span style="color:#e67e22;">2位: <span id="stat-rank-2">0</span>回</span>
-                                <span style="color:#3498db;">3位: <span id="stat-rank-3">0</span>回</span>
-                                <span style="color:#95a5a6;">4位: <span id="stat-rank-4">0</span>回</span>
-                            </div>
                         </div>
 
                         <div class="stats-card">
                             <h3 class="stats-card-title">詳細スコア・技術指標</h3>
                             <div class="stats-grid">
-                                <div class="stats-item"><span class="label">1局平均和了</span><span class="val highlight" id="stat-avg-wins">0 回</span></div>
-                                <div class="stats-item"><span class="label">平均打点</span><span class="val" style="color: #3498db;" id="stat-avg-score-win">0 点</span></div>
-                                <div class="stats-item"><span class="label">1局平均スコア</span><span class="val" id="stat-avg-score-round">0 点</span></div>
-                                <div class="stats-item"><span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-score-game">0 点</span></div>
-                                <div class="stats-item"><span class="label">無花果率</span><span class="val" style="color: #f1c40f;" id="stat-muhana-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">天運(特殊ドロー)</span><span class="val" style="color: #e74c3c;" id="stat-luck-rate">0.00%</span></div>
+                                <div class="stats-item" title="1局あたりに和了った平均回数です。">
+                                    <span class="label">1局平均和了</span><span class="val highlight" id="stat-avg-wins">0 回</span>
+                                </div>
+                                <div class="stats-item" title="1回の和了で獲得した平均スコアです。">
+                                    <span class="label">平均打点</span><span class="val" style="color: #3498db;" id="stat-avg-score-win">0 点</span>
+                                </div>
+                                <div class="stats-item" title="1局で稼いだ平均スコアです。">
+                                    <span class="label">1局平均スコア</span><span class="val" id="stat-avg-score-round">0 点</span>
+                                </div>
+                                <div class="stats-item" title="1ゲーム終了時に獲得している平均最終スコアです。">
+                                    <span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-score-game">0 点</span>
+                                </div>
+                                <div class="stats-item" title="全和了のうち、「無花果」が含まれていた割合です。">
+                                    <span class="label">無花果率</span><span class="val" style="color: #f1c40f;" id="stat-muhana-rate">0.00%</span>
+                                </div>
+                                <div class="stats-item" title="全和了のうち、嶺上開花・妙手回春・花天月地で和了った割合です。">
+                                    <span class="label">天運</span><span class="val" style="color: #e74c3c;" id="stat-luck-rate">0.00%</span>
+                                </div>
                             </div>
                         </div>
                     </div>

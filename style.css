@@ -2061,7 +2061,7 @@ body.lang-en .en {
     .stats-item .val {
         font-size: 20px;
         font-weight: bold;
-        color: #fff;
+        color: #ffffff !important; /* 全ての数値を白に強制 */
     }
 
         .stats-item .val.highlight {
