@@ -47,6 +47,8 @@ OVERRIDE_RULES = {
 # ==========================================
 # 2. AI・役判定ロジック
 # ==========================================
+
+# 🔍 指定した牌が、場（捨て牌や他家の副露）に何枚見えているかを数える関数
 def get_visible_count(t, game_state):
     count = 0
     for i in range(4):
@@ -55,10 +57,12 @@ def get_visible_count(t, game_state):
             count += m["tiles"].count(t)
     return count
 
+# 🔢 牌の文字列（"3p"など）から数字だけを抽出する（字牌・四季牌は -1）
 def get_tile_num(t):
     if "p" in t or "s" in t or "m" in t: return int(t[0])
     return -1
 
+# 🎯 CPUの性格と現在の手牌から、狙うべき役（目標）を決定する関数
 def determine_target(cpu_idx, hand_list, game_state):
     personality = game_state.cpu_personalities[cpu_idx]
     jokers = sum(1 for t in hand_list if t in SEASON_TILES)
@@ -107,6 +111,7 @@ def determine_target(cpu_idx, hand_list, game_state):
         
     return "混一色/清一色"
 
+# ⚖️ 目標（Target）と盤面状況から、特定の牌の「重要度（残す価値）」を点数化する関数
 def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     target = determine_target(cpu_idx, hand_list, game_state)
     
@@ -222,6 +227,7 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     score += random.randint(0, 5) 
     return score
 
+# 🧩 手牌の構成（面子と雀頭の組み合わせパターン）を再帰的にすべて洗い出す関数
 def parse_hand(tiles, jokers):
     valid_parses = []
     def find_melds(t, j, pongs, chows, pair_idx, start_idx=0):
@@ -257,6 +263,7 @@ def parse_hand(tiles, jokers):
             tiles[i] += actual_pair
     return valid_parses
 
+# 🃏 オールマイティ（Joker）として使われた鳴きパターンを、すべての可能な牌の組み合わせに展開する関数
 def expand_wild_melds(parses):
     expanded = []
     for p in parses:
@@ -269,6 +276,7 @@ def expand_wild_melds(parses):
             expanded.append(p)
     return expanded
 
+# 🧮 成立した役のリストから、重複ルールの除外処理を行って最終的な点数を計算する関数
 def calc_yaku_score(yaku_list):
     filtered = list(dict.fromkeys(yaku_list))
     if "七星攬月" in filtered: filtered = [y for y in filtered if y in ["七星攬月", "無花果"]]
@@ -291,6 +299,7 @@ def calc_yaku_score(yaku_list):
         
     return b_score * mult, b_score, mult, filtered
 
+# 💰 【超重要コア】手牌と状況（ツモ/ロン等）を受け取り、アガリ判定・役・点数計算をすべて行う関数
 def evaluate_hand(data):
     closed_str = data.get("closed_tiles", "")
     melds = data.get("melds", [])
@@ -516,6 +525,7 @@ def evaluate_hand(data):
     final_score, base_score, multiplier, display_names = best_result
     return {"score": final_score, "base_score": base_score, "multiplier": multiplier, "yaku": display_names}
 
+# 🔎 現在の手牌から「アガリ牌（テンパイ待ち牌）」のリストをすべて取得する関数
 def get_waits_for_hand(hand_list, melds):
     waits = []
     closed_str = " ".join(hand_list)
@@ -526,6 +536,7 @@ def get_waits_for_hand(hand_list, melds):
         if "error" not in res: waits.append(t)
     return waits
 
+# 🚫 アガリ放棄防止用：カンをしても既存のアガリ待ち牌が崩れないか（フリテンにならないか）を判定する関数
 def is_kan_valid_for_player(player_idx, kan_type, tile, game_state):
     win_tiles = game_state.win_tiles[player_idx]
     if not win_tiles: return True 
@@ -570,6 +581,8 @@ def is_kan_valid_for_player(player_idx, kan_type, tile, game_state):
 # ==========================================
 # 3. ゲーム状態の管理
 # ==========================================
+
+# 🎲 4人対局のゲーム進行状況（手牌、捨て牌、点数、ターン等）を管理するクラス
 class GameState:
     def __init__(self):
         self.current_round = 1
@@ -604,6 +617,7 @@ class GameState:
 
 game = GameState()
 
+# 📦 フロントエンド（JS）に送付するための、安全な盤面データをまとめる関数
 def get_safe_state(player_idx=0, extra_data=None):
     res = {
         "status": "success",

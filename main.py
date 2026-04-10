@@ -1,11 +1,13 @@
 ﻿import random
 import traceback
 from fastapi import FastAPI
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# 🌟 追加：分離した「麻雀の脳みそ（ルールとAI）」を読み込む魔法の1行！
+# 🧠 分離した「麻雀の脳みそ（ルールとAI）」を読み込む
 from mahjong_logic import (
     game, get_safe_state, evaluate_hand, get_waits_for_hand,
     determine_target, evaluate_tile_dynamically, is_kan_valid_for_player,
@@ -19,27 +21,36 @@ app.mount("/static", StaticFiles(directory="."), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 
-# 🌐 トップページ（HTML）をブラウザに返すAPI
+# ==========================================
+# 🌐 画面表示用のAPI（フロントエンド配信）
+# ==========================================
+
+# 🏠 トップページ（HTML）をブラウザに返す
 @app.get("/")
-def read_root(): return FileResponse("index2.html")
+def read_root():
+    return FileResponse("index2.html")
 
-# 🎨 デザイン（CSS）をブラウザに返すAPI
+# 🎨 デザイン（CSS）をブラウザに返す
 @app.get("/style.css")
-def read_css(): return FileResponse("style.css")
+def read_css():
+    return FileResponse("style.css")
 
-# 🧠 フロントエンドの動き（JS）をブラウザに返すAPI
+# 🧠 フロントエンドの動き（JS）をブラウザに返す
 @app.get("/game.js")
-def read_js(): return FileResponse("game.js")
+def read_js():
+    return FileResponse("game.js")
 
 # ==========================================
-# 4. Webからの通信受付（APIエンドポイント）
+# 🎮 ゲーム進行・操作受付用API
 # ==========================================
 
+# 🚀 新しいゲームを初期化してスタートするAPI
 @app.get("/start")
 def start_game():
     game.__init__()
     return get_safe_state()
 
+# 🔄 次の局（ラウンド）へ進め、親の更新とスコアの集計を行うAPI
 @app.get("/next_round")
 def next_round():
     sorted_indices = sorted(range(4), key=lambda i: (game.scores[i], -((i - game.dealer) % 4)), reverse=True)
@@ -54,6 +65,7 @@ def next_round():
     game.reset_round()
     return get_safe_state()
 
+# 🀄 第1交換（チャールストン）：不要牌を3枚選んで他家と交換するAPI
 @app.get("/charleston")
 def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
     try:
@@ -93,6 +105,7 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
     except Exception as e:
         return {"error": str(e)}
 
+# 🀄 第2交換：希望者のみで再度不要牌を交換するAPI
 @app.get("/second_charleston")
 def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false"):
     try:
@@ -158,6 +171,7 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         traceback.print_exc()
         return {"error": f"サーバー内部エラー(/second_charleston): {str(e)}"}
 
+# 🎯 プレイヤーが山から牌を1枚ツモるAPI
 @app.get("/draw")
 def draw_tile(player_idx: int = 0):
     if not game.wall: return {"error": "流局"}
@@ -168,6 +182,7 @@ def draw_tile(player_idx: int = 0):
     game.just_drawn = player_idx 
     return get_safe_state(0, {"drawn_tile": tile})
 
+# 🗑️ プレイヤーが牌を捨てる（打牌）API
 @app.get("/discard")
 def discard_tile(player_idx: int = 0, tile: str = ""):
     game.is_first_turn[player_idx] = False 
@@ -184,6 +199,7 @@ def discard_tile(player_idx: int = 0, tile: str = ""):
         return get_safe_state()
     return {"error": "通信エラー: 牌が見つかりません"}
 
+# 🤖 CPUのターン処理（ツモ、アガリ判定、鳴き判断、打牌）を全自動で行うAPI
 @app.get("/cpu_turn")
 def cpu_turn(cpu_idx: int):
     try:
@@ -374,6 +390,7 @@ def cpu_turn(cpu_idx: int):
         traceback.print_exc()
         return {"error": str(e)}
 
+# ⚡ 誰かが牌を捨てた時、CPUがロンや鳴き（ポン・カン）をするか判定・実行するAPI
 @app.get("/check_cpu_reaction")
 def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
     try:
@@ -482,6 +499,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🗣️ プレイヤーが他家の捨て牌から鳴く（ポン・明槓・花槓）処理を行うAPI
 @app.get("/meld")
 def process_meld(player_idx: int = 0, type: str = "", tile: str = ""):
     try:
@@ -527,6 +545,7 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = ""):
     except Exception as e:
         return {"error": str(e)}
 
+# 🗣️ プレイヤーが自分自身のツモ番で鳴く（暗槓・加槓・暗花槓など）処理を行うAPI
 @app.get("/self_meld")
 def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false"):
     try:
@@ -610,6 +629,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🃏 他家の花槓に対して、正規の牌を渡して四季牌（Joker）を強奪するAPI
 @app.get("/joker_swap")
 def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0):
     try:
@@ -636,6 +656,7 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
     except Exception as e:
         return {"error": str(e)}
 
+# 🏆 プレイヤーが「ツモ」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_tsumo")
 def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false"):
     try:
@@ -672,6 +693,7 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🏆 プレイヤーが「ロン」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_ron")
 def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false"):
     try:
@@ -729,6 +751,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
         traceback.print_exc()
         return {"error": str(e)}
 
+# 🔍 プレイヤーの手牌が現在アガれる状態（役があるか）を事前にチェックするAPI
 @app.get("/check_win")
 def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false"):
     hand = list(game.hands[player_idx])
@@ -777,6 +800,7 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
     if "error" in res: return {"can_win": False, "reason": res["error"]}
     return {"can_win": True, "score": res["score"], "yaku": res["yaku"]}
 
+# 📊 局の終了時に、全員の和了履歴から最終的な点数移動と順位を計算するAPI
 @app.get("/calculate_round_scores")
 def calculate_round_scores():
     results = []
@@ -813,6 +837,7 @@ def calculate_round_scores():
             
     return {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
 
+# 💡 プレイヤーのターン中、現在実行可能な「自摸鳴き（暗槓や加槓など）」のリストを返すAPI
 @app.get("/get_valid_self_melds")
 def get_valid_self_melds(player_idx: int = 0):
     valid_melds = []
@@ -861,6 +886,7 @@ def get_valid_self_melds(player_idx: int = 0):
                     
     return {"valid_melds": valid_melds}
 
+# 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
 def debug_setup(scenario: str):
     game.reset_round()
@@ -1188,6 +1214,7 @@ def debug_setup(scenario: str):
         
     return get_safe_state()
 
+# 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
 def get_waits(player_idx: int = 0):
     hand = list(game.hands[player_idx])
