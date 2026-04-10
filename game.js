@@ -97,7 +97,8 @@ function saveSettings() {
         tableColor1: document.getElementById('table-color-1').value,
         tableColor2: document.getElementById('table-color-2').value,
         devMode: isDevMode,
-        langMode: currentLangMode
+        langMode: currentLangMode,
+        bgmOn: audioState.bgmOn
     };
     localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config));
     console.log("Settings saved.");
@@ -138,6 +139,16 @@ function loadSettings() {
         currentLangMode = config.langMode;
         applyLangMode();
     }
+
+    if (config.bgmOn !== undefined) {
+        audioState.bgmOn = config.bgmOn;
+        const btn = document.getElementById('btn-toggle-bgm');
+        if (!audioState.bgmOn && btn) {
+            btn.innerText = "🔇 BGM: OFF";
+            btn.style.color = "#95a5a6";
+            btn.style.borderColor = "#95a5a6";
+        }
+    }
 }
 
 // ==========================================
@@ -158,7 +169,15 @@ let playerStats = {
     hanakanCount: 0,
     totalRoundsPlayed: 0,
     clutch1PointCount: 0,
-    recentRecords: []
+    recentRecords: [],
+
+    // 📊 新規追加：詳細戦績・グラフ用の指標データ
+    totalGamesPlayed: 0,      // 累計ゲーム数（半荘相当）
+    rankCounts: [0, 0, 0, 0], // 1位, 2位, 3位, 4位の獲得回数
+    totalWins: 0,             // アガった局数
+    totalTsumoWins: 0,        // ツモでアガった局数
+    totalCalls: 0,            // 鳴き（副露）をした局数
+    totalScoreSum: 0          // 累計獲得点数（平均打点計算用）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -547,8 +566,25 @@ function playSE(soundName) {
 // 🎵 BGMの再生/一時停止を切り替える関数
 function toggleBGM() {
     audioState.bgmOn = !audioState.bgmOn;
-    if (audioState.bgmOn && audioState.initialized) sounds.bgm.play();
-    else sounds.bgm.pause();
+    const btn = document.getElementById('btn-toggle-bgm');
+
+    if (audioState.bgmOn) {
+        if (audioState.initialized) sounds.bgm.play().catch(e => console.log(e));
+        if (btn) {
+            btn.innerText = "🎵 BGM: ON";
+            btn.style.color = "#2ecc71";
+            btn.style.borderColor = "#2ecc71";
+        }
+    } else {
+        sounds.bgm.pause();
+        if (btn) {
+            btn.innerText = "🔇 BGM: OFF";
+            btn.style.color = "#95a5a6";
+            btn.style.borderColor = "#95a5a6";
+        }
+    }
+    saveSettings(); // 🌟 切り替えた状態を保存
+    playSE('click');
 }
 
 // 📱 画面サイズに合わせてゲーム画面（卓・タイトル等）を拡大縮小し、ズレを防ぐ関数
@@ -588,19 +624,14 @@ let currentWaits = [];
 let myHand = [], myMelds = [], myWinTiles = [], turn = 0, isProc = false, lastT = "", justPonged = false;
 let drawnTile = "", autoResumeTimer = null, lastDiscardPlayer = -1;
 let wallCount = 0;
-
 let currentRound = 1, dealer = 0, scores = [0, 0, 0, 0], totalScores = [0, 0, 0, 0];
 let charlestonCount = 1, charlestonPhase = false, exchangeSelection = [];
-
 let secondCharlestonParticipating = [false, false, false, false];
 let charlestonAskResults = [];
 let askedCount = 0;
-
 let hideCpuTiles = [0, 0, 0, 0];
-
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
-
 let isAutoPlay = false;
 
 let timerInterval = null;
@@ -608,7 +639,6 @@ let timeLeft = 0;
 let maxTimeForTimer = 0;
 let timerAction = null;
 let currentTickAudio = null;
-
 let timeDiscard = 60;
 let timeCall = 20;
 let timeExchange = 30;
@@ -2248,8 +2278,13 @@ async function handleRoundEnd() {
         console.log("🏆 実績解除：1点の重み（1点をもぎ取って順位を上げた！）");
     }
 
+    let iWon = false;
     for (let res of calcData.results) {
         if (res.player === 0) {
+            iWon = true;
+            playerStats.totalWins++;
+            playerStats.totalScoreSum += res.total_score;
+
             if (res.total_score > playerStats.maxScore) {
                 playerStats.maxScore = res.total_score;
 
@@ -2266,9 +2301,15 @@ async function handleRoundEnd() {
                     }
                 }
             }
-            saveGameData();
         }
+    }
 
+    // 📊 詳細戦績の更新
+    game.win_records[0].forEach(ctx => { if (ctx.is_tsumo) playerStats.totalTsumoWins++; });
+    if (myMelds.length > 0) playerStats.totalCalls++;
+    saveGameData();
+
+    for (let res of calcData.results) {
         let groupedDetails = {};
         for (let detail of res.details) {
             let yakuKey = [...detail.yaku].sort().join(",");
@@ -2427,12 +2468,17 @@ async function handleRoundEnd() {
         let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
         let myRank = sortedIndices.indexOf(0) + 1;
 
+        // 📊 ゲーム終了時の戦績記録
+        playerStats.totalGamesPlayed++;
+        playerStats.rankCounts[myRank - 1]++;
+
         if (myRank === 1) {
             playerStats.currentWinStreak++;
             if (playerStats.currentWinStreak > playerStats.maxWinStreak) playerStats.maxWinStreak = playerStats.currentWinStreak;
         } else {
             playerStats.currentWinStreak = 0;
         }
+
         playerStats.recentRecords.unshift(myRank);
         if (playerStats.recentRecords.length > 10) playerStats.recentRecords.pop();
 
@@ -2543,6 +2589,154 @@ function startCpuGame() {
     }, 1000);
 }
 
+// 📊 タイトル画面用のプロフィール描画（折れ線グラフ化）
+function updateProfileUI() {
+    document.getElementById('prof-name').innerText = playerStats.playerName;
+    let rate = playerRatings[0];
+    document.getElementById('prof-rank').innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
+
+    // 折れ線グラフの描画
+    if (lineChart) lineChart.destroy();
+    const ctxLine = document.getElementById('prof-history-chart').getContext('2d');
+
+    // データがない場合はダミーを入れる
+    let lineData = playerStats.recentRecords.length > 0 ? [...playerStats.recentRecords].reverse() : [0];
+
+    Chart.defaults.color = '#fff';
+    lineChart = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+            labels: lineData.map((_, i) => `${lineData.length - i}戦前`),
+            datasets: [{
+                label: '順位',
+                data: lineData,
+                borderColor: '#e67e22',
+                backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                borderWidth: 3,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: '#f1c40f',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { reverse: true, min: 1, max: 4, ticks: { stepSize: 1, color: '#fff' }, grid: { color: '#444' } },
+                x: { display: false }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    document.getElementById('best-score-val').innerText = `${playerStats.maxScore} 点`;
+    const handTiles = document.getElementById('best-hand-tiles');
+    handTiles.innerHTML = '';
+
+    if (playerStats.maxScoreHand) {
+        const { tiles, melds, winTile } = playerStats.maxScoreHand;
+        [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => { handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px;">`; });
+        if (winTile) handTiles.innerHTML += `<div style="width:10px;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:1px solid #f1c40f;">`;
+    }
+}
+
+// 📊 圧倒的情報量：マイページ（詳細戦績）の描画
+function openMyPage() {
+    document.getElementById('input-player-name').value = playerStats.playerName;
+
+    let totalG = playerStats.totalGamesPlayed || 1;
+    let totalR = playerStats.totalRoundsPlayed || 1;
+    let totalW = playerStats.totalWins || 1;
+
+    let avgRank = playerStats.totalGamesPlayed > 0
+        ? ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2)
+        : "0.00";
+
+    let topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
+    let rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
+    let lastAvoidRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+    let winRate = ((playerStats.totalWins / totalR) * 100).toFixed(2);
+    let callRate = ((playerStats.totalCalls / totalR) * 100).toFixed(2);
+    let tsumoRate = ((playerStats.totalTsumoWins / totalW) * 100).toFixed(2);
+
+    let avgWinScore = playerStats.totalWins > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalWins) : 0;
+    let avgRoundScore = playerStats.totalRoundsPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalRoundsPlayed) : 0;
+    let avgGameScore = playerStats.totalGamesPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalGamesPlayed) : 0;
+
+    document.getElementById('stat-games').innerText = playerStats.totalGamesPlayed;
+    document.getElementById('stat-rounds').innerText = playerStats.totalRoundsPlayed;
+    document.getElementById('stat-avg-rank').innerText = avgRank;
+    document.getElementById('stat-top-rate').innerText = topRate + "%";
+    document.getElementById('stat-rentai-rate').innerText = rentaiRate + "%";
+    document.getElementById('stat-last-avoid').innerText = lastAvoidRate + "%";
+    document.getElementById('stat-win-rate').innerText = winRate + "%";
+    document.getElementById('stat-call-rate').innerText = callRate + "%";
+    document.getElementById('stat-tsumo-rate').innerText = tsumoRate + "%";
+    document.getElementById('stat-avg-win-score').innerText = avgWinScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-round-score').innerText = avgRoundScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-game-score').innerText = avgGameScore.toLocaleString() + " 点";
+
+    document.getElementById('stat-rank-1').innerText = playerStats.rankCounts[0];
+    document.getElementById('stat-rank-2').innerText = playerStats.rankCounts[1];
+    document.getElementById('stat-rank-3').innerText = playerStats.rankCounts[2];
+    document.getElementById('stat-rank-4').innerText = playerStats.rankCounts[3];
+
+    if (radarChart) radarChart.destroy();
+    const ctxRadar = document.getElementById('mypage-radar-chart').getContext('2d');
+    radarChart = new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+            labels: ['和了率', '副露率', 'ツモ率', 'トップ率', 'ラス回避'],
+            datasets: [{
+                data: [winRate, callRate, tsumoRate, topRate, lastAvoidRate],
+                backgroundColor: 'rgba(52, 152, 219, 0.4)',
+                borderColor: '#3498db',
+                pointBackgroundColor: '#f1c40f',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#555' }, pointLabels: { color: '#ecf0f1', font: { size: 14 } } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    if (pieChart) pieChart.destroy();
+    const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
+    pieChart = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['1位', '2位', '3位', '4位'],
+            datasets: [{
+                data: playerStats.totalGamesPlayed > 0 ? playerStats.rankCounts : [1, 1, 1, 1],
+                backgroundColor: ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
+                borderColor: '#2c3e50',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: '#fff', font: { size: 14 } } } }
+        }
+    });
+
+    document.getElementById('mypage-modal').style.display = 'flex';
+    playSE('click');
+}
+
+function saveNewName() {
+    const newName = document.getElementById('input-player-name').value.trim();
+    if (newName) {
+        playerStats.playerName = newName;
+        saveGameData();
+        updateProfileUI();
+        alert("名前を変更しました！");
+    }
+}
+function closeMyPage() { document.getElementById('mypage-modal').style.display = 'none'; playSE('click'); }
+
 // ==========================================
 // ★ 実績（アチーブメント）画面の描画
 // ==========================================
@@ -2560,8 +2754,18 @@ function closeAchievements() {
     document.getElementById('achievement-modal').style.display = 'none';
 }
 
+function switchAchieveTab(evt, tabId) {
+    const tabContents = document.getElementsByClassName("achieve-tab-content");
+    for (let i = 0; i < tabContents.length; i++) tabContents[i].style.display = "none";
+    const tabLinks = document.getElementsByClassName("yaku-tab-btn");
+    for (let i = 0; i < tabLinks.length; i++) tabLinks[i].classList.remove("active");
+    document.getElementById(tabId).style.display = "block";
+    evt.currentTarget.classList.add("active");
+}
+
 // 📊 実績データと役コレクター図鑑のHTMLを組み立てて画面に描画する関数
 function renderAchievements() {
+    // --- 1. 🏆 実績タブの描画 ---
     const container = document.getElementById('achieve-container');
     container.innerHTML = '';
 
@@ -2614,29 +2818,40 @@ function renderAchievements() {
         `;
     });
     gridHtml += `</div>`;
+    container.innerHTML = gridHtml;
 
-    gridHtml += `<h3 style="color: #9b59b6; border-bottom: 1px solid #9b59b6; padding-bottom: 5px; margin-top: 30px;">📜 役コレクター図鑑</h3>`;
-    gridHtml += `<p style="font-size: 12px; color: #aaa; text-align: center;">今まで和了したことのある役が記録されます。</p>`;
-    gridHtml += `<div class="yaku-collection-grid">`;
-
-    const allYakuList = Object.keys(yakuJaMap);
+    // --- 2. 📜 役コレクター図鑑タブの描画 ---
+    const dexContainer = document.getElementById('yaku-dex-container');
+    let dexHtml = ``;
+    const allYakuList = Object.keys(yakuJaMap); // ここを1回だけに修正！
     let collectedCount = 0;
 
     allYakuList.forEach(yakuZh => {
         let isCollected = playerStats.yakuCollected.includes(yakuZh);
         let yakuJa = getJaYakuName(yakuZh);
-        let badgeClass = isCollected ? "yaku-badge acquired" : "yaku-badge";
+        let badgeClass = isCollected ? "yaku-dex-card unlocked" : "yaku-dex-card locked";
         let displayName = isCollected ? yakuJa : "？？？";
 
         if (isCollected) collectedCount++;
-        gridHtml += `<div class="${badgeClass}">${displayName}</div>`;
+
+        dexHtml += `
+            <div class="${badgeClass}">
+                <div class="dex-title-area">
+                    <span class="dex-yaku-name">${displayName}</span>
+                    <span class="dex-count-badge" style="visibility: ${isCollected ? 'visible' : 'hidden'};">取得済</span>
+                </div>
+            </div>`;
     });
 
-    gridHtml += `</div>`;
-    gridHtml += `<div style="text-align: center; margin-top: 10px; font-weight: bold; color: #ecf0f1;">コンプリート率: ${collectedCount} / ${allYakuList.length}</div>`;
-
-    container.innerHTML = gridHtml;
+    dexContainer.innerHTML = dexHtml;
+    document.getElementById('dex-comp-count').innerText = collectedCount;
+    document.getElementById('dex-total-count').innerText = allYakuList.length;
 }
+
+// 📊 リザルト画面・チャート描画制御用の変数
+let radarChart = null;
+let pieChart = null;
+let lineChart = null;
 
 // ==========================================
 // ★ マイページ・プロフィール制御
@@ -2649,13 +2864,47 @@ function updateProfileUI() {
     let rate = playerRatings[0];
     document.getElementById('prof-rank').innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
 
-    const historyContainer = document.getElementById('prof-history');
-    historyContainer.innerHTML = '';
-    playerStats.recentRecords.forEach(rank => {
-        const div = document.createElement('div');
-        div.className = `history-item rank-${rank}`;
-        div.innerText = rank;
-        historyContainer.appendChild(div);
+    // 🌟 修正：古い四角い履歴アイコンを消し、Chart.jsの折れ線グラフを描画！
+    if (lineChart) lineChart.destroy();
+    const ctxLine = document.getElementById('prof-history-chart').getContext('2d');
+
+    // データがない場合はダミーを入れる
+    let lineData = playerStats.recentRecords.length > 0 ? [...playerStats.recentRecords].reverse() : [0];
+
+    Chart.defaults.color = '#fff';
+    lineChart = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+            labels: lineData.map((_, i) => `${lineData.length - i}戦前`),
+            datasets: [{
+                label: '順位',
+                data: lineData,
+                borderColor: '#e67e22',
+                backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                borderWidth: 3,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: '#f1c40f',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 10
+                }
+            },
+            scales: {
+                y: { reverse: true, min: 1, max: 4, ticks: { stepSize: 1, color: '#fff' }, grid: { color: '#444' } },
+                x: { display: false }
+            },
+            plugins: { legend: { display: false } }
+        }
     });
 
     document.getElementById('best-score-val').innerText = `${playerStats.maxScore} 点`;
@@ -2671,20 +2920,89 @@ function updateProfileUI() {
     }
 }
 
-// 👤 マイページ（プレイヤー詳細）画面を開く関数
+// 📊 圧倒的情報量：マイページ（詳細戦績）の描画
 function openMyPage() {
-    updateProfileUI();
     document.getElementById('input-player-name').value = playerStats.playerName;
 
-    const statsContainer = document.getElementById('detailed-stats');
-    let avgRank = playerStats.recentRecords.length > 0 ? (playerStats.recentRecords.reduce((a, b) => a + b, 0) / playerStats.recentRecords.length).toFixed(2) : "-";
+    let totalG = playerStats.totalGamesPlayed || 1;
+    let totalR = playerStats.totalRoundsPlayed || 1;
+    let totalW = playerStats.totalWins || 1;
 
-    statsContainer.innerHTML = `
-        <div class="stats-item"><small>累計局数</small><br><b style="font-size:18px; color:#3498db;">${playerStats.totalRoundsPlayed} 局</b></div>
-        <div class="stats-item"><small>平均順位(直近)</small><br><b style="font-size:18px; color:#e67e22;">${avgRank} 位</b></div>
-        <div class="stats-item"><small>最大連勝</small><br><b style="font-size:18px; color:#e74c3c;">${playerStats.maxWinStreak} 連勝</b></div>
-        <div class="stats-item"><small>Joker Swap</small><br><b style="font-size:18px; color:#2ecc71;">${playerStats.jokerSwapCount} 回</b></div>
-    `;
+    let avgRank = playerStats.totalGamesPlayed > 0
+        ? ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2)
+        : "0.00";
+
+    let topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
+    let rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
+    let lastAvoidRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+    let winRate = ((playerStats.totalWins / totalR) * 100).toFixed(2);
+    let callRate = ((playerStats.totalCalls / totalR) * 100).toFixed(2);
+    let tsumoRate = ((playerStats.totalTsumoWins / totalW) * 100).toFixed(2);
+
+    let avgWinScore = playerStats.totalWins > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalWins) : 0;
+    let avgRoundScore = playerStats.totalRoundsPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalRoundsPlayed) : 0;
+    let avgGameScore = playerStats.totalGamesPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalGamesPlayed) : 0;
+
+    // 🌟 HTMLに数値を流し込む
+    document.getElementById('stat-games').innerText = playerStats.totalGamesPlayed;
+    document.getElementById('stat-rounds').innerText = playerStats.totalRoundsPlayed;
+    document.getElementById('stat-avg-rank').innerText = avgRank;
+    document.getElementById('stat-top-rate').innerText = topRate + "%";
+    document.getElementById('stat-rentai-rate').innerText = rentaiRate + "%";
+    document.getElementById('stat-last-avoid').innerText = lastAvoidRate + "%";
+    document.getElementById('stat-win-rate').innerText = winRate + "%";
+    document.getElementById('stat-call-rate').innerText = callRate + "%";
+    document.getElementById('stat-tsumo-rate').innerText = tsumoRate + "%";
+    document.getElementById('stat-avg-win-score').innerText = avgWinScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-round-score').innerText = avgRoundScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-game-score').innerText = avgGameScore.toLocaleString() + " 点";
+
+    document.getElementById('stat-rank-1').innerText = playerStats.rankCounts[0];
+    document.getElementById('stat-rank-2').innerText = playerStats.rankCounts[1];
+    document.getElementById('stat-rank-3').innerText = playerStats.rankCounts[2];
+    document.getElementById('stat-rank-4').innerText = playerStats.rankCounts[3];
+
+    // 🌟 レーダーチャートの描画
+    if (radarChart) radarChart.destroy();
+    const ctxRadar = document.getElementById('mypage-radar-chart').getContext('2d');
+    radarChart = new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+            labels: ['和了率', '副露率', 'ツモ率', 'トップ率', 'ラス回避'],
+            datasets: [{
+                data: [winRate, callRate, tsumoRate, topRate, lastAvoidRate],
+                backgroundColor: 'rgba(52, 152, 219, 0.4)',
+                borderColor: '#3498db',
+                pointBackgroundColor: '#f1c40f',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#555' }, pointLabels: { color: '#ecf0f1', font: { size: 14 } } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 🌟 円グラフの描画
+    if (pieChart) pieChart.destroy();
+    const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
+    pieChart = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['1位', '2位', '3位', '4位'],
+            datasets: [{
+                data: playerStats.totalGamesPlayed > 0 ? playerStats.rankCounts : [1, 1, 1, 1],
+                backgroundColor: ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
+                borderColor: '#2c3e50',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: '#fff', font: { size: 14 } } } }
+        }
+    });
 
     document.getElementById('mypage-modal').style.display = 'flex';
     playSE('click');
@@ -2718,7 +3036,16 @@ function injectDummyData() {
     playerRatings[0] = 1850;
 
     playerStats.playerName = "四季の求道者";
+
+    // 🌟 修正：グラフ表示用に詳細データ（総局数や鳴き率の元データ）を追加
+    playerStats.totalGamesPlayed = 85;
+    playerStats.rankCounts = [35, 25, 15, 10]; // 1位, 2位, 3位, 4位
     playerStats.totalRoundsPlayed = 342;
+    playerStats.totalWins = 82;
+    playerStats.totalTsumoWins = 35;
+    playerStats.totalCalls = 165;
+    playerStats.totalScoreSum = 45800;
+
     playerStats.currentWinStreak = 4;
     playerStats.maxWinStreak = 12;
     playerStats.jokerSwapCount = 68;

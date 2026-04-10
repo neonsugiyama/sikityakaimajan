@@ -1995,3 +1995,125 @@ body.lang-ja .zh {
         border-color: #9b59b6;
         font-weight: bold;
     }
+
+/* ==========================================
+   📊 マイページ（詳細戦績）のグリッドとカード
+   ========================================== */
+.stats-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.stats-card-title {
+    color: #f1c40f;
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+    font-size: 18px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.stats-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+    .stats-item .label {
+        font-size: 12px;
+        color: #aaa;
+        margin-bottom: 5px;
+    }
+
+    .stats-item .val {
+        font-size: 20px;
+        font-weight: bold;
+        color: #fff;
+    }
+
+        .stats-item .val.highlight {
+            color: #2ecc71;
+            font-size: 24px;
+        }
+
+/* ==========================================
+   📜 進化した「役コレクター図鑑（大型カード）」
+   ========================================== */
+.yaku-dex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    padding: 10px;
+}
+
+.yaku-dex-card {
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+    /* 未取得の役は暗くしてシルエット風に */
+    .yaku-dex-card.locked {
+        filter: grayscale(100%) brightness(0.4);
+        border-color: #333;
+    }
+
+    .yaku-dex-card.unlocked {
+        border-color: #f1c40f;
+        background: linear-gradient(135deg, rgba(44, 62, 80, 0.8), rgba(0, 0, 0, 0.8));
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+        .yaku-dex-card.unlocked:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(241, 196, 15, 0.3);
+        }
+
+.dex-title-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.dex-yaku-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.dex-count-badge {
+    background: #e74c3c;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 3px 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.dex-points {
+    font-size: 14px;
+    color: #bdc3c7;
+    margin-bottom: 5px;
+}
