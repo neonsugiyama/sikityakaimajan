@@ -2877,6 +2877,7 @@ function updateProfileUI() {
 // 📊 マイページ（詳細戦績）の描画
 function openMyPage() {
     document.getElementById('input-player-name').value = playerStats.playerName;
+    updateNameCounter(playerStats.playerName);
 
     let totalG = playerStats.totalGamesPlayed || 1;
     let totalR = playerStats.totalRoundsPlayed || 1;
@@ -2962,15 +2963,40 @@ function openMyPage() {
     playSE('click');
 }
 
+// ✏️ 入力中の文字数をリアルタイムで更新する関数
+function updateNameCounter(val) {
+    const counter = document.getElementById('name-char-counter');
+    if (counter) {
+        counter.innerText = `${val.length}/10`;
+        // 10文字MAXになったら文字を赤くして警告！
+        counter.style.color = val.length >= 10 ? '#e74c3c' : '#aaa';
+    }
+}
+
 // ✏️ マイページで入力された新しいプレイヤー名を保存する関数
 function saveNewName() {
-    const newName = document.getElementById('input-player-name').value.trim();
-    if (newName) {
-        playerStats.playerName = newName;
-        saveGameData();
-        updateProfileUI();
-        alert("名前を変更しました！");
+    let newName = document.getElementById('input-player-name').value.trim();
+
+    // 🌟 空欄のまま保存しようとした場合は「名無し」にする安全装置
+    if (!newName) {
+        newName = "名無し";
+        document.getElementById('input-player-name').value = newName;
     }
+
+    playerStats.playerName = newName;
+    saveGameData();
+    updateProfileUI(); // タイトル画面の表示も更新
+    updateNameCounter(newName); // カウンターの数字も更新
+
+    alert(`名前を「${newName}」に変更しました！`);
+}
+
+// ✏️ 名前入力欄を一括で消去する関数（×ボタン用）
+function clearNameInput() {
+    const input = document.getElementById('input-player-name');
+    input.value = '';
+    input.focus(); // 🌟 消した直後にすぐ入力できるようにフォーカスを当てる！
+    updateNameCounter('');
 }
 
 // 👤 マイページ画面を閉じる関数

@@ -63,8 +63,23 @@
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px;">
                 <h2 style="color: #3498db; margin: 0; font-size: 24px;">📊 詳細戦績データ</h2>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="input-player-name" maxlength="10" style="font-size: 16px; padding: 5px; background: #222; color: #fff; border: 1px solid #444; border-radius: 5px; width: 150px;">
-                    <button class="btn-act btn-blue" onclick="saveNewName()" style="padding: 5px 15px; font-size: 14px;">名前変更</button>
+                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                        <div style="position: relative; display: inline-block;">
+                            <input type="text" id="input-player-name" maxlength="10"
+                                   placeholder="名前を入力" title="クリックして名前を変更"
+                                   style="font-size: 16px; padding: 5px 25px 5px 5px; background: #222; color: #fff; border: 1px dashed #f39c12; border-radius: 5px; width: 170px; text-align: center; cursor: pointer; transition: 0.2s;"
+                                   onfocus="this.style.border='1px solid #3498db'; this.style.background='#111';"
+                                   onblur="this.style.border='1px dashed #f39c12'; this.style.background='#222';"
+                                   oninput="updateNameCounter(this.value)"
+                                   onchange="saveNewName()">
+
+                            <span onclick="clearNameInput()" title="名前をクリア" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 18px; line-height: 1;">×</span>
+                        </div>
+
+                        <span id="name-char-counter" style="font-size: 11px; color: #aaa; margin-top: 4px;">0/10</span>
+                    </div>
+
+                    <button class="btn-act btn-blue" onclick="saveNewName()" style="padding: 5px 15px; font-size: 14px; align-self: flex-start;">名前変更</button>
                 </div>
             </div>
 

@@ -2218,3 +2218,17 @@ body.lang-en .en {
 #tab-yaku-dex > div:first-child {
     margin-top: 15px;
 }
+
+/* ==========================================
+   🔧 左パネルのレイアウト崩れ（押し広げ）防止
+   ========================================== */
+.profile-panel {
+    min-width: 0; /* 🌟 Flexboxの無限伸びを封じる魔法の1行 */
+}
+
+#prof-name {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis; /* 🌟 はみ出た分を「...」に省略する */
+}
