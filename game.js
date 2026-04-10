@@ -2879,53 +2879,74 @@ function openMyPage() {
     document.getElementById('input-player-name').value = playerStats.playerName;
     updateNameCounter(playerStats.playerName);
 
+    // 基本データの取得（0割防止のための || 1）
     let totalG = playerStats.totalGamesPlayed || 1;
     let totalR = playerStats.totalRoundsPlayed || 1;
-    let totalW = playerStats.totalWins || 1;
+    let totalW = playerStats.totalWins || 0; // 和了回数は0もあり得る
+    let totalScore = playerStats.totalScoreSum || 0; // スコアの総計変数（元のコードに合わせています）
 
+    // --- 📊 総合指標の計算 ---
     let avgRank = playerStats.totalGamesPlayed > 0
         ? ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2)
         : "0.00";
 
     let topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
     let rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
-    let lastAvoidRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
-    let winRate = ((playerStats.totalWins / totalR) * 100).toFixed(2);
-    let callRate = ((playerStats.totalCalls / totalR) * 100).toFixed(2);
-    let tsumoRate = ((playerStats.totalTsumoWins / totalW) * 100).toFixed(2);
+    let rasuKaihiRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+    let maxStreak = playerStats.maxWinStreak || 0;
 
-    let avgWinScore = playerStats.totalWins > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalWins) : 0;
-    let avgRoundScore = playerStats.totalRoundsPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalRoundsPlayed) : 0;
-    let avgGameScore = playerStats.totalGamesPlayed > 0 ? Math.floor(playerStats.totalScoreSum / playerStats.totalGamesPlayed) : 0;
+    // --- ⚔️ 詳細スコア・技術指標の計算 ---
+    let avgWins = (totalW / totalR).toFixed(1);
+    let avgWinScore = totalW > 0 ? Math.floor(totalScore / totalW) : 0;
+    let avgRoundScore = Math.floor(totalScore / totalR);
+    let avgGameScore = playerStats.totalGamesPlayed > 0 ? Math.floor(totalScore / totalG) : 0;
 
-    // 🌟 HTMLに数値を流し込む
-    document.getElementById('stat-games').innerText = playerStats.totalGamesPlayed;
-    document.getElementById('stat-rounds').innerText = playerStats.totalRoundsPlayed;
+    // 役図鑑オブジェクトが存在しない場合のエラー回避
+    let yakuData = playerStats.yakuCollected || {};
+    let muhanaCount = yakuData["無花果"] || 0;
+    let muhanaRate = totalW > 0 ? ((muhanaCount / totalW) * 100).toFixed(2) : "0.00";
+
+    let luckCount = (yakuData["嶺上開花"] || 0) + (yakuData["妙手回春"] || 0) + (yakuData["花天月地"] || 0);
+    let luckRate = totalW > 0 ? ((luckCount / totalW) * 100).toFixed(2) : "0.00";
+
+    // 🌟 1. HTMLに数値を流し込む（新しいIDに対応）
+    document.getElementById('stat-total-games').innerText = playerStats.totalGamesPlayed || 0;
+    document.getElementById('stat-max-streak').innerText = maxStreak + " 連勝";
     document.getElementById('stat-avg-rank').innerText = avgRank;
     document.getElementById('stat-top-rate').innerText = topRate + "%";
     document.getElementById('stat-rentai-rate').innerText = rentaiRate + "%";
-    document.getElementById('stat-last-avoid').innerText = lastAvoidRate + "%";
-    document.getElementById('stat-win-rate').innerText = winRate + "%";
-    document.getElementById('stat-call-rate').innerText = callRate + "%";
-    document.getElementById('stat-tsumo-rate').innerText = tsumoRate + "%";
-    document.getElementById('stat-avg-win-score').innerText = avgWinScore.toLocaleString() + " 点";
-    document.getElementById('stat-avg-round-score').innerText = avgRoundScore.toLocaleString() + " 点";
-    document.getElementById('stat-avg-game-score').innerText = avgGameScore.toLocaleString() + " 点";
+    document.getElementById('stat-rasu-kaihi').innerText = rasuKaihiRate + "%";
 
-    document.getElementById('stat-rank-1').innerText = playerStats.rankCounts[0];
-    document.getElementById('stat-rank-2').innerText = playerStats.rankCounts[1];
-    document.getElementById('stat-rank-3').innerText = playerStats.rankCounts[2];
-    document.getElementById('stat-rank-4').innerText = playerStats.rankCounts[3];
+    document.getElementById('stat-avg-wins').innerText = avgWins + " 回";
+    document.getElementById('stat-avg-score-win').innerText = avgWinScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-score-round').innerText = avgRoundScore.toLocaleString() + " 点";
+    document.getElementById('stat-avg-score-game').innerText = avgGameScore.toLocaleString() + " 点";
+    document.getElementById('stat-muhana-rate').innerText = muhanaRate + "%";
+    document.getElementById('stat-luck-rate').innerText = luckRate + "%";
 
-    // 🌟 レーダーチャートの描画
+    // 🌟 2. 生涯累計獲得スコア
+    document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
+
+    // 順位分布回数
+    document.getElementById('stat-rank-1').innerText = playerStats.rankCounts[0] || 0;
+    document.getElementById('stat-rank-2').innerText = playerStats.rankCounts[1] || 0;
+    document.getElementById('stat-rank-3').innerText = playerStats.rankCounts[2] || 0;
+    document.getElementById('stat-rank-4').innerText = playerStats.rankCounts[3] || 0;
+
+    // 🌟 3. レーダーチャートの描画
+    // レーダーは最大100なので、回数や点数は「100%」になる上限値を仮決めして正規化します
+    // ※ 手数は50回でMAX、打点は500点でMAXとして計算（ゲームバランスに合わせて数字はイジってください！）
+    let chartAvgWins = Math.min((avgWins / 50) * 100, 100);
+    let chartAvgScore = Math.min((avgWinScore / 500) * 100, 100);
+
     if (radarChart) radarChart.destroy();
     const ctxRadar = document.getElementById('mypage-radar-chart').getContext('2d');
     radarChart = new Chart(ctxRadar, {
         type: 'radar',
         data: {
-            labels: ['和了率', '副露率', 'ツモ率', 'トップ率', 'ラス回避'],
+            labels: ['トップ率', '手数 (コンボ)', 'パワー (打点)', '無花果 (バフ)', '天運 (ドロー)'],
             datasets: [{
-                data: [winRate, callRate, tsumoRate, topRate, lastAvoidRate],
+                data: [topRate, chartAvgWins, chartAvgScore, muhanaRate, luckRate],
                 backgroundColor: 'rgba(52, 152, 219, 0.4)',
                 borderColor: '#3498db',
                 pointBackgroundColor: '#f1c40f',
@@ -2939,7 +2960,7 @@ function openMyPage() {
         }
     });
 
-    // 🌟 円グラフの描画
+    // 🌟 4. 円グラフの描画 (既存のまま)
     if (pieChart) pieChart.destroy();
     const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
     pieChart = new Chart(ctxPie, {
@@ -3037,25 +3058,32 @@ function injectDummyData() {
     if (!confirm("現在のセーブデータを上書きして、テスト用の実績データを注入しますか？")) return;
 
     playerRatings[0] = 1850;
-
     playerStats.playerName = "四季の求道者";
 
-    // 🌟 修正：グラフ表示用に詳細データ（総局数や鳴き率の元データ）を追加
+    // 🌟 総合指標データ
     playerStats.totalGamesPlayed = 85;
-    playerStats.rankCounts = [35, 25, 15, 10]; // 1位, 2位, 3位, 4位
+    playerStats.rankCounts = [35, 25, 15, 10]; // 1位, 2位, 3位, 4位 (計85ゲーム)
     playerStats.totalRoundsPlayed = 342;
-    playerStats.totalWins = 82;
-    playerStats.totalTsumoWins = 35;
-    playerStats.totalCalls = 165;
-    playerStats.totalScoreSum = 45800;
 
+    // 🌟 超インフレ仕様に合わせたデータ爆盛り！
+    // 342局 × 平均約25回和了 = 8550回アガったことにする
+    playerStats.totalWins = 8550;
+    // 1アガリ平均550点 × 8550回 = 約470万点！
+    playerStats.totalScoreSum = 4702500;
+
+    // （鳴きやツモはもう使わないが、一応辻褄を合わせる）
+    playerStats.totalTsumoWins = 3500;
+    playerStats.totalCalls = 16500;
+
+    // 🌟 アチーブメント関連データ
     playerStats.currentWinStreak = 4;
     playerStats.maxWinStreak = 12;
-    playerStats.jokerSwapCount = 68;
+    playerStats.jokerSwapCount = 420;
     playerStats.secondCharlestonCount = 115;
     playerStats.hanakanCount = 204;
-    playerStats.clutch1PointCount = 8;
+    playerStats.clutch1PointCount = 85;
 
+    // 🌟 直近20戦の順位とスコア推移
     playerStats.recentRecords = [
         { rank: 1, score: 2048 }, { rank: 2, score: 850 }, { rank: 1, score: 1420 }, { rank: 1, score: 1900 }, { rank: 3, score: -200 },
         { rank: 2, score: 400 }, { rank: 1, score: 1100 }, { rank: 4, score: -850 }, { rank: 1, score: 1600 }, { rank: 2, score: 300 },
@@ -3070,12 +3098,19 @@ function injectDummyData() {
         winTile: "5s"
     };
 
+    // 🌟 役図鑑用データ（新指標の計算元）
     playerStats.yakuCollected = {
-        "天胡": 12, "九連宝燈": 2, "十八羅漢": 1, "大三元": 4, "清一色": 15, "対々和": 42, "七対": 28, "混一色": 33,
-        "小三元": 8, "無花果": 50, "槓上開花": 100, "妙手回春": 5, "花天月地": 3, "無番和": 1000, "断么": 120, "刮風": 45, "下雨": 30
+        // レア役（コンプリート率・ランク色テスト用）
+        "天胡": 5, "地胡": 1, "九連宝燈": 3, "十八羅漢": 12, "大四風会": 8, "大三元": 40, "清一色": 150,
+        // 乗算バフ（無花果率の元データ）-> 8550回のうち約44%
+        "無花果": 3800,
+        // 特殊ドロー（天運の元データ）-> 計650回 (約7.6%)
+        "槓上開花": 450, "妙手回春": 120, "花天月地": 80,
+        // その他役
+        "対々和": 1242, "七対": 828, "混一色": 933, "小三元": 108, "無番和": 2500, "断么": 3120, "刮風": 1045, "下雨": 830
     };
 
     saveGameData();
-    alert("ダミーデータを注入しました！\n画面をリロードして反映します。");
+    alert("超絶インフレ版ダミーデータを注入しました！\n画面をリロードして反映します。");
     location.reload();
 }

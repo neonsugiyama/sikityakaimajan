@@ -90,12 +90,12 @@
                         <div class="stats-card">
                             <h3 class="stats-card-title">総合指標</h3>
                             <div class="stats-grid">
-                                <div class="stats-item"><span class="label">総ゲーム数</span><span class="val" id="stat-games">0</span></div>
-                                <div class="stats-item"><span class="label">総プレイ局数</span><span class="val" id="stat-rounds">0</span></div>
+                                <div class="stats-item"><span class="label">総ゲーム数</span><span class="val" id="stat-total-games">0</span></div>
+                                <div class="stats-item"><span class="label">最大連勝数</span><span class="val" style="color: #f1c40f;" id="stat-max-streak">0 連勝</span></div>
                                 <div class="stats-item"><span class="label">平均順位</span><span class="val highlight" id="stat-avg-rank">0.00</span></div>
-                                <div class="stats-item"><span class="label">1位率（トップ率）</span><span class="val" id="stat-top-rate">0.00%</span></div>
+                                <div class="stats-item"><span class="label">トップ率</span><span class="val" id="stat-top-rate">0.00%</span></div>
                                 <div class="stats-item"><span class="label">連対率（2位以上）</span><span class="val" id="stat-rentai-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">ラス回避率</span><span class="val" id="stat-last-avoid">0.00%</span></div>
+                                <div class="stats-item"><span class="label">ラス回避率</span><span class="val" id="stat-rasu-kaihi">0.00%</span></div>
                             </div>
                         </div>
 
@@ -124,17 +124,23 @@
                         <div class="stats-card">
                             <h3 class="stats-card-title">詳細スコア・技術指標</h3>
                             <div class="stats-grid">
-                                <div class="stats-item"><span class="label">和了率（アガリ率）</span><span class="val highlight" id="stat-win-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">副露率（鳴き率）</span><span class="val" id="stat-call-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">自摸和了率（ツモ率）</span><span class="val" id="stat-tsumo-rate">0.00%</span></div>
-                                <div class="stats-item"><span class="label">平均和了点</span><span class="val" id="stat-avg-win-score">0 点</span></div>
-                                <div class="stats-item"><span class="label">1局平均スコア</span><span class="val" id="stat-avg-round-score">0 点</span></div>
-                                <div class="stats-item"><span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-game-score">0 点</span></div>
+                                <div class="stats-item"><span class="label">1局平均和了</span><span class="val highlight" id="stat-avg-wins">0 回</span></div>
+                                <div class="stats-item"><span class="label">平均打点</span><span class="val" style="color: #3498db;" id="stat-avg-score-win">0 点</span></div>
+                                <div class="stats-item"><span class="label">1局平均スコア</span><span class="val" id="stat-avg-score-round">0 点</span></div>
+                                <div class="stats-item"><span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-score-game">0 点</span></div>
+                                <div class="stats-item"><span class="label">無花果率</span><span class="val" style="color: #f1c40f;" id="stat-muhana-rate">0.00%</span></div>
+                                <div class="stats-item"><span class="label">天運(特殊ドロー)</span><span class="val" style="color: #e74c3c;" id="stat-luck-rate">0.00%</span></div>
                             </div>
                         </div>
                     </div>
 
                 </div>
+
+                <div style="margin-top: 20px; background: linear-gradient(135deg, rgba(241, 196, 15, 0.15), rgba(0, 0, 0, 0.6)); border: 1px solid #f1c40f; border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                    <div style="font-size: 13px; color: #f1c40f; font-weight: bold; letter-spacing: 2px; margin-bottom: 5px;">LIFETIME TOTAL SCORE</div>
+                    <div style="font-size: 36px; font-weight: bold; color: #fff; text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);" id="stat-lifetime-score">0 <span style="font-size: 18px; color: #aaa;">点</span></div>
+                </div>
+
             </div>
 
             <div style="text-align: center; margin-top: 20px;">
