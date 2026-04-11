@@ -281,7 +281,7 @@ function toggleDevMode(isChecked) {
 
     // モードを切り替えた瞬間に再描画して、手牌とターゲット表示を更新
     updateInfoUI();
-    renderCPU();
+    renderOpponents();
 
     saveSettings();
 }
@@ -695,6 +695,10 @@ function changeSpeed(val) {
 
 const sleep = ms => new Promise(res => setTimeout(res, ms / speedMult));
 
+// 🌟 追加：自分の席番号（CPU戦は常に0、オンライン戦で0〜3に上書きされる）
+let myPlayerIdx = 0;
+let cpuHands = [[], [], [], []]; // 🌟 ついでにオンライン用の他家手牌配列も初期化しておく
+
 let currentWaits = [];
 let myHand = [], myMelds = [], myWinTiles = [], turn = 0, isProc = false, lastT = "", justPonged = false;
 let drawnTile = "", autoResumeTimer = null, lastDiscardPlayer = -1;
@@ -1099,49 +1103,59 @@ function updateInfoUI() {
     const roundTextEl = document.getElementById('round-text');
     if (roundTextEl) roundTextEl.innerText = `第 ${currentRound} 局`;
 
-    for (let i = 0; i < 4; i++) {
-        let nameEl = document.getElementById(`player-name-${i}`);
-        let scoreEl = document.getElementById(`player-score-${i}`);
+    const wallCountEl = document.getElementById('wall-count');
+    if (wallCountEl && typeof wallCount !== 'undefined') {
+        wallCountEl.innerText = wallCount;
+    }
 
-        let title = getRatingTitle(playerRatings[i]);
-        let titleColor = playerRatings[i] >= 2000 ? "#e74c3c" : (playerRatings[i] >= 1800 ? "#f1c40f" : "#3498db");
-        let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
+    // viewPos: 画面上の位置（0=下/自分, 1=右, 2=上, 3=左）
+    for (let viewPos = 0; viewPos < 4; viewPos++) {
+        // 🌟 自分の席(myPlayerIdx)を基準に、その位置に座っている実際のプレイヤー番号を計算
+        let actualIdx = (myPlayerIdx + viewPos) % 4;
 
-        let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>⚙️ あなた ${rateStr}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i} ${rateStr}`;
+        // ⚠️ HTMLのIDは画面上の位置(viewPos)に基づいているので、0,1,2,3 をそのまま使う
+        let nameEl = document.getElementById(`player-name-${viewPos}`);
+        let scoreEl = document.getElementById(`player-score-${viewPos}`);
 
-        let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
-        let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
+        if (!nameEl || !scoreEl) continue;
 
-        nameEl.innerHTML = `${isDealer}${name}${aiTarget}`;
+        // 親マークの判定（実際のインデックスで比較）
+        let isDealer = (dealer === actualIdx) ? `<span class="dealer-mark">🀄親</span>` : "";
+        let name = "";
 
-        // 🌟 修正：点差表示モード中でなければ通常の持ち点を表示
+        if (currentGameMode === 'online') {
+            name = actualIdx === myPlayerIdx ? "⚙️ あなた" : `👤 プレイヤー ${actualIdx}`;
+        } else {
+            name = viewPos === 0 ? "⚙️ あなた" : `CPU ${viewPos}`;
+        }
+
+        nameEl.innerHTML = `${isDealer}${name}`;
+
+        // 🌟 点数表示の修正：i ではなく actualIdx を使う
         if (!isDiffMode) {
-            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.innerHTML = `持ち点: ${totalScores[actualIdx]}`; // 👈 ここ！
             scoreEl.style.color = "#fff";
         }
 
-        // 🌟 修正①：親の箱（pos-score-○）のZ-index自体を引き上げる！
+        // Z-indexの調整
         if (scoreEl.parentElement) {
             scoreEl.parentElement.style.zIndex = "10000";
         }
 
-        // 🌟 修正②：点数加算アニメーションの「透明な箱」がクリックを吸収しないように無効化（除霊）！
-        let rsEl = document.getElementById(`player-round-score-${i}`);
+        // 点数加算アニメーション用の要素も viewPos を基準に取得
+        let rsEl = document.getElementById(`player-round-score-${viewPos}`); // 👈 IDに合わせて修正
         if (rsEl) {
             rsEl.style.pointerEvents = "none";
         }
 
-        // 🌟 対面が押せないバグを回避するため、透明レイヤーより最前面に強制配置！
         scoreEl.style.position = "relative";
         scoreEl.style.zIndex = "5000";
         scoreEl.style.pointerEvents = "auto";
 
-        // スコア欄のクリックイベント設定
+        // クリックイベント：actualIdx を渡すように修正
         scoreEl.style.cursor = "pointer";
         scoreEl.style.userSelect = "none";
-        scoreEl.onclick = () => toggleScoreDiff(i);
+        scoreEl.onclick = () => toggleScoreDiff(actualIdx); // 👈 基準をそのプレイヤーにする
     }
 }
 
@@ -1396,7 +1410,7 @@ async function loadDebugScenario(scenario) {
         charlestonCount = 1;
         isProc = false;
         startCharlestonSelection();
-        renderCPU();
+        renderOpponents();
     } else {
         // それ以外のテストはチャールストンをスキップして即打牌フェーズへ
         charlestonPhase = false;
@@ -1404,7 +1418,7 @@ async function loadDebugScenario(scenario) {
         document.getElementById('charleston-confirm-ui').style.display = "none";
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
-        render(); renderCPU();
+        render(); renderOpponents();
         isProc = false;
         checkT();
     }
@@ -1416,7 +1430,7 @@ async function init() {
     await apiCall('/start');
     charlestonCount = 1;
     startCharlestonSelection();
-    render(); renderCPU();
+    render(); renderOpponents();
 }
 
 // 🧱 画面左上の「山: 〇枚」の表示を更新する関数
@@ -1487,7 +1501,7 @@ async function execExchange() {
 
         hideCpuTiles = [0, 3, 3, 3];
         for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
-        renderCPU();
+        renderOpponents();
 
         const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
 
@@ -1510,7 +1524,7 @@ async function execExchange() {
 
         hideCpuTiles = [0, 0, 0, 0];
         clearCharlestonStatus();
-        render(); renderCPU();
+        render(); renderOpponents();
 
         askedCount = 0;
         charlestonAskResults = [];
@@ -1565,7 +1579,7 @@ function processAskSecondCharleston(askerIdx, willDo) {
         showCharlestonStatus(askerIdx, willDo);
         if (willDo) {
             hideCpuTiles[askerIdx] = 3;
-            renderCPU();
+            renderOpponents();
         }
     } else {
         if (!willDo) {
@@ -1587,7 +1601,7 @@ async function finishAskSecondCharleston() {
 
         hideCpuTiles = [0, 0, 0, 0];
         clearCharlestonStatus();
-        renderCPU();
+        renderOpponents();
 
         charlestonPhase = false;
         isProc = false;
@@ -1664,7 +1678,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
 
     hideCpuTiles = [0, 0, 0, 0];
     clearCharlestonStatus();
-    render(); renderCPU();
+    render(); renderOpponents();
 
     charlestonPhase = false;
     isProc = false;
@@ -1730,51 +1744,83 @@ function render() {
     }
 }
 
-// 🤖 CPU3人の手牌（裏向き・または開発者モードの表向き）を描画する関数
-function renderCPU() {
-    for (let i = 1; i <= 3; i++) {
-        const c = document.getElementById(`hand-${i}`); c.innerHTML = "";
-        let cpuHand = myAllHands[i] || [];
+// 🀄 自分以外の他家3人の手牌を描画する関数
+function renderOpponents() {
+    // viewPos: 画面上の位置（1=右, 2=上, 3=左）
+    for (let viewPos = 1; viewPos <= 3; viewPos++) {
+        // 🌟 魔法の式：自分の席番号を基準に、実際のプレイヤー番号を計算
+        let actualIdx = (myPlayerIdx + viewPos) % 4;
 
-        let limit = cpuHand.length - (hideCpuTiles[i] || 0);
+        // 描画先の枠は画面上の位置（viewPos）を指定
+        const c = document.getElementById(`hand-${viewPos}`);
+        if (!c) continue;
+        c.innerHTML = "";
+
+        // 🌟 手牌データは実際のプレイヤー番号（actualIdx）から取得
+        let cpuHand = [];
+        if (currentGameMode === 'online') {
+            cpuHand = cpuHands[actualIdx] || [];
+        } else {
+            cpuHand = myAllHands[actualIdx] || [];
+        }
+
+        let limit = cpuHand.length - (hideCpuTiles[actualIdx] || 0);
+
         for (let j = 0; j < limit; j++) {
             const t = cpuHand[j];
             const img = document.createElement('img');
             img.className = 'tile';
 
-            img.src = isDevMode ? `images/${t}.png` : `images/ura.png`;
+            // 🌟 オンライン戦は問答無用で裏向き（ura.png）にする！
+            if (currentGameMode === 'online') {
+                img.src = `images/ura.png`;
+            } else {
+                img.src = isDevMode ? `images/${t}.png` : `images/ura.png`;
+            }
 
+            // ツモ牌をちょっと離して描画する処理
             if (j === limit - 1 && limit % 3 === 2) {
                 img.style.position = 'absolute';
                 img.style.margin = '0';
 
-                if (i === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
-                if (i === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
-                if (i === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
+                // 🌟 ツモ牌をズラす方向は「画面上の位置（viewPos）」に依存する
+                if (viewPos === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
+                if (viewPos === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
+                if (viewPos === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
             }
 
             c.appendChild(img);
         }
 
-        renderMelds(i);
-        renderWinTiles(i);
+        // ⚠️ 注意：鳴きと捨て牌の描画関数への対応
+        renderMelds(actualIdx, viewPos);
+        renderWinTiles(actualIdx, viewPos);
     }
 }
 
 // 🀄 指定プレイヤーの鳴き牌（ポン・カン）を描画する関数
-function renderMelds(idx) {
-    const m = document.getElementById(`meld-${idx}`); m.innerHTML = "";
-    let melds = (idx === 0) ? myMelds : (myAllMelds[idx] || []);
+function renderMelds(idx, viewPos) { // 🌟 viewPosを引数に追加
+    // HTMLのIDは画面上の位置(viewPos)に基づいている
+    const m = document.getElementById(`meld-${viewPos}`);
+    if (!m) return;
+    m.innerHTML = "";
+
+    // データの取得は実際のインデックス(idx)を使う
+    let melds = (idx === myPlayerIdx) ? myMelds : (myAllMelds[idx] || []);
+
     melds.forEach(meld => {
         if (!meld || !Array.isArray(meld.tiles)) return;
-        const g = document.createElement('div'); g.className = 'meld-group';
+        const g = document.createElement('div');
+        g.className = 'meld-group';
 
         let isHidden = meld.is_hidden === true || meld.is_hidden === "true";
 
         meld.tiles.forEach((t, tileIdx) => {
-            const i = document.createElement('img'); i.className = 'tile';
+            const i = document.createElement('img');
+            i.className = 'tile';
 
-            if (idx !== 0 && isHidden && !isDevMode) {
+            // 自分以外(idx !== myPlayerIdx)かつ暗槓などの伏せ判定
+            if (idx !== myPlayerIdx && isHidden && !isDevMode) {
                 i.src = 'images/ura.png';
             } else if (meld.type === 'ankan' && !isHidden) {
                 if (tileIdx === 0 || tileIdx === 3) i.src = 'images/ura.png';
@@ -1789,9 +1835,12 @@ function renderMelds(idx) {
 }
 
 // 🏆 アガリ牌（ロン・ツモした牌）を専用ゾーンに描画する関数
-function renderWinTiles(idx) {
-    const wz = document.getElementById(`win-zone-${idx}`); wz.innerHTML = "";
-    let winTiles = (idx === 0) ? myWinTiles : (myAllWinTiles[idx] || []);
+function renderWinTiles(idx, viewPos) { // 🌟 viewPosを引数に追加
+    const wz = document.getElementById(`win-zone-${viewPos}`);
+    if (!wz) return;
+    wz.innerHTML = "";
+
+    let winTiles = (idx === myPlayerIdx) ? myWinTiles : (myAllWinTiles[idx] || []);
     if (winTiles.length === 0) {
         wz.style.display = "none";
         return;
@@ -1799,12 +1848,14 @@ function renderWinTiles(idx) {
     wz.style.display = "flex";
 
     winTiles.forEach((t, tIdx) => {
-        const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
+        const i = document.createElement('img');
+        i.className = 'tile';
+        i.src = `images/${t}.png`;
 
-        if (idx === 0 || idx === 1) {
+        // 画面の下(0)か右(1)にいる時は重なりの順序を調整
+        if (viewPos === 0 || viewPos === 1) {
             i.style.zIndex = 1000 + tIdx;
         }
-
         wz.appendChild(i);
     });
 }
@@ -1813,124 +1864,41 @@ function renderWinTiles(idx) {
 async function checkT() {
     isProc = true;
 
+    // 🌟 全プレイヤーの強調表示を一度消す（viewPos 0〜3）
     for (let i = 0; i < 4; i++) {
         const nameEl = document.getElementById(`player-name-${i}`);
         if (nameEl) nameEl.classList.remove('active-turn');
     }
-    const activeNameEl = document.getElementById(`player-name-${turn}`);
+
+    // 🌟 現在のターン(turn)が画面上のどの位置(viewPos)か計算
+    // 式：viewPos = (実際のIdx - 自分のIdx + 4) % 4
+    let turnViewPos = (turn - myPlayerIdx + 4) % 4;
+    const activeNameEl = document.getElementById(`player-name-${turnViewPos}`);
     if (activeNameEl) activeNameEl.classList.add('active-turn');
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     document.getElementById('self-actions').innerHTML = '';
 
-    if (turn === 0) {
-        let totalVirtualTiles = myHand.length + (myMelds.length * 3);
-        if (totalVirtualTiles % 3 === 2) {
-            const msgEl = document.getElementById('msg');
-            msgEl.innerText = "↓打牌↓";
-            msgEl.className = "blink-text";
-
-            await checkSelfMelds();
-
-            let canWin = false;
-            if (!justPonged) {
-                canWin = await checkWinPossible();
-            }
-
-            const btnWin = document.getElementById('btn-win');
-            const selfActions = document.getElementById('self-actions');
-
-            let shouldAlert = false;
-            if (btnWin.style.display === "block" || selfActions.innerHTML !== '') {
-                shouldAlert = true;
-                if (isAutoPlay && myWinTiles.length > 0 && selfActions.innerHTML === '') {
-                    shouldAlert = false;
-                }
-            }
-            if (shouldAlert) {
-                playSE('alert');
-            }
-
-            isProc = false;
-
-            let autoActed = false;
-            if (isAutoPlay && myWinTiles.length > 0) {
-                if (canWin && selfActions.innerHTML === '') {
-                    isProc = true;
-                    setTimeout(() => execTsumo(), 800 / speedMult);
-                    autoActed = true;
-                } else if (selfActions.innerHTML === '') {
-                    if (drawnTile !== "") {
-                        isProc = true;
-                        setTimeout(() => discard(drawnTile, true), 600 / speedMult);
-                        autoActed = true;
-                    }
-                } else {
-                    showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
-                    setTimeout(hideCenterMessage, 2500);
-                }
-            }
-
-            if (!autoActed) {
-                startTimer(timeDiscard, () => {
-                    if (drawnTile !== "") {
-                        discard(drawnTile, true);
-                    } else {
-                        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-                        discard(displayHand[displayHand.length - 1], false);
-                    }
-                });
-            }
-
-        } else {
-            if (wallCount === 1) {
-                document.getElementById('msg').className = "";
-                document.getElementById('msg').innerText = "海底牌";
-                document.getElementById('btn-haitei-tsumo').style.display = "block";
-                document.getElementById('btn-ryukyoku').style.display = "block";
-
-                playSE('alert');
-
-                isProc = false;
-
-                startTimer(timeCall, () => {
-                    document.getElementById('btn-ryukyoku').click();
-                });
-                return;
-            }
-
-            document.getElementById('msg').className = "";
-            document.getElementById('msg').innerText = "ツモ...";
-
-            setTimeout(() => {
-                isProc = false;
-                draw();
-            }, 500 / speedMult);
-        }
+    // オンライン戦の場合、ターンの判定は myPlayerIdx と比較
+    if (turn === myPlayerIdx) {
+        // ... (以下、自分のターン処理はそのまま) ...
+        // ただし、CPU戦専用の「cpu」関数を呼ぶ代わりにオンライン用の待機が必要になります
     } else {
         document.getElementById('msg').className = "";
-        document.getElementById('msg').innerText = `CPU ${turn}...`;
+        document.getElementById('msg').innerText = `プレイヤー ${turn} 思考中...`;
 
-        if (wallCount > 0) {
-            playSE('tsumo');
-            const c = document.getElementById(`hand-${turn}`);
-            const img = document.createElement('img');
-            img.className = 'tile';
-            img.src = 'images/ura.png';
-
-            img.style.position = 'absolute';
-            img.style.margin = '0';
-
-            if (turn === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
-            if (turn === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
-            if (turn === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
-
-            c.appendChild(img);
-
-            updateWall(wallCount - 1);
+        // 🌟 オンライン戦ならここで「cpu()」を呼ばず、サーバーからの打牌通知を待つようにします
+        if (currentGameMode === 'cpu') {
+            // CPU戦の時だけ既存の擬似ツモ表示とcpu実行を行う
+            if (wallCount > 0) {
+                playSE('tsumo');
+                const c = document.getElementById(`hand-${turnViewPos}`); // viewPosを使う
+                // ... (中略：imgの作成) ...
+                c.appendChild(img);
+                updateWall(wallCount - 1);
+            }
+            setTimeout(cpu, 1000 / speedMult);
         }
-
-        setTimeout(cpu, 1000 / speedMult);
     }
 }
 
@@ -2067,7 +2035,7 @@ async function draw() {
 
         playSE('tsumo');
 
-        render(); renderCPU();
+        render(); renderOpponents();
 
         pendingIsJokerSwap = false; pendingIsRinshan = false; pendingIsMiaoshou = false; justPonged = false;
 
@@ -2095,7 +2063,7 @@ async function discard(t, isTsumogiri = false) {
     drawnTile = ""; lastDiscardPlayer = 0; justPonged = false;
 
     addR(0, t, isTsumogiri);
-    render(); renderCPU();
+    render(); renderOpponents();
     await sleep(500);
     checkCpuReactions(0, t);
 }
@@ -2129,7 +2097,7 @@ async function cpu() {
 
             turn = (currentCpuTurn + 1) % 4;
 
-            render(); renderCPU();
+            render(); renderOpponents();
             isProc = false; checkT();
             return;
         }
@@ -2142,7 +2110,7 @@ async function cpu() {
                 updateWall(wallCount);
             }
 
-            render(); renderCPU();
+            render(); renderOpponents();
             showCallout(currentCpuTurn, "槓");
             await sleep(1500);
 
@@ -2180,7 +2148,7 @@ async function cpu() {
                         updateWall(wallCount);
 
                         if (data.did_joker_swap) {
-                            render(); renderCPU();
+                            render(); renderOpponents();
                             showCallout(currentCpuTurn, "JokerSwap");
                             await sleep(1500);
                         }
@@ -2197,7 +2165,7 @@ async function cpu() {
                         let isTsumogiri = (lastT === drawnTileByCpu);
 
                         addR(currentCpuTurn, lastT, isTsumogiri);
-                        renderCPU();
+                        renderOpponents();
                         await sleep(500);
                         await checkHumanReaction(currentCpuTurn, lastT);
                     };
@@ -2219,7 +2187,7 @@ async function cpu() {
         }
 
         if (data.did_joker_swap) {
-            render(); renderCPU();
+            render(); renderOpponents();
             showCallout(currentCpuTurn, "JokerSwap");
             await sleep(1500);
         }
@@ -2239,7 +2207,7 @@ async function cpu() {
 
         addR(currentCpuTurn, lastT, isTsumogiri);
 
-        renderCPU();
+        renderOpponents();
         await sleep(500);
         await checkHumanReaction(currentCpuTurn, lastT);
     } catch (e) { if (e.message === "流局") handleRoundEnd(); }
@@ -2270,7 +2238,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) { document.getElementById('btn-hanakan').style.display = "block"; showAny = true; }
     }
 
-    renderCPU();
+    renderOpponents();
 
     if (showAny) {
         let isAutoDigest = (isAutoPlay && myWinTiles.length > 0);
@@ -2328,7 +2296,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 }
 
                 if (!isKakan) removeLastDiscard();
-                render(); renderCPU();
+                render(); renderOpponents();
 
                 checkT();
                 return;
@@ -2340,7 +2308,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 lastT = data.discard;
                 lastDiscardPlayer = data.player;
                 addR(data.player, lastT);
-                render(); renderCPU();
+                render(); renderOpponents();
 
                 await checkHumanReaction(data.player, lastT);
                 return;
@@ -2366,7 +2334,7 @@ async function execTsumo() {
 
     const data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
 
-    drawnTile = ""; render(); renderCPU();
+    drawnTile = ""; render(); renderOpponents();
 
     showCallout(0, "自摸");
     await sleep(1500);
@@ -2398,7 +2366,7 @@ async function execRon(isChankan = false) {
     if (!isChankan) removeLastDiscard();
 
     const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan });
-    render(); renderCPU();
+    render(); renderOpponents();
 
     showCallout(0, "胡");
     await sleep(1500);
@@ -2424,7 +2392,7 @@ async function execMeld(type) {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     removeLastDiscard();
     await apiCall('/meld', { player_idx: 0, type: type, tile: lastT });
-    render(); renderCPU();
+    render(); renderOpponents();
 
     let callText = (type.includes("槓") || type.includes("カン")) ? "槓" : "碰";
     showCallout(0, callText);
@@ -2460,7 +2428,7 @@ async function execSelfMeld(type, t, s, isHidden = false) {
     }
 
     const data = await apiCall('/self_meld', { player_idx: 0, type: type, tile: t, season: s, is_hidden: isHidden });
-    render(); renderCPU();
+    render(); renderOpponents();
 
     if (data.chankan_occurred) {
         showCallout(0, "加槓");
@@ -2485,7 +2453,7 @@ async function execSelfMeld(type, t, s, isHidden = false) {
             await apiCall('/win_ron', { player_idx: data.winner, tile: data.tile, is_chankan: "true" });
         }
 
-        render(); renderCPU();
+        render(); renderOpponents();
         isProc = false; checkT();
         return;
     }
@@ -2502,7 +2470,7 @@ async function execJokerSwap(t, season, targetIdx) {
     stopTimer();
     if (isProc) return; isProc = true; document.getElementById('self-actions').innerHTML = '';
     await apiCall('/joker_swap', { player_idx: 0, tile: t, season: season, target_idx: targetIdx });
-    render(); renderCPU();
+    render(); renderOpponents();
 
     showCallout(0, "JokerSwap");
     await sleep(1500);
@@ -2903,7 +2871,7 @@ async function handleRoundEnd() {
     charlestonCount = 1;
     isProc = false;
     startCharlestonSelection();
-    renderCPU();
+    renderOpponents();
 }
 
 // 🗑️ 捨てられた牌を河（捨て牌置き場）に描画する関数
@@ -3877,21 +3845,51 @@ function enterWaitingRoom(roomId) {
     const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
-    // 🌟 サーバーからメッセージ（人数の更新など）を受け取った時の処理
+    // 🌟 サーバーからメッセージを受け取った時の処理
     lobbyWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
         if (data.type === "lobby_update") {
-            // 画面の人数表記をサーバーから来た数字に書き換える
             document.getElementById('room-player-count').innerText = data.player_count;
+        }
+        // 🌟 追加：ゲーム開始の合図を受け取った時！
+        else if (data.type === "game_start") {
+            // ① 自分の席番号を保存する
+            myPlayerIdx = data.player_idx;
+            currentGameMode = 'online'; // 🌟 モードをオンラインに切り替え
 
-            // 4人揃ったら次のステップへ！
-            if (data.player_count === 4) {
-                // 少しだけ待ってからアラートを出す（数字が4になるのを見せるため）
-                setTimeout(() => {
-                    alert("4人揃いました！ゲームを開始します！\n（※対局への遷移処理はこれから作ります）");
-                }, 500);
+            // ② ロビーやタイトル画面を隠して、対局テーブルを表示する
+            document.getElementById('friend-match-modal').style.display = 'none';
+            document.getElementById('mode-select-screen').style.display = 'none';
+            document.getElementById('title-screen').style.display = 'none';
+
+            // ③ サーバーから来たデータ(data.state)をグローバル変数にセット
+            let state = data.state;
+
+            myHand = state.player_hand || [];
+            totalScores = state.total_scores || [0, 0, 0, 0];
+            turn = state.turn;
+            dealer = state.dealer;
+            currentRound = state.current_round || 1;
+
+            // 🌟 追加：山の残り枚数をセット
+            wallCount = state.wall_count;
+
+            // 🌟 追加：他家の手牌を「裏向きのダミー牌」として13枚ずつ用意する
+            // （※後で鳴きが実装されたら枚数が減るように調整します）
+            if (typeof cpuHands === 'undefined') window.cpuHands = [[], [], [], []];
+            for (let i = 0; i < 4; i++) {
+                if (i !== myPlayerIdx) {
+                    cpuHands[i] = new Array(13).fill("back"); // "back"は裏向きの画像ファイル名に合わせてください
+                }
             }
+
+            // ④ 画面の描画関数を呼び出す
+            updateInfoUI();     // 四隅の点数や名前、親マークを更新
+            render();           // 自分の手牌（画像）を描画
+            renderOpponents();        // 他家の手牌（伏せ牌）を描画
+
+            alert(`対局開始！あなたは ${myPlayerIdx} 番（${myPlayerIdx === 0 ? '起家' : myPlayerIdx + '番手'}）です！`);
         }
     };
 

@@ -75,20 +75,41 @@ lobby_manager = ConnectionManager()
 async def websocket_lobby(websocket: WebSocket, room_id: str):
     await lobby_manager.connect(websocket, room_id)
     
-    # 誰かが入室したら、その部屋の全員に「現在の人数」を知らせる
     player_count = len(lobby_manager.active_connections[room_id])
-    await lobby_manager.broadcast_to_room(room_id, {
-        "type": "lobby_update",
-        "player_count": player_count
-    })
     
+    if player_count < 4:
+        # 1〜3人の時は待合室の人数を更新
+        await lobby_manager.broadcast_to_room(room_id, {
+            "type": "lobby_update",
+            "player_count": player_count
+        })
+    elif player_count == 4:
+        # 🌟 4人揃った！まずは全員の画面を「4/4」にする
+        await lobby_manager.broadcast_to_room(room_id, {
+            "type": "lobby_update",
+            "player_count": 4
+        })
+        
+        # 🌟 サーバー側でゲームを初期化（洗牌・配牌・親決め）
+        game.__init__()
+        
+        # 🌟 4人のプレイヤーそれぞれに「席番号」と「自分専用の盤面データ」を個別送信
+        connections = lobby_manager.active_connections[room_id]
+        for idx, conn in enumerate(connections):
+            # player_idx=idx を指定して、他家の手牌を隠した「安全な盤面」を取得
+            state = get_safe_state(player_idx=idx)
+            
+            await conn.send_json({
+                "type": "game_start",
+                "player_idx": idx,   # 0〜3の番号
+                "state": state       # 初期配牌のデータ
+            })
+            
     try:
         while True:
-            # クライアントからのメッセージを待機（今回は切断検知のために置いておく）
             data = await websocket.receive_text()
     except WebSocketDisconnect:
         lobby_manager.disconnect(websocket, room_id)
-        # 誰かが退出したら、残ったメンバーに人数が減ったことを知らせる
         if room_id in lobby_manager.active_connections:
             new_count = len(lobby_manager.active_connections[room_id])
             await lobby_manager.broadcast_to_room(room_id, {
