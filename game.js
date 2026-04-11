@@ -178,7 +178,15 @@ let playerStats = {
     totalWins: 0,             // アガった局数
     totalTsumoWins: 0,        // ツモでアガった局数
     totalCalls: 0,            // 鳴き（副露）をした局数
-    totalScoreSum: 0          // 累計獲得点数（平均打点計算用）
+    totalScoreSum: 0,         // 累計獲得点数（平均打点計算用）
+
+    heavenlyCount: 0,       // 神の領域（天胡・地胡）
+    maxComboCount: 0,       // インフレの体現者（最高同時複合役数）
+    welcomeHomeCount: 0,    // おかえりなさい（交換で出した牌が戻る）
+    comebackCount: 0,       // 逆転の劇薬（オーラス4位から1位）
+    masterOfSeasonsCount: 0,// 四季を統べる者（春夏秋冬を揃えて和了）
+    pacifistCount: 0,       // 漁夫の利（和了0回で局内1位）
+    wideWaitCount: 0        // 無限の選択肢（34面待ち達成）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -1083,6 +1091,13 @@ async function updateWaitsButton() {
         if (isTenpai || canListen) {
             waitsBtn.disabled = false;
             waitsBtn.innerText = isTenpai ? "待ち牌確認" : "聴牌確認(何切る)";
+
+            // 🏆 ここに追加！【無限の選択肢】
+            if (currentWaits.length >= 34) {
+                playerStats.wideWaitCount = 1;
+                saveGameData();
+                console.log("🏆 実績解除：無限の選択肢");
+            }
         } else {
             waitsBtn.disabled = true;
             waitsBtn.innerText = "ノーテン";
@@ -1263,6 +1278,9 @@ async function execExchange() {
     let t2 = displayHand[exchangeSelection[1]];
     let t3 = displayHand[exchangeSelection[2]];
 
+    // 🏆 ここに追加！交換前の手牌を文字列として記憶
+    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+
     if (charlestonCount === 1) {
         exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
         myHand = displayHand;
@@ -1277,6 +1295,14 @@ async function execExchange() {
         renderCPU();
 
         const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+
+        // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
+        let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+        if (oldHandStr === newHandStr) {
+            playerStats.welcomeHomeCount = 1;
+            saveGameData();
+            console.log("🏆 実績解除：おかえりなさい");
+        }
 
         await showDiceAnimation(data.dice, data.direction);
         await playExchangeAnimation(data.direction, [true, true, true, true]);
@@ -1383,6 +1409,9 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     isProc = true;
     document.getElementById('charleston-ui').style.display = "none";
 
+    // 🏆 ここに追加！交換前の手牌を記憶
+    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+
     if (secondCharlestonParticipating[0] && t1 !== "") {
         playerStats.secondCharlestonCount++;
         saveGameData();
@@ -1409,6 +1438,16 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
         p2: secondCharlestonParticipating[2],
         p3: secondCharlestonParticipating[3]
     });
+
+    // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
+    if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立")) {
+        let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+        if (oldHandStr === newHandStr) {
+            playerStats.welcomeHomeCount = 1;
+            saveGameData();
+            console.log("🏆 実績解除：おかえりなさい2");
+        }
+    }
 
     if (data.direction.includes("不成立")) {
         showCenterMessage(`<span style="color:#e74c3c;font-size:24px;">${data.direction}</span>`);
@@ -2312,6 +2351,26 @@ async function handleRoundEnd() {
             playerStats.totalWins++;
             playerStats.totalScoreSum += res.total_score;
 
+            // 🏆 ここに追加！【神の領域】＆【インフレの体現者】
+            for (let detail of res.details) {
+                if (detail.yaku.includes("天胡") || detail.yaku.includes("地胡")) {
+                    playerStats.heavenlyCount = 1;
+                    console.log("🏆 実績解除：神の領域");
+                }
+                if (detail.yaku.length > playerStats.maxComboCount) {
+                    playerStats.maxComboCount = detail.yaku.length;
+                    console.log("🏆 実績更新：インフレの体現者 (" + detail.yaku.length + "役)");
+                }
+            }
+
+            // 🏆 ここに追加！【四季を統べる者】
+            let allMyTiles = [...myHand];
+            myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
+            if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
+                playerStats.masterOfSeasonsCount = 1;
+                console.log("🏆 実績解除：四季を統べる者");
+            }
+
             if (res.total_score > playerStats.maxScore) {
                 playerStats.maxScore = res.total_score;
 
@@ -2459,6 +2518,18 @@ async function handleRoundEnd() {
     scores = calcData.scores;
     let rankingPoints = calcData.ranking_points || [0, 0, 0, 0];
 
+    // 🏆 ここに追加！【漁夫の利】
+    let myNetScore = scores[0] + rankingPoints[0];
+    let isPacifistTop = true;
+    for (let i = 1; i < 4; i++) {
+        if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
+    }
+    if (!iWon && isPacifistTop) {
+        playerStats.pacifistCount = 1;
+        console.log("🏆 実績解除：漁夫の利");
+    }
+    saveGameData();
+
     let startIdx = dealer;
     for (let step = 0; step < 4; step++) {
         let targetIdx = (startIdx + step) % 4;
@@ -2496,9 +2567,20 @@ async function handleRoundEnd() {
     if (currentRound >= 4) {
         await apiCall('/next_round');
 
+        // 🏆 ここに追加！【逆転の劇薬】（精算前のスコアを逆算して順位比較）
+        let oldScores = [];
+        for (let i = 0; i < 4; i++) oldScores[i] = totalScores[i] - (scores[i] + rankingPoints[i]);
+        let sortedOld = [...oldScores].sort((a, b) => b - a);
+        let oldRank = sortedOld.indexOf(oldScores[0]) + 1; // 精算前の自分の順位
+
         let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
         let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-        let myRank = sortedIndices.indexOf(0) + 1;
+        let myRank = sortedIndices.indexOf(0) + 1; // 最終順位
+
+        if (oldRank === 4 && myRank === 1) {
+            playerStats.comebackCount = 1;
+            console.log("🏆 実績解除：逆転の劇薬");
+        }
 
         // 📊 ゲーム終了時の戦績記録
         playerStats.totalGamesPlayed++;
@@ -2653,34 +2735,49 @@ function renderAchievements() {
     const container = document.getElementById('achieve-container');
     container.innerHTML = '';
 
+    // 🌟 現在のレートを取得（オンラインモードなら変動、初期は1500）
+    let currentRate = playerRatings[0];
+    let totalScore = playerStats.totalScoreSum || 0;
+
     const achievements = [
-        { id: "score", icon: "💰", title: "最高到達打点", desc: "1局での最高獲得点数", val: playerStats.maxScore, tiers: [100, 500, 1000], unit: "点" },
-        { id: "streak", icon: "🔥", title: "連勝記録", desc: "総合1位を連続で獲得した回数", val: playerStats.maxWinStreak, tiers: [2, 5, 10], unit: "連勝" },
-        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [10, 100, 500], unit: "局" },
-        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [10, 50, 100], unit: "回" },
-        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [10, 50, 100], unit: "回" },
-        { id: "jokerswap", icon: "🃏", title: "スワップの支配者", desc: "JokerSwapを成功させた回数", val: playerStats.jokerSwapCount, tiers: [1, 10, 50], unit: "回" },
-        { id: "clutch", icon: "👑", title: "1点の重み", desc: "1点でアガり3着以上をもぎ取った回数", val: playerStats.clutch1PointCount, tiers: [1, 5, 10], unit: "回" }
+        // 📈 積み上げ型（レート・スコア・回数）
+        { id: "rating", icon: "📈", title: "レートの階段", desc: "自身のレート(R)を指定値まで上げる", val: currentRate, tiers: [1600, 1700, 1800, 1900], unit: "R" },
+        { id: "billionaire", icon: "🏦", title: "大富豪", desc: "生涯の累計獲得点数", val: totalScore, tiers: [100000, 500000, 1000000, 5000000], unit: "点" },
+        { id: "score", icon: "💰", title: "最高到達打点", desc: "1局での最高獲得点数", val: playerStats.maxScore, tiers: [100, 1000, 5000, 10000], unit: "点" },
+        { id: "streak", icon: "🔥", title: "連勝記録", desc: "総合1位を連続で獲得した回数", val: playerStats.maxWinStreak, tiers: [2, 5, 10, 20], unit: "連勝" },
+        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [100, 500, 1000, 3000], unit: "局" },
+        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [10, 50, 100, 200], unit: "回" },
+        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [10, 50, 100, 300], unit: "回" },
+        { id: "jokerswap", icon: "🃏", title: "スワップの支配者", desc: "JokerSwapを成功させた回数", val: playerStats.jokerSwapCount, tiers: [1, 10, 50, 150], unit: "回" },
+
+        // 👑 一発達成型 (1回でプラチナ)
+        { id: "rating_god", icon: "👑", title: "頂に立つ者", desc: "レート2000(称号「あたまおかしい」)到達", val: currentRate >= 2000 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「34種類」ある状態になる", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "master_of_seasons", icon: "🌍", title: "四季を統べる者", desc: "1局の手牌に四季牌4種すべてを揃えてアガる", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "一局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "heavenly", icon: "⚡", title: "神の領域", desc: "天胡または地胡を達成する", val: playerStats.heavenlyCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "自分が和了していないのに局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "comeback", icon: "💊", title: "逆転の劇薬", desc: "4局開始時4位から1位で終了する", val: playerStats.comebackCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "clutch", icon: "🗡️", title: "1点の重み", desc: "1点でアガり3着以上をもぎ取った", val: playerStats.clutch1PointCount, tiers: [1, 1, 1, 1], unit: "回" }
     ];
 
     let gridHtml = ``;
 
     achievements.forEach(a => {
-        let rank = 0;
-        if (a.val >= a.tiers[2]) rank = 3;
+        let rank = 0; // 0:なし, 1:銅, 2:銀, 3:金, 4:プラチナ
+        if (a.val >= a.tiers[3]) rank = 4;
+        else if (a.val >= a.tiers[2]) rank = 3;
         else if (a.val >= a.tiers[1]) rank = 2;
         else if (a.val >= a.tiers[0]) rank = 1;
 
-        let medalClass = ["medal-none", "medal-bronze", "medal-silver", "medal-gold"][rank];
-        let statusText = rank === 0 ? "未達成" : ["", "ブロンズ", "シルバー", "ゴールド"][rank] + " 獲得！";
-        let statusColor = rank === 0 ? "#7f8c8d" : ["", "#cd7f32", "#bdc3c7", "#f1c40f"][rank];
+        let medalClass = ["medal-none", "medal-bronze", "medal-silver", "medal-gold", "medal-platinum"][rank];
+        let statusText = rank === 0 ? "未達成" : ["", "ブロンズ", "シルバー", "ゴールド", "プラチナ"][rank] + " 獲得！";
+        let statusColor = rank === 0 ? "#7f8c8d" : ["", "#cd7f32", "#bdc3c7", "#f1c40f", "#00d2d3"][rank];
 
-        let nextTarget = a.tiers[0];
-        if (rank === 1) nextTarget = a.tiers[1];
-        if (rank === 2) nextTarget = a.tiers[2];
-        if (rank === 3) nextTarget = a.tiers[2];
-
-        let progressPercent = rank === 3 ? 100 : Math.min(100, (a.val / nextTarget) * 100);
+        let nextTarget = a.tiers[Math.min(rank, 3)];
+        let isOneShot = (a.tiers[0] === 1 && a.tiers[3] === 1);
+        let progressPercent = (rank >= 4 || (isOneShot && rank >= 1)) ? 100 : Math.min(100, (a.val / nextTarget) * 100);
 
         gridHtml += `
             <div class="achieve-card ${medalClass}">
@@ -2692,17 +2789,17 @@ function renderAchievements() {
                     <div class="achieve-progress-bar" style="width: ${progressPercent}%; background: ${statusColor};"></div>
                 </div>
                 
-                <div style="width: 100%; display: flex; justify-content: space-between; font-size: 12px; color: #aaa; margin-bottom: 5px;">
-                    <span>現在: ${a.val} ${a.unit}</span>
-                    <span>次: ${nextTarget} ${a.unit}</span>
+                <div style="width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 5px;">
+                    <span>現在: ${a.val} ${a.unit === "R" ? "" : a.unit}</span>
+                    <span>${(rank >= 4 || (isOneShot && rank >= 1)) ? "MAX" : "次: " + nextTarget + (a.unit === "R" ? "" : " " + a.unit)}</span>
                 </div>
                 
                 <div class="achieve-status" style="color: ${statusColor};">${statusText}</div>
             </div>
         `;
     });
-    gridHtml += `</div>`;
     container.innerHTML = gridHtml;
+
 
     // --- 2. 📜 役コレクター図鑑タブの描画 ---
     const dexContainer = document.getElementById('yaku-dex-container');
@@ -3168,7 +3265,7 @@ function injectDummyData() {
     if (!confirm("現在のセーブデータを上書きして、テスト用の実績データを注入しますか？")) return;
 
     playerRatings[0] = 1850;
-    playerStats.playerName = "四季の求道者";
+    playerStats.playerName = "DummyData";
 
     // 🌟 総合指標データ
     playerStats.totalGamesPlayed = 85;
@@ -3223,4 +3320,83 @@ function injectDummyData() {
     saveGameData();
     alert("超絶インフレ版ダミーデータを注入しました！\n画面をリロードして反映します。");
     location.reload();
+}
+
+// 🏆 テスト用：実績のフラグを強制的にONにする関数
+function testUnlockAchievement(id) {
+    // playerStatsが未定義のテスト環境(index_test.html)用の安全対策
+    if (typeof playerStats === 'undefined') {
+        window.playerStats = {};
+        window.playerRatings = [1500, 1500, 1500, 1500];
+    }
+
+    if (id === 'rating_god') {
+        playerRatings[0] = 2000;
+    } else if (id === 'wide_wait') {
+        playerStats.wideWaitCount = 1;
+    } else if (id === 'master_of_seasons') {
+        playerStats.masterOfSeasonsCount = 1;
+    } else if (id === 'full_house') {
+        playerStats.maxComboCount = 7;
+    } else if (id === 'heavenly') {
+        playerStats.heavenlyCount = 1;
+    } else if (id === 'welcomehome') {
+        playerStats.welcomeHomeCount = 1;
+    } else if (id === 'pacifist') {
+        playerStats.pacifistCount = 1;
+    } else if (id === 'comeback') {
+        playerStats.comebackCount = 1;
+    } else if (id === 'clutch') {
+        playerStats.clutch1PointCount = 1;
+    }
+
+    // 本番環境（game.jsが存在する環境）ならセーブする
+    if (typeof saveGameData === 'function') saveGameData();
+
+    console.log(`🏆 テスト: 実績[${id}]を解除しました！`);
+    alert(`実績を解除状態にしました！\n実績画面を開いて「プラチナ」になっているか確認してください。`);
+}
+
+// 🏆 テスト用：JS側でスコアや局の状況を強制セットアップする
+function setupAchieveScenarioJS(type) {
+    if (typeof totalScores === 'undefined') return;
+
+    if (type === 'comeback') {
+        // オーラス（第4局）で、自分が圧倒的最下位の状況を作る
+        currentRound = 4;
+        totalScores = [0, 1, 1, 1]; // 自分(0)が-3万点
+        updateInfoUI();
+        alert("【逆転の劇薬テスト】\nオーラスで自分が4位（-30000点）の状況をセットしました！ここで大物手をアガって1位になってください！");
+
+    } else if (type === 'clutch') {
+        // 自分が最下位だが、1点アガれば3位に滑り込める超僅差の状況を作る
+        totalScores = [0, 1, 5000, 2000]; // 1点差
+        updateInfoUI();
+        alert("【1点の重みテスト】\n現在4位ですが、3位とわずか「1点差」の状況をセットしました！無役（1点）でアガって逆転してください！");
+
+    } else if (type === 'pacifist') {
+        // 自分以外が全員マイナスの状況を作る
+        totalScores = [0, -10000, -10000, -10000];
+        updateInfoUI();
+        alert("【漁夫の利テスト】\n他家が全員ハコ下の状況をセットしました！自分は一切アガらずに、流局や他家の和了で局を終えてください！");
+    }
+}
+
+// 🔄 テスト用：一発達成型の実績をすべて未達成に戻す関数
+function resetTestAchievements() {
+    if (typeof playerStats === 'undefined') return;
+
+    playerRatings[0] = 1500;
+    playerStats.wideWaitCount = 0;
+    playerStats.masterOfSeasonsCount = 0;
+    playerStats.maxComboCount = 0;
+    playerStats.heavenlyCount = 0;
+    playerStats.welcomeHomeCount = 0;
+    playerStats.pacifistCount = 0;
+    playerStats.comebackCount = 0;
+    playerStats.clutch1PointCount = 0;
+
+    if (typeof saveGameData === 'function') saveGameData();
+
+    alert("テスト用の実績をリセット（未達成）に戻しました。");
 }

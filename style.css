@@ -1166,6 +1166,38 @@ body.lang-en .yaku-tag .en {
         background: #e74c3c;
     }
 
+/* 🏆 実績テスト用パネル（左端） */
+.achievement-debug-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 10px;
+    border: 2px solid #f39c12; /* 実績っぽくゴールドの枠 */
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+}
+
+.achieve-debug-btn {
+    background: #d35400;
+    color: white;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 12px;
+    transition: 0.2s;
+}
+
+    .achieve-debug-btn:hover {
+        background: #e67e22;
+    }
+
 /* 💫 手出し用のエフェクト（黄色く光る） */
 @keyframes flash-tedashi {
     0% {
@@ -1990,6 +2022,26 @@ body.lang-en .en {
     border-color: #f1c40f;
     box-shadow: 0 0 15px rgba(241,196,15,0.6);
     background: rgba(241,196,15,0.1);
+}
+
+.medal-platinum {
+    border: 2px solid #fff !important;
+    background: linear-gradient(135deg, rgba(0, 210, 211, 0.2), rgba(255, 255, 255, 0.1)) !important;
+    animation: platinum-shine 3s infinite ease-in-out;
+}
+
+@keyframes platinum-shine {
+    0% {
+        box-shadow: 0 0 10px #00d2d3;
+    }
+
+    50% {
+        box-shadow: 0 0 25px #fff, 0 0 10px #00d2d3;
+    }
+
+    100% {
+        box-shadow: 0 0 10px #00d2d3;
+    }
 }
 
 /* 📜 役コレクター図鑑用 */

@@ -736,6 +736,19 @@
         </div>
     </div>
 
+    <div id="overlay">
+        <h1 id="win-label-text" style="font-size: 60px; color: #f1c40f; margin: 0 0 10px 0; text-shadow: 2px 2px 10px #e67e22;"></h1>
+        <div id="win-score" style="font-size: 60px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);"></div>
+        <div id="win-hand-display"></div>
+        <div id="win-yaku" style="margin: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90%; max-width: 900px;"></div>
+    </div>
+
+    <div id="result-controls" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: none; gap: 15px; align-items: center; background: rgba(0,0,0,0.85); padding: 10px 25px; border-radius: 12px; border: 2px solid #f39c12; z-index: 10000; box-shadow: 0 0 20px rgba(0,0,0,0.9);">
+        <div id="result-timer-text" style="font-size: 24px; font-weight: bold; color: #f1c40f; margin-right: 15px;">次へ: 8s</div>
+        <button class="btn-act btn-blue" onclick="takeResultScreenshot()" style="display: block; padding: 10px 20px; font-size: 18px;">📷 スクショ保存</button>
+        <button class="btn-act btn-gray" onclick="skipResultWait()" style="display: block; padding: 10px 20px; font-size: 18px;">⏭ スキップ</button>
+    </div>
+
     <div class="debug-panel">
         <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
         <button class="debug-btn" onclick="loadDebugScenario('tenhou')">① 天胡 テスト</button>
@@ -775,19 +788,23 @@
         <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉟ 字一色＋七対子</button>
     </div>
 
-    <div id="overlay">
-        <h1 id="win-label-text" style="font-size: 60px; color: #f1c40f; margin: 0 0 10px 0; text-shadow: 2px 2px 10px #e67e22;"></h1>
-        <div id="win-score" style="font-size: 60px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);"></div>
-        <div id="win-hand-display"></div>
-        <div id="win-yaku" style="margin: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90%; max-width: 900px;"></div>
-    </div>
+    <div id="achieve-debug-panel" class="achievement-debug-panel">
+        <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
 
-    <div id="result-controls" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: none; gap: 15px; align-items: center; background: rgba(0,0,0,0.85); padding: 10px 25px; border-radius: 12px; border: 2px solid #f39c12; z-index: 10000; box-shadow: 0 0 20px rgba(0,0,0,0.9);">
-        <div id="result-timer-text" style="font-size: 24px; font-weight: bold; color: #f1c40f; margin-right: 15px;">次へ: 8s</div>
-        <button class="btn-act btn-blue" onclick="takeResultScreenshot()" style="display: block; padding: 10px 20px; font-size: 18px;">📷 スクショ保存</button>
-        <button class="btn-act btn-gray" onclick="skipResultWait()" style="display: block; padding: 10px 20px; font-size: 18px;">⏭ スキップ</button>
-    </div>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (34面待ち配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい (交換ループ)</button>
 
+        <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
+
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('clutch')">🗡️ 1点の重み (僅差スコア操作)</button>
+
+        <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
+    </div>
     <div class="table">
         <div id="center-message"></div>
         <div id="dice-overlay"></div>
