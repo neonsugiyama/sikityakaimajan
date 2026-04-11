@@ -1617,7 +1617,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
         // 🏆 ここを変更！【チャールストンの愛し子】
         let oldCharleston = playerStats.secondCharlestonCount;
         playerStats.secondCharlestonCount++;
-        checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [1, 50, 100, 200]);
+        checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [5, 50, 500, 2500]);
         saveGameData();
 
         let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
@@ -2435,7 +2435,7 @@ async function execMeld(type) {
             // 🏆 ここを変更！【花槓マスター】（明槓）
             let oldHanakan = playerStats.hanakanCount;
             playerStats.hanakanCount++;
-            checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [1, 50, 100, 300]);
+            checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
             saveGameData();
         }
         pendingIsRinshan = true; justPonged = false;
@@ -2455,7 +2455,7 @@ async function execSelfMeld(type, t, s, isHidden = false) {
         // 🏆 ここを変更！【花槓マスター】（暗花槓など）
         let oldHanakan = playerStats.hanakanCount;
         playerStats.hanakanCount++;
-        checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [1, 50, 100, 300]);
+        checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
         saveGameData();
     }
 
@@ -2535,7 +2535,7 @@ async function handleRoundEnd() {
     // 🏆 ここを変更！【継続は力なり】
     let oldRounds = playerStats.totalRoundsPlayed;
     playerStats.totalRoundsPlayed++;
-    checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [1, 500, 1000, 3000]);
+    checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
     saveGameData();
 
     document.getElementById('settings-modal').style.display = 'none';
@@ -2567,7 +2567,7 @@ async function handleRoundEnd() {
             let oldTotalScore = playerStats.totalScoreSum || 0;
             playerStats.totalScoreSum = oldTotalScore + res.total_score;
             // tiers は renderAchievements で設定した [1000, 500000, 1000000, 5000000] に合わせる
-            checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [100, 500, 1000000, 5000000]);
+            checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
 
             // 🏆 ここに追加！【無限の選択肢】（アガった瞬間に27面待ちだったか）
             if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
@@ -2605,7 +2605,7 @@ async function handleRoundEnd() {
                 let oldMax = playerStats.maxScore;
                 playerStats.maxScore = res.total_score;
                 // tiers は [100, 1000, 5000, 10000] に合わせる
-                checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 200, 5000, 10000]);
+                checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 500, 1000, 2000]);
 
                 playerStats.maxScoreHand = {
                     tiles: [...myHand],
@@ -3005,12 +3005,12 @@ function renderAchievements() {
     const achievements = [
         // 📈 積み上げ型（レート・スコア・回数）
         { id: "rating", icon: "📈", title: "レートの階段", desc: "自身のレート(R)を指定値まで上げる", val: currentRate, tiers: [1600, 1700, 1800, 1900], unit: "R" },
-        { id: "billionaire", icon: "🏦", title: "大富豪", desc: "生涯の累計獲得点数", val: totalScore, tiers: [1000, 500000, 1000000, 5000000], unit: "点" },
-        { id: "score", icon: "💰", title: "最高到達打点", desc: "1局での最高獲得点数", val: playerStats.maxScore, tiers: [100, 1000, 5000, 10000], unit: "点" },
-        { id: "streak", icon: "🔥", title: "連勝記録", desc: "総合1位を連続で獲得した回数", val: playerStats.maxWinStreak, tiers: [2, 5, 10, 20], unit: "連勝" },
-        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [1, 500, 1000, 3000], unit: "局" },
-        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [1, 50, 100, 200], unit: "回" },
-        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [1, 50, 100, 300], unit: "回" },
+        { id: "billionaire", icon: "🏦", title: "大富豪", desc: "生涯の累計獲得点数", val: totalScore, tiers: [1000, 10000, 50000, 1000000], unit: "点" },
+        { id: "score", icon: "💰", title: "最高到達打点", desc: "1局での最高獲得点数", val: playerStats.maxScore, tiers: [100, 500, 1000, 2000], unit: "点" },
+        { id: "streak", icon: "🔥", title: "連勝記録", desc: "総合1位を連続で獲得した回数", val: playerStats.maxWinStreak, tiers: [2, 5, 7, 10], unit: "連勝" },
+        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [10, 100, 1000, 5000], unit: "局" },
+        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [5, 50, 500, 2500], unit: "回" },
+        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [10, 50, 100, 500], unit: "回" },
         { id: "jokerswap", icon: "🃏", title: "スワップの支配者", desc: "JokerSwapを成功させた回数", val: playerStats.jokerSwapCount, tiers: [1, 10, 50, 150], unit: "回" },
 
         // 👑 一発達成型 (1回でプラチナ)
@@ -3479,17 +3479,45 @@ function closeMyPage() {
 function getYakuRankClass(yakuName, count) {
     if (count <= 0) return "locked";
 
-    const tier = getYakuTierClass(yakuName);
-    let thresholds = { silver: 50, gold: 200, platinum: 1000 }; // デフォルト（Common）
+    // 🌟 ① 個別に条件を調整したい役の例外リストを作成
+    const specialThresholds = {
+        // ※ここに追加していくだけで個別調整が可能！
+        "七星不靠": { silver: 10, gold: 50, platinum: 200 },
+        "十三幺九": { silver: 10, gold: 100, platinum: 500 },
+        "寒江独釣": { silver: 10, gold: 50, platinum: 200 },
+        "無番和": { silver: 10, gold: 50, platinum: 200 },
+        "無番和": { silver: 20, gold: 50, platinum: 200 },
+        "槍槓": { silver: 3, gold: 5, platinum: 10 },
+    };
 
-    if (tier === "yaku-tier-64") {
-        thresholds = { silver: 3, gold: 5, platinum: 10 }; // 超激レア
-    } else if (tier === "yaku-tier-32" || tier === "yaku-tier-16") {
-        thresholds = { silver: 10, gold: 30, platinum: 100 }; // レア
-    } else if (tier === "yaku-tier-8" || tier === "yaku-tier-6") {
-        thresholds = { silver: 20, gold: 50, platinum: 200 }; // 中堅
-    } else if (tier === "yaku-tier-multi") {
-        thresholds = { silver: 30, gold: 100, platinum: 500 }; // 特殊
+    let thresholds;
+
+    // 🌟 ② 例外リストに登録されている役なら、その数値を採用
+    if (specialThresholds[yakuName]) {
+        thresholds = specialThresholds[yakuName];
+    } else {
+        // 🌟 ③ リストになければ、今まで通り点数帯（Tier）ごとのデフォルト値を採用
+        const tier = getYakuTierClass(yakuName);
+
+        thresholds = { silver: 50, gold: 200, platinum: 1000 };
+
+        if (tier === "yaku-tier-64") {
+            thresholds = { silver: 3, gold: 5, platinum: 10 };
+        } else if (tier === "yaku-tier-32") {
+            thresholds = { silver: 5, gold: 10, platinum: 15 };
+        } else if (tier === "yaku-tier-16") {
+            thresholds = { silver: 5, gold: 20, platinum: 50 };
+        } else if (tier === "yaku-tier-8") {
+            thresholds = { silver: 20, gold: 50, platinum: 100 };
+        } else if (tier === "yaku-tier-6") {
+            thresholds = { silver: 20, gold: 50, platinum: 150 };
+        } else if (tier === "yaku-tier-4") {
+            thresholds = { silver: 50, gold: 100, platinum: 500 };
+        } else if (tier === "yaku-tier-2") {
+            thresholds = { silver: 50, gold:200, platinum: 1000 };
+        } else if (tier === "yaku-tier-multi") {
+            thresholds = { silver: 10, gold: 20, platinum: 50 };
+        }
     }
 
     if (count >= thresholds.platinum) return "platinum";
