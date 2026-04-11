@@ -238,12 +238,15 @@ function toggleDevMode(isChecked) {
 
     const debugPanel = document.querySelector('.debug-panel');
     const debugLog = document.getElementById('debug-log');
+    const achieveDebugPanel = document.getElementById('achieve-debug-panel');
 
     if (isDevMode) {
         debugPanel.style.display = 'flex';
+        if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
         if (debugLog.innerHTML !== '') debugLog.style.display = 'block';
     } else {
         debugPanel.style.display = 'none';
+        if (achieveDebugPanel) achieveDebugPanel.style.display = 'none';
         debugLog.style.display = 'none';
     }
 
