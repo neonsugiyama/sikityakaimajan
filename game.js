@@ -1532,7 +1532,8 @@ function render() {
                 if (charlestonPhase) {
                     toggleExchange(idx);
                 } else if (!isProc && turn === 0) {
-                    if (document.getElementById('msg').innerText === "鳴き") return;
+                    let msgText = document.getElementById('msg').innerText;
+                    if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
                     if (myWinTiles.length > 0) {
                         logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
@@ -1552,7 +1553,9 @@ function render() {
 
             i.onclick = () => {
                 if (!isProc && turn === 0 && !charlestonPhase) {
-                    if (document.getElementById('msg').innerText === "鳴き") return;
+                    let msgText = document.getElementById('msg').innerText;
+                    if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
                     discard(dTile, true);
                 }
             };
