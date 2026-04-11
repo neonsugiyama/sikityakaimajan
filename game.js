@@ -3814,3 +3814,71 @@ function checkTieredAchievement(id, title, icon, oldVal, newVal, tiers) {
         }
     }
 }
+
+// ==========================================
+// ★ 友人戦（オンラインロビー）制御
+// ==========================================
+
+let currentRoomId = "";
+
+// 🤝 友人戦モーダルを開く
+function openFriendMatch() {
+    playSE('click');
+    document.getElementById('friend-match-modal').style.display = 'flex';
+    document.getElementById('friend-menu-select').style.display = 'block';
+    document.getElementById('friend-menu-waiting').style.display = 'none';
+    document.getElementById('room-id-input').value = "";
+}
+
+// 🚪 モーダルを閉じる（退室する）
+function closeFriendMatch() {
+    playSE('click');
+    document.getElementById('friend-match-modal').style.display = 'none';
+    // TODO: 後でここに「WebSocketサーバーから切断する処理」を追加します
+    currentRoomId = "";
+}
+
+// ✨ 新しいルームを作る（とりあえず見た目だけ）
+function createRoom() {
+    playSE('click');
+    // ランダムな4文字の英数字を生成（例: A7X9）
+    const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+    enterWaitingRoom(randomId);
+}
+
+// 🚪 既存のルームに参加する
+function joinRoom() {
+    playSE('click');
+    const inputVal = document.getElementById('room-id-input').value.trim().toUpperCase();
+    if (!inputVal) {
+        alert("ルームIDを入力してください！");
+        return;
+    }
+    enterWaitingRoom(inputVal);
+}
+
+// ⏳ 待合室画面に切り替える
+function enterWaitingRoom(roomId) {
+    currentRoomId = roomId;
+    document.getElementById('friend-menu-select').style.display = 'none';
+    document.getElementById('friend-menu-waiting').style.display = 'block';
+    document.getElementById('display-room-id').innerText = roomId;
+
+    // 自分が入ったので1人に設定
+    document.getElementById('room-player-count').innerText = "1";
+
+    // TODO: 次のステップで、ここでWebSocketサーバーに接続して「〇〇ルームに入れて！」と通信します
+}
+
+// 📋 招待URLをクリップボードにコピーする関数
+function copyRoomUrl() {
+    playSE('click');
+    // 現在のURLの末尾に ?room=ABCD をくっつける
+    const url = window.location.origin + window.location.pathname + "?room=" + currentRoomId;
+
+    navigator.clipboard.writeText(url).then(() => {
+        alert("招待URLをコピーしました！\n" + url + "\n友達にLINE等で送って招待しましょう。");
+    }).catch(err => {
+        alert("コピーに失敗しました。手動でURLを共有してください。");
+    });
+}

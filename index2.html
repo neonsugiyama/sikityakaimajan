@@ -71,7 +71,7 @@
             <div class="menu-panel">
                 <h2 style="color: #f1c40f; font-size: 24px; margin-bottom: 20px;">MODE SELECT</h2>
                 <button class="mode-btn mode-btn-disabled">🌐 オンライン対人戦</button>
-                <button class="mode-btn mode-btn-disabled">🤝 友人戦</button>
+                <button class="mode-btn ..." onclick="openFriendMatch()">🤝 友人戦</button>
                 <button class="mode-btn mode-btn-primary" onclick="startCpuGame()">🤖 CPU戦 (1人プレイ)</button>
 
                 <div style="width: 300px; border-top: 1px solid #333; margin: 15px 0;"></div>
@@ -82,6 +82,34 @@
 
                 <button onclick="backToTitle()" style="margin-top: 20px; color: #666; background: none; border: none; cursor: pointer;">◀ タイトルへ戻る</button>
             </div>
+        </div>
+    </div>
+
+    <div id="friend-match-modal" class="modal-overlay" style="display: none; z-index: 40000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.85);">
+        <div style="background: #1e272e; padding: 30px; border-radius: 12px; width: 400px; text-align: center; color: white; border: 2px solid #3498db; box-shadow: 0 0 20px rgba(52, 152, 219, 0.5);">
+            <h2 style="margin-top: 0; color: #3498db;">🤝 友人戦ロビー</h2>
+
+            <div id="friend-menu-select">
+                <button onclick="createRoom()" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #27ae60;">✨ 新しいルームを作る</button>
+
+                <div style="margin: 20px 0; color: #7f8c8d; font-weight: bold;">または</div>
+
+                <input type="text" id="room-id-input" placeholder="ルームIDを入力 (例: ABCD)" style="width: 80%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #7f8c8d; background: #2c3e50; color: white; font-size: 16px; text-align: center; text-transform: uppercase;">
+                <button onclick="joinRoom()" style="width: 80%; padding: 12px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px #d35400;">🚪 ルームに参加する</button>
+            </div>
+
+            <div id="friend-menu-waiting" style="display: none;">
+                <h3 style="color: #bdc3c7;">ルームID: <span id="display-room-id" style="color: #f1c40f; font-size: 28px; letter-spacing: 2px;">---</span></h3>
+
+                <button onclick="copyRoomUrl()" style="padding: 8px 15px; margin-bottom: 20px; background: #34495e; color: white; border: none; border-radius: 6px; cursor: pointer;">📋 招待URLをコピー</button>
+
+                <div style="background: #2c3e50; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <p style="margin: 0 0 10px 0; font-size: 18px;">メンバーを待っています...</p>
+                    <div style="font-size: 32px; font-weight: bold; color: #2ecc71;"><span id="room-player-count">1</span> / 4</div>
+                </div>
+            </div>
+
+            <button onclick="closeFriendMatch()" style="margin-top: 20px; padding: 10px 20px; background: #7f8c8d; color: white; border: none; border-radius: 8px; cursor: pointer;">閉じる / 退室</button>
         </div>
     </div>
 
