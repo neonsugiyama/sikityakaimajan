@@ -80,12 +80,41 @@ async function takeResultScreenshot() {
 function openSettings() {
     document.getElementById('settings-modal').style.display = 'flex';
     playSE('click');
+
+    // 🌟 対局中（CPU戦）のみ「中断してホームに戻る」ボタンを表示する処理
+    const titleScreen = document.getElementById('title-screen');
+    const modeScreen = document.getElementById('mode-select-screen');
+    const quitBtn = document.getElementById('btn-settings-quit');
+
+    if (quitBtn) {
+        // タイトル画面もホーム画面も隠れていて、かつCPU戦の時だけ表示
+        if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none' && currentGameMode === 'cpu') {
+            quitBtn.style.display = 'block';
+        } else {
+            quitBtn.style.display = 'none';
+        }
+    }
 }
 
 // ⚙️ 設定モーダルを閉じる関数
 function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
     playSE('click');
+}
+
+// 🚪 対局を強制中断してホーム画面に戻る関数
+function quitGame() {
+    if (!confirm("本当に対局を中断してホーム画面に戻りますか？\n（進行中のスコアや戦績は保存されません）")) {
+        return;
+    }
+
+    playSE('click');
+    stopTimer(); // タイマーのカウントダウンを止める
+
+    // 🌟 先ほど作った「ホーム直行切符」を使ってリロード！
+    // ※ゲームデータをセーブしていないので、戦績は汚れません
+    sessionStorage.setItem('shiki_mahjong_return_home', 'true');
+    location.reload();
 }
 
 // 💾 現在の音量やスピードなどの設定をローカルストレージに保存する関数
@@ -1091,6 +1120,17 @@ function updateInfoUI() {
         if (!isDiffMode) {
             scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
             scoreEl.style.color = "#fff";
+        }
+
+        // 🌟 修正①：親の箱（pos-score-○）のZ-index自体を引き上げる！
+        if (scoreEl.parentElement) {
+            scoreEl.parentElement.style.zIndex = "10000";
+        }
+
+        // 🌟 修正②：点数加算アニメーションの「透明な箱」がクリックを吸収しないように無効化（除霊）！
+        let rsEl = document.getElementById(`player-round-score-${i}`);
+        if (rsEl) {
+            rsEl.style.pointerEvents = "none";
         }
 
         // 🌟 対面が押せないバグを回避するため、透明レイヤーより最前面に強制配置！
