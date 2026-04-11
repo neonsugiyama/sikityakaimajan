@@ -2375,3 +2375,37 @@ body.lang-en .en {
 .toast-show {
     top: 30px !important;
 }
+
+/* =====================================================================
+    📊 点差確認パネル
+===================================================================== */
+.score-diff-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 25, 30, 0.95);
+    border: 2px solid #3498db;
+    border-radius: 12px;
+    padding: 15px 25px;
+    color: #fff;
+    z-index: 30000;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(52,152,219,0.3);
+    cursor: pointer;
+    min-width: 300px;
+    animation: diffFadeIn 0.2s ease-out;
+}
+
+@keyframes diffFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -45%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}

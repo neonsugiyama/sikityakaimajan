@@ -1061,6 +1061,10 @@ function safeUpdate(data) {
     updateWaitsButton();
 }
 
+// 📊 点差表示モードの管理用
+let isDiffMode = false;
+let diffModeTimer = null;
+
 // ℹ️ 画面四隅のプレイヤー名、点数、レート、親マークなどを更新する関数
 function updateInfoUI() {
     const roundTextEl = document.getElementById('round-text');
@@ -1079,12 +1083,128 @@ function updateInfoUI() {
             `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i} ${rateStr}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
-
         let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
 
         nameEl.innerHTML = `${isDealer}${name}${aiTarget}`;
-        scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+
+        // 🌟 修正：点差表示モード中でなければ通常の持ち点を表示
+        if (!isDiffMode) {
+            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.style.color = "#fff";
+        }
+
+        // 🌟 対面が押せないバグを回避するため、透明レイヤーより最前面に強制配置！
+        scoreEl.style.position = "relative";
+        scoreEl.style.zIndex = "5000";
+        scoreEl.style.pointerEvents = "auto";
+
+        // スコア欄のクリックイベント設定
+        scoreEl.style.cursor = "pointer";
+        scoreEl.style.userSelect = "none";
+        scoreEl.onclick = () => toggleScoreDiff(i);
     }
+}
+
+// 📊 点差表示の切り替えロジック
+function toggleScoreDiff(baseIdx) {
+    playSE('click');
+
+    // すでに点差モードなら、タイマーをキャンセルして通常に戻す
+    if (isDiffMode) {
+        clearTimeout(diffModeTimer);
+        isDiffMode = false;
+        updateInfoUI();
+        return;
+    }
+
+    isDiffMode = true;
+    const baseScore = totalScores[baseIdx];
+
+    for (let i = 0; i < 4; i++) {
+        let scoreEl = document.getElementById(`player-score-${i}`);
+        if (i === baseIdx) {
+            // 基準プレイヤーはそのままの点数を表示
+            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.style.color = "#f1c40f"; // 黄色でハイライト
+        } else {
+            // 🌟 修正：計算式を逆転（基準の点数 - 相手の点数）
+            let diff = baseScore - totalScores[i];
+
+            let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+            let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
+
+            scoreEl.innerHTML = `<span style="font-size:12px; color:#aaa;">点差:</span> <span style="font-weight:bold;">${diffStr}</span>`;
+            scoreEl.style.color = diffColor;
+        }
+    }
+
+    // 3秒後に自動で元の表示に戻す
+    if (diffModeTimer) clearTimeout(diffModeTimer);
+    diffModeTimer = setTimeout(() => {
+        isDiffMode = false;
+        updateInfoUI();
+    }, 3000);
+}
+
+// 📊 持ち点をクリックしたときに順位と全員の点差を表示するパネル
+let scoreDiffTimer = null;
+function showScoreDiff(baseIdx) {
+    playSE('click');
+    const panel = document.getElementById('score-diff-panel');
+    if (!panel) return;
+
+    // 現在の点数で降順（高い順）にソートして順位を出す
+    let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
+
+    let baseName = baseIdx === 0 ? playerStats.playerName : `CPU ${baseIdx}`;
+    let baseScore = totalScores[baseIdx];
+
+    // パネルのヘッダー部分
+    let html = `<div style="text-align:center; font-weight:bold; color:#3498db; margin-bottom:10px; border-bottom:2px solid #3498db; padding-bottom:8px; font-size:18px;">
+                    現在の順位と点差 <br><span style="font-size:13px; color:#bdc3c7;">(基準: ${baseName})</span>
+                </div>`;
+
+    // 各プレイヤーの行を生成
+    sortedIndices.forEach((idx, rank) => {
+        let name = idx === 0 ? playerStats.playerName : `CPU ${idx}`;
+        let score = totalScores[idx];
+        let diff = score - baseScore;
+
+        let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+        let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
+
+        // 基準にしたプレイヤー自身の行は点差をハイフンにする
+        if (idx === baseIdx) {
+            diffStr = "-";
+            diffColor = "#fff";
+        }
+
+        // プレイヤー自身(0番)の行は黄色くハイライトして目立たせる
+        let rowStyle = idx === 0
+            ? 'color: #f1c40f; font-weight: bold; background: rgba(241, 196, 15, 0.15); border-radius: 4px;'
+            : 'color: #fff;';
+
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 10px; margin-bottom: 2px; ${rowStyle}">
+                <span style="width: 110px;">${rank + 1}位: ${name}</span>
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:15px; width: 140px;">
+                    <span style="text-align:right; width: 60px;">${score}</span>
+                    <span style="text-align:right; width: 65px; color:${diffColor}; font-size:16px;">${diffStr}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `<div style="text-align:center; font-size:12px; color:#7f8c8d; margin-top:12px;">(画面クリックで閉じます)</div>`;
+
+    panel.innerHTML = html;
+    panel.style.display = 'flex';
+
+    // 5秒後に自動で閉じる（邪魔にならないように）
+    if (scoreDiffTimer) clearTimeout(scoreDiffTimer);
+    scoreDiffTimer = setTimeout(() => {
+        panel.style.display = 'none';
+    }, 5000);
 }
 
 let currentNanikiru = null;
