@@ -3820,6 +3820,7 @@ function checkTieredAchievement(id, title, icon, oldVal, newVal, tiers) {
 // ==========================================
 
 let currentRoomId = "";
+let lobbyWs = null; // 🌟 WebSocket接続を保存する変数を追加
 
 // 🤝 友人戦モーダルを開く
 function openFriendMatch() {
@@ -3834,7 +3835,12 @@ function openFriendMatch() {
 function closeFriendMatch() {
     playSE('click');
     document.getElementById('friend-match-modal').style.display = 'none';
-    // TODO: 後でここに「WebSocketサーバーから切断する処理」を追加します
+
+    // 🌟 モーダルを閉じたら、WebSocketも切断して部屋から抜ける
+    if (lobbyWs) {
+        lobbyWs.close();
+        lobbyWs = null;
+    }
     currentRoomId = "";
 }
 
@@ -3867,7 +3873,31 @@ function enterWaitingRoom(roomId) {
     // 自分が入ったので1人に設定
     document.getElementById('room-player-count').innerText = "1";
 
-    // TODO: 次のステップで、ここでWebSocketサーバーに接続して「〇〇ルームに入れて！」と通信します
+    // 🌟 WebSocketサーバーに接続する（ws:// で繋ぐ）
+    const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
+    lobbyWs = new WebSocket(wsUrl);
+
+    // 🌟 サーバーからメッセージ（人数の更新など）を受け取った時の処理
+    lobbyWs.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "lobby_update") {
+            // 画面の人数表記をサーバーから来た数字に書き換える
+            document.getElementById('room-player-count').innerText = data.player_count;
+
+            // 4人揃ったら次のステップへ！
+            if (data.player_count === 4) {
+                // 少しだけ待ってからアラートを出す（数字が4になるのを見せるため）
+                setTimeout(() => {
+                    alert("4人揃いました！ゲームを開始します！\n（※対局への遷移処理はこれから作ります）");
+                }, 500);
+            }
+        }
+    };
+
+    lobbyWs.onclose = () => {
+        console.log("ロビーから切断されました");
+    };
 }
 
 // 📋 招待URLをクリップボードにコピーする関数

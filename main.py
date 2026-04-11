@@ -1,6 +1,7 @@
 ﻿import random
 import traceback
-from fastapi import FastAPI
+from typing import Dict, List  # 🌟 追加
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # 🌟 追加
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,6 +40,61 @@ def read_css():
 @app.get("/game.js")
 def read_js():
     return FileResponse("game.js")
+
+# ==========================================
+# 🤝 友人戦ロビー（WebSocket）管理システム
+# ==========================================
+class ConnectionManager:
+    def __init__(self):
+        # room_id をキーにして、接続中のWebSocketのリストを保存する辞書
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, room_id: str):
+        await websocket.accept()
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = []
+        self.active_connections[room_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, room_id: str):
+        if room_id in self.active_connections:
+            if websocket in self.active_connections[room_id]:
+                self.active_connections[room_id].remove(websocket)
+            # 誰もいなくなったら部屋を消す
+            if len(self.active_connections[room_id]) == 0:
+                del self.active_connections[room_id]
+
+    async def broadcast_to_room(self, room_id: str, message: dict):
+        if room_id in self.active_connections:
+            for connection in self.active_connections[room_id]:
+                await connection.send_json(message)
+
+lobby_manager = ConnectionManager()
+
+# 📡 ロビー用のWebSocket通信口
+@app.websocket("/ws/lobby/{room_id}")
+async def websocket_lobby(websocket: WebSocket, room_id: str):
+    await lobby_manager.connect(websocket, room_id)
+    
+    # 誰かが入室したら、その部屋の全員に「現在の人数」を知らせる
+    player_count = len(lobby_manager.active_connections[room_id])
+    await lobby_manager.broadcast_to_room(room_id, {
+        "type": "lobby_update",
+        "player_count": player_count
+    })
+    
+    try:
+        while True:
+            # クライアントからのメッセージを待機（今回は切断検知のために置いておく）
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        lobby_manager.disconnect(websocket, room_id)
+        # 誰かが退出したら、残ったメンバーに人数が減ったことを知らせる
+        if room_id in lobby_manager.active_connections:
+            new_count = len(lobby_manager.active_connections[room_id])
+            await lobby_manager.broadcast_to_room(room_id, {
+                "type": "lobby_update",
+                "player_count": new_count
+            })
 
 # ==========================================
 # 🎮 ゲーム進行・操作受付用API
