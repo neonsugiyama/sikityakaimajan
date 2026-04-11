@@ -1206,8 +1206,65 @@ def debug_setup(scenario: str):
         game.hands[0] = ["東","東","東","東","南","南","西","西","北","北","白","白","發"]
         game.wall = ["發"]
 
-    for i in range(4):
-        game.hands[i] = game.sort_hand(game.hands[i])
+    #実績解除テストケース
+    elif scenario == "achieve_wide_wait":
+        game.dealer = 0
+        game.turn = 0
+        # 3つの順子 + 四季牌4枚。
+        # 四季牌4枚は「どんな形にもなれる」ため、実質的に全種待ち(34面待ち)状態になります。
+        game.hands[0] = ["1m","2m","3m","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        game.wall = ["東"] * 20 # ツモ用に適当に積む
+        
+    elif scenario == "achieve_seasons":
+        game.dealer = 0
+        game.turn = 0
+        # 四季牌4枚を抱えた状態でテンパイ。引くだけで「四季を統べる者」達成。
+        game.hands[0] = ["東","東","東","南","南","南","西","西","西","春","夏","秋","冬"]
+        game.wall.append("北")
+        
+    elif scenario == "achieve_fullhouse":
+        game.dealer = 0
+        game.turn = 0
+        # 大三元(16) + 字一色(16) などが確定する超絶配牌。ツモるだけで7役以上複合！
+        game.hands[0] = ["白","白","白","發","發","發","中","中","中","東","東","東","南"]
+        game.wall.append("南")
+        
+    elif scenario == "pacifist":
+        # 最終局(オーラス)で、自分だけ0点、他家が全員マイナスの状態を作る
+        game.current_round = 4
+        game.total_scores = [0, -10000, -10000, -10000]
+        game.dealer = 1
+        game.turn = 1
+        # CPU1にすぐにアガらせてゲームを終了させる
+        game.hands[1] = ["東","東","東","南","南","南","西","西","西","北","北","北","白"]
+        game.wall.append("白")
+        
+    elif scenario == "comeback":
+        # オーラスで自分がダントツの最下位(-3万点)
+        game.current_round = 4
+        game.total_scores = [-30000, 40000, 30000, 20000]
+        game.dealer = 0
+        game.turn = 0
+        # 逆転トップになれる超特大役満（天胡＋大三元など）の配牌をプレゼント
+        game.hands[0] = ["白","白","白","發","發","發","中","中","中","東","東","東","南"]
+        game.wall.append("南")
+        
+    elif scenario == "clutch":
+        # オーラス、3位(10001点)と1点差の4位(10000点)
+        game.current_round = 4
+        game.total_scores = [10000, 10001, 30000, 20000]
+        game.dealer = 0
+        game.turn = 0
+        # 無役（無番和）＝1点でアガって逆転できる手牌
+        game.hands[0] = ["1m","2m","3m","5p","6p","7p","2s","3s","4s","6s","7s","8s","北"]
+        game.wall.append("北")
+        
+    elif scenario == "achieve_welcomehome":
+        # ※「おかえりなさい」のテスト用に、サーバー側のフラグを立てておく
+        game.debug_welcome_home = True
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s","2s","3s","4s"]
 
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])

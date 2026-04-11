@@ -9,6 +9,14 @@
 </head>
 <body>
 
+    <div id="achievement-toast" class="achievement-toast">
+        <div class="toast-icon" id="toast-icon">🏆</div>
+        <div class="toast-text-area">
+            <div class="toast-title-label">実績解除！</div>
+            <div class="toast-achieve-name" id="toast-name">実績名</div>
+        </div>
+    </div>
+
     <div id="title-screen">
         <div class="title-content">
             <h1 class="game-title">四季茶会麻雀</h1>
@@ -258,7 +266,9 @@
 
             <div id="dev-mode-container" style="display: none; margin-bottom: 25px; border-top: 1px solid #555; padding-top: 15px;">
                 <hr style="border-color: #555; margin: 10px 0;">
-                <button onclick="injectDummyData()" style="margin:2px; padding:5px 15px; background:#f39c12; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; width:95%;">👑 ダミー実績データを注入</button>
+                <button onclick="injectDummyData()" style="margin:2px; padding:5px 15px; background:#f39c12; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; width:95%;">👑 超絶インフレデータを注入</button>
+                <button onclick="injectBeginnerData()" style="margin:2px; padding:5px 15px; background:#27ae60; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; width:95%;">🔰 初心者データを注入</button>
+                <button onclick="resetToInitialData()" style="margin:2px; padding:5px 15px; background:#7f8c8d; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; width:95%;">🗑️ まっさらに初期化 (0プレイ)</button>
                 <label style="font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
                     <span>🔧 開発者モード (テストツール表示)</span>
                     <input type="checkbox" id="settings-dev-mode" onchange="toggleDevMode(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
@@ -792,16 +802,13 @@
         <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
 
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (34面待ち配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい (交換ループ)</button>
-
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
         <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
-
-        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
-        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
-        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('clutch')">🗡️ 1点の重み (僅差スコア操作)</button>
 
         <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
     </div>

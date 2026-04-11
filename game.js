@@ -186,7 +186,7 @@ let playerStats = {
     comebackCount: 0,       // 逆転の劇薬（オーラス4位から1位）
     masterOfSeasonsCount: 0,// 四季を統べる者（春夏秋冬を揃えて和了）
     pacifistCount: 0,       // 漁夫の利（和了0回で局内1位）
-    wideWaitCount: 0        // 無限の選択肢（34面待ち達成）
+    wideWaitCount: 0        // 無限の選択肢（27面待ち達成）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -300,6 +300,24 @@ window.addEventListener('DOMContentLoaded', () => {
         loadSettings();
     } else {
         updateTableGradient();
+    }
+
+    // 🌟 ここを追加！リロード時に切符を持っていたらタイトルをスキップして直行！
+    if (sessionStorage.getItem('shiki_mahjong_return_home') === 'true') {
+        sessionStorage.removeItem('shiki_mahjong_return_home'); // 切符を回収
+
+        // BGMを鳴らす準備（自動再生制限対策のフラグ）
+        audioState.initialized = true;
+        if (audioState.bgmOn) {
+            sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
+        }
+
+        // タイトル画面を消してホーム画面を出す
+        document.getElementById('title-screen').style.display = 'none';
+        document.getElementById('mode-select-screen').style.display = 'flex';
+
+        // プロフィール（最新の戦績やグラフ）を更新して表示
+        updateProfileUI();
     }
 });
 
@@ -658,7 +676,8 @@ let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
 let isAutoPlay = false;
-
+// 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
+let isWelcomeHomeTest = false;
 let timerInterval = null;
 let timeLeft = 0;
 let maxTimeForTimer = 0;
@@ -1091,13 +1110,6 @@ async function updateWaitsButton() {
         if (isTenpai || canListen) {
             waitsBtn.disabled = false;
             waitsBtn.innerText = isTenpai ? "待ち牌確認" : "聴牌確認(何切る)";
-
-            // 🏆 ここに追加！【無限の選択肢】
-            if (currentWaits.length >= 34) {
-                playerStats.wideWaitCount = 1;
-                saveGameData();
-                console.log("🏆 実績解除：無限の選択肢");
-            }
         } else {
             waitsBtn.disabled = true;
             waitsBtn.innerText = "ノーテン";
@@ -1180,6 +1192,9 @@ function hideWaitsPanel() {
 async function loadDebugScenario(scenario) {
     if (!confirm("現在の局をリセットしてテストデータを読み込みますか？")) return;
 
+    // 🌟 ここを追加！おかえりなさいボタンが押されたらフラグON
+    isWelcomeHomeTest = (scenario === 'achieve_welcomehome');
+
     // テスト開始時にすべての画面（モーダル）を強制終了する
     document.getElementById('mypage-modal').style.display = 'none';
     document.getElementById('achievement-modal').style.display = 'none';
@@ -1208,11 +1223,28 @@ async function loadDebugScenario(scenario) {
 
     for (let i = 0; i < 4; i++) {
         document.getElementById(`river-${i}`).innerHTML = "";
+        document.getElementById(`meld-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).style.display = "none";
     }
 
-    render(); renderCPU();
-    isProc = false;
-    checkT();
+    // 🌟🌟 ここを追加！「おかえりなさい」の時だけチャールストンを開始する！
+    if (isWelcomeHomeTest) {
+        charlestonCount = 1;
+        isProc = false;
+        startCharlestonSelection();
+        renderCPU();
+    } else {
+        // それ以外のテストはチャールストンをスキップして即打牌フェーズへ
+        charlestonPhase = false;
+        document.getElementById('charleston-ui').style.display = "none";
+        document.getElementById('charleston-confirm-ui').style.display = "none";
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+        render(); renderCPU();
+        isProc = false;
+        checkT();
+    }
 }
 
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
@@ -1296,12 +1328,18 @@ async function execExchange() {
 
         const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
 
+        // 🌟🌟 ここを追加！テストモードならサーバーから受け取った牌を握りつぶす（捏造）
+        if (isWelcomeHomeTest) {
+            myHand = oldHandStr.split(','); // 送る前の手牌データを強制的に復元する！
+            isWelcomeHomeTest = false;      // 1回使ったらチートOFF
+        }
+
         // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
-        if (oldHandStr === newHandStr) {
+        if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
             playerStats.welcomeHomeCount = 1;
             saveGameData();
-            console.log("🏆 実績解除：おかえりなさい");
+            showAchievementUnlock("おかえりなさい", "🎲");
         }
 
         await showDiceAnimation(data.dice, data.direction);
@@ -1413,7 +1451,10 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
 
     if (secondCharlestonParticipating[0] && t1 !== "") {
+        // 🏆 ここを変更！【チャールストンの愛し子】
+        let oldCharleston = playerStats.secondCharlestonCount;
         playerStats.secondCharlestonCount++;
+        checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [1, 50, 100, 200]);
         saveGameData();
 
         let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
@@ -2225,7 +2266,10 @@ async function execMeld(type) {
 
     if (type === 'カン' || type === '花槓') {
         if (type === '花槓') {
+            // 🏆 ここを変更！【花槓マスター】（明槓）
+            let oldHanakan = playerStats.hanakanCount;
             playerStats.hanakanCount++;
+            checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [1, 50, 100, 300]);
             saveGameData();
         }
         pendingIsRinshan = true; justPonged = false;
@@ -2242,7 +2286,10 @@ async function execSelfMeld(type, t, s, isHidden = false) {
     if (isProc) return; isProc = true; document.getElementById('self-actions').innerHTML = '';
 
     if (type.includes("花槓")) {
+        // 🏆 ここを変更！【花槓マスター】（暗花槓など）
+        let oldHanakan = playerStats.hanakanCount;
         playerStats.hanakanCount++;
+        checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [1, 50, 100, 300]);
         saveGameData();
     }
 
@@ -2294,7 +2341,10 @@ async function execJokerSwap(t, season, targetIdx) {
     showCallout(0, "JokerSwap");
     await sleep(1500);
 
+    // 🏆 ここを変更！【スワップの支配者】
+    let oldSwap = playerStats.jokerSwapCount;
     playerStats.jokerSwapCount++;
+    checkTieredAchievement("jokerswap", "スワップの支配者", "🃏", oldSwap, playerStats.jokerSwapCount, [1, 10, 50, 150]);
     saveGameData();
 
     pendingIsJokerSwap = true;
@@ -2316,7 +2366,10 @@ function skipAction() {
 async function handleRoundEnd() {
     stopTimer();
 
+    // 🏆 ここを変更！【継続は力なり】
+    let oldRounds = playerStats.totalRoundsPlayed;
     playerStats.totalRoundsPlayed++;
+    checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [1, 500, 1000, 3000]);
     saveGameData();
 
     document.getElementById('settings-modal').style.display = 'none';
@@ -2338,28 +2391,36 @@ async function handleRoundEnd() {
 
     const calcData = await apiCall('/calculate_round_scores');
 
-    if (calcData.scores[0] === 1 && calcData.ranking_points[0] > 0) {
-        playerStats.clutch1PointCount++;
-        saveGameData();
-        console.log("🏆 実績解除：1点の重み（1点をもぎ取って順位を上げた！）");
-    }
-
     let iWon = false;
     for (let res of calcData.results) {
         if (res.player === 0) {
             iWon = true;
             playerStats.totalWins++;
-            playerStats.totalScoreSum += res.total_score;
+
+            // --- 💰 ここに追加：大富豪の判定 ---
+            let oldTotalScore = playerStats.totalScoreSum || 0;
+            playerStats.totalScoreSum = oldTotalScore + res.total_score;
+            // tiers は renderAchievements で設定した [1000, 500000, 1000000, 5000000] に合わせる
+            checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [100, 500, 1000000, 5000000]);
+
+            // 🏆 ここに追加！【無限の選択肢】（アガった瞬間に27面待ちだったか）
+            if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
+                playerStats.wideWaitCount = 1;
+                showAchievementUnlock("無限の選択肢", "🌀");
+            }
 
             // 🏆 ここに追加！【神の領域】＆【インフレの体現者】
             for (let detail of res.details) {
                 if (detail.yaku.includes("天胡") || detail.yaku.includes("地胡")) {
-                    playerStats.heavenlyCount = 1;
-                    console.log("🏆 実績解除：神の領域");
+                    if (playerStats.heavenlyCount === 0) {
+                        playerStats.heavenlyCount = 1;
+                        showAchievementUnlock("神の領域", "⚡");
+                    }
                 }
                 if (detail.yaku.length > playerStats.maxComboCount) {
+                    let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
                     playerStats.maxComboCount = detail.yaku.length;
-                    console.log("🏆 実績更新：インフレの体現者 (" + detail.yaku.length + "役)");
+                    if (isFirstTime) showAchievementUnlock("インフレの体現者", "🌈");
                 }
             }
 
@@ -2367,12 +2428,18 @@ async function handleRoundEnd() {
             let allMyTiles = [...myHand];
             myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
             if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
-                playerStats.masterOfSeasonsCount = 1;
-                console.log("🏆 実績解除：四季を統べる者");
+                if (playerStats.masterOfSeasonsCount === 0) {
+                    playerStats.masterOfSeasonsCount = 1;
+                    showAchievementUnlock("四季を統べる者", "🌍");
+                }
             }
 
+            // --- 💰 ここに追加：最高到達打点の判定 ---
             if (res.total_score > playerStats.maxScore) {
+                let oldMax = playerStats.maxScore;
                 playerStats.maxScore = res.total_score;
+                // tiers は [100, 1000, 5000, 10000] に合わせる
+                checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 200, 5000, 10000]);
 
                 playerStats.maxScoreHand = {
                     tiles: [...myHand],
@@ -2380,6 +2447,7 @@ async function handleRoundEnd() {
                     winTile: res.details.length > 0 ? res.details[0].tile : ""
                 };
             }
+
             if (Array.isArray(playerStats.yakuCollected)) {
                 let migrated = {};
                 playerStats.yakuCollected.forEach(y => migrated[y] = 1);
@@ -2524,9 +2592,9 @@ async function handleRoundEnd() {
     for (let i = 1; i < 4; i++) {
         if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
     }
-    if (!iWon && isPacifistTop) {
+    if (!iWon && isPacifistTop && playerStats.pacifistCount === 0) {
         playerStats.pacifistCount = 1;
-        console.log("🏆 実績解除：漁夫の利");
+        showAchievementUnlock("漁夫の利", "🕊️");
     }
     saveGameData();
 
@@ -2558,6 +2626,8 @@ async function handleRoundEnd() {
         setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
     }
 
+    // ... (前略：点数加算アニメーションのループ) ...
+
     await sleep(3500);
 
     for (let i = 0; i < 4; i++) {
@@ -2565,21 +2635,23 @@ async function handleRoundEnd() {
     }
 
     if (currentRound >= 4) {
-        await apiCall('/next_round');
+        // 🌟 修正箇所！ apiCall('/next_round') でデータが消し飛ぶ「前」に判定する！
 
-        // 🏆 ここに追加！【逆転の劇薬】（精算前のスコアを逆算して順位比較）
+        // 🏆 【逆転の劇薬】（現在の最終スコアから、今回の獲得スコアを引いて開始時の順位を逆算）
         let oldScores = [];
-        for (let i = 0; i < 4; i++) oldScores[i] = totalScores[i] - (scores[i] + rankingPoints[i]);
+        for (let i = 0; i < 4; i++) {
+            oldScores[i] = totalScores[i] - (scores[i] + rankingPoints[i]);
+        }
         let sortedOld = [...oldScores].sort((a, b) => b - a);
-        let oldRank = sortedOld.indexOf(oldScores[0]) + 1; // 精算前の自分の順位
+        let oldRank = sortedOld.indexOf(oldScores[0]) + 1; // 4局目開始時点の自分の順位
 
         let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
         let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-        let myRank = sortedIndices.indexOf(0) + 1; // 最終順位
+        let myRank = sortedIndices.indexOf(0) + 1; // ゲーム終了時の最終順位
 
-        if (oldRank === 4 && myRank === 1) {
+        if (oldRank === 4 && myRank === 1 && playerStats.comebackCount === 0) {
             playerStats.comebackCount = 1;
-            console.log("🏆 実績解除：逆転の劇薬");
+            showAchievementUnlock("逆転の劇薬", "💊");
         }
 
         // 📊 ゲーム終了時の戦績記録
@@ -2588,7 +2660,12 @@ async function handleRoundEnd() {
 
         if (myRank === 1) {
             playerStats.currentWinStreak++;
-            if (playerStats.currentWinStreak > playerStats.maxWinStreak) playerStats.maxWinStreak = playerStats.currentWinStreak;
+            // 🏆 【連勝記録】
+            if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
+                let oldStreak = playerStats.maxWinStreak;
+                playerStats.maxWinStreak = playerStats.currentWinStreak;
+                checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
+            }
         } else {
             playerStats.currentWinStreak = 0;
         }
@@ -2596,8 +2673,10 @@ async function handleRoundEnd() {
         playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
         if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
 
+        let oldRate = playerRatings[0];
         let rateChanges = [0, 0, 0, 0];
-        if (currentGameMode === 'online') {
+
+        if (currentGameMode === 'online' || currentGameMode === 'cpu') {
             let placementPoints = [15, 5, -5, -15];
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
@@ -2607,6 +2686,13 @@ async function handleRoundEnd() {
                 playerRatings[pIdx] += change;
                 if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
             }
+            // 🏆 レート実績の判定
+            let newRate = playerRatings[0];
+            if (oldRate < 1600 && newRate >= 1600) showAchievementUnlock("レートの階段 (1600)", "📈");
+            if (oldRate < 1700 && newRate >= 1700) showAchievementUnlock("レートの階段 (1700)", "📈");
+            if (oldRate < 1800 && newRate >= 1800) showAchievementUnlock("レートの階段 (1800)", "📈");
+            if (oldRate < 1900 && newRate >= 1900) showAchievementUnlock("レートの階段 (1900)", "📈");
+            if (oldRate < 2000 && newRate >= 2000) showAchievementUnlock("頂に立つ者", "👑");
         }
 
         saveGameData();
@@ -2617,18 +2703,29 @@ async function handleRoundEnd() {
             let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
             resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
 
-            if (currentGameMode === 'online') {
+            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
                 let sign = rateChanges[pIdx] >= 0 ? "+" : "";
                 resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
             }
         }
 
+        // 🌟🌟 実績ポップアップがすべて出終わるまで待機する 🌟🌟
+        while (isToastShowing || toastQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         alert(resultMsg);
+        sessionStorage.setItem('shiki_mahjong_return_home', 'true');
+
+        // 🌟 修正箇所！ すべての処理が終わった一番最後にサーバーデータをリセットする
+        await apiCall('/next_round');
+
         location.reload();
         return;
     }
 
     await apiCall('/next_round');
+    // ... (以下、既存の 1〜3局目の終了処理が続く) ...
 
     for (let i = 0; i < 4; i++) {
         document.getElementById(`river-${i}`).innerHTML = "";
@@ -2742,24 +2839,23 @@ function renderAchievements() {
     const achievements = [
         // 📈 積み上げ型（レート・スコア・回数）
         { id: "rating", icon: "📈", title: "レートの階段", desc: "自身のレート(R)を指定値まで上げる", val: currentRate, tiers: [1600, 1700, 1800, 1900], unit: "R" },
-        { id: "billionaire", icon: "🏦", title: "大富豪", desc: "生涯の累計獲得点数", val: totalScore, tiers: [100000, 500000, 1000000, 5000000], unit: "点" },
+        { id: "billionaire", icon: "🏦", title: "大富豪", desc: "生涯の累計獲得点数", val: totalScore, tiers: [1000, 500000, 1000000, 5000000], unit: "点" },
         { id: "score", icon: "💰", title: "最高到達打点", desc: "1局での最高獲得点数", val: playerStats.maxScore, tiers: [100, 1000, 5000, 10000], unit: "点" },
         { id: "streak", icon: "🔥", title: "連勝記録", desc: "総合1位を連続で獲得した回数", val: playerStats.maxWinStreak, tiers: [2, 5, 10, 20], unit: "連勝" },
-        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [100, 500, 1000, 3000], unit: "局" },
-        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [10, 50, 100, 200], unit: "回" },
-        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [10, 50, 100, 300], unit: "回" },
+        { id: "rounds", icon: "⏳", title: "継続は力なり", desc: "対局を完了した累計局数", val: playerStats.totalRoundsPlayed, tiers: [1, 500, 1000, 3000], unit: "局" },
+        { id: "charleston", icon: "🔄", title: "チャールストンの愛し子", desc: "第2交換に参加した回数", val: playerStats.secondCharlestonCount, tiers: [1, 50, 100, 200], unit: "回" },
+        { id: "hanakan", icon: "🌸", title: "花槓マスター", desc: "四季牌を使って花槓を作った回数", val: playerStats.hanakanCount, tiers: [1, 50, 100, 300], unit: "回" },
         { id: "jokerswap", icon: "🃏", title: "スワップの支配者", desc: "JokerSwapを成功させた回数", val: playerStats.jokerSwapCount, tiers: [1, 10, 50, 150], unit: "回" },
 
         // 👑 一発達成型 (1回でプラチナ)
         { id: "rating_god", icon: "👑", title: "頂に立つ者", desc: "レート2000(称号「あたまおかしい」)到達", val: currentRate >= 2000 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「34種類」ある状態になる", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "master_of_seasons", icon: "🌍", title: "四季を統べる者", desc: "1局の手牌に四季牌4種すべてを揃えてアガる", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「27種類」ある状態で和了", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "master_of_seasons", icon: "🌍", title: "四季を統べる者", desc: "1局の手牌に四季牌4種すべてを揃えて和了", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "一局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "heavenly", icon: "⚡", title: "神の領域", desc: "天胡または地胡を達成する", val: playerStats.heavenlyCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "自分が和了していないのに局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "comeback", icon: "💊", title: "逆転の劇薬", desc: "4局開始時4位から1位で終了する", val: playerStats.comebackCount, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "clutch", icon: "🗡️", title: "1点の重み", desc: "1点でアガり3着以上をもぎ取った", val: playerStats.clutch1PointCount, tiers: [1, 1, 1, 1], unit: "回" }
     ];
 
     let gridHtml = ``;
@@ -3008,19 +3104,24 @@ function openMyPage() {
     updateNameCounter(playerStats.playerName);
 
     // 基本データの取得（0割防止のための || 1）
-    let totalG = playerStats.totalGamesPlayed || 1;
+    let totalG = playerStats.totalGamesPlayed || 0;
     let totalR = playerStats.totalRoundsPlayed || 1;
     let totalW = playerStats.totalWins || 0; // 和了回数は0もあり得る
     let totalScore = playerStats.totalScoreSum || 0; // スコアの総計変数（元のコードに合わせています）
 
-    // --- 📊 総合指標の計算 ---
-    let avgRank = playerStats.totalGamesPlayed > 0
-        ? ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2)
-        : "0.00";
+    // --- 📊 総合指標の計算（0割防止のための条件分岐を追加） ---
+    let avgRank = "0.00";
+    let topRate = "0.00";
+    let rentaiRate = "0.00";
+    let rasuKaihiRate = "0.00";
 
-    let topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
-    let rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
-    let rasuKaihiRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+    if (totalG > 0) {
+        avgRank = ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2);
+        topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
+        rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
+        rasuKaihiRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+    }
+
     let maxStreak = playerStats.maxWinStreak || 0;
 
     // --- ⚔️ 詳細スコア・技術指標の計算 ---
@@ -3038,7 +3139,7 @@ function openMyPage() {
     let luckRate = totalW > 0 ? ((luckCount / totalW) * 100).toFixed(2) : "0.00";
 
     // 🌟 1. HTMLに数値を流し込む（新しいIDに対応）
-    document.getElementById('stat-total-games').innerText = playerStats.totalGamesPlayed || 0;
+    document.getElementById('stat-total-games').innerText = totalG;
     document.getElementById('stat-max-streak').innerText = maxStreak + " 連勝";
     document.getElementById('stat-avg-rank').innerText = avgRank;
     document.getElementById('stat-top-rate').innerText = topRate + "%";
@@ -3055,27 +3156,12 @@ function openMyPage() {
     // 🌟 2. 生涯累計獲得スコア
     document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
 
-    // 🌟 3. レーダーチャートの描画
-
-    // 1. トップ率：そのまま（0〜100%）
-    // topRate はそのまま使用
-
-    // 2. 手数（最大60回）：ルート補正をかけて、序盤からグラフを大きく見せる！
+    // 🌟 3. レーダーチャートの描画(最初は伸びやすく、徐々に伸びにくくする)
     let chartAvgWins = Math.min(Math.sqrt(avgWins / 60) * 100, 100);
-
-    // 3. パワー（平均打点）：最大2000点と仮定してルート補正！
-    // （例：平均500点でも、ルート補正でグラフは 50% まで伸びる）
     let chartAvgScore = Math.min(Math.sqrt(avgWinScore / 2000) * 100, 100);
-
-    // 4. 無花果率（最大100%）：これはそのままでもOKですが、強プレイヤーの基準を80%に設定して直線補正
-    // （無花果率が80%あれば、グラフ上では100%の頂点に到達する）
     let chartMuhana = Math.min((muhanaRate / 80) * 100, 100);
-
-    // 5. 天運（特殊ドロー率）：超レアなので最大値を 15% くらいに設定して直線補正
-    // （15%出せていれば「天運MAX」としてグラフが頂点に達する）
     let chartLuckRate = Math.min((luckRate / 15) * 100, 100);
 
-    // レーダーチャートの更新処理へ渡す
     if (radarChart) radarChart.destroy();
     const ctxRadar = document.getElementById('mypage-radar-chart').getContext('2d');
     radarChart = new Chart(ctxRadar, {
@@ -3083,7 +3169,6 @@ function openMyPage() {
         data: {
             labels: ['トップ率', '1局平均和了', '1局平均スコア', '無花果率', '天運'],
             datasets: [{
-                // 🌟 ここで補正済みの変数をセット！
                 data: [topRate, chartAvgWins, chartAvgScore, chartMuhana, chartLuckRate],
                 backgroundColor: 'rgba(52, 152, 219, 0.4)',
                 borderColor: '#3498db',
@@ -3102,7 +3187,6 @@ function openMyPage() {
     if (pieChart) pieChart.destroy();
     const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
 
-    // 引き出し線とパーセンテージを直接描画するプラグイン
     const customOutLabelPlugin = {
         id: 'customOutLabels',
         afterDraw: (chart) => {
@@ -3111,79 +3195,71 @@ function openMyPage() {
             const meta = chart.getDatasetMeta(0);
             const total = data.reduce((a, b) => a + b, 0);
 
-            if (total === 0) return;
+            // 🌟 未プレイ時（ダミーデータ）は線やラベルを描画しないように除外！
+            if (total === 0 || chart.data.labels[0] === '未プレイ') return;
 
             meta.data.forEach((arc, index) => {
                 const value = data[index];
-                if (value === 0) return; // 0回の順位は線を引かない
+                if (value === 0) return;
 
                 const percentage = ((value / total) * 100).toFixed(1) + '%';
                 const labelText = chart.data.labels[index];
                 const displayText = `${labelText}: ${percentage} (${value}回)`;
 
-                // 角度と座標の計算
                 const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-                const r = arc.outerRadius; // 円の半径
-                const x = arc.x; // 円の中心X
-                const y = arc.y; // 円の中心Y
+                const r = arc.outerRadius;
+                const x = arc.x;
+                const y = arc.y;
 
-                // ① 線のスタート地点（円の縁）
                 const startX = x + Math.cos(midAngle) * r;
                 const startY = y + Math.sin(midAngle) * r;
 
-                // ② 線の折れ曲がり地点（少し外側へ）
                 const lineExt = 15;
                 const midX = x + Math.cos(midAngle) * (r + lineExt);
                 const midY = y + Math.sin(midAngle) * (r + lineExt);
 
-                // ③ 線のゴール地点（左右に水平に伸ばす）
-                const isRight = midX > x; // 右半分か左半分か判定
+                const isRight = midX > x;
                 const endX = isRight ? midX + 15 : midX - 15;
 
-                // 線の描画
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
                 ctx.lineTo(midX, midY);
                 ctx.lineTo(endX, midY);
-                // 🌟 線の色を、それぞれの順位の色に合わせる！
                 ctx.strokeStyle = chart.data.datasets[0].backgroundColor[index];
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
 
-                // テキストの描画
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 13px sans-serif';
                 ctx.textAlign = isRight ? 'left' : 'right';
                 ctx.textBaseline = 'middle';
-                // 線の先端から少し離して文字を書く
                 ctx.fillText(displayText, isRight ? endX + 5 : endX - 5, midY);
             });
         }
     };
 
+    // 🌟 未プレイかどうかを判定
+    let isZeroData = totalG === 0;
+
     pieChart = new Chart(ctxPie, {
         type: 'doughnut',
         data: {
-            labels: ['1位', '2位', '3位', '4位'],
+            // 未プレイ時はラベルもデータもダミーのグレー色にする
+            labels: isZeroData ? ['未プレイ'] : ['1位', '2位', '3位', '4位'],
             datasets: [{
-                data: playerStats.totalGamesPlayed > 0 ? playerStats.rankCounts : [1, 1, 1, 1],
-                backgroundColor: ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
+                data: isZeroData ? [1] : playerStats.rankCounts,
+                backgroundColor: isZeroData ? ['#333333'] : ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
                 borderColor: '#2c3e50',
                 borderWidth: 2
             }]
         },
-        plugins: [customOutLabelPlugin], // 🌟 ここで自作プラグインをセット！
+        plugins: [customOutLabelPlugin],
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                // 🌟 外側に文字と線を描くため、グラフ自体の上下左右に十分な余白を作る
-                padding: { left: 65, right: 65, top: 20, bottom: 20 }
-            },
-            plugins: {
-                legend: { display: false }, // デフォルト凡例は非表示
-                tooltip: { enabled: false } // 常に表示されるので、ホバーフキダシはOFF
-            }
+            layout: { padding: { left: 65, right: 65, top: 20, bottom: 20 } },
+            // 未プレイ時はマウスを乗せてもツールチップを出さない
+            plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
         }
     });
 
@@ -3322,6 +3398,97 @@ function injectDummyData() {
     location.reload();
 }
 
+// 🧪 デバッグ用：インストール直後の「完全初期状態」に戻す関数
+function resetToInitialData() {
+    if (!confirm("データを完全に初期化し、インストール直後の状態に戻しますか？")) return;
+
+    playerRatings = [1500, 1500, 1500, 1500];
+    playerStats = {
+        playerName: "あなた",
+        maxScore: 0,
+        maxScoreHand: null,
+        currentWinStreak: 0,
+        maxWinStreak: 0,
+        yakuCollected: {},
+        jokerSwapCount: 0,
+        secondCharlestonCount: 0,
+        hanakanCount: 0,
+        totalRoundsPlayed: 0,
+        recentRecords: [],
+        totalGamesPlayed: 0,
+        rankCounts: [0, 0, 0, 0],
+        totalWins: 0,
+        totalTsumoWins: 0,
+        totalCalls: 0,
+        totalScoreSum: 0,
+        heavenlyCount: 0,
+        maxComboCount: 0,
+        welcomeHomeCount: 0,
+        comebackCount: 0,
+        masterOfSeasonsCount: 0,
+        pacifistCount: 0,
+        wideWaitCount: 0
+    };
+
+    saveGameData();
+    alert("データを完全初期化しました！\n画面をリロードして反映します。");
+    location.reload();
+}
+
+// 🧪 デバッグ用：少しだけプレイした「初心者データ」を注入する関数
+function injectBeginnerData() {
+    if (!confirm("現在のセーブデータを上書きして、初心者(10ゲームプレイ済み)のデータを注入しますか？")) return;
+
+    playerRatings[0] = 1599;
+    playerStats.playerName = "ビギナー";
+
+    // 🌟 総合指標データ (10ゲームプレイ)
+    playerStats.totalGamesPlayed = 10;
+    playerStats.rankCounts = [3, 4, 2, 1]; // 1位3回, 2位4回, 3位2回, 4位1回
+    playerStats.totalRoundsPlayed = 38;
+
+    playerStats.totalWins = 8;
+    playerStats.totalScoreSum = 8500; // 平均打点1000点ちょっと
+
+    // 🌟 アチーブメント関連データ
+    playerStats.currentWinStreak = 1;
+    playerStats.maxWinStreak = 2;
+    playerStats.jokerSwapCount = 2;
+    playerStats.secondCharlestonCount = 8;
+    playerStats.hanakanCount = 5;
+
+    // 🌟 直近10戦の推移
+    playerStats.recentRecords = [
+        { rank: 1, score: 1200 }, { rank: 2, score: 800 }, { rank: 4, score: -500 }, { rank: 2, score: 900 }, { rank: 3, score: 100 },
+        { rank: 1, score: 1500 }, { rank: 2, score: 600 }, { rank: 3, score: 200 }, { rank: 2, score: 700 }, { rank: 1, score: 1800 }
+    ];
+
+    playerStats.maxScore = 1800;
+    playerStats.maxScoreHand = {
+        tiles: ["1m", "1m", "1m", "5p", "6p", "7p", "2s", "3s", "4s", "東", "東"],
+        melds: [{ type: "pon", tiles: ["白", "白", "白"] }],
+        winTile: "東"
+    };
+
+    // 🌟 役図鑑用データ (簡単な役のみ)
+    playerStats.yakuCollected = {
+        "断么": 3, "碰碰胡": 2, "混一色": 1, "無番和": 4, "刮風": 2
+    };
+
+    // 🌟 一発系実績はすべて未達成(0)にリセット
+    playerStats.heavenlyCount = 0;
+    playerStats.maxComboCount = 2;
+    playerStats.welcomeHomeCount = 0;
+    playerStats.comebackCount = 0;
+    playerStats.masterOfSeasonsCount = 0;
+    playerStats.pacifistCount = 0;
+    playerStats.wideWaitCount = 0;
+
+    saveGameData();
+    alert("初心者用ダミーデータを注入しました！\n画面をリロードして反映します。");
+    location.reload();
+}
+
 // 🏆 テスト用：実績のフラグを強制的にONにする関数
 function testUnlockAchievement(id) {
     // playerStatsが未定義のテスト環境(index_test.html)用の安全対策
@@ -3399,4 +3566,57 @@ function resetTestAchievements() {
     if (typeof saveGameData === 'function') saveGameData();
 
     alert("テスト用の実績をリセット（未達成）に戻しました。");
+}
+
+// ==========================================
+// 🏆 実績解除ポップアップ表示システム
+// ==========================================
+let toastQueue = [];
+let isToastShowing = false;
+
+// 🌟 ポップアップを予約リストに追加する関数
+function showAchievementUnlock(name, icon = "🏆") {
+    toastQueue.push({ name, icon });
+    if (!isToastShowing) processToastQueue();
+}
+
+// 🌟 予約されたポップアップを順番に表示する関数（ゲーム速度に依存しない実時間表示）
+async function processToastQueue() {
+    if (toastQueue.length === 0) {
+        isToastShowing = false;
+        return;
+    }
+    isToastShowing = true;
+    let achieve = toastQueue.shift();
+
+    const toast = document.getElementById('achievement-toast');
+    if (!toast) return;
+
+    document.getElementById('toast-icon').innerText = achieve.icon;
+    document.getElementById('toast-name').innerText = achieve.name;
+
+    // 音を鳴らす（コイン音か専用音がおすすめ）
+    playSE('coin');
+
+    // 画面に降ろす
+    toast.classList.add('toast-show');
+
+    // 4秒間表示して、自動で上に戻る
+    await new Promise(res => setTimeout(res, 4000));
+    toast.classList.remove('toast-show');
+
+    // アニメーションが終わるまで待ってから次の実績を表示
+    await new Promise(res => setTimeout(res, 600));
+    processToastQueue();
+}
+
+// 🌟 積み上げ型実績がランクアップ（銅・銀・金・プラチナ）した瞬間にポップアップを出す関数
+function checkTieredAchievement(id, title, icon, oldVal, newVal, tiers) {
+    for (let i = 0; i < tiers.length; i++) {
+        // 古い値が目標未満で、新しい値が目標に到達・突破した時だけ通知する！
+        if (oldVal < tiers[i] && newVal >= tiers[i]) {
+            let rankName = ["ブロンズ", "シルバー", "ゴールド", "プラチナ"][i];
+            showAchievementUnlock(`${title} (${rankName})`, icon);
+        }
+    }
 }

@@ -2323,3 +2323,55 @@ body.lang-en .en {
     color: #f1c40f;
     margin-bottom: 5px;
 }
+
+/* =====================================================================
+    🏆 実績解除ポップアップ（トースト通知）
+===================================================================== */
+.achievement-toast {
+    position: fixed;
+    top: -100px; /* 🌟 初期位置は画面の外（上）に隠す */
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(44, 62, 80, 0.95));
+    border: 2px solid #f1c40f;
+    border-radius: 50px;
+    padding: 10px 30px 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 40000; /* 🌟 どんな画面（リザルト等）よりも最前面に出す */
+    box-shadow: 0 5px 20px rgba(241, 196, 15, 0.6);
+    transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 🌟 ぽよんと降りてくるアニメーション */
+    pointer-events: none;
+}
+
+.toast-icon {
+    font-size: 36px;
+    filter: drop-shadow(0 0 5px rgba(255,255,255,0.8));
+}
+
+.toast-text-area {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.toast-title-label {
+    font-size: 13px;
+    color: #f1c40f;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 2px;
+}
+
+.toast-achieve-name {
+    font-size: 22px;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+}
+
+/* 🌟 JSでこのクラスが付与されると画面内に降りてくる */
+.toast-show {
+    top: 30px !important;
+}
