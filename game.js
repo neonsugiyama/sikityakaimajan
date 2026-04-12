@@ -4841,3 +4841,5 @@ async function checkHumanReactionOnline(discarderIdx, tile) {
         return false;
     }
 }
+
+//修正前

@@ -1570,3 +1570,5 @@ def get_waits(player_idx: int = 0):
         return {"nanikiru": nanikiru_results}
     
     return {"waits": []}
+
+##修正前
