@@ -2409,3 +2409,19 @@ body.lang-en .en {
         transform: translate(-50%, -50%);
     }
 }
+
+/* 🌟 ロード時の画面のビクつきを隠すための透明ベール */
+.table,
+.title-content,
+#mode-select-container {
+    transform-origin: center center !important;
+    transition: opacity 0.3s ease !important; /* 透明からフワッと表示させる */
+    opacity: 0; /* 最初は透明にしておく */
+}
+
+    /* JSの計算が終わったらこのクラスがついて表示される */
+    .table.ready,
+    .title-content.ready,
+    #mode-select-container.ready {
+        opacity: 1;
+    }

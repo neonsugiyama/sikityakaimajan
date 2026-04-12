@@ -667,16 +667,30 @@ function resizeGame() {
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
 
     const table = document.querySelector('.table');
-    if (table) table.style.transform = `scale(${scale})`;
+    if (table) {
+        table.style.transformOrigin = "center center";
+        table.style.transform = `scale(${scale})`;
+        table.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 
     const titleContent = document.querySelector('.title-content');
-    if (titleContent) titleContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    if (titleContent) {
+        titleContent.style.transformOrigin = "center center";
+        titleContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        titleContent.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 
     const modeContainer = document.getElementById('mode-select-container');
-    if (modeContainer) modeContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    if (modeContainer) {
+        modeContainer.style.transformOrigin = "center center";
+        modeContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        modeContainer.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 }
+
 window.addEventListener('resize', resizeGame);
 window.addEventListener('DOMContentLoaded', resizeGame);
+resizeGame(); // スクリプト読み込み時に即実行
 
 // ==========================================
 // ★ 進行スピードとタイマー制御
@@ -2792,8 +2806,6 @@ async function handleRoundEnd() {
         setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
     }
 
-    // ... (前略：点数加算アニメーションのループ) ...
-
     await sleep(3500);
 
     for (let i = 0; i < 4; i++) {
@@ -2891,7 +2903,6 @@ async function handleRoundEnd() {
     }
 
     await apiCall('/next_round');
-    // ... (以下、既存の 1〜3局目の終了処理が続く) ...
 
     for (let i = 0; i < 4; i++) {
         document.getElementById(`river-${i}`).innerHTML = "";
