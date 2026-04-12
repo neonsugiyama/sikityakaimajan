@@ -584,7 +584,7 @@ body {
         ===================================================================== */
 .pos-round-score-0 {
     position: absolute;
-    bottom: 180px;
+    bottom: 170px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 200;
@@ -602,7 +602,7 @@ body {
 
 .pos-round-score-2 {
     position: absolute;
-    top: 250px;
+    top: 240px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 200;

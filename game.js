@@ -872,6 +872,11 @@ function showCallout(playerIdx, text) {
 
     el.innerText = text;
 
+    if (el.parentElement) {
+        el.parentElement.style.setProperty('z-index', '9999', 'important');
+    }
+    el.style.setProperty('z-index', '9999', 'important');
+
     if (text === "天胡" || text === "地胡") {
         playSE('special_win');
         const flash = document.getElementById('flash-overlay');
@@ -920,6 +925,7 @@ function showCenterMessage(html) {
     const el = document.getElementById('center-message');
     if (!el) return;
     el.innerHTML = html;
+    el.style.zIndex = "9999";
     el.style.display = "block";
 }
 
@@ -958,6 +964,7 @@ function getPlayerPos(idx) {
 // 🎲 チャールストンの交換方向を決めるサイコロアニメーションを表示する関数
 async function showDiceAnimation(targetDice, directionMsg) {
     const diceEl = document.getElementById('dice-overlay');
+    diceEl.style.zIndex = "9999";
     diceEl.style.display = "block";
 
     if (targetDice > 0) {
@@ -1138,7 +1145,7 @@ function updateInfoUI() {
 
         // 🌟 修正①：親の箱（pos-score-○）のZ-index自体を引き上げる！
         if (scoreEl.parentElement) {
-            scoreEl.parentElement.style.zIndex = "10000";
+            scoreEl.parentElement.style.zIndex = "1000";
         }
 
         // 🌟 修正②：点数加算アニメーションの「透明な箱」がクリックを吸収しないように無効化（除霊）！
@@ -1149,7 +1156,7 @@ function updateInfoUI() {
 
         // 🌟 対面が押せないバグを回避するため、透明レイヤーより最前面に強制配置！
         scoreEl.style.position = "relative";
-        scoreEl.style.zIndex = "5000";
+        scoreEl.style.zIndex = "1001";
         scoreEl.style.pointerEvents = "auto";
 
         // スコア欄のクリックイベント設定
@@ -1308,6 +1315,7 @@ function showWaitsPanel() {
     }
 
     list.innerHTML = '';
+    panel.style.zIndex = "9999";
 
     // 「何切る」モード（14枚の時）の表示処理
     if (currentNanikiru) {
@@ -1450,7 +1458,10 @@ function startCharlestonSelection() {
         cTitle.style.color = "#f1c40f";
     }
     document.getElementById('msg').innerText = "";
-    document.getElementById('charleston-ui').style.display = "block";
+    const cUi = document.getElementById('charleston-ui');
+    cUi.style.zIndex = "9999";
+    cUi.style.display = "block";
+
     document.getElementById('btn-exchange').style.display = "none";
     render();
 
@@ -1553,7 +1564,9 @@ async function askNextSecondCharleston() {
     let currentAsker = (dealer + askedCount) % 4;
 
     if (currentAsker === 0) {
-        document.getElementById('charleston-confirm-ui').style.display = "block";
+        const confUi = document.getElementById('charleston-confirm-ui');
+        confUi.style.zIndex = "9999";
+        confUi.style.display = "block";
 
         startTimer(timeExchange, () => {
             confirmSecondCharleston(false);
@@ -2787,6 +2800,25 @@ async function handleRoundEnd() {
         await sleep(1000);
 
         let rsEl = document.getElementById(`player-round-score-${targetIdx}`);
+
+        if (!rsEl) continue;
+
+        // 🌟 位置の微調整（座席ごとに数値を書き換えて調整してください）
+        const posOffsets = [
+            { bottom: "110px", left: "50%" },  // 0: あなた（下）
+            { right: "120px", top: "50%" },    // 1: 下家（右）
+            { top: "110px", left: "50%" },     // 2: 対面（上）
+            { left: "120px", top: "50%" }      // 3: 上家（左）
+        ];
+
+        // スタイル適用
+        const offset = posOffsets[targetIdx];
+        rsEl.style.bottom = offset.bottom || "auto";
+        rsEl.style.top = offset.top || "auto";
+        rsEl.style.left = offset.left || "auto";
+        rsEl.style.right = offset.right || "auto";
+        rsEl.style.zIndex = "10000"; // アニメーションは全UIの最前面
+
         let sign = roundScore > 0 ? "+" : "";
 
         let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
