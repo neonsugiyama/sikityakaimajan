@@ -667,16 +667,30 @@ function resizeGame() {
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
 
     const table = document.querySelector('.table');
-    if (table) table.style.transform = `scale(${scale})`;
+    if (table) {
+        table.style.transformOrigin = "center center";
+        table.style.transform = `scale(${scale})`;
+        table.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 
     const titleContent = document.querySelector('.title-content');
-    if (titleContent) titleContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    if (titleContent) {
+        titleContent.style.transformOrigin = "center center";
+        titleContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        titleContent.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 
     const modeContainer = document.getElementById('mode-select-container');
-    if (modeContainer) modeContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    if (modeContainer) {
+        modeContainer.style.transformOrigin = "center center";
+        modeContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        modeContainer.classList.add('ready'); // 🌟 計算完了！表示する！
+    }
 }
+
 window.addEventListener('resize', resizeGame);
 window.addEventListener('DOMContentLoaded', resizeGame);
+resizeGame(); // スクリプト読み込み時に即実行
 
 // ==========================================
 // ★ 進行スピードとタイマー制御
@@ -695,6 +709,9 @@ function changeSpeed(val) {
 
 const sleep = ms => new Promise(res => setTimeout(res, ms / speedMult));
 
+let myPlayerIdx = 0;
+let cpuHands = [[], [], [], []];
+
 let currentWaits = [];
 let myHand = [], myMelds = [], myWinTiles = [], turn = 0, isProc = false, lastT = "", justPonged = false;
 let drawnTile = "", autoResumeTimer = null, lastDiscardPlayer = -1;
@@ -708,6 +725,7 @@ let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
 let isAutoPlay = false;
+let skipCount = 0;
 // 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
 let isWelcomeHomeTest = false;
 let timerInterval = null;
@@ -1094,62 +1112,74 @@ function safeUpdate(data) {
 let isDiffMode = false;
 let diffModeTimer = null;
 
+// 📍 実際の席番号から、画面上の位置（0=下, 1=右, 2=上, 3=左）を計算する便利関数
+function getViewPos(actualIdx) {
+    return (actualIdx - myPlayerIdx + 4) % 4;
+}
+
 // ℹ️ 画面四隅のプレイヤー名、点数、レート、親マークなどを更新する関数
 function updateInfoUI() {
     const roundTextEl = document.getElementById('round-text');
     if (roundTextEl) roundTextEl.innerText = `第 ${currentRound} 局`;
 
-    for (let i = 0; i < 4; i++) {
-        let nameEl = document.getElementById(`player-name-${i}`);
-        let scoreEl = document.getElementById(`player-score-${i}`);
+    const wallCountEl = document.getElementById('wall-count');
+    if (wallCountEl && typeof wallCount !== 'undefined') {
+        wallCountEl.innerText = `山: ${wallCount}`;
+    }
 
-        let title = getRatingTitle(playerRatings[i]);
-        let titleColor = playerRatings[i] >= 2000 ? "#e74c3c" : (playerRatings[i] >= 1800 ? "#f1c40f" : "#3498db");
-        let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
+    for (let viewPos = 0; viewPos < 4; viewPos++) {
+        let actualIdx = (myPlayerIdx + viewPos) % 4;
+        let nameEl = document.getElementById(`player-name-${viewPos}`);
+        let scoreEl = document.getElementById(`player-score-${viewPos}`);
 
-        let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>⚙️ あなた ${rateStr}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i} ${rateStr}`;
+        if (!nameEl || !scoreEl) continue;
 
-        let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
-        let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
+        let title = getRatingTitle(playerRatings[actualIdx]);
+        let titleColor = playerRatings[actualIdx] >= 2000 ? "#e74c3c" : (playerRatings[actualIdx] >= 1800 ? "#f1c40f" : "#3498db");
+        let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[actualIdx]})</span>`;
+
+        let name = "";
+        if (currentGameMode === 'online') {
+            name = actualIdx === myPlayerIdx ?
+                `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>⚙️ あなた ${rateStr}` :
+                `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>👤 プレイヤー ${actualIdx} ${rateStr}`;
+        } else {
+            name = viewPos === 0 ?
+                `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>⚙️ あなた ${rateStr}` :
+                `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${actualIdx} ${rateStr}`;
+        }
+
+        let isDealer = (dealer === actualIdx) ? `<span class="dealer-mark">🀄親</span>` : "";
+        let aiTarget = (actualIdx !== myPlayerIdx && cpuTargets[actualIdx] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[actualIdx]}] ${cpuTargets[actualIdx]}</span>` : "";
 
         nameEl.innerHTML = `${isDealer}${name}${aiTarget}`;
 
-        // 🌟 修正：点差表示モード中でなければ通常の持ち点を表示
         if (!isDiffMode) {
-            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.innerHTML = `持ち点: ${totalScores[actualIdx]}`;
             scoreEl.style.color = "#fff";
         }
 
-        // 🌟 修正①：親の箱（pos-score-○）のZ-index自体を引き上げる！
         if (scoreEl.parentElement) {
             scoreEl.parentElement.style.zIndex = "10000";
         }
 
-        // 🌟 修正②：点数加算アニメーションの「透明な箱」がクリックを吸収しないように無効化（除霊）！
-        let rsEl = document.getElementById(`player-round-score-${i}`);
+        let rsEl = document.getElementById(`player-round-score-${viewPos}`);
         if (rsEl) {
             rsEl.style.pointerEvents = "none";
         }
 
-        // 🌟 対面が押せないバグを回避するため、透明レイヤーより最前面に強制配置！
         scoreEl.style.position = "relative";
         scoreEl.style.zIndex = "5000";
         scoreEl.style.pointerEvents = "auto";
-
-        // スコア欄のクリックイベント設定
         scoreEl.style.cursor = "pointer";
         scoreEl.style.userSelect = "none";
-        scoreEl.onclick = () => toggleScoreDiff(i);
+        scoreEl.onclick = () => toggleScoreDiff(actualIdx);
     }
 }
 
 // 📊 点差表示の切り替えロジック
 function toggleScoreDiff(baseIdx) {
     playSE('click');
-
-    // すでに点差モードなら、タイマーをキャンセルして通常に戻す
     if (isDiffMode) {
         clearTimeout(diffModeTimer);
         isDiffMode = false;
@@ -1161,24 +1191,22 @@ function toggleScoreDiff(baseIdx) {
     const baseScore = totalScores[baseIdx];
 
     for (let i = 0; i < 4; i++) {
-        let scoreEl = document.getElementById(`player-score-${i}`);
-        if (i === baseIdx) {
-            // 基準プレイヤーはそのままの点数を表示
-            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
-            scoreEl.style.color = "#f1c40f"; // 黄色でハイライト
-        } else {
-            // 🌟 修正：計算式を逆転（基準の点数 - 相手の点数）
-            let diff = baseScore - totalScores[i];
+        let viewPos = getViewPos(i);
+        let scoreEl = document.getElementById(`player-score-${viewPos}`);
+        if (!scoreEl) continue;
 
+        if (i === baseIdx) {
+            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.style.color = "#f1c40f";
+        } else {
+            let diff = baseScore - totalScores[i];
             let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
             let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
-
             scoreEl.innerHTML = `<span style="font-size:12px; color:#aaa;">点差:</span> <span style="font-weight:bold;">${diffStr}</span>`;
             scoreEl.style.color = diffColor;
         }
     }
 
-    // 3秒後に自動で元の表示に戻す
     if (diffModeTimer) clearTimeout(diffModeTimer);
     diffModeTimer = setTimeout(() => {
         isDiffMode = false;
@@ -1193,34 +1221,28 @@ function showScoreDiff(baseIdx) {
     const panel = document.getElementById('score-diff-panel');
     if (!panel) return;
 
-    // 現在の点数で降順（高い順）にソートして順位を出す
     let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
-
-    let baseName = baseIdx === 0 ? playerStats.playerName : `CPU ${baseIdx}`;
+    let baseName = baseIdx === myPlayerIdx ? playerStats.playerName : (currentGameMode === 'online' ? `プレイヤー ${baseIdx}` : `CPU ${baseIdx}`);
     let baseScore = totalScores[baseIdx];
 
-    // パネルのヘッダー部分
     let html = `<div style="text-align:center; font-weight:bold; color:#3498db; margin-bottom:10px; border-bottom:2px solid #3498db; padding-bottom:8px; font-size:18px;">
                     現在の順位と点差 <br><span style="font-size:13px; color:#bdc3c7;">(基準: ${baseName})</span>
                 </div>`;
 
-    // 各プレイヤーの行を生成
     sortedIndices.forEach((idx, rank) => {
-        let name = idx === 0 ? playerStats.playerName : `CPU ${idx}`;
+        let name = idx === myPlayerIdx ? playerStats.playerName : (currentGameMode === 'online' ? `プレイヤー ${idx}` : `CPU ${idx}`);
         let score = totalScores[idx];
         let diff = score - baseScore;
 
         let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
         let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
 
-        // 基準にしたプレイヤー自身の行は点差をハイフンにする
         if (idx === baseIdx) {
             diffStr = "-";
             diffColor = "#fff";
         }
 
-        // プレイヤー自身(0番)の行は黄色くハイライトして目立たせる
-        let rowStyle = idx === 0
+        let rowStyle = idx === myPlayerIdx
             ? 'color: #f1c40f; font-weight: bold; background: rgba(241, 196, 15, 0.15); border-radius: 4px;'
             : 'color: #fff;';
 
@@ -1236,11 +1258,9 @@ function showScoreDiff(baseIdx) {
     });
 
     html += `<div style="text-align:center; font-size:12px; color:#7f8c8d; margin-top:12px;">(画面クリックで閉じます)</div>`;
-
     panel.innerHTML = html;
     panel.style.display = 'flex';
 
-    // 5秒後に自動で閉じる（邪魔にならないように）
     if (scoreDiffTimer) clearTimeout(scoreDiffTimer);
     scoreDiffTimer = setTimeout(() => {
         panel.style.display = 'none';
@@ -1449,81 +1469,492 @@ function startCharlestonSelection() {
 
 // 👆 チャールストンで交換に出す牌の選択/解除を切り替える関数
 function toggleExchange(idx) {
+    console.log(`[DEBUG toggleExchange] クリックされたインデックス: ${idx}`);
     const pos = exchangeSelection.indexOf(idx);
-    if (pos > -1) exchangeSelection.splice(pos, 1);
-    else if (exchangeSelection.length < 3) exchangeSelection.push(idx);
-    render();
-    const btn = document.getElementById('btn-exchange');
-    if (exchangeSelection.length === 3) btn.style.display = "block";
-    else btn.style.display = "none";
-}
-
-// 📤 選んだ3枚の牌をサーバーに送り、第1チャールストンを実行する関数
-async function execExchange() {
-    stopTimer();
-    if (exchangeSelection.length !== 3) {
-        exchangeSelection = [0, 1, 2];
+    if (pos > -1) {
+        exchangeSelection.splice(pos, 1);
+        console.log(`[DEBUG toggleExchange] 選択解除しました。現在の選択数: ${exchangeSelection.length}`);
+    } else if (exchangeSelection.length < 3) {
+        exchangeSelection.push(idx);
+        console.log(`[DEBUG toggleExchange] 選択追加しました。現在の選択数: ${exchangeSelection.length}`);
+    } else {
+        console.log(`[DEBUG toggleExchange] すでに3枚選択されているため無視されました`);
     }
 
-    isProc = true;
-    document.getElementById('charleston-ui').style.display = "none";
+    render();
+    const btn = document.getElementById('btn-exchange');
+    if (exchangeSelection.length === 3) {
+        btn.style.display = "block";
+        console.log("[DEBUG toggleExchange] 3枚選ばれたため、交換決定ボタンを表示しました");
+    } else {
+        btn.style.display = "none";
+    }
+}
+
+// 📤 第1・第2チャールストンを実行する関数
+async function execExchange() {
+    console.log("========== [DEBUG execExchange] 実行開始 ==========");
+    console.log(`[DEBUG execExchange] 現在の charlestonCount: ${charlestonCount}`);
+    console.log(`[DEBUG execExchange] 選択されているインデックス: ${exchangeSelection}`);
+
+    stopTimer();
+    if (exchangeSelection.length !== 3) {
+        console.log("[DEBUG execExchange] ⚠️ 選択枚数が3枚ではないため、[0, 1, 2]で強制上書きします");
+        exchangeSelection = [0, 1, 2];
+    }
 
     let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
     let t1 = displayHand[exchangeSelection[0]];
     let t2 = displayHand[exchangeSelection[1]];
     let t3 = displayHand[exchangeSelection[2]];
+    console.log(`[DEBUG execExchange] 抽出された3枚の牌: ${t1}, ${t2}, ${t3}`);
 
-    // 🏆 ここに追加！交換前の手牌を文字列として記憶
-    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+    // 🌟 第2交換の時は、強制的に第2交換専用の関数へパスする
+    if (charlestonCount === 2) {
+        console.log("[DEBUG execExchange] charlestonCount が 2 のため、execSecondCharleston に処理をパスします");
+        execSecondCharleston(t1, t2, t3);
+        return;
+    }
 
-    if (charlestonCount === 1) {
+    isProc = true;
+    document.getElementById('charleston-ui').style.display = "none";
+
+    if (currentGameMode === 'online') {
+        console.log("[DEBUG execExchange] オンラインモード: 第1交換の送信処理に入ります");
+        document.getElementById('msg').className = "";
+        document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+
         exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
         myHand = displayHand;
-
         exchangeSelection = [];
-
         showCharlestonStatus(0, true);
         render();
 
-        hideCpuTiles = [0, 3, 3, 3];
-        for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
-        renderCPU();
+        console.log(`[DEBUG execExchange] サーバーへ action: 'charleston' を送信します`);
+        lobbyWs.send(JSON.stringify({
+            type: "action", action: "charleston", player_idx: myPlayerIdx, tiles: [t1, t2, t3]
+        }));
+        return;
+    }
 
-        const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+    // --- 以下CPU戦の第1交換 ---
+    console.log("[DEBUG execExchange] CPU戦モード: 第1交換の処理に入ります");
+    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
 
-        // 🌟🌟 ここを追加！テストモードならサーバーから受け取った牌を握りつぶす（捏造）
-        if (isWelcomeHomeTest) {
-            myHand = oldHandStr.split(','); // 送る前の手牌データを強制的に復元する！
-            isWelcomeHomeTest = false;      // 1回使ったらチートOFF
+    exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
+    myHand = displayHand;
+    exchangeSelection = [];
+    showCharlestonStatus(0, true);
+    render();
+
+    hideCpuTiles = [0, 3, 3, 3];
+    for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+    renderCPU();
+
+    const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+
+    if (isWelcomeHomeTest) {
+        myHand = oldHandStr.split(',');
+        isWelcomeHomeTest = false;
+    }
+
+    let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+    if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
+        playerStats.welcomeHomeCount = 1;
+        saveGameData();
+        showAchievementUnlock("おかえりなさい", "🎲");
+    }
+
+    await showDiceAnimation(data.dice, data.direction);
+    await playExchangeAnimation(data.direction, [true, true, true, true]);
+
+    hideCpuTiles = [0, 0, 0, 0];
+    clearCharlestonStatus();
+    render(); renderCPU();
+
+    askedCount = 0;
+    charlestonAskResults = [];
+    secondCharlestonParticipating = [false, false, false, false];
+
+    isProc = false;
+    askNextSecondCharleston();
+}
+
+// 📤 第2チャールストンを実行する関数
+async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
+    console.log("========== [DEBUG execSecondCharleston] 実行開始 ==========");
+    console.log(`[DEBUG execSecondCharleston] 受け取った牌: ${t1}, ${t2}, ${t3}`);
+    console.log(`[DEBUG execSecondCharleston] currentGameMode: ${currentGameMode}`);
+    console.log(`[DEBUG execSecondCharleston] myPlayerIdx: ${myPlayerIdx}`);
+    console.log(`[DEBUG execSecondCharleston] 参加フラグ: ${secondCharlestonParticipating[myPlayerIdx]}`);
+
+    stopTimer();
+    isProc = true;
+    document.getElementById('charleston-ui').style.display = "none";
+
+    if (currentGameMode === 'online') {
+        console.log("[DEBUG execSecondCharleston] オンラインモードの処理に入ります");
+
+        if (secondCharlestonParticipating[myPlayerIdx] && t1 !== "") {
+            console.log("[DEBUG execSecondCharleston] 参加状態＆牌指定あり。手牌から3枚削除します");
+            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            [t1, t2, t3].forEach(t => {
+                let idx = displayHand.indexOf(t);
+                if (idx !== -1) displayHand.splice(idx, 1);
+            });
+            myHand = displayHand;
+            exchangeSelection = [];
+            showCharlestonStatus(0, true);
+            render();
+
+            document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+            console.log(`[DEBUG execSecondCharleston] 🌟 サーバーへ action: 'second_charleston_turn' (参加) を送信します`);
+
+            const sendData = {
+                type: "action", action: "second_charleston_turn", player_idx: myPlayerIdx, participate: true, tiles: [t1, t2, t3]
+            };
+            console.log("[DEBUG execSecondCharleston] 送信データ中身:", sendData);
+            lobbyWs.send(JSON.stringify(sendData));
+        } else {
+            console.log("[DEBUG execSecondCharleston] 不参加状態、または牌の指定なし");
+            document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+            console.log(`[DEBUG execSecondCharleston] 🌟 サーバーへ action: 'second_charleston_turn' (不参加) を送信します`);
+
+            const sendData = {
+                type: "action", action: "second_charleston_turn", player_idx: myPlayerIdx, participate: false, tiles: []
+            };
+            console.log("[DEBUG execSecondCharleston] 送信データ中身:", sendData);
+            lobbyWs.send(JSON.stringify(sendData));
         }
+        return;
+    }
 
-        // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
+    // --- 以下CPU戦 ---
+    console.log("[DEBUG execSecondCharleston] CPU戦モードの処理に入ります");
+    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+
+    if (secondCharlestonParticipating[0] && t1 !== "") {
+        let oldCharleston = playerStats.secondCharlestonCount;
+        playerStats.secondCharlestonCount++;
+        checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [5, 50, 500, 2500]);
+        saveGameData();
+
+        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+        [t1, t2, t3].forEach(t => {
+            let idx = displayHand.indexOf(t);
+            if (idx !== -1) displayHand.splice(idx, 1);
+        });
+        myHand = displayHand;
+        exchangeSelection = [];
+        showCharlestonStatus(0, true);
+        render();
+    } else {
+        exchangeSelection = [];
+    }
+
+    const data = await apiCall('/second_charleston', {
+        player_idx: 0, t1: t1, t2: t2, t3: t3,
+        p0: secondCharlestonParticipating[0],
+        p1: secondCharlestonParticipating[1],
+        p2: secondCharlestonParticipating[2],
+        p3: secondCharlestonParticipating[3]
+    });
+
+    if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立")) {
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
-        if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
+        if (oldHandStr === newHandStr) {
             playerStats.welcomeHomeCount = 1;
             saveGameData();
             showAchievementUnlock("おかえりなさい", "🎲");
         }
-
-        await showDiceAnimation(data.dice, data.direction);
-        await playExchangeAnimation(data.direction, [true, true, true, true]);
-
-        hideCpuTiles = [0, 0, 0, 0];
-        clearCharlestonStatus();
-        render(); renderCPU();
-
-        askedCount = 0;
-        charlestonAskResults = [];
-        secondCharlestonParticipating = [false, false, false, false];
-
-        isProc = false;
-        askNextSecondCharleston();
-    } else {
-        execSecondCharleston(t1, t2, t3);
     }
+
+    if (data.direction.includes("不成立")) {
+        showCenterMessage(`<span style="color:#e74c3c;font-size:24px;">${data.direction}</span>`);
+        await sleep(1500);
+        hideCenterMessage();
+    } else {
+        await showDiceAnimation(data.dice, data.direction);
+        await playExchangeAnimation(data.direction, secondCharlestonParticipating);
+    }
+
+    hideCpuTiles = [0, 0, 0, 0];
+    clearCharlestonStatus();
+    render(); renderCPU();
+
+    charlestonPhase = false;
+    isProc = false;
+    checkT();
+}
+// ⏳ 待合室画面に切り替える
+function enterWaitingRoom(roomId) {
+    currentRoomId = roomId;
+    document.getElementById('friend-menu-select').style.display = 'none';
+    document.getElementById('friend-menu-waiting').style.display = 'block';
+    document.getElementById('display-room-id').innerText = roomId;
+    document.getElementById('room-player-count').innerText = "1";
+
+    const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
+    lobbyWs = new WebSocket(wsUrl);
+
+    lobbyWs.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "lobby_update") {
+            document.getElementById('room-player-count').innerText = data.player_count;
+        }
+        else if (data.type === "game_start") {
+            skipCount = 0;
+            myPlayerIdx = data.player_idx;
+            currentGameMode = 'online';
+
+            document.getElementById('friend-match-modal').style.display = 'none';
+            document.getElementById('mode-select-screen').style.display = 'none';
+            document.getElementById('title-screen').style.display = 'none';
+
+            let state = data.state;
+            myHand = state.player_hand || [];
+            totalScores = state.total_scores || [0, 0, 0, 0];
+            turn = state.turn;
+            dealer = state.dealer;
+            currentRound = state.current_round || 1;
+            wallCount = state.wall_count;
+
+            if (typeof cpuHands === 'undefined') window.cpuHands = [[], [], [], []];
+            for (let i = 0; i < 4; i++) {
+                if (i !== myPlayerIdx) cpuHands[i] = new Array(13).fill("back");
+            }
+
+            updateInfoUI(); render(); renderCPU();
+            alert(`対局開始！あなたは ${myPlayerIdx} 番です。まずは牌の交換を行います。`);
+
+            charlestonPhase = false; isProc = false;
+            charlestonCount = 1; startCharlestonSelection();
+        }
+        else if (data.type === "update") {
+            let state = data.state;
+            let ev = data.event;
+
+            let isCharlestonEvent = ev && ev.action && ev.action.includes("charleston");
+            let isCallout = ev && ev.action === "play_callout";
+
+            if (!isCharlestonEvent && !isCallout) {
+                safeUpdate(state);
+            }
+
+            if (ev) {
+                if (ev.action === "discard") {
+                    let pIdx = ev.player_idx;
+                    let tile = ev.tile;
+                    drawnTile = ""; lastT = tile; lastDiscardPlayer = pIdx;
+                    addR(pIdx, tile, false);
+                    skipCount = 0;
+                    render(); renderCPU();
+                    if (pIdx !== myPlayerIdx) checkHumanReactionOnline(pIdx, tile);
+                }
+                else if (ev.action === "skip") {
+                    skipCount++;
+                    if (skipCount >= 3 && turn === myPlayerIdx && !charlestonPhase) {
+                        isProc = false; checkOnlineT();
+                    }
+                }
+                else if (ev.action === "sync") {
+                    render(); renderCPU();
+                    if (turn === myPlayerIdx) {
+                        isProc = false; checkOnlineT();
+                    }
+                }
+                else if (ev.action === "play_callout") {
+                    let callIdx = ev.player_idx;
+                    let text = ev.call_text;
+                    showCallout(callIdx, text);
+
+                    if (text === "胡" || text === "自摸" || text === "天胡" || text === "地胡") {
+                        safeUpdate(state); render(); renderCPU();
+                        isProc = true;
+                        setTimeout(() => handleRoundEnd(), 2000);
+                    } else {
+                        setTimeout(() => {
+                            safeUpdate(state); render(); renderCPU();
+                            isProc = false;
+                            if (turn === myPlayerIdx) checkOnlineT();
+                        }, 1500);
+                    }
+                }
+                // ▽ 第1交換：誰かが選び終わった
+                else if (ev.action === "charleston_player_ready") {
+                    let readyIdx = ev.player_idx;
+                    if (readyIdx !== myPlayerIdx) {
+                        showCharlestonStatus(getViewPos(readyIdx), true);
+                        hideCpuTiles[readyIdx] = 3; renderCPU();
+                    }
+                }
+                // ▽ 第1交換：全員完了！
+                else if (ev.action === "charleston_complete") {
+                    (async () => {
+                        isProc = true;
+                        await showDiceAnimation(ev.dice, ev.direction);
+                        await playExchangeAnimation(ev.direction, [true, true, true, true]);
+                        safeUpdate(state);
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus();
+                        render(); renderCPU();
+                        isProc = false;
+
+                        askedCount = 0;
+                        startSequentialSecondCharlestonOnline(); // 🌟 順番待ち確認をスタート
+                    })();
+                }
+                // ▽ 第2交換：順番に回ってきて、誰かが選択を終えた
+                else if (ev.action === "second_charleston_player_done") {
+                    let cIdx = ev.player_idx;
+                    if (cIdx !== myPlayerIdx) {
+                        showCharlestonStatus(getViewPos(cIdx), ev.participate);
+                        if (ev.participate) hideCpuTiles[cIdx] = 3;
+                        renderCPU();
+                    }
+                    askedCount++;
+                    startSequentialSecondCharlestonOnline(); // 次の人へ！
+                }
+                // ▽ 第2交換：スキップ
+                else if (ev.action === "second_charleston_skip") {
+                    (async () => {
+                        showCenterMessage(`<span style="color:#e74c3c;font-size:24px;">参加者不足<br>第2交換はスキップされます</span>`);
+                        await sleep(2000); hideCenterMessage();
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus(); renderCPU();
+                        safeUpdate(state);
+                        charlestonPhase = false; isProc = false; checkOnlineT();
+                    })();
+                }
+                // ▽ 第2交換：交換実行！
+                else if (ev.action === "second_charleston_complete") {
+                    let parts = [false, false, false, false];
+                    ev.active_players.forEach(p => parts[p] = true);
+                    (async () => {
+                        isProc = true;
+                        if (!ev.direction.includes("不成立")) {
+                            await showDiceAnimation(ev.dice, ev.direction);
+                            await playExchangeAnimation(ev.direction, parts);
+                        }
+                        safeUpdate(state);
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus(); render(); renderCPU();
+                        charlestonPhase = false; isProc = false; checkOnlineT();
+                    })();
+                }
+            } else {
+                if (!isCharlestonEvent && !isCallout) {
+                    render(); renderCPU();
+                }
+            }
+        }
+    };
+    lobbyWs.onclose = () => { console.log("ロビーから切断されました"); };
 }
 
-// ❓ 各プレイヤーに「第2チャールストンをやるか？」を順番に聞いていく関数
+// 📋 招待URLをクリップボードにコピーする関数
+function copyRoomUrl() {
+    playSE('click');
+    const url = window.location.origin + window.location.pathname + "?room=" + currentRoomId;
+    navigator.clipboard.writeText(url).then(() => {
+        alert("招待URLをコピーしました！\n" + url + "\n友達にLINE等で送って招待しましょう。");
+    }).catch(err => {
+        alert("コピーに失敗しました。手動でURLを共有してください。");
+    });
+}
+
+// ==========================================
+// 🌐 友人戦専用システム（CPU戦のコードは一切触りません）
+// ==========================================
+
+// 📤 第1・第2チャールストンを実行する関数
+async function execExchange() {
+    console.log("========== [DEBUG execExchange] 実行開始 ==========");
+    console.log(`[DEBUG execExchange] 現在の charlestonCount: ${charlestonCount}`);
+    console.log(`[DEBUG execExchange] 選択されているインデックス: ${exchangeSelection}`);
+
+    stopTimer();
+    if (exchangeSelection.length !== 3) {
+        console.log("[DEBUG execExchange] ⚠️ 選択枚数が3枚ではないため、[0, 1, 2]で強制上書きします");
+        exchangeSelection = [0, 1, 2];
+    }
+
+    let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+    let t1 = displayHand[exchangeSelection[0]];
+    let t2 = displayHand[exchangeSelection[1]];
+    let t3 = displayHand[exchangeSelection[2]];
+    console.log(`[DEBUG execExchange] 抽出された3枚の牌: ${t1}, ${t2}, ${t3}`);
+
+    // 🌟 第2交換の時は、強制的に第2交換専用の関数へパスする
+    if (charlestonCount === 2) {
+        console.log("[DEBUG execExchange] charlestonCount が 2 のため、execSecondCharleston に処理をパスします");
+        execSecondCharleston(t1, t2, t3);
+        return;
+    }
+
+    isProc = true;
+    document.getElementById('charleston-ui').style.display = "none";
+
+    if (currentGameMode === 'online') {
+        console.log("[DEBUG execExchange] オンラインモード: 第1交換の送信処理に入ります");
+        document.getElementById('msg').className = "";
+        document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+
+        exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
+        myHand = displayHand;
+        exchangeSelection = [];
+        showCharlestonStatus(0, true);
+        render();
+
+        console.log(`[DEBUG execExchange] サーバーへ action: 'charleston' を送信します`);
+        lobbyWs.send(JSON.stringify({
+            type: "action", action: "charleston", player_idx: myPlayerIdx, tiles: [t1, t2, t3]
+        }));
+        return;
+    }
+
+    // --- 以下CPU戦の第1交換 ---
+    console.log("[DEBUG execExchange] CPU戦モード: 第1交換の処理に入ります");
+    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+
+    exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
+    myHand = displayHand;
+    exchangeSelection = [];
+    showCharlestonStatus(0, true);
+    render();
+
+    hideCpuTiles = [0, 3, 3, 3];
+    for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+    renderCPU();
+
+    const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+
+    if (isWelcomeHomeTest) {
+        myHand = oldHandStr.split(',');
+        isWelcomeHomeTest = false;
+    }
+
+    let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+    if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
+        playerStats.welcomeHomeCount = 1;
+        saveGameData();
+        showAchievementUnlock("おかえりなさい", "🎲");
+    }
+
+    await showDiceAnimation(data.dice, data.direction);
+    await playExchangeAnimation(data.direction, [true, true, true, true]);
+
+    hideCpuTiles = [0, 0, 0, 0];
+    clearCharlestonStatus();
+    render(); renderCPU();
+
+    askedCount = 0;
+    charlestonAskResults = [];
+    secondCharlestonParticipating = [false, false, false, false];
+
+    isProc = false;
+    askNextSecondCharleston();
+}
+
+// ❓ 各プレイヤーに「第2チャールストンをやるか？」を順番に聞いていく関数（CPU戦用）
 async function askNextSecondCharleston() {
     if (askedCount === 0) {
         charlestonAskResults = [];
@@ -1540,7 +1971,6 @@ async function askNextSecondCharleston() {
 
     if (currentAsker === 0) {
         document.getElementById('charleston-confirm-ui').style.display = "block";
-
         startTimer(timeExchange, () => {
             confirmSecondCharleston(false);
         });
@@ -1551,14 +1981,65 @@ async function askNextSecondCharleston() {
     }
 }
 
-// ✅ プレイヤーが第2チャールストンへの参加/不参加を選択した時の処理関数
+// 🌟 オンライン専用：第2交換を親から「順番に」表示・制御する関数
+function startSequentialSecondCharlestonOnline() {
+    if (askedCount >= 4) {
+        document.getElementById('msg').innerText = "結果を集計中...";
+        return;
+    }
+
+    let currentAsker = (dealer + askedCount) % 4;
+
+    if (currentAsker === myPlayerIdx) {
+        charlestonAskResults = [];
+        // 🌟 修正3：ここで clearCharlestonStatus() を呼ぶと他人の「過」が消えるので削除しました！
+        document.getElementById('charleston-confirm-ui').style.display = "block";
+        document.getElementById('msg').className = "";
+        document.getElementById('msg').innerText = "第2交換に参加しますか？";
+
+        // 時間切れになったら自動で「いいえ（false）」を選択
+        startTimer(timeExchange, () => { confirmSecondCharleston(false); });
+    } else {
+        document.getElementById('charleston-confirm-ui').style.display = "none";
+        document.getElementById('charleston-ui').style.display = "none";
+        document.getElementById('msg').innerText = `プレイヤー ${currentAsker} が第2交換を検討中...`;
+    }
+}
+
+// ✅ プレイヤーが第2チャールストンへの参加/不参加を選択した時の処理関数（CPU/オンライン共通）
 function confirmSecondCharleston(willDo) {
     stopTimer();
     document.getElementById('charleston-confirm-ui').style.display = "none";
+
+    if (currentGameMode === 'online') {
+        // 🌟 修正1：自分が「はい」を押した記憶をしっかり残す！
+        secondCharlestonParticipating[myPlayerIdx] = willDo;
+
+        if (willDo) {
+            console.log("[DEBUG] 第2交換に参加します。牌選択画面へ。");
+            charlestonCount = 2;
+            startCharlestonSelection();
+        } else {
+            console.log("[DEBUG] 第2交換をスルーします。サーバーへ通知。");
+            document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+            showCharlestonStatus(0, false); // 自分の画面に「過」を出す
+
+            lobbyWs.send(JSON.stringify({
+                type: "action",
+                action: "second_charleston_turn", // 🌟 修正2：フリーズの原因だった間違った合言葉を修正！
+                player_idx: myPlayerIdx,
+                participate: false,
+                tiles: []
+            }));
+        }
+        return; // オンライン時はここで終了
+    }
+
+    // --- 以下、CPU戦の処理 ---
     processAskSecondCharleston(0, willDo);
 }
 
-// 🧠 参加/不参加の回答を記録し、次の人に質問を回す関数
+// 🧠 参加/不参加の回答を記録し、次の人に質問を回す関数（CPU戦用）
 function processAskSecondCharleston(askerIdx, willDo) {
     secondCharlestonParticipating[askerIdx] = willDo;
     if (askerIdx !== 0) {
@@ -1576,7 +2057,7 @@ function processAskSecondCharleston(askerIdx, willDo) {
     askNextSecondCharleston();
 }
 
-// 🏁 全員の回答が出揃った後、第2チャールストンを実行するかスキップするか判定する関数
+// 🏁 全員の回答が出揃った後、第2チャールストンを実行するかスキップするか判定する関数（CPU戦用）
 async function finishAskSecondCharleston() {
     let activeCount = secondCharlestonParticipating.filter(p => p).length;
 
@@ -1604,17 +2085,60 @@ async function finishAskSecondCharleston() {
     }
 }
 
-// 📤 プレイヤーの参加状況と選んだ牌をサーバーに送り、第2チャールストンを実行する関数
+// 📤 第2チャールストンを実行する関数
 async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
+    console.log("========== [DEBUG execSecondCharleston] 実行開始 ==========");
+    console.log(`[DEBUG execSecondCharleston] 受け取った牌: ${t1}, ${t2}, ${t3}`);
+    console.log(`[DEBUG execSecondCharleston] currentGameMode: ${currentGameMode}`);
+    console.log(`[DEBUG execSecondCharleston] myPlayerIdx: ${myPlayerIdx}`);
+    console.log(`[DEBUG execSecondCharleston] 参加フラグ: ${secondCharlestonParticipating[myPlayerIdx]}`);
+
     stopTimer();
     isProc = true;
     document.getElementById('charleston-ui').style.display = "none";
 
-    // 🏆 ここに追加！交換前の手牌を記憶
+    if (currentGameMode === 'online') {
+        console.log("[DEBUG execSecondCharleston] オンラインモードの処理に入ります");
+
+        if (secondCharlestonParticipating[myPlayerIdx] && t1 !== "") {
+            console.log("[DEBUG execSecondCharleston] 参加状態＆牌指定あり。手牌から3枚削除します");
+            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            [t1, t2, t3].forEach(t => {
+                let idx = displayHand.indexOf(t);
+                if (idx !== -1) displayHand.splice(idx, 1);
+            });
+            myHand = displayHand;
+            exchangeSelection = [];
+            showCharlestonStatus(0, true);
+            render();
+
+            document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+            console.log(`[DEBUG execSecondCharleston] 🌟 サーバーへ action: 'second_charleston_turn' (参加) を送信します`);
+
+            const sendData = {
+                type: "action", action: "second_charleston_turn", player_idx: myPlayerIdx, participate: true, tiles: [t1, t2, t3]
+            };
+            console.log("[DEBUG execSecondCharleston] 送信データ中身:", sendData);
+            lobbyWs.send(JSON.stringify(sendData));
+        } else {
+            console.log("[DEBUG execSecondCharleston] 不参加状態、または牌の指定なし");
+            document.getElementById('msg').innerText = "他のプレイヤーを待機中...";
+            console.log(`[DEBUG execSecondCharleston] 🌟 サーバーへ action: 'second_charleston_turn' (不参加) を送信します`);
+
+            const sendData = {
+                type: "action", action: "second_charleston_turn", player_idx: myPlayerIdx, participate: false, tiles: []
+            };
+            console.log("[DEBUG execSecondCharleston] 送信データ中身:", sendData);
+            lobbyWs.send(JSON.stringify(sendData));
+        }
+        return;
+    }
+
+    // --- 以下CPU戦 ---
+    console.log("[DEBUG execSecondCharleston] CPU戦モードの処理に入ります");
     let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
 
     if (secondCharlestonParticipating[0] && t1 !== "") {
-        // 🏆 ここを変更！【チャールストンの愛し子】
         let oldCharleston = playerStats.secondCharlestonCount;
         playerStats.secondCharlestonCount++;
         checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [5, 50, 500, 2500]);
@@ -1626,9 +2150,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
             if (idx !== -1) displayHand.splice(idx, 1);
         });
         myHand = displayHand;
-
         exchangeSelection = [];
-
         showCharlestonStatus(0, true);
         render();
     } else {
@@ -1643,13 +2165,12 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
         p3: secondCharlestonParticipating[3]
     });
 
-    // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
     if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立")) {
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
         if (oldHandStr === newHandStr) {
             playerStats.welcomeHomeCount = 1;
             saveGameData();
-            console.log("🏆 実績解除：おかえりなさい2");
+            showAchievementUnlock("おかえりなさい", "🎲");
         }
     }
 
@@ -1679,7 +2200,11 @@ function render() {
 
         let displayHand = [...myHand];
         let dTile = "";
-        if (turn === 0 && drawnTile !== "" && displayHand.includes(drawnTile)) {
+
+        // 自分のターンかどうかを判定
+        let isMyTurn = (currentGameMode === 'online') ? (turn === myPlayerIdx) : (turn === 0);
+
+        if (isMyTurn && drawnTile !== "" && displayHand.includes(drawnTile)) {
             displayHand.splice(displayHand.indexOf(drawnTile), 1);
             dTile = drawnTile;
         }
@@ -1691,14 +2216,15 @@ function render() {
             i.onclick = () => {
                 if (charlestonPhase) {
                     toggleExchange(idx);
-                } else if (!isProc && turn === 0) {
+                } else if (!isProc && isMyTurn) {
                     let msgText = document.getElementById('msg').innerText;
                     if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
                     if (myWinTiles.length > 0) {
                         logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
                     } else {
-                        discard(t, false);
+                        if (currentGameMode === 'online') onlineDiscard(t);
+                        else discard(t, false);
                     }
                 }
             };
@@ -1712,59 +2238,67 @@ function render() {
             i.style.top = "0";
 
             i.onclick = () => {
-                if (!isProc && turn === 0 && !charlestonPhase) {
+                if (!isProc && isMyTurn && !charlestonPhase) {
                     let msgText = document.getElementById('msg').innerText;
                     if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
-                    discard(dTile, true);
+                    if (currentGameMode === 'online') onlineDiscard(dTile);
+                    else discard(dTile, true);
                 }
             };
             c.appendChild(i);
         }
 
-        renderMelds(0);
-        renderWinTiles(0);
+        renderMelds(myPlayerIdx);
+        renderWinTiles(myPlayerIdx);
 
     } catch (e) {
         logMsg(`[描画エラー] ${e.message}`, true);
     }
 }
 
-// 🤖 CPU3人の手牌（裏向き・または開発者モードの表向き）を描画する関数
+// 🤖 CPU（または他家）の手牌を描画する関数
 function renderCPU() {
-    for (let i = 1; i <= 3; i++) {
-        const c = document.getElementById(`hand-${i}`); c.innerHTML = "";
-        let cpuHand = myAllHands[i] || [];
+    for (let viewPos = 1; viewPos <= 3; viewPos++) {
+        let actualIdx = (myPlayerIdx + viewPos) % 4;
+        const c = document.getElementById(`hand-${viewPos}`);
+        if (!c) continue;
+        c.innerHTML = "";
 
-        let limit = cpuHand.length - (hideCpuTiles[i] || 0);
+        let cpuHand = (currentGameMode === 'online') ? (cpuHands[actualIdx] || []) : (myAllHands[actualIdx] || []);
+        let limit = cpuHand.length - (hideCpuTiles[actualIdx] || 0);
+
         for (let j = 0; j < limit; j++) {
             const t = cpuHand[j];
             const img = document.createElement('img');
             img.className = 'tile';
 
-            img.src = isDevMode ? `images/${t}.png` : `images/ura.png`;
+            img.src = (currentGameMode === 'online') ? `images/ura.png` : (isDevMode ? `images/${t}.png` : `images/ura.png`);
 
             if (j === limit - 1 && limit % 3 === 2) {
                 img.style.position = 'absolute';
                 img.style.margin = '0';
 
-                if (i === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
-                if (i === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
-                if (i === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
+                if (viewPos === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
+                if (viewPos === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
+                if (viewPos === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
             }
-
             c.appendChild(img);
         }
 
-        renderMelds(i);
-        renderWinTiles(i);
+        renderMelds(actualIdx);
+        renderWinTiles(actualIdx);
     }
 }
 
 // 🀄 指定プレイヤーの鳴き牌（ポン・カン）を描画する関数
-function renderMelds(idx) {
-    const m = document.getElementById(`meld-${idx}`); m.innerHTML = "";
-    let melds = (idx === 0) ? myMelds : (myAllMelds[idx] || []);
+function renderMelds(actualIdx) {
+    let viewPos = getViewPos(actualIdx);
+    const m = document.getElementById(`meld-${viewPos}`);
+    if (!m) return;
+    m.innerHTML = "";
+
+    let melds = (actualIdx === myPlayerIdx) ? myMelds : (myAllMelds[actualIdx] || []);
     melds.forEach(meld => {
         if (!meld || !Array.isArray(meld.tiles)) return;
         const g = document.createElement('div'); g.className = 'meld-group';
@@ -1774,7 +2308,7 @@ function renderMelds(idx) {
         meld.tiles.forEach((t, tileIdx) => {
             const i = document.createElement('img'); i.className = 'tile';
 
-            if (idx !== 0 && isHidden && !isDevMode) {
+            if (actualIdx !== myPlayerIdx && isHidden && !isDevMode) {
                 i.src = 'images/ura.png';
             } else if (meld.type === 'ankan' && !isHidden) {
                 if (tileIdx === 0 || tileIdx === 3) i.src = 'images/ura.png';
@@ -1789,9 +2323,13 @@ function renderMelds(idx) {
 }
 
 // 🏆 アガリ牌（ロン・ツモした牌）を専用ゾーンに描画する関数
-function renderWinTiles(idx) {
-    const wz = document.getElementById(`win-zone-${idx}`); wz.innerHTML = "";
-    let winTiles = (idx === 0) ? myWinTiles : (myAllWinTiles[idx] || []);
+function renderWinTiles(actualIdx) {
+    let viewPos = getViewPos(actualIdx);
+    const wz = document.getElementById(`win-zone-${viewPos}`);
+    if (!wz) return;
+    wz.innerHTML = "";
+
+    let winTiles = (actualIdx === myPlayerIdx) ? myWinTiles : (myAllWinTiles[actualIdx] || []);
     if (winTiles.length === 0) {
         wz.style.display = "none";
         return;
@@ -1800,11 +2338,9 @@ function renderWinTiles(idx) {
 
     winTiles.forEach((t, tIdx) => {
         const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
-
-        if (idx === 0 || idx === 1) {
+        if (viewPos === 0 || viewPos === 1) {
             i.style.zIndex = 1000 + tIdx;
         }
-
         wz.appendChild(i);
     });
 }
@@ -1956,17 +2492,13 @@ let currentValidMelds = [];
 async function checkSelfMelds() {
     const actC = document.getElementById('self-actions'); actC.innerHTML = '';
     if (wallCount === 0) return;
-
     try {
-        const data = await apiCall('/get_valid_self_melds', { player_idx: 0 });
-
+        const data = await apiCall('/get_valid_self_melds', { player_idx: myPlayerIdx }); // 🌟 0をmyPlayerIdxに変更
         if (data.valid_melds) {
             currentValidMelds = data.valid_melds;
             renderSelfMeldsMenu();
         }
-    } catch (e) {
-        console.error("Self meld validation failed:", e);
-    }
+    } catch (e) { console.error(e); }
 }
 
 // 🎛️ 可能な暗槓や加槓をグループ化して、アクションボタンとして並べる関数
@@ -2044,16 +2576,11 @@ function renderAnkanSubMenu(tile) {
 // 🏆 現在の手牌でアガれるか（役があるか）をサーバーに確認し、ツモボタンを出す関数
 async function checkWinPossible() {
     const isHaitei = (wallCount === 0);
-    const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
+    const wd = await apiCall('/check_win', { player_idx: myPlayerIdx, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" }); // 🌟 0をmyPlayerIdxに変更
     if (wd.can_win) {
         const btn = document.getElementById('btn-win');
         btn.onclick = () => execTsumo();
-
-        if (isAutoPlay && myWinTiles.length > 0 && document.getElementById('self-actions').innerHTML === '') {
-            btn.style.display = "none";
-        } else {
-            btn.style.display = "block";
-        }
+        btn.style.display = "block";
         return true;
     }
     return false;
@@ -2078,7 +2605,8 @@ async function draw() {
 // 🗑️ 誰かが鳴いた時に、河（捨て牌置き場）から最新の捨て牌を拾い上げる関数
 function removeLastDiscard() {
     if (lastDiscardPlayer !== -1) {
-        const r = document.getElementById(`river-${lastDiscardPlayer}`);
+        let viewPos = getViewPos(lastDiscardPlayer);
+        const r = document.getElementById(`river-${viewPos}`);
         if (r && r.lastChild) r.removeChild(r.lastChild);
         lastDiscardPlayer = -1;
     }
@@ -2364,8 +2892,15 @@ async function execTsumo() {
 
     let currentDrawnTile = drawnTile;
 
-    const data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
+    const data = await apiCall('/win_tsumo', { player_idx: myPlayerIdx, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
 
+    // 🌟 オンラインならサーバーへ「ツモ！」のカットインを流させる
+    if (currentGameMode === 'online') {
+        lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: "自摸" }));
+        return;
+    }
+
+    // --- 以下CPU戦の処理 ---
     drawnTile = ""; render(); renderCPU();
 
     showCallout(0, "自摸");
@@ -2397,7 +2932,15 @@ async function execRon(isChankan = false) {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     if (!isChankan) removeLastDiscard();
 
-    const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan });
+    const data = await apiCall('/win_ron', { player_idx: myPlayerIdx, tile: lastT, is_chankan: isChankan });
+
+    // 🌟 オンラインならサーバーへ「ロン！」のカットインを流させる
+    if (currentGameMode === 'online') {
+        lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: "胡" }));
+        return;
+    }
+
+    // --- 以下CPU戦の処理 ---
     render(); renderCPU();
 
     showCallout(0, "胡");
@@ -2423,12 +2966,10 @@ async function execMeld(type) {
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     removeLastDiscard();
-    await apiCall('/meld', { player_idx: 0, type: type, tile: lastT });
-    render(); renderCPU();
+
+    await apiCall('/meld', { player_idx: myPlayerIdx, type: type, tile: lastT });
 
     let callText = (type.includes("槓") || type.includes("カン")) ? "槓" : "碰";
-    showCallout(0, callText);
-    await sleep(1500);
 
     if (type === 'カン' || type === '花槓') {
         if (type === '花槓') {
@@ -2438,6 +2979,23 @@ async function execMeld(type) {
             checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
             saveGameData();
         }
+    }
+
+    // 🌟 オンラインなら発声と状態のセットを通信に任せる
+    if (currentGameMode === 'online') {
+        lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: callText }));
+        if (type === 'カン' || type === '花槓') { pendingIsRinshan = true; justPonged = false; }
+        else { justPonged = true; }
+        return;
+    }
+
+    // --- 以下CPU戦の処理 ---
+    render(); renderCPU();
+
+    showCallout(0, callText);
+    await sleep(1500);
+
+    if (type === 'カン' || type === '花槓') {
         pendingIsRinshan = true; justPonged = false;
     } else {
         justPonged = true;
@@ -2459,7 +3017,25 @@ async function execSelfMeld(type, t, s, isHidden = false) {
         saveGameData();
     }
 
-    const data = await apiCall('/self_meld', { player_idx: 0, type: type, tile: t, season: s, is_hidden: isHidden });
+    const data = await apiCall('/self_meld', { player_idx: myPlayerIdx, type: type, tile: t, season: s, is_hidden: isHidden });
+
+    // 🌟 オンラインなら発声と状態のセットを通信に任せる
+    if (currentGameMode === 'online') {
+        if (data.chankan_occurred) {
+            lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: "加槓" }));
+            // 槍槓された場合は少し遅れてロンのカットインを流す
+            setTimeout(async () => {
+                await apiCall('/win_ron', { player_idx: data.winner, tile: data.tile, is_chankan: "true" });
+                lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: data.winner, call_text: "胡" }));
+            }, 1500);
+        } else {
+            lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: "槓" }));
+        }
+        pendingIsRinshan = true; justPonged = false;
+        return;
+    }
+
+    // --- 以下CPU戦の処理 ---
     render(); renderCPU();
 
     if (data.chankan_occurred) {
@@ -2501,17 +3077,29 @@ async function execSelfMeld(type, t, s, isHidden = false) {
 async function execJokerSwap(t, season, targetIdx) {
     stopTimer();
     if (isProc) return; isProc = true; document.getElementById('self-actions').innerHTML = '';
-    await apiCall('/joker_swap', { player_idx: 0, tile: t, season: season, target_idx: targetIdx });
-    render(); renderCPU();
 
-    showCallout(0, "JokerSwap");
-    await sleep(1500);
+    await apiCall('/joker_swap', { player_idx: myPlayerIdx, tile: t, season: season, target_idx: targetIdx });
 
     // 🏆 ここを変更！【スワップの支配者】
     let oldSwap = playerStats.jokerSwapCount;
     playerStats.jokerSwapCount++;
     checkTieredAchievement("jokerswap", "スワップの支配者", "🃏", oldSwap, playerStats.jokerSwapCount, [1, 10, 50, 150]);
     saveGameData();
+
+    // 🌟 オンラインなら発声と状態のセットを通信に任せる
+    if (currentGameMode === 'online') {
+        lobbyWs.send(JSON.stringify({ type: "action", action: "play_callout", player_idx: myPlayerIdx, call_text: "JokerSwap" }));
+        pendingIsJokerSwap = true;
+        pendingIsMiaoshou = (season === "春");
+        justPonged = false;
+        return;
+    }
+
+    // --- 以下CPU戦の処理 ---
+    render(); renderCPU();
+
+    showCallout(0, "JokerSwap");
+    await sleep(1500);
 
     pendingIsJokerSwap = true;
     pendingIsMiaoshou = (season === "春");
@@ -2907,9 +3495,11 @@ async function handleRoundEnd() {
 }
 
 // 🗑️ 捨てられた牌を河（捨て牌置き場）に描画する関数
-function addR(idx, t, isTsumogiri = false) {
+function addR(actualIdx, t, isTsumogiri = false) {
     playSE('dahai');
-    const r = document.getElementById(`river-${idx}`);
+    let viewPos = getViewPos(actualIdx);
+    const r = document.getElementById(`river-${viewPos}`);
+    if (!r) return;
     const i = document.createElement('img');
     i.className = 'tile';
     i.src = `images/${t}.png`;
@@ -3869,46 +4459,385 @@ function enterWaitingRoom(roomId) {
     document.getElementById('friend-menu-select').style.display = 'none';
     document.getElementById('friend-menu-waiting').style.display = 'block';
     document.getElementById('display-room-id').innerText = roomId;
-
-    // 自分が入ったので1人に設定
     document.getElementById('room-player-count').innerText = "1";
 
-    // 🌟 WebSocketサーバーに接続する（ws:// で繋ぐ）
     const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
-    // 🌟 サーバーからメッセージ（人数の更新など）を受け取った時の処理
-    lobbyWs.onmessage = (event) => {
+    lobbyWs.onmessage = async (event) => {
         const data = JSON.parse(event.data);
 
         if (data.type === "lobby_update") {
-            // 画面の人数表記をサーバーから来た数字に書き換える
             document.getElementById('room-player-count').innerText = data.player_count;
+        }
+        else if (data.type === "game_start") {
+            skipCount = 0;
+            myPlayerIdx = data.player_idx;
+            currentGameMode = 'online';
 
-            // 4人揃ったら次のステップへ！
-            if (data.player_count === 4) {
-                // 少しだけ待ってからアラートを出す（数字が4になるのを見せるため）
-                setTimeout(() => {
-                    alert("4人揃いました！ゲームを開始します！\n（※対局への遷移処理はこれから作ります）");
-                }, 500);
+            document.getElementById('friend-match-modal').style.display = 'none';
+            document.getElementById('mode-select-screen').style.display = 'none';
+            document.getElementById('title-screen').style.display = 'none';
+
+            let state = data.state;
+            myHand = state.player_hand || [];
+            totalScores = state.total_scores || [0, 0, 0, 0];
+            turn = state.turn;
+            dealer = state.dealer;
+            currentRound = state.current_round || 1;
+            wallCount = state.wall_count;
+
+            if (typeof cpuHands === 'undefined') window.cpuHands = [[], [], [], []];
+            for (let i = 0; i < 4; i++) {
+                if (i !== myPlayerIdx) cpuHands[i] = new Array(13).fill("back");
+            }
+
+            updateInfoUI(); render(); renderCPU();
+            alert(`対局開始！あなたは ${myPlayerIdx} 番です。まずは牌の交換を行います。`);
+
+            charlestonPhase = false; isProc = false;
+            charlestonCount = 1; startCharlestonSelection();
+        }
+        else if (data.type === "update") {
+            let state = data.state;
+            let ev = data.event;
+
+            let isCharlestonEvent = ev && ev.action && ev.action.includes("charleston");
+            let isCallout = ev && ev.action === "play_callout";
+
+            if (!isCharlestonEvent && !isCallout) {
+                safeUpdate(state);
+            }
+
+            if (ev) {
+                if (ev.action === "discard") {
+                    let pIdx = ev.player_idx;
+                    let tile = ev.tile;
+                    drawnTile = ""; lastT = tile; lastDiscardPlayer = pIdx;
+                    addR(pIdx, tile, false);
+                    skipCount = 0;
+                    render(); renderCPU();
+                    if (pIdx !== myPlayerIdx) checkHumanReactionOnline(pIdx, tile);
+                }
+                else if (ev.action === "skip") {
+                    skipCount++;
+                    if (skipCount >= 3 && turn === myPlayerIdx && !charlestonPhase) {
+                        isProc = false; checkOnlineT();
+                    }
+                }
+                else if (ev.action === "sync") {
+                    render(); renderCPU();
+                    if (turn === myPlayerIdx) {
+                        isProc = false; checkOnlineT();
+                    }
+                }
+                else if (ev.action === "play_callout") {
+                    let callIdx = ev.player_idx;
+                    let text = ev.call_text;
+                    showCallout(callIdx, text);
+
+                    if (text === "胡" || text === "自摸" || text === "天胡" || text === "地胡") {
+                        safeUpdate(state); render(); renderCPU();
+                        isProc = true;
+                        setTimeout(() => handleRoundEnd(), 2000);
+                    } else {
+                        setTimeout(() => {
+                            safeUpdate(state); render(); renderCPU();
+                            isProc = false;
+                            if (turn === myPlayerIdx) checkOnlineT();
+                        }, 1500);
+                    }
+                }
+                // ▽ 第1交換：誰かが選び終わった
+                else if (ev.action === "charleston_player_ready") {
+                    let readyIdx = ev.player_idx;
+                    if (readyIdx !== myPlayerIdx) {
+                        showCharlestonStatus(getViewPos(readyIdx), true);
+                        hideCpuTiles[readyIdx] = 3; renderCPU();
+                    }
+                }
+                // ▽ 第1交換：全員完了！
+                else if (ev.action === "charleston_complete") {
+                    (async () => {
+                        isProc = true;
+                        await showDiceAnimation(ev.dice, ev.direction);
+                        await playExchangeAnimation(ev.direction, [true, true, true, true]);
+                        safeUpdate(state);
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus();
+                        render(); renderCPU();
+                        isProc = false;
+
+                        askedCount = 0;
+                        startSequentialSecondCharlestonOnline(); // 🌟 順番待ち確認をスタート
+                    })();
+                }
+                // ▽ 第2交換：順番に回ってきて、誰かが選択を終えた
+                else if (ev.action === "second_charleston_player_done") {
+                    let cIdx = ev.player_idx;
+                    if (cIdx !== myPlayerIdx) {
+                        showCharlestonStatus(getViewPos(cIdx), ev.participate);
+                        if (ev.participate) hideCpuTiles[cIdx] = 3;
+                        renderCPU();
+                    }
+                    askedCount++;
+                    startSequentialSecondCharlestonOnline(); // 次の人へ！
+                }
+                // ▽ 第2交換：スキップ
+                else if (ev.action === "second_charleston_skip") {
+                    (async () => {
+                        showCenterMessage(`<span style="color:#e74c3c;font-size:24px;">参加者不足<br>第2交換はスキップされます</span>`);
+                        await sleep(2000); hideCenterMessage();
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus(); renderCPU();
+                        safeUpdate(state);
+                        charlestonPhase = false; isProc = false; checkOnlineT();
+                    })();
+                }
+                // ▽ 第2交換：交換実行！
+                else if (ev.action === "second_charleston_complete") {
+                    let parts = [false, false, false, false];
+                    ev.active_players.forEach(p => parts[p] = true);
+                    (async () => {
+                        isProc = true;
+                        if (!ev.direction.includes("不成立")) {
+                            await showDiceAnimation(ev.dice, ev.direction);
+                            await playExchangeAnimation(ev.direction, parts);
+                        }
+                        safeUpdate(state);
+                        hideCpuTiles = [0, 0, 0, 0]; clearCharlestonStatus(); render(); renderCPU();
+                        charlestonPhase = false; isProc = false; checkOnlineT();
+                    })();
+                }
+            } else {
+                if (!isCharlestonEvent && !isCallout) {
+                    render(); renderCPU();
+                }
             }
         }
     };
-
-    lobbyWs.onclose = () => {
-        console.log("ロビーから切断されました");
-    };
+    lobbyWs.onclose = () => { console.log("ロビーから切断されました"); };
 }
 
 // 📋 招待URLをクリップボードにコピーする関数
 function copyRoomUrl() {
     playSE('click');
-    // 現在のURLの末尾に ?room=ABCD をくっつける
     const url = window.location.origin + window.location.pathname + "?room=" + currentRoomId;
-
     navigator.clipboard.writeText(url).then(() => {
         alert("招待URLをコピーしました！\n" + url + "\n友達にLINE等で送って招待しましょう。");
     }).catch(err => {
         alert("コピーに失敗しました。手動でURLを共有してください。");
     });
+}
+
+// ==========================================
+// 🌐 友人戦専用システム（CPU戦のコードは一切触りません）
+// ==========================================
+
+// 🌐 友人戦専用システム（自動ツモ＆暗槓メニュー対応版）
+async function checkOnlineT() {
+    if (charlestonPhase) return; // 交換中はここを通らないようにする
+
+    isProc = true;
+    stopTimer();
+
+    // ターン強調表示
+    for (let i = 0; i < 4; i++) {
+        const nameEl = document.getElementById(`player-name-${i}`);
+        if (nameEl) nameEl.classList.remove('active-turn');
+    }
+    let turnViewPos = getViewPos(turn);
+    const activeNameEl = document.getElementById(`player-name-${turnViewPos}`);
+    if (activeNameEl) activeNameEl.classList.add('active-turn');
+
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    document.getElementById('self-actions').innerHTML = '';
+
+    if (turn === myPlayerIdx) {
+        // 現在の枚数を計算（副露含まず、手牌のみ）
+        let totalTiles = myHand.length;
+
+        if (totalTiles % 3 === 2) {
+            // 🌟 【14枚：打牌フェーズ】
+            document.getElementById('msg').innerText = "↓打牌↓";
+            document.getElementById('msg').className = "blink-text";
+
+            // 🌟 復活：自分の番で可能な暗槓・加槓・ツモアガリがあるかチェック！
+            await checkSelfMelds();
+
+            let canWin = false;
+            if (!justPonged) {
+                canWin = await checkWinPossible();
+            }
+
+            const btnWin = document.getElementById('btn-win');
+            const selfActions = document.getElementById('self-actions');
+
+            let shouldAlert = false;
+            if (btnWin.style.display === "block" || selfActions.innerHTML !== '') {
+                shouldAlert = true;
+                if (isAutoPlay && myWinTiles.length > 0 && selfActions.innerHTML === '') {
+                    shouldAlert = false;
+                }
+            }
+            if (shouldAlert) {
+                playSE('alert');
+            }
+
+            isProc = false;
+
+            // 🌟 復活：オートプレイ進行制御
+            let autoActed = false;
+            if (isAutoPlay && myWinTiles.length > 0) {
+                if (canWin && selfActions.innerHTML === '') {
+                    isProc = true;
+                    setTimeout(() => execTsumo(), 800 / speedMult);
+                    autoActed = true;
+                } else if (selfActions.innerHTML === '') {
+                    if (drawnTile !== "") {
+                        isProc = true;
+                        setTimeout(() => onlineDiscard(drawnTile), 600 / speedMult);
+                        autoActed = true;
+                    }
+                } else {
+                    showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
+                    setTimeout(hideCenterMessage, 2500);
+                }
+            }
+
+            if (!autoActed) {
+                // 打牌タイマー（60秒）を起動
+                startTimer(timeDiscard, () => {
+                    if (drawnTile !== "") {
+                        onlineDiscard(drawnTile);
+                    } else {
+                        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+                        onlineDiscard(displayHand[displayHand.length - 1]);
+                    }
+                });
+            }
+        } else {
+            // 🌟 【13枚：ツモ行程】（全員のスキップが確認されたので、自動で引く！）
+            if (wallCount === 1) {
+                document.getElementById('msg').className = "";
+                document.getElementById('msg').innerText = "海底牌";
+                document.getElementById('btn-haitei-tsumo').style.display = "block";
+                document.getElementById('btn-ryukyoku').style.display = "block";
+
+                playSE('alert');
+                isProc = false;
+
+                startTimer(timeCall, () => {
+                    document.getElementById('btn-ryukyoku').click();
+                });
+                return;
+            }
+
+            document.getElementById('msg').className = "";
+            document.getElementById('msg').innerText = "ツモ...";
+
+            // 🌟 変更点：ボタンを出さず、CPU戦と同じように自動で引くように修正！
+            isProc = true; // 引くまで操作ロック
+            setTimeout(async () => {
+                try {
+                    // サーバーから1枚引く
+                    const data = await apiCall('/draw', { player_idx: myPlayerIdx });
+                    playSE('tsumo');
+                    // ツモったことをWebSocket経由で全員に通知して画面を同期させる
+                    lobbyWs.send(JSON.stringify({
+                        type: "action",
+                        action: "sync",
+                        player_idx: myPlayerIdx
+                    }));
+                } catch (e) {
+                    if (e.message === "流局") console.log("流局しました");
+                }
+            }, 500 / speedMult);
+        }
+    } else {
+        // 他人のターン（変更点：誰かが捨てて自分の判断待ちになるまで、このメッセージを表示）
+        document.getElementById('msg').className = "";
+        document.getElementById('msg').innerText = `他家の反応待ち...`;
+    }
+}
+
+// 🌐 オンライン打牌：タイマーを止めてサーバーへ送信
+function onlineDiscard(t) {
+    if (isProc) return;
+    isProc = true;
+    stopTimer();
+    lobbyWs.send(JSON.stringify({
+        type: "action",
+        action: "discard",
+        tile: t,
+        player_idx: myPlayerIdx
+    }));
+}
+
+// 🌐 オンライン鳴き判定：鳴けない時は「自動でスキップ」をサーバーに送る！
+async function checkHumanReactionOnline(discarderIdx, tile) {
+    const count = myHand.filter(t => t === tile).length;
+    let showAny = false;
+
+    // 役判定
+    const wd = await apiCall('/check_win', {
+        player_idx: myPlayerIdx,
+        last_tile: tile,
+        is_ron: "true",
+        is_haitei: (wallCount === 0),
+        is_chankan: "false"
+    });
+    if (wd.can_win) {
+        const btn = document.getElementById('btn-win');
+        btn.style.display = "block";
+        // 🌟 復活：オンラインのロン関数を呼ぶように変更！
+        btn.onclick = () => execRon(false);
+
+        // 🌟 復活：オートプレイ対応
+        if (isAutoPlay && myWinTiles.length > 0) {
+            btn.style.display = "none";
+        }
+        showAny = true;
+    }
+
+    if (myWinTiles.length === 0) {
+        if (count >= 2) { document.getElementById('btn-pon').style.display = "block"; showAny = true; }
+        if (count >= 3 && wallCount > 0) { document.getElementById('btn-kan').style.display = "block"; showAny = true; }
+    }
+
+    if (showAny) {
+        let isAutoDigest = (isAutoPlay && myWinTiles.length > 0);
+
+        if (!isAutoDigest) {
+            playSE('alert');
+            document.getElementById('btn-skip').style.display = "block";
+        }
+
+        const skipBtn = document.getElementById('btn-skip');
+
+        skipBtn.onclick = () => {
+            stopTimer();
+            document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+            isProc = false;
+            document.getElementById('msg').innerText = "他家の反応待ち...";
+            // 🌟 変更点：スキップしたらサーバーに伝える
+            lobbyWs.send(JSON.stringify({ type: "action", action: "skip", player_idx: myPlayerIdx }));
+        };
+
+        document.getElementById('msg').innerText = "鳴き判断";
+        isProc = false;
+
+        if (isAutoDigest) {
+            isProc = true;
+            setTimeout(() => execRon(false), 800 / speedMult);
+        } else {
+            // 友人戦の鳴き待機タイマー（20秒）
+            startTimer(timeCall, () => {
+                if (skipBtn.style.display !== "none") skipBtn.click();
+            });
+        }
+        return true;
+    } else {
+        // 🌟 変更点：何もない人は、20秒待たずに「自動でスキップ通信」を送る！
+        lobbyWs.send(JSON.stringify({ type: "action", action: "skip", player_idx: myPlayerIdx }));
+        return false;
+    }
 }

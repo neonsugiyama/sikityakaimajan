@@ -46,55 +46,255 @@ def read_js():
 # ==========================================
 class ConnectionManager:
     def __init__(self):
-        # room_id をキーにして、接続中のWebSocketのリストを保存する辞書
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.games = {}
+        self.charleston_selections = {}
+        self.second_charleston_confirms = {}
+        self.second_charleston_selections = {}
 
     async def connect(self, websocket: WebSocket, room_id: str):
         await websocket.accept()
         if room_id not in self.active_connections:
             self.active_connections[room_id] = []
         self.active_connections[room_id].append(websocket)
+        print(f"[DEBUG] Room {room_id} に接続。現在の人数: {len(self.active_connections[room_id])}")
 
     def disconnect(self, websocket: WebSocket, room_id: str):
         if room_id in self.active_connections:
             if websocket in self.active_connections[room_id]:
                 self.active_connections[room_id].remove(websocket)
-            # 誰もいなくなったら部屋を消す
+            print(f"[DEBUG] Room {room_id} から切断。残りの人数: {len(self.active_connections[room_id])}")
             if len(self.active_connections[room_id]) == 0:
                 del self.active_connections[room_id]
+                if room_id in self.games: del self.games[room_id]
+                if room_id in self.charleston_selections: del self.charleston_selections[room_id]
+                if room_id in self.second_charleston_confirms: del self.second_charleston_confirms[room_id]
+                if room_id in self.second_charleston_selections: del self.second_charleston_selections[room_id]
+                print(f"[DEBUG] Room {room_id} を削除しました。")
 
     async def broadcast_to_room(self, room_id: str, message: dict):
         if room_id in self.active_connections:
+            dead_connections = []
             for connection in self.active_connections[room_id]:
-                await connection.send_json(message)
+                try:
+                    await connection.send_json(message)
+                except Exception as e:
+                    print(f"[DEBUG ERROR] 送信失敗。切断されたソケットです: {e}")
+                    dead_connections.append(connection)
+            for c in dead_connections:
+                self.disconnect(c, room_id)
 
 lobby_manager = ConnectionManager()
 
 # 📡 ロビー用のWebSocket通信口
 @app.websocket("/ws/lobby/{room_id}")
 async def websocket_lobby(websocket: WebSocket, room_id: str):
-    await lobby_manager.connect(websocket, room_id)
-    
-    # 誰かが入室したら、その部屋の全員に「現在の人数」を知らせる
-    player_count = len(lobby_manager.active_connections[room_id])
-    await lobby_manager.broadcast_to_room(room_id, {
-        "type": "lobby_update",
-        "player_count": player_count
-    })
-    
+    print(f"\n[DEBUG LOG] === 新規接続リクエスト Room: {room_id} ===")
     try:
+        await lobby_manager.connect(websocket, room_id)
+        
+        player_count = len(lobby_manager.active_connections[room_id])
+        print(f"[DEBUG LOG] 現在の接続人数: {player_count}人")
+
+        await lobby_manager.broadcast_to_room(room_id, {
+            "type": "lobby_update",
+            "player_count": player_count
+        })
+
+        # 🌟 4人揃ったらゲームを開始する！
+        if player_count == 4:
+            print(f"[DEBUG LOG] 4人揃いました！ゲームの初期化を開始します...")
+            try:
+                # 🌟 あなたの元のコードに合わせて、グローバルの game を割り当てます
+                if room_id not in lobby_manager.games:
+                    lobby_manager.games[room_id] = game  
+                
+                room_game = lobby_manager.games[room_id]
+                room_game.__init__() 
+                
+                lobby_manager.charleston_selections[room_id] = {}
+                lobby_manager.second_charleston_confirms[room_id] = {}
+                lobby_manager.second_charleston_selections[room_id] = {}
+                
+                for i, connection in enumerate(lobby_manager.active_connections[room_id]):
+                    await connection.send_json({
+                        "type": "game_start",
+                        "player_idx": i,
+                        "state": {
+                            "player_hand": room_game.hands[i],
+                            "turn": room_game.turn,
+                            "dealer": room_game.dealer,
+                            "wall_count": len(room_game.wall)
+                        }
+                    })
+                print(f"[DEBUG LOG] 全員に game_start を送信完了しました。")
+            
+            except Exception as init_err:
+                print(f"\n[FATAL ERROR 💥] 4人目のゲーム開始処理中にエラーが起きてクラッシュしました！")
+                print(f"エラー詳細: {init_err}")
+                traceback.print_exc()
+                print(f"==============================================================\n")
+        
+        # --- メインの通信ループ ---
         while True:
-            # クライアントからのメッセージを待機（今回は切断検知のために置いておく）
-            data = await websocket.receive_text()
+            data = await websocket.receive_json()
+            print(f"[DEBUG LOG] 受信データ: {data}")
+            
+            if data.get("type") == "action":
+                action = data.get("action")
+                p_idx = data.get("player_idx")
+                event_log = None
+                room_game = lobby_manager.games.get(room_id)
+
+                if not room_game: 
+                    print(f"[DEBUG ERROR] Room {room_id} の game データがありません！")
+                    continue
+                
+                try:
+                    # --- ① 打牌処理 ---
+                    if action == "discard":
+                        tile = data.get("tile")
+                        print(f"[DEBUG LOG] プレイヤー {p_idx} が {tile} を打牌しました。")
+                        room_game.hands[p_idx].remove(tile)
+                        room_game.hands[p_idx] = room_game.sort_hand(room_game.hands[p_idx])
+                        room_game.turn = (p_idx + 1) % 4
+                        room_game.discards[p_idx].append(tile)  
+                        room_game.discards_count += 1
+                        room_game.is_first_turn[p_idx] = False
+                        event_log = {"action": "discard", "player_idx": p_idx, "tile": tile}
+
+                    # --- 🌟 鳴き・アガリ・スキップ同期アクション ---
+                    elif action == "play_callout":
+                        print(f"[DEBUG LOG] プレイヤー {p_idx} が発声しました: {data.get('call_text')}")
+                        event_log = {"action": "play_callout", "player_idx": p_idx, "call_text": data.get("call_text")}
+                    
+                    elif action == "skip":
+                        print(f"[DEBUG LOG] プレイヤー {p_idx} がスキップしました。")
+                        event_log = {"action": "skip", "player_idx": p_idx}
+                    
+                    elif action == "sync":
+                        print(f"[DEBUG LOG] プレイヤー {p_idx} が盤面の同期を要求しました。")
+                        event_log = {"action": "sync", "player_idx": p_idx}
+                        
+                    # --- ② 第1チャールストン ---
+                    elif action == "charleston":
+                        print(f"[DEBUG LOG] 第1交換: プレイヤー {p_idx} が牌を選びました。")
+                        if room_id not in lobby_manager.charleston_selections:
+                            lobby_manager.charleston_selections[room_id] = {}
+                        
+                        tiles = data.get("tiles")
+                        lobby_manager.charleston_selections[room_id][p_idx] = tiles
+                        
+                        for t in tiles:
+                            if t in room_game.hands[p_idx]: room_game.hands[p_idx].remove(t)
+                                
+                        event_log = {"action": "charleston_player_ready", "player_idx": p_idx}
+                        
+                        if len(lobby_manager.charleston_selections[room_id]) == 4:
+                            print("[DEBUG LOG] 第1交換: 全員の牌が出揃いました。交換処理を実行します。")
+                            selections = lobby_manager.charleston_selections[room_id]
+                            dice = random.randint(1, 6)
+                            if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
+                            elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
+                            else: offset, msg = 1, "上家(左)へ交換"
+                            for i in range(4):
+                                giver_idx = (i + offset) % 4
+                                room_game.hands[i].extend(selections[giver_idx])
+                                room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
+                            lobby_manager.charleston_selections[room_id] = {}
+                            event_log = {"action": "charleston_complete", "dice": dice, "direction": msg}
+
+                    # --- ③ 第2チャールストン ---
+                    elif action == "second_charleston_turn":
+                        print(f"[DEBUG LOG] 第2交換: プレイヤー {p_idx} から選択を受信しました。")
+                        if room_id not in lobby_manager.second_charleston_selections:
+                            lobby_manager.second_charleston_selections[room_id] = {}
+                            lobby_manager.second_charleston_confirms[room_id] = {}
+
+                        participate = data.get("participate")
+                        tiles = data.get("tiles", [])
+
+                        lobby_manager.second_charleston_confirms[room_id][p_idx] = participate
+                        lobby_manager.second_charleston_selections[room_id][p_idx] = tiles
+
+                        for t in tiles:
+                            if t in room_game.hands[p_idx]: room_game.hands[p_idx].remove(t)
+
+                        event_log = {"action": "second_charleston_player_done", "player_idx": p_idx, "participate": participate}
+
+                        if len(lobby_manager.second_charleston_selections[room_id]) == 4:
+                            print("[DEBUG LOG] 第2交換: 4人全員の選択が出揃いました。集計を開始します。")
+                            selections = lobby_manager.second_charleston_selections[room_id]
+                            confirms = lobby_manager.second_charleston_confirms[room_id]
+                            active = [i for i in range(4) if confirms.get(i, False) or confirms.get(str(i), False)]
+
+                            if len(active) <= 1:
+                                print("[DEBUG LOG] 第2交換: 参加者不足によりスキップします。")
+                                for i in active:
+                                    room_game.hands[i].extend(selections[i])
+                                    room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
+                                lobby_manager.second_charleston_confirms[room_id] = {}
+                                lobby_manager.second_charleston_selections[room_id] = {}
+                                event_log = {"action": "second_charleston_skip", "message": "参加者不足"}
+                            else:
+                                print("[DEBUG LOG] 第2交換: 牌の移動を実行します。")
+                                passed_tiles = {i: selections[i] for i in range(4)}
+                                dice = random.randint(1, 6)
+                                msg = ""
+                                if len(active) == 4:
+                                    if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
+                                    elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
+                                    else: offset, msg = 1, "上家(左)へ交換"
+                                    for i in range(4):
+                                        giver_idx = (i + offset) % 4
+                                        room_game.hands[i].extend(passed_tiles[giver_idx])
+                                elif len(active) == 3:
+                                    if dice in [1, 2, 3]: offset_idx, msg = -1, "参加者間で右回り(下家方向)に交換"
+                                    else: offset_idx, msg = 1, "参加者間で左回り(上家方向)に交換"
+                                    for idx, player in enumerate(active):
+                                        giver_idx = active[(idx + offset_idx) % len(active)]
+                                        room_game.hands[player].extend(passed_tiles[giver_idx])
+                                elif len(active) == 2:
+                                    dice, msg = 0, "2人で直接交換"
+                                    pA, pB = active[0], active[1]
+                                    room_game.hands[pA].extend(passed_tiles[pB])
+                                    room_game.hands[pB].extend(passed_tiles[pA])
+                                    
+                                for i in range(4): room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
+                                lobby_manager.second_charleston_confirms[room_id] = {}
+                                lobby_manager.second_charleston_selections[room_id] = {}
+                                event_log = {"action": "second_charleston_complete", "dice": dice, "direction": msg, "active_players": active}
+
+                    # 最新の盤面を全員に配る
+                    if event_log:
+                        print(f"[DEBUG LOG] ブロードキャスト送信: {event_log.get('action')}")
+                        for i, connection in enumerate(lobby_manager.active_connections[room_id]):
+                            await connection.send_json({
+                                "type": "update", "event": event_log,
+                                "state": {"player_hand": room_game.hands[i], "turn": room_game.turn, "wall_count": len(room_game.wall)}
+                            })
+                
+                except Exception as action_err:
+                    print(f"\n[FATAL ERROR 💥] アクションの処理中にエラーが発生しました！")
+                    print(f"エラー詳細: {action_err}")
+                    traceback.print_exc()
+                    print(f"==============================================================\n")
+
     except WebSocketDisconnect:
+        print(f"[DEBUG LOG] ⚠️ プレイヤーがブラウザを閉じたか、通信が切断されました")
         lobby_manager.disconnect(websocket, room_id)
-        # 誰かが退出したら、残ったメンバーに人数が減ったことを知らせる
         if room_id in lobby_manager.active_connections:
             new_count = len(lobby_manager.active_connections[room_id])
             await lobby_manager.broadcast_to_room(room_id, {
                 "type": "lobby_update",
                 "player_count": new_count
             })
+    except Exception as fatal_e:
+        print(f"\n[FATAL ERROR 💥] サーバーとの通信ループが完全にクラッシュしました！")
+        print(f"エラー詳細: {fatal_e}")
+        traceback.print_exc()
+        print(f"==============================================================\n")
+        lobby_manager.disconnect(websocket, room_id)
 
 # ==========================================
 # 🎮 ゲーム進行・操作受付用API
