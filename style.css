@@ -246,7 +246,7 @@ body {
 .win-zone-0 {
     bottom: 10px;
     right: 10px;
-    max-width: 275px;
+    max-width: 280px;
     flex-direction: row-reverse;
     flex-wrap: wrap-reverse;
     padding-bottom: 23px; /* はみ出し防止のクッション */
@@ -256,7 +256,7 @@ body {
 .win-zone-2 {
     top: 10px;
     left: calc(50% - 630px);
-    max-width: 275px;
+    max-width: 280px;
     padding-bottom: 23px; /* はみ出し防止のクッション */
 }
 
@@ -264,7 +264,7 @@ body {
 .win-zone-1 {
     right: 10px;
     top: 10px;
-    max-height: 150px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
+    max-height: 115px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
     flex-direction: column;
     flex-wrap: wrap-reverse;
     padding-right: 15px;
@@ -275,7 +275,7 @@ body {
 .win-zone-3 {
     left: 10px;
     bottom: 10px;
-    max-height: 150px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
+    max-height: 115px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
     flex-direction: column-reverse;
     flex-wrap: wrap;
     padding-left: 15px;
@@ -866,35 +866,52 @@ body {
     box-shadow: 0 0 15px #e74c3c !important;
 }
 
+/* 🌟 修正：黒い背景は、ただの「全画面の黒幕」にする */
 #overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0,0,0,0.95);
     display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 80px 0;
     z-index: 1000;
-    overflow-y: auto;
+    /* flexやpadding、overflowなどの設定は不要なので消します */
 }
 
-    /* 📜 スクロールバーのデザイン */
-    #overlay::-webkit-scrollbar {
-        width: 10px;
+/* 🌟 リザルトの中身を守る箱 */
+#result-wrapper {
+    width: 1200px;
+    /* 🌟 追加：高さを絶対に固定！ 800pxなら縮小時に確実に全画面に収まります */
+    height: 940px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* 🌟 追加：役が多すぎる時は、この部分だけをスクロールさせて高さを吸収する */
+#win-yaku {
+    max-height: 450px !important; /* これ以上は縦に伸ばさない */
+    overflow-y: auto !important; /* あふれたらスクロールバーを出す */
+    padding-right: 10px; /* スクロールバーがかぶらないように隙間をあける */
+    margin-bottom: 10px !important; /* ボタンとくっつきすぎないように、下の余白を少し取る */
+}
+
+    /* 📜 おまけ：リザルト画面専用のカッコいいスクロールバー装飾 */
+    #win-yaku::-webkit-scrollbar {
+        width: 8px;
     }
 
-    #overlay::-webkit-scrollbar-track {
-        background: rgba(255,255,255,0.1);
-        border-radius: 5px;
+    #win-yaku::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
     }
 
-    #overlay::-webkit-scrollbar-thumb {
+    #win-yaku::-webkit-scrollbar-thumb {
         background: #f39c12;
-        border-radius: 5px;
+        border-radius: 4px;
     }
 
 /* 🏷️ 役タグの共通ベース設定 */
@@ -1502,13 +1519,19 @@ body.lang-en .yaku-tag .en {
     border: 3px solid #f39c12;
     border-radius: 15px;
     padding: 20px 30px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
+    /* ❌ もし width: 90%; や max-width: 600px; があったら絶対に消してください！ */
+    /* 🌟 ここが超重要！ 画面に合わせて縮む設定を「完全排除」して強制固定する */
+    width: 950px !important; /* 800pxから広げる */
+    height: 700px !important; /* 650pxから広げる */
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 950px !important;
+    min-height: 700px !important;
     color: white;
     box-shadow: 0 0 30px rgba(0,0,0,0.9);
     display: flex;
     flex-direction: column;
+    flex-shrink: 0 !important; /* ブラウザのお節介圧縮を無効化 */
 }
 
 .modal-title {
@@ -1710,8 +1733,8 @@ body.lang-en .en {
 
     /* 📏 他のサイズ設定を上書きして強制的に小さくする */
     .yaku-example img {
-        width: 24px !important;
-        height: 34px !important;
+        width: 23px !important;
+        height: 33px !important;
         border-radius: 2px;
         box-shadow: 1px 1px 1px rgba(0,0,0,0.8);
     }
@@ -2076,50 +2099,53 @@ body.lang-en .en {
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid #555;
     border-radius: 10px;
-    padding: 15px;
+    /* 🌟 全体的にギュッと詰める */
+    padding: 8px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
 }
 
 .stats-card-title {
-    color: #f1c40f;
-    margin-top: 0;
-    margin-bottom: 15px;
+    color: #3498db;
+    /* 🌟 超重要：遊び方用の余白(25px)を強制的に打ち消す！ */
+    margin-top: 0 !important;
+    margin-bottom: 10px;
     border-bottom: 1px solid #555;
     padding-bottom: 5px;
-    font-size: 18px;
+    font-size: 16px;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: 1fr 1fr; /* 2列均等 */
+    gap: 8px; /* 項目間の隙間 */
 }
 
 .stats-item {
     background: rgba(255, 255, 255, 0.05);
-    padding: 10px;
+    padding: 8px;
     border-radius: 5px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center; /* 中央揃え */
+    height: 60px;       /* 🌟 箱の高さを完全に固定 */
+    box-sizing: border-box;
 }
 
     .stats-item .label {
-        font-size: 12px;
+        font-size: 15px; /* 🌟 ラベルの文字サイズを統一 */
         color: #aaa;
-        margin-bottom: 5px;
+        margin-bottom: 3px;
     }
 
     .stats-item .val {
-        font-size: 20px;
+        font-size: 22px !important; /* 🌟 数値の文字サイズを強制統一 */
         font-weight: bold;
-        color: #ffffff !important; /* 全ての数値を白に強制 */
+        color: #ffffff !important;
+        line-height: 1;
     }
-
-        .stats-item .val.highlight {
-            color: #2ecc71;
-            font-size: 24px;
-        }
 
 /* ==========================================
    📜 役図鑑：全体レイアウト

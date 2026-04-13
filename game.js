@@ -662,29 +662,72 @@ function toggleBGM() {
     playSE('click');
 }
 
-// 📱 画面サイズに合わせてゲーム画面（卓・タイトル等）を拡大縮小し、ズレを防ぐ関数
+// 📱 画面サイズに合わせてゲーム画面全体を拡大縮小する関数
 function resizeGame() {
+    // 基準サイズ（1280x800）に対する現在の画面の倍率を計算
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
 
-    const table = document.querySelector('.table');
-    if (table) {
-        table.style.transformOrigin = "center center";
-        table.style.transform = `scale(${scale})`;
-        table.classList.add('ready'); // 🌟 計算完了！表示する！
+    // 1. 卓やタイトルなど、画面中央に絶対配置（absolute）しているもの
+    const mainElements = [
+        '.table',
+        '.title-content',
+        '#mode-select-container'
+    ];
+
+    mainElements.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) {
+            el.style.position = "absolute";
+            el.style.left = "50%";
+            el.style.top = "50%";
+            el.style.transformOrigin = "center center";
+            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            el.classList.add('ready');
+        }
+    });
+
+    // 2. ポップアップ画面（モーダル）の「中身の箱」だけを縮小する
+    // ※モーダル全体を縮小すると背景の黒い暗幕まで小さくなってしまうため、直下のdiv要素を狙う
+    const modalContents = [
+        '#settings-modal > div',       // 設定
+        '#howto-modal > div',          // 遊び方
+        '#yaku-modal > div',           // 役一覧
+        '#achievement-modal > div',    // 実績
+        '#mypage-modal > div',         // 戦績データ
+        '#friend-match-modal > div'    // 友人戦ロビー
+    ];
+
+    modalContents.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            // 🌟 卓と同じように「絶対配置＋中央揃え」を指定してから縮小をかける
+            el.style.position = "absolute";
+            el.style.left = "50%";
+            el.style.top = "50%";
+            el.style.transformOrigin = "center center";
+            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        });
+    });
+
+    // 🌟 3. リザルト画面専用の縮小処理（重なりバグの解消）
+    const overlayChildren = document.querySelectorAll('#overlay > *');
+    const resultScale = scale * 0.85;
+    const resultWrapper = document.getElementById('result-wrapper');
+    if (resultWrapper) {
+        resultWrapper.style.position = "absolute";
+        resultWrapper.style.left = "50%";
+        resultWrapper.style.top = "50%";
+        resultWrapper.style.transformOrigin = "center center";
+
+        // 💡 scale * 0.85 で全体を少し小さめに表示（好みに合わせて 0.8 や 0.9 に調整可能）
+        resultWrapper.style.transform = `translate(-50%, -50%) scale(${scale * 0.85})`;
     }
 
-    const titleContent = document.querySelector('.title-content');
-    if (titleContent) {
-        titleContent.style.transformOrigin = "center center";
-        titleContent.style.transform = `translate(-50%, -50%) scale(${scale})`;
-        titleContent.classList.add('ready'); // 🌟 計算完了！表示する！
-    }
-
-    const modeContainer = document.getElementById('mode-select-container');
-    if (modeContainer) {
-        modeContainer.style.transformOrigin = "center center";
-        modeContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
-        modeContainer.classList.add('ready'); // 🌟 計算完了！表示する！
+    // 🌟 4. 天和・地和などの巨大文字（アニメーションと喧嘩しないようフォントサイズ自体を縮小）
+    const bigYaku = document.getElementById('big-yaku-text');
+    if (bigYaku) {
+        bigYaku.style.fontSize = `${180 * scale}px`;
+        bigYaku.style.webkitTextStrokeWidth = `${4 * scale}px`; // 縁取りの太さも合わせて調整
     }
 }
 
@@ -3466,9 +3509,20 @@ function openMyPage() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { left: 65, right: 65, top: 20, bottom: 20 } },
-            // 未プレイ時はマウスを乗せてもツールチップを出さない
-            plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
+            layout: {
+                /* 🌟 ここのパディングを大きくするとグラフ自体は小さくなり、
+                   外側のラベル（引き出し線）のスペースが広くなります */
+                padding: {
+                    left: 60,
+                    right: 60,
+                    top: 20,
+                    bottom: 20
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: !isZeroData }
+            }
         }
     });
 

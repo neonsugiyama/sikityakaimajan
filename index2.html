@@ -139,7 +139,7 @@
             </div>
 
             <div class="modal-scroll-area">
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
 
                     <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px;">
                         <div class="stats-card">
@@ -601,7 +601,41 @@
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">十二金釵</span><span class="ja">三槓子</span><span class="en">Three kang</span></span></div>
                                 <div class="yaku-card-desc">3回の槓をして和了。</div>
                                 <div class="yaku-example">
-                                    <img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/中.png"><img src="images/中.png">
+                                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; border-left: 3px solid #3498db;">
+                                        <div style="display: flex; gap: 1px;">
+                                            <img src="images/ura.png" style="width:20px; height:28px;">
+                                            <img src="images/1m.png" style="width:20px; height:28px;">
+                                            <img src="images/1m.png" style="width:20px; height:28px;">
+                                            <img src="images/ura.png" style="width:20px; height:28px;">
+                                        </div>
+
+                                        <span style="color:#aaa;">/</span>
+
+                                        <div style="display: flex; gap: 1px;">
+                                            <img src="images/2p.png" style="width:20px; height:28px;">
+                                            <img src="images/2p.png" style="width:20px; height:28px;">
+                                            <img src="images/2p.png" style="width:20px; height:28px;">
+                                            <img src="images/2p.png" style="width:20px; height:28px;">
+                                        </div>
+
+                                        <span style="color:#aaa;">/</span>
+
+                                        <div style="display: flex; gap: 1px;">
+                                            <img src="images/北.png" style="width:20px; height:28px;">
+                                            <img src="images/北.png" style="width:20px; height:28px;">
+                                            <img src="images/北.png" style="width:20px; height:28px;">
+                                            <img src="images/北.png" style="width:20px; height:28px;">
+                                        </div>
+
+                                        <div style="display: flex; gap: 1px;">
+                                            <span style="color:#aaa;">/</span>
+                                            <img src="images/2s.png" style="width:20px; height:28px;">
+                                            <img src="images/3s.png" style="width:20px; height:28px;">
+                                            <img src="images/4s.png" style="width:20px; height:28px;">
+                                            <img src="images/中.png" style="width:20px; height:28px;">
+                                            <img src="images/中.png" style="width:20px; height:28px;">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="yaku-card">
@@ -776,187 +810,190 @@
         </div>
     </div>
 
-    <div id="overlay">
-        <h1 id="win-label-text" style="font-size: 60px; color: #f1c40f; margin: 0 0 10px 0; text-shadow: 2px 2px 10px #e67e22;"></h1>
-        <div id="win-score" style="font-size: 60px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);"></div>
-        <div id="win-hand-display"></div>
-        <div id="win-yaku" style="margin: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90%; max-width: 900px;"></div>
+    <div id="overlay" style="display: none;">
+        <div id="result-wrapper">
+            <h1 id="win-label-text" style="font-size: 60px; color: #f1c40f; margin: 0 0 10px 0; text-shadow: 2px 2px 10px #e67e22;"></h1>
+            <div id="win-score" style="font-size: 60px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);"></div>
+            <div id="win-hand-display"></div>
+            <div id="win-yaku" style="margin: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90%; max-width: 900px;"></div>
+
+            <div id="result-controls" style="display: none; gap: 15px; align-items: center; background: rgba(0,0,0,0.85); padding: 10px 25px; border-radius: 12px; border: 2px solid #f39c12; margin-top: 30px; box-shadow: 0 0 20px rgba(0,0,0,0.9);">
+                <div id="result-timer-text" style="font-size: 24px; font-weight: bold; color: #f1c40f; margin-right: 15px;">次へ: 8s</div>
+                <button class="btn-act btn-blue" onclick="takeResultScreenshot()" style="display: block; padding: 10px 20px; font-size: 18px;">📷 スクショ保存</button>
+                <button class="btn-act btn-gray" onclick="skipResultWait()" style="display: block; padding: 10px 20px; font-size: 18px;">⏭ スキップ</button>
+            </div>
+
+        </div>
     </div>
 
-    <div id="result-controls" style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: none; gap: 15px; align-items: center; background: rgba(0,0,0,0.85); padding: 10px 25px; border-radius: 12px; border: 2px solid #f39c12; z-index: 10000; box-shadow: 0 0 20px rgba(0,0,0,0.9);">
-        <div id="result-timer-text" style="font-size: 24px; font-weight: bold; color: #f1c40f; margin-right: 15px;">次へ: 8s</div>
-        <button class="btn-act btn-blue" onclick="takeResultScreenshot()" style="display: block; padding: 10px 20px; font-size: 18px;">📷 スクショ保存</button>
-        <button class="btn-act btn-gray" onclick="skipResultWait()" style="display: block; padding: 10px 20px; font-size: 18px;">⏭ スキップ</button>
-    </div>
+        <div class="debug-panel">
+            <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
+            <button class="debug-btn" onclick="loadDebugScenario('tenhou')">① 天胡 テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chiihou')">② 地胡 テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('jokerswap')">③ CPU JokerSwap</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chankan')">④ 槍槓 テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('kan_jokerswap')">⑤ 槓→JokerSwap→嶺上</button>
+            <button class="debug-btn" onclick="loadDebugScenario('kan_menzu_hakai')">⑥ 面子破壊カン テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('max_buttons')">⑦ 最大ボタン発生 テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('kokushi_13')">⑧ 国士13面待ち</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chuuren')">⑨ 純正九連宝燈</button>
+            <button class="debug-btn" onclick="loadDebugScenario('post_win_swap')">⑩ 和了後JokerSwap</button>
+            <button class="debug-btn" onclick="loadDebugScenario('haitei_kan')">⑪ 海底＆嶺上複合</button>
+            <button class="debug-btn" onclick="loadDebugScenario('joker_pair_kan')">⑫ 四季牌暗槓テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chankan_with_joker')">⑬ 槍槓 (Joker待ち)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chitoi_joker')">⑭ 七対子＋複数Joker</button>
+            <button class="debug-btn" onclick="loadDebugScenario('shikantsu')">⑮ 十八羅漢（四槓子）限界UI</button>
+            <button class="debug-btn" onclick="loadDebugScenario('conflict_call')">⑯ ポン・ロン同時発生</button>
+            <button class="debug-btn" onclick="loadDebugScenario('all_seasons')">⑰ 四季牌4枚フル装備</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chuuren_post_win_kan')">⑱ 九連和了後の1s暗槓</button>
+            <button class="debug-btn" onclick="loadDebugScenario('bug_renchitoi')">⑲ 連七対バグ確認</button>
+            <button class="debug-btn" onclick="loadDebugScenario('bug_cpu_loop')">⑳ CPU無限ツモ確認</button>
+            <button class="debug-btn" onclick="loadDebugScenario('bug_ui_tenhou')">㉑ 天胡UI/オーラ確認</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_haitei_stop')">㉒ 海底停止テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_player_chankan')">㉓ プレイヤーの槍槓テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('ankan_tenhou')">㉔ 暗槓→嶺上天胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">㉕ 1巡目全部待ち(地胡)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">㉖ CPU天胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">㉗ CPU地胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_zentan_flower')">㉘ 全単のフリテン花牌切り</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_qixing_flower')">㉙ 七星のフリテン花牌切り</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_pass')">㉚ 十三幺九の見逃し（ロマン）</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_win')">㉛ 十三幺九の妥協ロン（終盤）</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_chankan_all_waits')">㉜ 全部待ちの槍槓禁止</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_kankou_dokuchou')">㉝ 寒江独釣の吸収</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_daisuufoukai')">㉞ 大四風会の吸収</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉟ 字一色＋七対子</button>
+        </div>
 
-    <div class="debug-panel">
-        <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
-        <button class="debug-btn" onclick="loadDebugScenario('tenhou')">① 天胡 テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chiihou')">② 地胡 テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('jokerswap')">③ CPU JokerSwap</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chankan')">④ 槍槓 テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('kan_jokerswap')">⑤ 槓→JokerSwap→嶺上</button>
-        <button class="debug-btn" onclick="loadDebugScenario('kan_menzu_hakai')">⑥ 面子破壊カン テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('max_buttons')">⑦ 最大ボタン発生 テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('kokushi_13')">⑧ 国士13面待ち</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chuuren')">⑨ 純正九連宝燈</button>
-        <button class="debug-btn" onclick="loadDebugScenario('post_win_swap')">⑩ 和了後JokerSwap</button>
-        <button class="debug-btn" onclick="loadDebugScenario('haitei_kan')">⑪ 海底＆嶺上複合</button>
-        <button class="debug-btn" onclick="loadDebugScenario('joker_pair_kan')">⑫ 四季牌暗槓テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chankan_with_joker')">⑬ 槍槓 (Joker待ち)</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chitoi_joker')">⑭ 七対子＋複数Joker</button>
-        <button class="debug-btn" onclick="loadDebugScenario('shikantsu')">⑮ 十八羅漢（四槓子）限界UI</button>
-        <button class="debug-btn" onclick="loadDebugScenario('conflict_call')">⑯ ポン・ロン同時発生</button>
-        <button class="debug-btn" onclick="loadDebugScenario('all_seasons')">⑰ 四季牌4枚フル装備</button>
-        <button class="debug-btn" onclick="loadDebugScenario('chuuren_post_win_kan')">⑱ 九連和了後の1s暗槓</button>
-        <button class="debug-btn" onclick="loadDebugScenario('bug_renchitoi')">⑲ 連七対バグ確認</button>
-        <button class="debug-btn" onclick="loadDebugScenario('bug_cpu_loop')">⑳ CPU無限ツモ確認</button>
-        <button class="debug-btn" onclick="loadDebugScenario('bug_ui_tenhou')">㉑ 天胡UI/オーラ確認</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_haitei_stop')">㉒ 海底停止テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_player_chankan')">㉓ プレイヤーの槍槓テスト</button>
-        <button class="debug-btn" onclick="loadDebugScenario('ankan_tenhou')">㉔ 暗槓→嶺上天胡</button>
-        <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">㉕ 1巡目全部待ち(地胡)</button>
-        <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">㉖ CPU天胡</button>
-        <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">㉗ CPU地胡</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_zentan_flower')">㉘ 全単のフリテン花牌切り</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_qixing_flower')">㉙ 七星のフリテン花牌切り</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_pass')">㉚ 十三幺九の見逃し（ロマン）</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_win')">㉛ 十三幺九の妥協ロン（終盤）</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_chankan_all_waits')">㉜ 全部待ちの槍槓禁止</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_kankou_dokuchou')">㉝ 寒江独釣の吸収</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_daisuufoukai')">㉞ 大四風会の吸収</button>
-        <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉟ 字一色＋七対子</button>
-    </div>
+        <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
+            <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
 
-    <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
-        <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
+            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
+            <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
 
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
-        <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
+            <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
+        </div>
+        <div class="table">
+            <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
 
-        <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
-    </div>
-    <div class="table">
-        <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
+            <div id="center-message"></div>
+            <div id="dice-overlay"></div>
 
-        <div id="center-message"></div>
-        <div id="dice-overlay"></div>
-
-        <div class="center-info">
-            <div id="round-info-center">
-                <span id="round-text">第 -- 局</span>
-                <button id="btn-toggle-bgm" class="btn-mini-icon" onclick="toggleBGM()" title="BGM切替: ON">🎵</button>
+            <div class="center-info">
+                <div id="round-info-center">
+                    <span id="round-text">第 -- 局</span>
+                    <button id="btn-toggle-bgm" class="btn-mini-icon" onclick="toggleBGM()" title="BGM切替: ON">🎵</button>
+                </div>
+                <div id="wall-count">山: --</div>
+                <div id="msg"></div>
             </div>
-            <div id="wall-count">山: --</div>
-            <div id="msg"></div>
-        </div>
 
-        <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
-        <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
-        <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
-        <div id="c-status-2" class="charleston-status pos-c-status-2"></div>
-        <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
+            <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
+            <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
+            <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
+            <div id="c-status-2" class="charleston-status pos-c-status-2"></div>
+            <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
 
-        <div class="pos-name-0">
-            <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
-        </div>
-        <div class="pos-score-0">
-            <div id="player-score-0" class="player-score"></div>
-        </div>
-        <div class="pos-round-score-0">
-            <div id="player-round-score-0" class="player-round-score"></div>
-        </div>
-
-        <div class="pos-waits-btn">
-            <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
-        </div>
-        <div class="pos-auto-btn">
-            <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
-        </div>
-        <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
-            <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
-        </div>
-
-        <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
-        <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
-        <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
-
-        <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
-        <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
-        <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
-
-        <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
-        <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
-        <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
-
-        <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
-        <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
-        <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
-        <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
-
-        <div id="charleston-ui">
-            <div>
-                <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
-                <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
-                <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;" onclick="execExchange()">交換決定！</button>
+            <div class="pos-name-0">
+                <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
             </div>
-        </div>
-
-        <div id="charleston-confirm-ui">
-            <div>
-                <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
-                <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
-                <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(true)">はい、参加する</button>
-                <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(false)">いいえ</button>
+            <div class="pos-score-0">
+                <div id="player-score-0" class="player-score"></div>
             </div>
-        </div>
-
-        <div id="win-zone-0" class="win-zone win-zone-0" style="display:none;"></div>
-        <div id="win-zone-1" class="win-zone win-zone-1" style="display:none;"></div>
-        <div id="win-zone-2" class="win-zone win-zone-2" style="display:none;"></div>
-        <div id="win-zone-3" class="win-zone win-zone-3" style="display:none;"></div>
-
-        <div class="action-wrapper">
-            <div class="action-layer" id="opponent-actions">
-                <button id="btn-win" class="btn-act btn-red">アガリ！</button>
-                <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
-                <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
-                <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
-                <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
-                <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
-                <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
+            <div class="pos-round-score-0">
+                <div id="player-round-score-0" class="player-round-score"></div>
             </div>
-            <div class="action-layer" id="self-actions"></div>
-        </div>
 
-        <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
-        <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
-        <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
-        <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
-        <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
-        <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
-
-        <div id="waits-panel" class="waits-panel" style="display:none;">
-            <div class="waits-header">
-                <span>待ち牌・残り枚数</span>
-                <button onclick="hideWaitsPanel()">×</button>
+            <div class="pos-waits-btn">
+                <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
             </div>
-            <div id="waits-list" class="waits-list"></div>
+            <div class="pos-auto-btn">
+                <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
+            </div>
+            <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
+                <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
+            </div>
+
+            <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
+            <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
+            <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
+
+            <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
+            <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
+            <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
+
+            <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
+            <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
+            <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
+
+            <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
+            <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
+            <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
+            <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
+
+            <div id="charleston-ui">
+                <div>
+                    <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
+                    <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
+                    <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;" onclick="execExchange()">交換決定！</button>
+                </div>
+            </div>
+
+            <div id="charleston-confirm-ui">
+                <div>
+                    <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
+                    <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
+                    <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(true)">はい、参加する</button>
+                    <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(false)">いいえ</button>
+                </div>
+            </div>
+
+            <div id="win-zone-0" class="win-zone win-zone-0" style="display:none;"></div>
+            <div id="win-zone-1" class="win-zone win-zone-1" style="display:none;"></div>
+            <div id="win-zone-2" class="win-zone win-zone-2" style="display:none;"></div>
+            <div id="win-zone-3" class="win-zone win-zone-3" style="display:none;"></div>
+
+            <div class="action-wrapper">
+                <div class="action-layer" id="opponent-actions">
+                    <button id="btn-win" class="btn-act btn-red">アガリ！</button>
+                    <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
+                    <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
+                    <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
+                    <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
+                    <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
+                    <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
+                </div>
+                <div class="action-layer" id="self-actions"></div>
+            </div>
+
+            <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
+            <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
+            <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
+            <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
+            <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
+            <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
+
+            <div id="waits-panel" class="waits-panel" style="display:none;">
+                <div class="waits-header">
+                    <span>待ち牌・残り枚数</span>
+                    <button onclick="hideWaitsPanel()">×</button>
+                </div>
+                <div id="waits-list" class="waits-list"></div>
+            </div>
+
+            <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
         </div>
 
-        <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
-    </div>
+        <div id="flash-overlay"></div>
+        <div id="special-yaku-overlay"></div>
+        <div id="big-yaku-text"></div>
 
-    <div id="flash-overlay"></div>
-    <div id="special-yaku-overlay"></div>
-    <div id="big-yaku-text"></div>
-
-    <script src="game.js?v=2"></script>
+        <script src="game.js?v=2"></script>
 </body>
 </html>
