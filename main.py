@@ -1474,7 +1474,7 @@ def debug_setup(scenario: str):
     elif scenario == "achieve_seasons":
         game.dealer = 0
         game.turn = 0
-        # 四季牌4枚を抱えた状態でテンパイ。引くだけで「四季を統べる者」達成。
+        # 四季牌4枚を抱えた状態でテンパイ。引くだけで「四季常春」達成。
         game.hands[0] = ["東","東","東","南","南","南","西","西","西","春","夏","秋","冬"]
         game.wall.append("北")
         

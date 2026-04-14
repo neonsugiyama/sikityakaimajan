@@ -823,7 +823,7 @@ function startTimer(seconds, timeoutCallback) {
             // ペナルティ処理
             timeDiscard = Math.max(5, timeDiscard - 20);
             timeCall = Math.max(5, timeCall - 5);
-            timeExchange = Math.max(5, timeExchange - 10);
+            //timeExchange = Math.max(5, timeExchange - 10);
 
             if (typeof finalAction === 'function') {
                 finalAction();
