@@ -213,7 +213,7 @@ let playerStats = {
     maxComboCount: 0,       // インフレの体現者（最高同時複合役数）
     welcomeHomeCount: 0,    // おかえりなさい（交換で出した牌が戻る）
     comebackCount: 0,       // 逆転の劇薬（オーラス4位から1位）
-    masterOfSeasonsCount: 0,// 四季を統べる者（春夏秋冬を揃えて和了）
+    masterOfSeasonsCount: 0,// 四季常春（春夏秋冬を揃えて和了）
     pacifistCount: 0,       // 漁夫の利（和了0回で局内1位）
     wideWaitCount: 0        // 無限の選択肢（27面待ち達成）
 };
@@ -2660,13 +2660,13 @@ async function handleRoundEnd() {
                 }
             }
 
-            // 🏆 ここに追加！【四季を統べる者】
+            // 🏆 ここに追加！【四季常春】
             let allMyTiles = [...myHand];
             myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
             if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
                 if (playerStats.masterOfSeasonsCount === 0) {
                     playerStats.masterOfSeasonsCount = 1;
-                    showAchievementUnlock("四季を統べる者", "🌍");
+                    showAchievementUnlock("四季常春", "🌍");
                 }
             }
 
@@ -3102,7 +3102,7 @@ function renderAchievements() {
         // 👑 一発達成型 (1回でプラチナ)
         { id: "rating_god", icon: "👑", title: "頂に立つ者", desc: "レート2000(称号「あたまおかしい」)到達", val: currentRate >= 2000 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「27種類」ある状態で和了", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "master_of_seasons", icon: "🌍", title: "四季を統べる者", desc: "1局の手牌に四季牌4種すべてを揃えて和了", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "master_of_seasons", icon: "🌍", title: "四季常春", desc: "1局の手牌に四季牌4種すべてを揃えて和了", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "一局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "heavenly", icon: "⚡", title: "神の領域", desc: "天胡または地胡を達成する", val: playerStats.heavenlyCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
