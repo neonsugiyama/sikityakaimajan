@@ -356,7 +356,9 @@ def evaluate_hand(data):
     any_meld = ctx.get("any_meld_occurred", False)
     d_count = ctx.get("discards_count", 999) 
 
-    if is_menzen and is_first and not any_meld:
+    # ❌ 修正前： if is_menzen and is_first and not any_meld:
+    # 🟢 修正後： 暗槓も含め、自分の鳴き（melds）が1つも無いことを絶対条件にする
+    if len(melds) == 0 and is_first and not any_meld:
         if ctx.get("is_dealer", False) and is_tsumo and d_count == 0:
             base_attr.append("天胡")
         elif not ctx.get("is_dealer", False) and d_count < 4:

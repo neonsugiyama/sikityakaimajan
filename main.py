@@ -29,7 +29,7 @@ app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 # 🏠 トップページ（HTML）をブラウザに返す
 @app.get("/")
 def read_root():
-    return FileResponse("index2.html")
+    return FileResponse("index.html")
 
 # 🎨 デザイン（CSS）をブラウザに返す
 @app.get("/style.css")
