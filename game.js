@@ -3076,14 +3076,30 @@ async function handleRoundEnd() {
 
         if (currentGameMode === 'online' || currentGameMode === 'cpu') {
             let placementPoints = [15, 5, -5, -15];
+
+            // 🌟 追加：卓全体の平均レートを計算する
+            let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
+
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
                 let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
-                let change = placementPoints[rank] + scoreBonus;
+
+                // 🌟 追加：ジャイアントキリング補正（レート差補正）
+                // 卓の平均レートより自分のレートが低いほどプラス補正、高いほどマイナス補正
+                let rateDiff = avgTableRate - playerRatings[pIdx];
+                let rateCorrection = Math.round(rateDiff / 40); // レート差40につき1ポイント補正
+
+                let change = placementPoints[rank] + scoreBonus + rateCorrection;
+
+                // 補正が効きすぎて「トップなのにマイナス」「ラスなのにプラス」になるのを防ぐ最低保証
+                if (rank === 0 && change <= 0) change = 1;
+                if (rank === 3 && change >= 0) change = -1;
+
                 rateChanges[pIdx] = change;
                 playerRatings[pIdx] += change;
                 if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
             }
+
             // 🏆 レート実績の判定
             let newRate = playerRatings[0];
             if (oldRate < 1600 && newRate >= 1600) showAchievementUnlock("レートの階段 (1600)", "📈");
