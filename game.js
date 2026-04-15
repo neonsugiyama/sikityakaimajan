@@ -871,9 +871,13 @@ function triggerAutoPlayIfNeeded() {
     const msgText = document.getElementById('msg').innerText;
     const btnWin = document.getElementById('btn-win');
 
+    // 🌟 修正：ボタンの表示方式が block でも flex でもアガリと認識するようにする
+    let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
+
     if (turn === 0 && msgText.includes("打牌")) {
         const selfActions = document.getElementById('self-actions');
-        if (btnWin.style.display === "block") {
+        if (isWinVisible) {
+            // アガれる時は絶対にアガる！
             btnWin.click();
         } else if (selfActions.innerHTML === '') {
             if (drawnTile !== "") {
@@ -885,9 +889,10 @@ function triggerAutoPlayIfNeeded() {
         }
     } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
         const btnSkip = document.getElementById('btn-skip');
-        if (btnWin.style.display === "block") {
+        if (isWinVisible) {
+            // ロンできる時は絶対にロンする！
             btnWin.click();
-        } else if (btnSkip.style.display === "block") {
+        } else if (btnSkip.style.display === "block" || btnSkip.style.display === "flex") {
             btnSkip.click();
         }
     }
@@ -2187,12 +2192,22 @@ async function checkWinPossible() {
     const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
     if (wd.can_win) {
         const btn = document.getElementById('btn-win');
+
+        // 🌟 修正：過去の「ロン」の表示を上書きして、「ツモ」と引いた牌の画像にする！
+        let winTile = drawnTile !== "" ? drawnTile : myHand[myHand.length - 1];
+        const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+
+        btn.innerHTML = `ツモ ${getImg(winTile)}`;
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.gap = "5px";
+
         btn.onclick = () => execTsumo();
 
         if (isAutoPlay && myWinTiles.length > 0 && document.getElementById('self-actions').innerHTML === '') {
             btn.style.display = "none";
         } else {
-            btn.style.display = "block";
+            btn.style.display = "flex"; // 🌟 blockからflexに変更してレイアウト崩れ防止
         }
         return true;
     }
@@ -2292,15 +2307,20 @@ async function cpu() {
                     const btnWin = document.getElementById('btn-win');
                     const btnSkip = document.getElementById('btn-skip');
 
+                    // 🌟 追加：槍槓用のロンボタンにも画像を仕込む
+                    let kTile = data.kakan_tile;
+                    btnWin.innerHTML = `ロン <img src="images/${kTile}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+
                     let isAutoDigest = (isAutoPlay && myWinTiles.length > 0);
                     if (!isAutoDigest) {
-                        btnWin.style.display = "block";
+                        btnWin.style.display = "flex";       // blockからflexに変更
+                        btnWin.style.alignItems = "center";
+                        btnWin.style.gap = "5px";
                         btnSkip.style.display = "block";
                         document.getElementById('msg').innerText = "槍槓チャンス";
                         playSE('alert');
                     }
 
-                    let kTile = data.kakan_tile;
                     btnWin.onclick = async () => {
                         stopTimer();
                         btnWin.style.display = "none";
@@ -2397,10 +2417,19 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     let showAny = false;
 
+    // 🌟 追加：ボタンの中に埋め込む用の「小さな牌画像」を作る関数
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
+
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
     if (wd.can_win) {
-        const btn = document.getElementById('btn-win'); btn.style.display = "block";
+        const btn = document.getElementById('btn-win');
+        // 🌟 修正：ボタンの文字の横に画像を埋め込む
+        btn.innerHTML = `ロン ${getImg(tile)}`;
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.gap = "5px";
         btn.onclick = () => execRon(false);
+
         if (isAutoPlay && myWinTiles.length > 0) {
             btn.style.display = "none";
         }
@@ -2408,9 +2437,31 @@ async function checkHumanReaction(discarderIdx, tile) {
     }
 
     if (myWinTiles.length === 0) {
-        if (count >= 2) { document.getElementById('btn-pon').style.display = "block"; showAny = true; }
-        if (count >= 3 && wallCount > 0) { document.getElementById('btn-kan').style.display = "block"; showAny = true; }
-        if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) { document.getElementById('btn-hanakan').style.display = "block"; showAny = true; }
+        // 🌟 修正：海底ではポン・カンできない条件（wallCount > 0）は維持しつつ、画像を埋め込む
+        if (count >= 2 && wallCount > 0) {
+            const btn = document.getElementById('btn-pon');
+            btn.innerHTML = `ポン ${getImg(tile)}`;
+            btn.style.display = "flex";
+            btn.style.alignItems = "center";
+            btn.style.gap = "5px";
+            showAny = true;
+        }
+        if (count >= 3 && wallCount > 0) {
+            const btn = document.getElementById('btn-kan');
+            btn.innerHTML = `明槓 ${getImg(tile)}`; // カンだと暗槓と紛らわしいので明槓にしておくのもアリです
+            btn.style.display = "flex";
+            btn.style.alignItems = "center";
+            btn.style.gap = "5px";
+            showAny = true;
+        }
+        if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
+            const btn = document.getElementById('btn-hanakan');
+            btn.innerHTML = `花槓 ${getImg(tile)}`;
+            btn.style.display = "flex";
+            btn.style.alignItems = "center";
+            btn.style.gap = "5px";
+            showAny = true;
+        }
     }
 
     renderCPU();
@@ -2428,9 +2479,8 @@ async function checkHumanReaction(discarderIdx, tile) {
             document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
             checkCpuReactions(discarderIdx, tile);
         };
-        // 🌟 変更：setTimeoutの中に isProc = false; を追加
-        document.getElementById('msg').innerText = "鳴き";
         isProc = false;
+        document.getElementById('msg').innerText = "鳴き";
 
         if (isAutoDigest) {
             isProc = true;
