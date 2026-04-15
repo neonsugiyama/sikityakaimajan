@@ -3463,8 +3463,28 @@ function updateProfileUI() {
 
     if (playerStats.maxScoreHand) {
         const { tiles, melds, winTile } = playerStats.maxScoreHand;
-        [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => { handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px;">`; });
-        if (winTile) handTiles.innerHTML += `<div style="width:10px;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:1px solid #f1c40f;">`;
+
+        // 🌟 1. 副露（鳴き牌）を一番左に描画
+        if (melds && melds.length > 0) {
+            melds.forEach((m, index) => {
+                m.tiles.forEach((t, i) => {
+                    let src = (m.type === 'ankan' && (i === 0 || i === 3)) ? 'ura' : t;
+                    handTiles.innerHTML += `<img src="images/${src}.png" style="width:20px; height:28px; border-radius:2px;">`;
+                });
+                // 副露ごとの区切り、および手牌との間に少し隙間をあける
+                handTiles.innerHTML += `<div style="width:6px; display:inline-block;"></div>`;
+            });
+        }
+
+        // 🌟 2. 手牌（門前部分）を描画
+        [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => {
+            handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px; border-radius:2px;">`;
+        });
+
+        // 🌟 3. 和了牌を一番右に描画（黄色い枠付き）
+        if (winTile) {
+            handTiles.innerHTML += `<div style="width:10px; display:inline-block;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:2px solid #f1c40f; border-radius:2px; box-sizing:border-box;">`;
+        }
     }
     updateHomeStats();
 }
