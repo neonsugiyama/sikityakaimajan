@@ -3596,29 +3596,33 @@ function updateProfileUI() {
     const handTiles = document.getElementById('best-hand-tiles');
     handTiles.innerHTML = '';
 
+    // 🌟 修正：最高打点の牌姿表示を分かりやすくする
     if (playerStats.maxScoreHand) {
         const { tiles, melds, winTile } = playerStats.maxScoreHand;
 
-        // 🌟 1. 副露（鳴き牌）を一番左に描画
+        // 🌟 1. 副露（鳴き牌）を描画
         if (melds && melds.length > 0) {
-            melds.forEach((m, index) => {
+            melds.forEach((m) => {
                 m.tiles.forEach((t, i) => {
                     let src = (m.type === 'ankan' && (i === 0 || i === 3)) ? 'ura' : t;
-                    handTiles.innerHTML += `<img src="images/${src}.png" style="width:20px; height:28px; border-radius:2px;">`;
+                    // 青いラインや背景を廃止し、普通の牌と同じように並べる
+                    handTiles.innerHTML += `<img src="images/${src}.png" style="width:20px; height:28px; border-radius:2px; margin-right:1px;">`;
                 });
-                // 副露ごとの区切り、および手牌との間に少し隙間をあける
-                handTiles.innerHTML += `<div style="width:6px; display:inline-block;"></div>`;
+                // 鳴いたグループ同士の間にほんの少し（3px）だけ隙間を開ける
+                handTiles.innerHTML += `<div style="width:3px; display:inline-block;"></div>`;
             });
+            // 🌟 手牌との境界線（金色の縦線）はそのまま残す
+            handTiles.innerHTML += `<div style="width:2px; height:24px; background:#f1c40f; display:inline-block; vertical-align:middle; margin: 0 6px; opacity: 0.8;"></div>`;
         }
 
-        // 🌟 2. 手牌（門前部分）を描画
+        // 🌟 2. 門前（手牌）部分を描画
         [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => {
-            handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px; border-radius:2px;">`;
+            handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px; border-radius:2px; margin-right:1px;">`;
         });
 
-        // 🌟 3. 和了牌を一番右に描画（黄色い枠付き）
+        // 🌟 3. 和了牌を一番右に描画（黄色い太枠付き）
         if (winTile) {
-            handTiles.innerHTML += `<div style="width:10px; display:inline-block;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:2px solid #f1c40f; border-radius:2px; box-sizing:border-box;">`;
+            handTiles.innerHTML += `<div style="width:8px; display:inline-block;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:2px solid #f1c40f; border-radius:2px; box-sizing:border-box; box-shadow: 0 0 5px #f1c40f;">`;
         }
     }
     updateHomeStats();
