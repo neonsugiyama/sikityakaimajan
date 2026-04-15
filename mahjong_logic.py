@@ -116,6 +116,8 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     target = determine_target(cpu_idx, hand_list, game_state)
     
     if t in SEASON_TILES: 
+        if len(game_state.win_tiles[cpu_idx]) > 0:
+            return 10000
         temp_hand = list(hand_list)
         temp_hand.remove(t)
         is_all_odds = all((x in SEASON_TILES or (x in TILE_NAMES and TILE_NAMES.index(x) in ODDS)) for x in temp_hand)

@@ -498,6 +498,13 @@ def cpu_turn(cpu_idx: int):
                     if len(game.wall) >= 24 and remaining >= 3:
                         is_kokushi_pass = True
             
+            is_infinite_wait_pass = False
+            has_season = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"])
+            if has_season and len(game.wall) > 20: # 残り20枚以上を「序盤〜中盤」と定義
+                waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                if len(waits) < 27:
+                    is_infinite_wait_pass = True # まだ無限待ちじゃないなら見逃す
+
             if not is_hanari_zentan and not is_hanari_qixing and not is_kokushi_pass:
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
@@ -533,13 +540,7 @@ def cpu_turn(cpu_idx: int):
                         game.melds[cpu_idx].append({"type": "ankan", "tiles": [t]*4, "is_hidden": True})
                         game.hands[cpu_idx].append(game.wall.pop())
                         did_meld = True; break
-                elif c >= 3 and hanakan_seasons and t not in SEASON_TILES and not has_won:
-                    for _ in range(3): game.hands[cpu_idx].remove(t)
-                    s = hanakan_seasons[0]
-                    game.hands[cpu_idx].remove(s)
-                    game.melds[cpu_idx].append({"type": "hanakan", "tiles": [t, s, t, t]})
-                    game.hands[cpu_idx].append(game.wall.pop())
-                    did_meld = True; break
+
             if did_meld: continue
             
             for m in game.melds[cpu_idx]:
@@ -556,17 +557,7 @@ def cpu_turn(cpu_idx: int):
                             did_kakan_in_turn = True 
                             kakan_tile_in_turn = base_t 
                             break
-                    elif hanakan_seasons and not has_won:
-                        s = hanakan_seasons[0]
-                        game.hands[cpu_idx].remove(s)
-                        m["type"] = "hanakan"
-                        m["tiles"] = [base_t, s, base_t, base_t]
-                        game.hands[cpu_idx].append(game.wall.pop())
-                        game.any_meld_occurred = True 
-                        did_meld = True
-                        did_kakan_in_turn = True 
-                        kakan_tile_in_turn = base_t 
-                        break
+                    
             if did_meld: continue
             
             if not has_won:
@@ -686,9 +677,10 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                 if is_hanari_zentan or is_hanari_qixing:
                     continue 
 
+                # 🌟 修正：ここで変数を初期化し、if文の中身もきっちりインデントする
+                is_kokushi_pass = False
                 if "十三幺九" in res.get("yaku", []):
                     waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    
                     if len(waits) < 13:
                         remaining = 0
                         for w in waits:
@@ -696,7 +688,18 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                             remaining += max(0, 4 - visible - game.hands[i].count(w))
                         
                         if len(game.wall) >= 24 and remaining >= 3:
-                            continue
+                            is_kokushi_pass = True
+
+                # 🌟 追加：四季牌を持っている時、序盤なら無限待ち（27面以上）になるまで妥協和了を見逃す！
+                is_infinite_wait_pass = False
+                has_season = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
+                if has_season and len(game.wall) > 20: # 残り20枚以上を「序盤〜中盤」と定義
+                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                    if len(waits) < 27:
+                        is_infinite_wait_pass = True
+
+                if is_kokushi_pass or is_infinite_wait_pass:
+                    continue
 
                 if not is_chankan_bool and game.discards[discarder_idx] and game.discards[discarder_idx][-1] == tile:
                     game.discards[discarder_idx].pop()
@@ -757,8 +760,20 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
 
 # 🗣️ プレイヤーが他家の捨て牌から鳴く（ポン・明槓・花槓）処理を行うAPI
 @app.get("/meld")
-def process_meld(player_idx: int = 0, type: str = "", tile: str = ""):
+def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1):
     try:
+        # 🌟 追加：ロン（胡）の優先権チェック（他家の鳴きより、ロンを優先する「頭ハネ」処理）
+        if discarder != -1:
+            turn_order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+            interceptor = get_cpu_ron_interceptor(discarder, tile, turn_order)
+            if interceptor:
+                i = interceptor["player"]
+                if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                    game.discards[discarder].pop()
+                game.win_tiles[i].append(tile)
+                game.win_records[i].append(interceptor["ctx"])
+                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+
         drawn_tile = ""
         game.any_meld_occurred = True 
         if type == "花槓":
@@ -951,10 +966,27 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
 
 # 🏆 プレイヤーが「ロン」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_ron")
-def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false"):
+def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1):
     try:
         is_chankan_bool = is_chankan.lower() == "true"
-        robbed_player_idx = -1 
+        # 🌟 追加：プレイヤーがロンした場合も、優先順位（ターン順）でCPUが横取りできるかチェック
+        if discarder != -1 and not is_chankan_bool:
+            turn_order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+            higher_priority_players = []
+            for p in turn_order:
+                if p == player_idx: break # 自分の順番が来たら終了（自分より前が優先される）
+                higher_priority_players.append(p)
+                
+            interceptor = get_cpu_ron_interceptor(discarder, tile, higher_priority_players)
+            if interceptor:
+                i = interceptor["player"]
+                if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                    game.discards[discarder].pop()
+                game.win_tiles[i].append(tile)
+                game.win_records[i].append(interceptor["ctx"])
+                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+
+        robbed_player_idx = -1
         
         if is_chankan_bool:
             found_robbed = False
@@ -1141,6 +1173,56 @@ def get_valid_self_melds(player_idx: int = 0):
                         valid_melds.append({"type": "JokerSwap", "tile": base, "season": season_t, "target_idx": t_idx})
                     
     return {"valid_melds": valid_melds}
+
+# 🌟 追加：指定したプレイヤー達の中で、ロン和了りできるCPUがいるかチェックし、優先度順に返す関数
+def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list):
+    is_haitei = (len(game.wall) == 0)
+    for i in target_players:
+        if i == 0: continue # 人間はJS側で処理するので除外
+        if len(game.win_tiles[i]) > 0: continue # 既に和了っている場合は除外
+        
+        ctx = {
+            "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
+            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
+            "is_first_turn": game.is_first_turn[i], "any_meld_occurred": game.any_meld_occurred,
+            "is_dealer": game.dealer == i, "discards_count": game.discards_count
+        }
+        res = evaluate_hand({"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx})
+        if "error" not in res:
+            is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+            jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
+            is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+            if is_hanari_zentan or is_hanari_qixing: continue 
+
+            is_kokushi_pass = False
+            if "十三幺九" in res.get("yaku", []):
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 13:
+                    remaining = 0
+                    for w in waits:
+                        visible = get_visible_count(w, game)
+                        remaining += max(0, 4 - visible - game.hands[i].count(w))
+                    if len(game.wall) >= 24 and remaining >= 3: is_kokushi_pass = True
+            if is_kokushi_pass: continue
+
+            is_infinite_wait_pass = False
+            has_season = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
+            if has_season and len(game.wall) > 20:
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 27: is_infinite_wait_pass = True
+            if is_infinite_wait_pass: continue
+
+            return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
+    return None
+
+# 🌟 追加：JSから「CPUがロンするかどうか」だけを事前に確認するAPI
+@app.get("/check_cpu_ron_interceptor")
+def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = ""):
+    turn_order = [(discarder_idx + 1) % 4, (discarder_idx + 2) % 4, (discarder_idx + 3) % 4]
+    interceptor = get_cpu_ron_interceptor(discarder_idx, tile, turn_order)
+    if interceptor:
+        return {"intercepted": True, "player": interceptor["player"]}
+    return {"intercepted": False}
 
 # 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
@@ -1461,6 +1543,27 @@ def debug_setup(scenario: str):
         game.is_first_turn = [False]*4
         game.hands[0] = ["東","東","東","東","南","南","西","西","北","北","白","白","發"]
         game.wall = ["發"]
+
+    elif scenario == "test_headbump":
+        # 頭ハネテスト：自分がポンできる牌をCPU3が捨てるが、CPU1のロンが優先される
+        game.dealer = 0
+        game.turn = 2 
+        game.is_first_turn = [False]*4
+        game.hands[0] = ["1p","1p","2s","3s","4s","5s","6s","7s","8s","9s","東","南","西"]
+        game.hands[1] = ["2p","3p","4p","5p","6p","7p","8p","9p","1m","2m","3m","4m","4m"]
+        game.hands[2] = ["1p","白","發","中","東","南","西","北","1s","9m","1m","1p","9p"]
+        game.hands[3] = ["1p","白","發","中","東","南","西","北","1s","9s","1m","9m","9p"]
+        game.wall = ["1p", "1p"]
+
+    elif scenario == "test_cpu_keep_joker":
+        # CPU四季牌キープテスト：和了済みのCPU1が四季牌を引いた時、手持ちの「東」と入れ替えて捨てるか
+        game.dealer = 1
+        game.turn = 0
+        game.is_first_turn = [False]*4
+        game.win_tiles[1] = ["1p"] 
+        game.hands[1] = ["1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","4p","東"] 
+        game.hands[0] = ["南","西","北","白","發","中","1m","9m","1s","9s","1p","9p","2m"]
+        game.wall = ["春", "西"]
 
     #実績解除テストケース
     elif scenario == "achieve_wide_wait":

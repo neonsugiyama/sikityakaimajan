@@ -827,44 +827,61 @@
         </div>
     </div>
 
-        <div class="debug-panel">
-            <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
+    <div class="debug-panel" id="dev-mode-container">
+        <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px; text-align:center;">🔧 テストツール</div>
+
+        <div class="debug-tab-header">
+            <button class="debug-tab-btn active" onclick="switchDebugTab(event, 'debug-tab-1')">開幕/特殊</button>
+            <button class="debug-tab-btn" onclick="switchDebugTab(event, 'debug-tab-2')">鳴き/槍槓</button>
+            <button class="debug-tab-btn" onclick="switchDebugTab(event, 'debug-tab-3')">AI思考</button>
+            <button class="debug-tab-btn" onclick="switchDebugTab(event, 'debug-tab-4')">エッジ</button>
+        </div>
+
+        <div id="debug-tab-1" class="debug-tab-content" style="display: block;">
             <button class="debug-btn" onclick="loadDebugScenario('tenhou')">① 天胡 テスト</button>
             <button class="debug-btn" onclick="loadDebugScenario('chiihou')">② 地胡 テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('jokerswap')">③ CPU JokerSwap</button>
-            <button class="debug-btn" onclick="loadDebugScenario('chankan')">④ 槍槓 テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('kan_jokerswap')">⑤ 槓→JokerSwap→嶺上</button>
-            <button class="debug-btn" onclick="loadDebugScenario('kan_menzu_hakai')">⑥ 面子破壊カン テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('max_buttons')">⑦ 最大ボタン発生 テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('kokushi_13')">⑧ 国士13面待ち</button>
-            <button class="debug-btn" onclick="loadDebugScenario('chuuren')">⑨ 純正九連宝燈</button>
-            <button class="debug-btn" onclick="loadDebugScenario('post_win_swap')">⑩ 和了後JokerSwap</button>
-            <button class="debug-btn" onclick="loadDebugScenario('haitei_kan')">⑪ 海底＆嶺上複合</button>
-            <button class="debug-btn" onclick="loadDebugScenario('joker_pair_kan')">⑫ 四季牌暗槓テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('chankan_with_joker')">⑬ 槍槓 (Joker待ち)</button>
-            <button class="debug-btn" onclick="loadDebugScenario('chitoi_joker')">⑭ 七対子＋複数Joker</button>
-            <button class="debug-btn" onclick="loadDebugScenario('shikantsu')">⑮ 十八羅漢（四槓子）限界UI</button>
-            <button class="debug-btn" onclick="loadDebugScenario('conflict_call')">⑯ ポン・ロン同時発生</button>
-            <button class="debug-btn" onclick="loadDebugScenario('all_seasons')">⑰ 四季牌4枚フル装備</button>
-            <button class="debug-btn" onclick="loadDebugScenario('chuuren_post_win_kan')">⑱ 九連和了後の1s暗槓</button>
-            <button class="debug-btn" onclick="loadDebugScenario('bug_renchitoi')">⑲ 連七対バグ確認</button>
-            <button class="debug-btn" onclick="loadDebugScenario('bug_cpu_loop')">⑳ CPU無限ツモ確認</button>
-            <button class="debug-btn" onclick="loadDebugScenario('bug_ui_tenhou')">㉑ 天胡UI/オーラ確認</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_haitei_stop')">㉒ 海底停止テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_player_chankan')">㉓ プレイヤーの槍槓テスト</button>
-            <button class="debug-btn" onclick="loadDebugScenario('ankan_tenhou')">㉔ 暗槓→嶺上天胡</button>
-            <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">㉕ 1巡目全部待ち(地胡)</button>
-            <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">㉖ CPU天胡</button>
-            <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">㉗ CPU地胡</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_zentan_flower')">㉘ 全単のフリテン花牌切り</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_qixing_flower')">㉙ 七星のフリテン花牌切り</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_pass')">㉚ 十三幺九の見逃し（ロマン）</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_win')">㉛ 十三幺九の妥協ロン（終盤）</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_chankan_all_waits')">㉜ 全部待ちの槍槓禁止</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_kankou_dokuchou')">㉝ 寒江独釣の吸収</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_daisuufoukai')">㉞ 大四風会の吸収</button>
-            <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉟ 字一色＋七対子</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">③ CPU天胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">④ CPU地胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">⑤ 1巡目全部待ち(地胡)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('kokushi_13')">⑥ 国士13面待ち</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chuuren')">⑦ 純正九連宝燈</button>
+            <button class="debug-btn" onclick="loadDebugScenario('all_seasons')">⑧ 四季牌4枚フル装備</button>
         </div>
+
+        <div id="debug-tab-2" class="debug-tab-content" style="display: none;">
+            <button class="debug-btn" onclick="loadDebugScenario('jokerswap')">⑨ CPU JokerSwap</button>
+            <button class="debug-btn" onclick="loadDebugScenario('kan_jokerswap')">⑩ 槓→Swap→嶺上</button>
+            <button class="debug-btn" onclick="loadDebugScenario('joker_pair_kan')">⑪ 四季牌暗槓テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chankan')">⑫ CPUの槍槓 テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_player_chankan')">⑬ プレイヤーの槍槓テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chankan_with_joker')">⑭ 槍槓 (Joker待ち)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('haitei_kan')">⑮ 海底＆嶺上複合</button>
+        </div>
+
+        <div id="debug-tab-3" class="debug-tab-content" style="display: none;">
+            <button class="debug-btn" onclick="loadDebugScenario('test_headbump')">⑯ 頭ハネ(優先度)確認</button>
+            <button class="debug-btn" onclick="loadDebugScenario('conflict_call')">⑰ ポン・ロン同時発生</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_chankan_all_waits')">⑱ 全部待ちの槍槓禁止</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_pass')">⑲ 十三幺九の見逃し(序盤)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_kokushi_win')">⑳ 十三幺九の妥協ロン(終盤)</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_zentan_flower')">㉑ 全単のフリテン花牌切り</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_qixing_flower')">㉒ 七星のフリテン花牌切り</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_cpu_keep_joker')">㉓ CPU和了後の四季牌キープ</button>
+        </div>
+
+        <div id="debug-tab-4" class="debug-tab-content" style="display: none;">
+            <button class="debug-btn" onclick="loadDebugScenario('test_kankou_dokuchou')">㉔ 寒江独釣の吸収</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_daisuufoukai')">㉕ 大四風会の吸収</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_tsuuiisou_chitoi')">㉖ 字一色＋七対子</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chitoi_joker')">㉗ 七対子＋複数Joker</button>
+            <button class="debug-btn" onclick="loadDebugScenario('bug_renchitoi')">㉘ 連七対バグ確認</button>
+            <button class="debug-btn" onclick="loadDebugScenario('shikantsu')">㉙ 十八羅漢 限界UI</button>
+            <button class="debug-btn" onclick="loadDebugScenario('ankan_tenhou')">㉚ 暗槓→嶺上天胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('test_haitei_stop')">㉛ 海底停止テスト</button>
+            <button class="debug-btn" onclick="loadDebugScenario('post_win_swap')">㉜ 和了後JokerSwap</button>
+            <button class="debug-btn" onclick="loadDebugScenario('chuuren_post_win_kan')">㉝ 九連和了後の1s暗槓</button>
+        </div>
+    </div>
 
         <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
             <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>

@@ -1154,33 +1154,93 @@ body.lang-en .yaku-tag .en {
     color: #ff9ff3 !important;
 }
 
-/* 🛠️ デバッグパネルのスタイル */
+/* =====================================================================
+        🔧 デバッグパネル（テストツール）
+   ===================================================================== */
 .debug-panel {
     position: absolute;
     top: 10px;
     right: 10px;
-    z-index: 1000;
-    background: rgba(0,0,0,0.8);
+    z-index: 20000;
+    background: rgba(0, 0, 0, 0.85);
     padding: 10px;
-    border: 1px solid #e74c3c;
-    border-radius: 5px;
-    display: none;
+    border: 2px solid #e74c3c;
+    border-radius: 8px;
+    display: none; /* 初期状態は非表示（隠しコマンドでON） */
     flex-direction: column;
+    width: 220px !important; /* 🌟 横幅を280pxから220pxに狭くしました！ */
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+}
+
+/* 🔧 デバッグパネルのタブUI用 */
+.debug-tab-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 5px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
 }
 
-.debug-btn {
-    background: #c0392b;
-    color: white;
-    border: none;
-    padding: 5px;
+.debug-tab-btn {
+    width: 100%;
+    background: #333;
+    color: #aaa;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 5px 0;
+    font-size: 11px;
     cursor: pointer;
-    border-radius: 3px;
-    font-weight: bold;
+    transition: all 0.2s;
 }
 
-    .debug-btn:hover {
+    .debug-tab-btn:hover {
+        background: #444;
+    }
+
+    .debug-tab-btn.active {
         background: #e74c3c;
+        color: #fff;
+        border-color: #e74c3c;
+        font-weight: bold;
+    }
+
+/* 🌟 全部見えちゃう原因だった flex !important を削除 */
+.debug-tab-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+    /* テスト用ボタンの装飾 */
+    .debug-tab-content .debug-btn {
+        display: block; /* 🌟 代わりにここでブロック要素にして縦に積む */
+        width: 100%;
+        margin: 0 0 5px 0; /* 🌟 下に5pxの隙間を空ける */
+        box-sizing: border-box;
+        background: #34495e;
+        color: white;
+        border: 1px solid #2c3e50;
+        padding: 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px; /* 🌟 横幅を狭くした分、文字サイズも微調整 */
+        font-weight: bold;
+        transition: 0.2s;
+    }
+
+        .debug-tab-content .debug-btn:hover {
+            background: #3498db;
+        }
+
+    /* スクロールバーの見た目（Webkit用） */
+    .debug-tab-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .debug-tab-content::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 3px;
     }
 
 /* 🏆 実績テスト用パネル（左端） */

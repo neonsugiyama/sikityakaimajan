@@ -1493,6 +1493,25 @@ async function loadDebugScenario(scenario) {
     }
 }
 
+// 🛠️ デバッグパネルのタブを切り替える関数
+function switchDebugTab(evt, tabId) {
+    // すべてのタブの中身を隠す
+    const tabContents = document.getElementsByClassName("debug-tab-content");
+    for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = "none";
+    }
+
+    // すべてのタブボタンの色を元に戻す
+    const tabLinks = document.getElementsByClassName("debug-tab-btn");
+    for (let i = 0; i < tabLinks.length; i++) {
+        tabLinks[i].classList.remove("active");
+    }
+
+    // クリックされたタブの中身を表示し、ボタンを赤く光らせる
+    document.getElementById(tabId).style.display = "block";
+    evt.currentTarget.classList.add("active");
+}
+
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
 async function init() {
     logMsg("=== ゲーム起動 ===");
@@ -2434,9 +2453,33 @@ async function checkHumanReaction(discarderIdx, tile) {
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
+    // 🌟 追加：ボタンを出す前に、CPUがロンを狙っているかサーバーに探りを入れる
+    const interceptRes = await apiCall('/check_cpu_ron_interceptor', { discarder_idx: discarderIdx, tile: tile });
+    const cpuWillRon = interceptRes.intercepted;
+    const cpuRonPlayer = interceptRes.player;
+
+    // 🌟 ロンの優先度（頭ハネ）を計算
+    let humanHasPriority = false;
     if (wd.can_win) {
+        if (cpuWillRon) {
+            let humanDist = (0 - discarderIdx + 4) % 4;
+            let cpuDist = (cpuRonPlayer - discarderIdx + 4) % 4;
+            if (humanDist < cpuDist) {
+                humanHasPriority = true;
+            }
+        } else {
+            humanHasPriority = true;
+        }
+    }
+
+    // 🌟 追加：CPUがロン予定で、人間に優先権がないなら、一切のボタンを出さずにCPUのロン処理へ直行！
+    if (cpuWillRon && !humanHasPriority) {
+        return checkCpuReactions(discarderIdx, tile);
+    }
+
+    // プレイヤーがロン可能で、かつ優先権がある場合のみロンボタンを表示
+    if (wd.can_win && humanHasPriority) {
         const btn = document.getElementById('btn-win');
-        // 🌟 修正：ボタンの文字の横に画像を埋め込む
         btn.innerHTML = `ロン ${getImg(tile)}`;
         btn.style.display = "flex";
         btn.style.alignItems = "center";
@@ -2449,8 +2492,8 @@ async function checkHumanReaction(discarderIdx, tile) {
         showAny = true;
     }
 
-    if (myWinTiles.length === 0) {
-        // 🌟 修正：海底ではポン・カンできない条件（wallCount > 0）は維持しつつ、画像を埋め込む
+    // 🌟 修正：鳴きボタン（ポン・カン）は、CPUのロンが無いときだけ表示する
+    if (myWinTiles.length === 0 && !cpuWillRon) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.innerHTML = `ポン ${getImg(tile)}`;
@@ -2461,7 +2504,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
         if (count >= 3 && wallCount > 0) {
             const btn = document.getElementById('btn-kan');
-            btn.innerHTML = `明槓 ${getImg(tile)}`; // カンだと暗槓と紛らわしいので明槓にしておくのもアリです
+            btn.innerHTML = `明槓 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
@@ -2625,7 +2668,21 @@ async function execRon(isChankan = false) {
     isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
-    const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan });
+    const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan, discarder: lastDiscardPlayer });
+
+    // 🌟 追加：もし自分より優先順位の高いCPUのロンが成立して割り込まれた場合
+    if (data.intercepted && data.type === "ron") {
+        showCallout(data.player, "胡");
+        await sleep(1500);
+        if (data.yaku && data.yaku.includes("地胡")) { showCallout(data.player, "地胡"); await sleep(4000); }
+        for (let y of (data.yaku || [])) {
+            if (y === "花天月地") { showCallout(data.player, y); await sleep(1500); }
+        }
+        removeLastDiscard();
+        render(); renderCPU();
+        isProc = false; checkT();
+        return;
+    }
 
     // 1. まず「胡」を出す
     showCallout(0, "胡");
@@ -2672,8 +2729,24 @@ async function execMeld(type) {
     stopTimer();
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    const data = await apiCall('/meld', { player_idx: 0, type: type, tile: lastT, discarder: lastDiscardPlayer });
+
+    // 🌟 追加：もしCPUのロンが優先された場合、そちらの演出を流して鳴きをキャンセル
+    if (data.intercepted && data.type === "ron") {
+        showCallout(data.player, "胡");
+        await sleep(1500);
+        if (data.yaku && data.yaku.includes("地胡")) { showCallout(data.player, "地胡"); await sleep(4000); }
+        for (let y of (data.yaku || [])) {
+            if (y === "花天月地") { showCallout(data.player, y); await sleep(1500); }
+        }
+        removeLastDiscard();
+        render(); renderCPU();
+        isProc = false; checkT();
+        return;
+    }
+
     removeLastDiscard();
-    await apiCall('/meld', { player_idx: 0, type: type, tile: lastT });
     render(); renderCPU();
 
     let callText = (type.includes("槓") || type.includes("カン")) ? "槓" : "碰";
