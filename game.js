@@ -761,6 +761,7 @@ let charlestonCount = 1, charlestonPhase = false, exchangeSelection = [];
 let secondCharlestonParticipating = [false, false, false, false];
 let charlestonAskResults = [];
 let askedCount = 0;
+let humanSecondCharlestonTiles = [];
 let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
@@ -875,9 +876,14 @@ function triggerAutoPlayIfNeeded() {
         if (btnWin.style.display === "block") {
             btnWin.click();
         } else if (selfActions.innerHTML === '') {
-            if (drawnTile !== "") discard(drawnTile);
+            if (drawnTile !== "") {
+                discard(drawnTile, true);
+            } else {
+                let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+                discard(displayHand[displayHand.length - 1], false);
+            }
         }
-    } else if (msgText === "鳴き") {
+    } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
         const btnSkip = document.getElementById('btn-skip');
         if (btnWin.style.display === "block") {
             btnWin.click();
@@ -1517,37 +1523,50 @@ function startCharlestonSelection() {
 
 // 👆 チャールストンで交換に出す牌の選択/解除を切り替える関数
 function toggleExchange(idx) {
+    if (charlestonCount === 2 && isProc) return; // 🌟 順番待ち中はクリックを無効化
+
     const pos = exchangeSelection.indexOf(idx);
     if (pos > -1) exchangeSelection.splice(pos, 1);
     else if (exchangeSelection.length < 3) exchangeSelection.push(idx);
     render();
+
     const btn = document.getElementById('btn-exchange');
-    if (exchangeSelection.length === 3) btn.style.display = "block";
-    else btn.style.display = "none";
+    if (charlestonCount === 1) {
+        // 第1交換：3枚選んだ時だけボタン表示
+        if (exchangeSelection.length === 3) btn.style.display = "block";
+        else btn.style.display = "none";
+    } else {
+        // 🌟 第2交換：常にボタンを表示し、3枚選んだら決定ボタンに化ける
+        btn.style.display = "block";
+        if (exchangeSelection.length === 3) {
+            btn.innerHTML = "📤 決定 (3枚交換)";
+            btn.className = "btn-act btn-blue";
+        } else {
+            btn.innerHTML = "⏭️ スルー (過)";
+            btn.className = "btn-act btn-gray";
+        }
+    }
 }
 
-// 📤 選んだ3枚の牌をサーバーに送り、第1チャールストンを実行する関数
+// 📤 選んだ3枚の牌をサーバーに送り、交換を実行する関数（第2交換の決定も兼ねる）
 async function execExchange() {
     stopTimer();
-    if (exchangeSelection.length !== 3) {
-        exchangeSelection = [0, 1, 2];
-    }
-
-    isProc = true;
-    document.getElementById('charleston-ui').style.display = "none";
-
-    let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-    let t1 = displayHand[exchangeSelection[0]];
-    let t2 = displayHand[exchangeSelection[1]];
-    let t3 = displayHand[exchangeSelection[2]];
-
-    // 🏆 ここに追加！交換前の手牌を文字列として記憶
-    let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
 
     if (charlestonCount === 1) {
+        // ================= 第1交換の処理 =================
+        if (exchangeSelection.length !== 3) exchangeSelection = [0, 1, 2];
+        isProc = true;
+        document.getElementById('charleston-ui').style.display = "none";
+
+        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+        let t1 = displayHand[exchangeSelection[0]];
+        let t2 = displayHand[exchangeSelection[1]];
+        let t3 = displayHand[exchangeSelection[2]];
+
+        let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+
         exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
         myHand = displayHand;
-
         exchangeSelection = [];
 
         showCharlestonStatus(0, true);
@@ -1559,13 +1578,11 @@ async function execExchange() {
 
         const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
 
-        // 🌟🌟 ここを追加！テストモードならサーバーから受け取った牌を握りつぶす（捏造）
         if (isWelcomeHomeTest) {
-            myHand = oldHandStr.split(','); // 送る前の手牌データを強制的に復元する！
-            isWelcomeHomeTest = false;      // 1回使ったらチートOFF
+            myHand = oldHandStr.split(',');
+            isWelcomeHomeTest = false;
         }
 
-        // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
         if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
             playerStats.welcomeHomeCount = 1;
@@ -1586,8 +1603,30 @@ async function execExchange() {
 
         isProc = false;
         askNextSecondCharleston();
+
     } else {
-        execSecondCharleston(t1, t2, t3);
+        // ================= 第2交換の意思決定処理 =================
+        isProc = true;
+        document.getElementById('charleston-ui').style.display = "none";
+        let willDo = exchangeSelection.length === 3;
+
+        if (willDo) {
+            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            // 🌟 3枚選んだ場合は一旦手牌から消して記憶しておく
+            humanSecondCharlestonTiles = [
+                displayHand[exchangeSelection[0]],
+                displayHand[exchangeSelection[1]],
+                displayHand[exchangeSelection[2]]
+            ];
+            exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
+            myHand = displayHand;
+        } else {
+            humanSecondCharlestonTiles = [];
+        }
+
+        exchangeSelection = [];
+        render(); // 3枚出した後の手牌を描画
+        processAskSecondCharleston(0, willDo); // 即座に自分の前に牌（またはスタンプ）を出す
     }
 }
 
@@ -1596,6 +1635,9 @@ async function askNextSecondCharleston() {
     if (askedCount === 0) {
         charlestonAskResults = [];
         clearCharlestonStatus();
+        charlestonPhase = true; // 🌟 選択できるようにフェーズを戻す
+        charlestonCount = 2;    // 🌟 第2交換モードに設定
+        humanSecondCharlestonTiles = [];
     }
 
     if (askedCount === 4) {
@@ -1607,42 +1649,68 @@ async function askNextSecondCharleston() {
     let currentAsker = (dealer + askedCount) % 4;
 
     if (currentAsker === 0) {
-        const confUi = document.getElementById('charleston-confirm-ui');
-        confUi.style.zIndex = "9999";
-        confUi.style.display = "block";
+        // 🌟 人間の番：UIを表示して選択を促す
+        document.getElementById('msg').innerText = "第2交換：3枚選んで決定、またはスルー";
+        const cUi = document.getElementById('charleston-ui');
+        const cTitle = document.getElementById('c-title');
+        cTitle.innerText = "第2交換 (Second Charleston)";
+        cTitle.style.color = "#f1c40f";
+
+        cUi.style.zIndex = "9999";
+        cUi.style.display = "block";
+
+        exchangeSelection = [];
+        const btn = document.getElementById('btn-exchange');
+        btn.style.display = "block";
+        btn.innerHTML = "⏭️ スルー (過)";
+        btn.className = "btn-act btn-gray";
+
+        render(); // クリックできるように再描画
+        isProc = false; // 操作を許可
 
         startTimer(timeExchange, () => {
-            confirmSecondCharleston(false);
+            exchangeSelection = []; // 時間切れはスルー扱い
+            execExchange();
         });
     } else {
-        await sleep(500);
-        let willDo = Math.random() < 0.7;
+        // 🌟 CPUの番：悩む演出の後に決断
+        document.getElementById('msg').innerText = `CPU ${currentAsker} 決断中...`;
+        await sleep(800 / speedMult); // 演出のタメ
+        let willDo = Math.random() < 0.7; // TODO: CPUの性格に合わせる
         processAskSecondCharleston(currentAsker, willDo);
     }
 }
 
-// ✅ プレイヤーが第2チャールストンへの参加/不参加を選択した時の処理関数
-function confirmSecondCharleston(willDo) {
-    stopTimer();
-    document.getElementById('charleston-confirm-ui').style.display = "none";
-    processAskSecondCharleston(0, willDo);
-}
-
-// 🧠 参加/不参加の回答を記録し、次の人に質問を回す関数
+// 🧠 参加/不参加の回答を記録し、即座に演出を出して次の人に回す関数
 function processAskSecondCharleston(askerIdx, willDo) {
     secondCharlestonParticipating[askerIdx] = willDo;
-    if (askerIdx !== 0) {
-        showCharlestonStatus(askerIdx, willDo);
-        if (willDo) {
-            hideCpuTiles[askerIdx] = 3;
-            renderCPU();
-        }
-    } else {
-        if (!willDo) {
-            showCharlestonStatus(0, false);
-        }
+    playSE('dahai'); // 決定した瞬間に音を鳴らす
+
+    showCharlestonStatus(askerIdx, willDo);
+
+    if (askerIdx !== 0 && willDo) {
+        hideCpuTiles[askerIdx] = 3;
+        renderCPU();
     }
+
     askedCount++;
+
+    // 🌟 追加：早期終了の判定（不成立の確定）
+    // 「既に参加決定した人数」＋「これから回答する残り人数」が1人以下なら、
+    // ペア（2人以上）が作れる可能性がゼロになったため、その場で不成立として終了する
+    let currentYesCount = secondCharlestonParticipating.filter(p => p).length;
+    let remainingAskers = 4 - askedCount;
+
+    if (currentYesCount + remainingAskers <= 1) {
+        logMsg("参加者不足が確定したため、早期終了します。");
+        // 0.8秒ほど待ってから終了（最後のCPUの「過」スタンプが見えるようにするため）
+        setTimeout(() => {
+            finishAskSecondCharleston();
+        }, 800 / speedMult);
+        return; // 次の人へは回さずに終了
+    }
+
+    isProc = true; // 次の人の処理までブロック
     askNextSecondCharleston();
 }
 
@@ -1655,22 +1723,28 @@ async function finishAskSecondCharleston() {
         await sleep(2000);
         hideCenterMessage();
 
+        // 🌟 参加ボタンを押していたのに不成立だった場合、隠した手牌を元に戻す
+        if (secondCharlestonParticipating[0] && humanSecondCharlestonTiles.length === 3) {
+            myHand.push(...humanSecondCharlestonTiles);
+            humanSecondCharlestonTiles = [];
+        }
+
         hideCpuTiles = [0, 0, 0, 0];
         clearCharlestonStatus();
-        renderCPU();
+        render(); renderCPU();
 
         charlestonPhase = false;
         isProc = false;
         checkT();
     } else {
-        if (secondCharlestonParticipating[0]) {
-            hideCenterMessage();
-            charlestonCount = 2;
-            startCharlestonSelection();
-            isProc = false;
-        } else {
-            execSecondCharleston("", "", "");
+        // 🌟 人間が参加しているなら、記憶しておいた選んだ牌を取り出す
+        let t1 = "", t2 = "", t3 = "";
+        if (secondCharlestonParticipating[0] && humanSecondCharlestonTiles.length === 3) {
+            t1 = humanSecondCharlestonTiles[0];
+            t2 = humanSecondCharlestonTiles[1];
+            t3 = humanSecondCharlestonTiles[2];
         }
+        execSecondCharleston(t1, t2, t3);
     }
 }
 
@@ -1680,30 +1754,19 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     isProc = true;
     document.getElementById('charleston-ui').style.display = "none";
 
-    // 🏆 ここに追加！交換前の手牌を記憶
+    // おかえりなさい実績用：交換前の手牌を算出
     let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
+    if (t1 !== "") oldHandStr = [...myHand, t1, t2, t3].sort((a, b) => SM[a] - SM[b]).join(',');
 
     if (secondCharlestonParticipating[0] && t1 !== "") {
-        // 🏆 ここを変更！【チャールストンの愛し子】
         let oldCharleston = playerStats.secondCharlestonCount;
         playerStats.secondCharlestonCount++;
         checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [5, 50, 500, 2500]);
         saveGameData();
-
-        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-        [t1, t2, t3].forEach(t => {
-            let idx = displayHand.indexOf(t);
-            if (idx !== -1) displayHand.splice(idx, 1);
-        });
-        myHand = displayHand;
-
-        exchangeSelection = [];
-
-        showCharlestonStatus(0, true);
-        render();
-    } else {
-        exchangeSelection = [];
     }
+
+    // 既に execExchange の時点で手牌から抜いてあるので、ここでは抜く処理を行わずリセットのみ
+    exchangeSelection = [];
 
     const data = await apiCall('/second_charleston', {
         player_idx: 0, t1: t1, t2: t2, t3: t3,
@@ -1713,13 +1776,13 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
         p3: secondCharlestonParticipating[3]
     });
 
-    // 🏆 ここに追加！【おかえりなさい】通信後の手牌と比較
+    // 🏆 おかえりなさい実績の判定
     if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立")) {
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
         if (oldHandStr === newHandStr) {
             playerStats.welcomeHomeCount = 1;
             saveGameData();
-            console.log("🏆 実績解除：おかえりなさい2");
+            showAchievementUnlock("おかえりなさい", "🎲");
         }
     }
 
@@ -1734,6 +1797,8 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
 
     hideCpuTiles = [0, 0, 0, 0];
     clearCharlestonStatus();
+    humanSecondCharlestonTiles = []; // 役目終了
+
     render(); renderCPU();
 
     charlestonPhase = false;
@@ -1844,14 +1909,19 @@ function renderMelds(idx) {
         meld.tiles.forEach((t, tileIdx) => {
             const i = document.createElement('img'); i.className = 'tile';
 
+            // 🌟 修正箇所：自分の暗槓は常に「両端が裏」になるように条件を整理
             if (idx !== 0 && isHidden && !isDevMode) {
+                // CPUの伏せ牌（または暗槓）は、開発者モードでなければ全部裏
                 i.src = 'images/ura.png';
-            } else if (meld.type === 'ankan' && !isHidden) {
+            } else if (meld.type === 'ankan') {
+                // 自分（または開発者モード時のCPU）の暗槓は、常に両端を裏にする
                 if (tileIdx === 0 || tileIdx === 3) i.src = 'images/ura.png';
                 else i.src = `images/${t}.png`;
             } else {
+                // ポン・明槓・加槓は全部表
                 i.src = `images/${t}.png`;
             }
+
             g.appendChild(i);
         });
         m.appendChild(g);
@@ -1927,12 +1997,12 @@ async function checkT() {
             if (isAutoPlay && myWinTiles.length > 0) {
                 if (canWin && selfActions.innerHTML === '') {
                     isProc = true;
-                    setTimeout(() => execTsumo(), 800 / speedMult);
+                    setTimeout(() => { isProc = false; execTsumo(); }, 800 / speedMult);
                     autoActed = true;
                 } else if (selfActions.innerHTML === '') {
                     if (drawnTile !== "") {
                         isProc = true;
-                        setTimeout(() => discard(drawnTile, true), 600 / speedMult);
+                        setTimeout(() => { isProc = false; discard(drawnTile, true); }, 600 / speedMult);
                         autoActed = true;
                     }
                 } else {
@@ -2157,8 +2227,7 @@ function removeLastDiscard() {
 // 🖐️ 指定した牌を捨てる通信を行い、CPUの反応待ちへ進む関数
 async function discard(t, isTsumogiri = false) {
     stopTimer();
-    if (isProc && !(isAutoPlay && myWinTiles.length > 0)) return;
-
+    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
     isProc = true;
 
     await apiCall('/discard', { player_idx: 0, tile: t });
@@ -2272,16 +2341,18 @@ async function cpu() {
                         await checkHumanReaction(currentCpuTurn, lastT);
                     };
 
+                    // 🌟 修正：フリーズ対策のロック解除
                     isProc = false;
 
                     if (isAutoDigest) {
                         isProc = true;
-                        setTimeout(() => btnWin.click(), 800 / speedMult);
+                        setTimeout(() => { isProc = false; btnWin.click(); }, 800 / speedMult);
                     } else {
                         startTimer(timeCall, () => btnSkip.click());
                     }
                     return;
                 } else {
+                    // 🌟 警告の原因：前回ここのカッコと処理が消えてしまっていました！
                     wallCount -= 1;
                     updateWall(wallCount);
                 }
@@ -2312,7 +2383,9 @@ async function cpu() {
         renderCPU();
         await sleep(500);
         await checkHumanReaction(currentCpuTurn, lastT);
-    } catch (e) { if (e.message === "流局") handleRoundEnd(); }
+    } catch (e) {
+        if (e.message === "流局") handleRoundEnd();
+    }
 }
 
 // 👁️ 他家が牌を捨てた時、自分が鳴けるか・ロンできるか判定してボタンを出す関数
@@ -2355,12 +2428,13 @@ async function checkHumanReaction(discarderIdx, tile) {
             document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
             checkCpuReactions(discarderIdx, tile);
         };
+        // 🌟 変更：setTimeoutの中に isProc = false; を追加
         document.getElementById('msg').innerText = "鳴き";
         isProc = false;
 
         if (isAutoDigest) {
             isProc = true;
-            setTimeout(() => execRon(false), 800 / speedMult);
+            setTimeout(() => { isProc = false; execRon(false); }, 800 / speedMult);
         } else {
             startTimer(timeCall, () => {
                 const skipBtn = document.getElementById('btn-skip');
@@ -2427,9 +2501,9 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
 // 🏆 自分のツモ番で「ツモ」を宣言してアガリ処理を行う関数
 async function execTsumo() {
     stopTimer();
-    if (isProc && !(isAutoPlay && myWinTiles.length > 0)) return;
-
+    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
     isProc = true;
+
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     let currentDrawnTile = drawnTile;
@@ -2461,7 +2535,7 @@ async function execTsumo() {
 // 🏆 他家の捨て牌（または加槓）に対して「ロン」を宣言してアガリ処理を行う関数
 async function execRon(isChankan = false) {
     stopTimer();
-    if (isProc && !(isAutoPlay && myWinTiles.length > 0)) return;
+    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
 
     isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
@@ -2704,80 +2778,99 @@ async function handleRoundEnd() {
     // 📊 詳細戦績の更新
     saveGameData();
 
-    for (let res of calcData.results) {
-        let groupedDetails = {};
-        for (let detail of res.details) {
-            let yakuKey = [...detail.yaku].sort().join(",");
-            let groupKey = `${detail.tile}_${yakuKey}`;
+    // 🌟 変更点1: 勝者だけ(calcData.results)のループをやめ、0〜3の4人全員のループにする
+    for (let i = 0; i < 4; i++) {
+        let isWinner = false;
+        let winData = null;
 
-            if (!groupedDetails[groupKey]) {
-                groupedDetails[groupKey] = {
-                    tile: detail.tile,
-                    yaku: detail.yaku,
-                    score: detail.score,
-                    count: 1,
-                    total_score: detail.score
-                };
-            } else {
-                groupedDetails[groupKey].count++;
-                groupedDetails[groupKey].total_score += detail.score;
+        // 🌟 変更点2: 今処理している人(i)がアガったかどうかをチェックする
+        for (let res of calcData.results) {
+            if (res.player === i) {
+                isWinner = true;
+                winData = res;
+                break;
             }
         }
 
-        let sortedDetails = Object.values(groupedDetails);
-        sortedDetails.sort((a, b) => {
-            if (b.total_score !== a.total_score) {
-                return b.total_score - a.total_score;
-            }
-            return SM[a.tile] - SM[b.tile];
-        });
+        let diff = calcData.scores[i]; // この局での点数変動
 
         let yakuHtml = "";
-        for (let d of sortedDetails) {
-            let tile = d.tile;
+        let titleText = "";
+        let scoreText = "";
+        let scoreColor = "";
 
-            const tierOrder = {
-                "yaku-tier-64": 1,
-                "yaku-tier-32": 2,
-                "yaku-tier-16": 3,
-                "yaku-tier-8": 4,
-                "yaku-tier-6": 5,
-                "yaku-tier-4": 6,
-                "yaku-tier-2": 7,
-                "yaku-tier-1": 8,
-                "yaku-tier-multi": 9
-            };
-            d.yaku.sort((a, b) => {
-                let tierA = getYakuTierClass(a);
-                let tierB = getYakuTierClass(b);
+        // 🌟 変更点3: アガった人と、それ以外(0点・失点)で表示内容を分ける
+        if (isWinner) {
+            // ▼ アガった人（今まで通りの役リスト計算処理）
+            titleText = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
+            scoreText = `${winData.total_score} 点`;
+            scoreColor = "#2ecc71"; // 緑色
 
-                let orderA = tierOrder[tierA] !== undefined ? tierOrder[tierA] : 99;
-                let orderB = tierOrder[tierB] !== undefined ? tierOrder[tierB] : 99;
+            let groupedDetails = {};
+            for (let detail of winData.details) {
+                let yakuKey = [...detail.yaku].sort().join(",");
+                let groupKey = `${detail.tile}_${yakuKey}`;
 
-                return orderA - orderB;
+                if (!groupedDetails[groupKey]) {
+                    groupedDetails[groupKey] = {
+                        tile: detail.tile, yaku: detail.yaku, score: detail.score, count: 1, total_score: detail.score
+                    };
+                } else {
+                    groupedDetails[groupKey].count++;
+                    groupedDetails[groupKey].total_score += detail.score;
+                }
+            }
+
+            let sortedDetails = Object.values(groupedDetails);
+            sortedDetails.sort((a, b) => {
+                if (b.total_score !== a.total_score) return b.total_score - a.total_score;
+                return SM[a.tile] - SM[b.tile];
             });
 
-            let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;">×${d.count}枚</span>` : "";
-            let scoreStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa;">(${d.score}点 × ${d.count})</span> <br> ${d.total_score}点` : `${d.score}点`;
+            for (let d of sortedDetails) {
+                let tile = d.tile;
+                const tierOrder = { "yaku-tier-64": 1, "yaku-tier-32": 2, "yaku-tier-16": 3, "yaku-tier-8": 4, "yaku-tier-6": 5, "yaku-tier-4": 6, "yaku-tier-2": 7, "yaku-tier-1": 8, "yaku-tier-multi": 9 };
+                d.yaku.sort((a, b) => {
+                    let orderA = tierOrder[getYakuTierClass(a)] !== undefined ? tierOrder[getYakuTierClass(a)] : 99;
+                    let orderB = tierOrder[getYakuTierClass(b)] !== undefined ? tierOrder[getYakuTierClass(b)] : 99;
+                    return orderA - orderB;
+                });
 
-            yakuHtml += `
-                                            <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box;">
-                                                <div style="display: flex; align-items: center; width: 160px;">
-                                                    <span style="color: #ddd; margin-right: 10px; font-size: 16px;">和了牌</span>
-                                                    <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
-                                                    ${countStr}
-                                                </div>
-                                                <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
-                                                    ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${getJaYakuName(y)}</span><span class="en">${getEnYakuName(y)}</span></span>`).join("")}
-                                                </div>
-                                                <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;">
-                                                    ${scoreStr}
-                                                </div>
-                                            </div>`;
+                let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;">×${d.count}枚</span>` : "";
+                let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa;">(${d.score}点 × ${d.count})</span> <br> ${d.total_score}点` : `${d.score}点`;
+
+                yakuHtml += `
+                    <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
+                        <div style="display: flex; align-items: center; width: 160px;">
+                            <span style="color: #ddd; margin-right: 10px; font-size: 16px;">和了牌</span>
+                            <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
+                            ${countStr}
+                        </div>
+                        <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
+                            ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${getJaYakuName(y)}</span><span class="en">${getEnYakuName(y)}</span></span>`).join("")}
+                        </div>
+                        <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;">
+                            ${scoreDetailStr}
+                        </div>
+                    </div>`;
+            }
+        } else {
+            // ▼ アガれなかった人・マイナスの人用の表示
+            titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
+            let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+            scoreText = `${diffStr} 点`;
+            scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
+
+            let resultLabel = diff < 0 ? "失点 (振込み等)" : (calcData.results.length === 0 ? "流局" : "ー");
+            yakuHtml = `
+                <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
+                    ${resultLabel}
+                </div>`;
         }
 
-        let closedHand = (res.player === 0) ? myHand : (myAllHands[res.player] || []);
-        let melds = (res.player === 0) ? myMelds : (myAllMelds[res.player] || []);
+        // 🌟 変更点4: 手牌の取得元を「res.player」から「i」に変更
+        let closedHand = (i === 0) ? myHand : (myAllHands[i] || []);
+        let melds = (i === 0) ? myMelds : (myAllMelds[i] || []);
         let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
 
         let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
@@ -2793,9 +2886,9 @@ async function handleRoundEnd() {
 
             for (let m of melds) {
                 handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
-                for (let i = 0; i < m.tiles.length; i++) {
-                    let t = m.tiles[i];
-                    let src = (m.type === 'ankan' && (i === 0 || i === 3)) ? 'ura' : t;
+                for (let idx = 0; idx < m.tiles.length; idx++) {
+                    let t = m.tiles[idx];
+                    let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
                     handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
                 }
                 handHtml += `</div>`;
@@ -2803,8 +2896,10 @@ async function handleRoundEnd() {
         }
         handHtml += `</div>`;
 
-        document.getElementById('win-label-text').innerText = res.player === 0 ? "あなたの和了！" : `CPU ${res.player} の和了！`;
-        document.getElementById('win-score').innerText = `${res.total_score} 点`;
+        // 🌟 画面へのセット（scoreは色付けのため innerHTML で上書き）
+        document.getElementById('win-label-text').innerText = titleText;
+        document.getElementById('win-score').innerHTML = scoreText;
+        document.getElementById('win-score').style.color = scoreColor;
         document.getElementById('win-hand-display').innerHTML = handHtml;
         document.getElementById('win-yaku').innerHTML = yakuHtml;
 
