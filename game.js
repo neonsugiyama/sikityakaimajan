@@ -1160,6 +1160,14 @@ function safeUpdate(data) {
     if (data.cpu_targets !== undefined) cpuTargets = data.cpu_targets;
     if (data.cpu_personalities !== undefined) cpuPersonalities = data.cpu_personalities;
 
+    // 🌟 修正：サーバーが勝者のデータを自分の変数に入れてしまうバグへの防御策
+    // 全員分の公開情報 (all_*) から自分の分 (インデックス0) を強制的に同期します。
+    if (myAllMelds && myAllMelds.length === 4) myMelds = myAllMelds[0] || [];
+    if (myAllWinTiles && myAllWinTiles.length === 4) myWinTiles = myAllWinTiles[0] || [];
+    if (myAllHands && myAllHands.length === 4 && myAllHands[0] && myAllHands[0][0] !== 'ura') {
+        myHand = myAllHands[0];
+    }
+
     updateInfoUI();
     updateWaitsButton();
 }
@@ -2330,7 +2338,8 @@ async function cpu() {
                         btnWin.style.display = "none";
                         btnSkip.style.display = "none";
                         lastT = kTile;
-                        await execRon(true);
+
+                        await execRon(true); // あなたがロン！
                     };
 
                     btnSkip.onclick = async () => {
@@ -2514,6 +2523,26 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 showCallout(data.player, "胡");
                 await sleep(1500);
 
+                if (isKakan) {
+                    showCallout(data.player, "槍槓");
+                    await sleep(1500);
+
+                    // 奪われるCPUの副露から1枚減らす
+                    let targetMelds = myAllMelds[discarderIdx];
+                    if (targetMelds && targetMelds.length > 0) {
+                        let m = targetMelds.find(m => m.tiles.length === 4 && m.tiles.includes(tile));
+                        if (m) {
+                            m.tiles.pop();
+                            m.type = "pong";
+                        }
+                    }
+                } else {
+                    removeLastDiscard();
+                }
+
+                // 🌟 ここで描画！文字が出たあとに牌が動く
+                render(); renderCPU();
+
                 if (data.yaku) {
                     if (data.yaku.includes("地胡")) { showCallout(data.player, "地胡"); await sleep(4000); }
 
@@ -2555,7 +2584,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
 // 🏆 自分のツモ番で「ツモ」を宣言してアガリ処理を行う関数
 async function execTsumo() {
     stopTimer();
-    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
+    if (isProc) return;
     isProc = true;
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
@@ -2564,10 +2593,12 @@ async function execTsumo() {
 
     const data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
 
-    drawnTile = ""; render(); renderCPU();
-
+    // 🌟 修正：文字が出る「前」に牌が動かないよう、描画(render)をスリープの後に移動！
     showCallout(0, "自摸");
     await sleep(1500);
+
+    drawnTile = "";
+    render(); renderCPU(); // ← ここで初めて画面を更新する
 
     if (data.yaku) {
         if (data.yaku.includes("天胡")) { showCallout(0, "天胡"); await sleep(4000); }
@@ -2589,23 +2620,44 @@ async function execTsumo() {
 // 🏆 他家の捨て牌（または加槓）に対して「ロン」を宣言してアガリ処理を行う関数
 async function execRon(isChankan = false) {
     stopTimer();
-    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
+    if (isProc) return;
 
     isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    if (!isChankan) removeLastDiscard();
 
     const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan });
-    render(); renderCPU();
 
+    // 1. まず「胡」を出す
     showCallout(0, "胡");
     await sleep(1500);
+
+    // 🌟 2. 槍槓（チャンカン）の場合、牌を動かす前に演出を入れる！
+    if (isChankan) {
+        showCallout(0, "槍槓");
+        await sleep(1500); // 「槍槓」の文字をじっくり見せる
+
+        // 演出が終わったので、相手の副露を減らす（奪う準備）
+        let cpuMelds = myAllMelds[lastDiscardPlayer];
+        if (cpuMelds && cpuMelds.length > 0) {
+            let targetMeld = cpuMelds.find(m => m.tiles.length === 4 && m.tiles.includes(lastT));
+            if (targetMeld) {
+                targetMeld.tiles.pop();
+                targetMeld.type = "pong";
+            }
+        }
+    } else {
+        removeLastDiscard();
+    }
+
+    // 🌟 3. ここで描画！これで「槍槓」の文字が出たあとに牌が動く
+    render(); renderCPU();
 
     if (data.yaku) {
         if (data.yaku.includes("地胡")) { showCallout(0, "地胡"); await sleep(4000); }
 
         for (let y of data.yaku) {
-            if (y === "槍槓" || y === "花天月地") {
+            // 🌟🌟🌟 ここを修正！ 「槍槓」は既に上で出しているので除外し、「花天月地」だけを残す！
+            if (y === "花天月地") {
                 showCallout(0, y);
                 await sleep(1500);
             }
@@ -2664,26 +2716,37 @@ async function execSelfMeld(type, t, s, isHidden = false) {
         showCallout(0, "加槓");
         await sleep(1500);
 
-        showCallout(data.winner, "胡");
-        await sleep(1500);
-
-        showCallout(data.winner, "槍槓");
-        await sleep(1500);
-
         lastT = t;
+        if (wallCount === 0) { showCallout(data.winner, "花天月地"); await sleep(1500); }
 
-        if (wallCount === 0) {
-            showCallout(data.winner, "花天月地");
-            await sleep(1500);
-        }
-
+        // 和了処理
         if (data.winner === 0) {
             await execRon(true);
         } else {
+            showCallout(data.winner, "胡");
+            await sleep(1500);
+
+            showCallout(data.winner, "槍槓");
+            await sleep(1500);
+
+            if (wallCount === 0) {
+                showCallout(data.winner, "花天月地");
+                await sleep(1500);
+            }
+
             await apiCall('/win_ron', { player_idx: data.winner, tile: data.tile, is_chankan: "true" });
+
+            // 🌟 修正：胡の文字が出たあとの、画面更新直前に自分の副露を減らす！
+            if (myMelds.length > 0) {
+                let lastMeld = myMelds[myMelds.length - 1];
+                if (lastMeld.tiles.length === 4) {
+                    lastMeld.tiles.pop();
+                    lastMeld.type = "pong";
+                }
+            }
         }
 
-        render(); renderCPU();
+        render(); renderCPU(); // 🌟 ここで同時に更新される
         isProc = false; checkT();
         return;
     }
