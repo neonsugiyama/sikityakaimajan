@@ -762,8 +762,27 @@ body {
     justify-content: center;
     flex-wrap: wrap;
     max-width: 580px;
+    /* 🌟ここから下を追加・変更しています */
+    max-height: 350px; /* 縦の長さを最大350pxに固定 */
+    overflow-y: auto; /* はみ出た分を縦スクロールにする */
+    padding-right: 5px; /* スクロールバーがかぶらないように隙間をあける */
     margin: 0 auto;
 }
+
+    /* 🌟ここから下の3つのブロックも新しく追加してください（スクロールバーの装飾） */
+    .waits-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .waits-list::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+
+    .waits-list::-webkit-scrollbar-thumb {
+        background: #e67e22; /* パネルの枠線と同じオレンジ色 */
+        border-radius: 3px;
+    }
 
 .wait-item {
     width: 60px;

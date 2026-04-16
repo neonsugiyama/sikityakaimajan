@@ -777,7 +777,13 @@ let timeDiscard = 60;
 let timeCall = 20;
 let timeExchange = 30;
 
-const SM = { "1m": 1, "9m": 2, "1p": 11, "2p": 12, "3p": 13, "4p": 14, "5p": 15, "6p": 16, "7p": 17, "8p": 18, "9p": 19, "1s": 21, "2s": 22, "3s": 23, "4s": 24, "5s": 25, "6s": 26, "7s": 27, "8s": 28, "9s": 29, "東": 41, "南": 42, "西": 43, "北": 44, "白": 45, "發": 46, "中": 47, "春": 51, "夏": 52, "秋": 53, "冬": 54 };
+const SM = {
+    "1p": 11, "2p": 12, "3p": 13, "4p": 14, "5p": 15, "6p": 16, "7p": 17, "8p": 18, "9p": 19,
+    "1s": 21, "2s": 22, "3s": 23, "4s": 24, "5s": 25, "6s": 26, "7s": 27, "8s": 28, "9s": 29,
+    "1m": 31, "9m": 39,
+    "東": 41, "南": 42, "西": 43, "北": 44, "白": 45, "發": 46, "中": 47,
+    "春": 51, "夏": 52, "秋": 53, "冬": 54
+};
 
 // ⏳ 持ち時間タイマーを開始し、0秒になったら指定のコールバック処理を実行する関数
 function startTimer(seconds, timeoutCallback) {
@@ -1381,7 +1387,12 @@ function showWaitsPanel() {
     // 「何切る」モード（14枚の時）の表示処理
     if (currentNanikiru) {
         panel.style.minWidth = "400px";
-        for (let discardTile in currentNanikiru) {
+
+        // 🌟 追加：切る牌の順番も「マンズ→ピンズ→ソウズ→字牌」に整える
+        let sortedDiscards = Object.keys(currentNanikiru).sort((a, b) => SM[a] - SM[b]);
+
+        // 🌟🌟 修正箇所： in currentNanikiru ではなく、上で作った sortedDiscards を使う！
+        for (let discardTile of sortedDiscards) {
             const row = document.createElement('div');
             row.style.display = "flex";
             row.style.alignItems = "center";
@@ -1390,7 +1401,10 @@ function showWaitsPanel() {
             row.style.borderBottom = "1px solid #444";
             row.style.width = "100%";
 
-            const waits = currentNanikiru[discardTile].filter(w => !["春", "夏", "秋", "冬"].includes(w));
+            // 待ち牌の順番も綺麗にソートする！
+            const waits = currentNanikiru[discardTile]
+                .filter(w => !["春", "夏", "秋", "冬"].includes(w))
+                .sort((a, b) => SM[a] - SM[b]);
 
             row.innerHTML = `
                         <div style="display:flex; flex-direction:column; align-items:center; min-width:50px;">
@@ -1409,7 +1423,11 @@ function showWaitsPanel() {
     // 通常の待ち表示（13枚の時）
     else if (currentWaits.length > 0) {
         panel.style.minWidth = "250px";
-        currentWaits.forEach(w => {
+
+        // 待ち牌の順番を綺麗にソートする！
+        let sortedWaits = [...currentWaits].sort((a, b) => SM[a] - SM[b]);
+
+        sortedWaits.forEach(w => {
             let visible = 0;
             myHand.forEach(t => { if (t === w) visible++; });
             myAllMelds.forEach(pm => { pm.forEach(m => { m.tiles.forEach(t => { if (t === w) visible++; }); }); });

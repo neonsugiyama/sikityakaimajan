@@ -1333,7 +1333,7 @@ def debug_setup(scenario: str):
         game.is_first_turn = [False]*4
         game.melds[0] = [{"type": "pong", "tiles": ["5p", "5p", "5p"]}]
         game.hands[0] = ["1p","2p","3p","4p","6p","7p","8p","9p","1s","2s"] 
-        game.hands[1] = ["2m","2m","3m","3m","4m","4m","5m","5m","6m","6m","3p","4p","春"]
+        game.hands[1] = ["2s","2s","3s","3s","4s","4s","5s","5s","6s","6s","3p","4p","春"]
         game.wall.append("5p")
 
     elif scenario == "chitoi_joker":
@@ -1348,11 +1348,11 @@ def debug_setup(scenario: str):
         game.is_first_turn = [False]*4
         game.melds[0] = [
             {"type": "ankan", "tiles": ["1m","1m","1m","1m"]},
-            {"type": "minkan", "tiles": ["2m","2m","2m","2m"]},
-            {"type": "minkan", "tiles": ["3m","3m","3m","3m"]}
+            {"type": "minkan", "tiles": ["2p","2p","2p","2p"]},
+            {"type": "minkan", "tiles": ["3s","3s","3s","3s"]}
         ]
-        game.hands[0] = ["4m","4m","4m","東","東"]
-        game.wall.append("4m") 
+        game.hands[0] = ["4s","4s","4s","東"]
+        game.wall.append("4s") 
 
     elif scenario == "conflict_call":
         game.dealer = 0
