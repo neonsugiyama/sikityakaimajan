@@ -773,9 +773,6 @@ let timeLeft = 0;
 let maxTimeForTimer = 0;
 let timerAction = null;
 let currentTickAudio = null;
-let timeDiscard = 60;
-let timeCall = 20;
-let timeExchange = 30;
 
 const SM = {
     "1p": 11, "2p": 12, "3p": 13, "4p": 14, "5p": 15, "6p": 16, "7p": 17, "8p": 18, "9p": 19,
@@ -784,6 +781,81 @@ const SM = {
     "東": 41, "南": 42, "西": 43, "北": 44, "白": 45, "發": 46, "中": 47,
     "春": 51, "夏": 52, "秋": 53, "冬": 54
 };
+
+// ==========================================
+// ⚙️ 設定用のグローバル変数（初期値）を追加
+// ==========================================
+let timeDiscard = 60;
+let timeCall = 20;
+let timeExchange = 30;
+let confCpuLevel = 1;       // 0:よわい, 1:ふつう, 2:つよい
+let confTsumogiri = true;   // ツモ切り表示ON/OFF
+let confWaitsHint = true;   // 待ち牌ヒントON/OFF
+let confEffective = false;  // 有効牌表示ON/OFF
+
+// ==========================================
+// ⚙️ 設定を適用してゲームを開始する関数
+// ==========================================
+function applySettingsAndStart() {
+    playSE('start');
+
+    // 1. 画面の入力値を変数に保存 (HTML側のIDに合わせて安全に取得)
+    let elDiscard = document.getElementById('set-discard');
+    if (elDiscard) timeDiscard = parseInt(elDiscard.value);
+
+    let elCall = document.getElementById('set-call');
+    if (elCall) timeCall = parseInt(elCall.value);
+
+    let elExchange = document.getElementById('set-exchange');
+    if (elExchange) timeExchange = parseInt(elExchange.value);
+
+    let elCpu = document.getElementById('set-cpu');
+    if (elCpu) confCpuLevel = parseInt(elCpu.value);
+
+    let elTsumogiri = document.getElementById('set-tsumogiri');
+    if (elTsumogiri) confTsumogiri = elTsumogiri.checked;
+
+    let elWaits = document.getElementById('set-waits');
+    if (elWaits) confWaitsHint = elWaits.checked;
+
+    // 2. 設定画面を閉じる
+    document.getElementById('settings-screen').style.display = 'none';
+
+    // 3. 🌟 ここでようやく雀卓を表示し、ゲーム初期化（init）を走らせる！
+    document.querySelector('.table').style.opacity = 1;
+    init();
+
+    console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel, confTsumogiri, confWaitsHint });
+}
+
+// ⚙️ 対局前設定画面の入力値を「初期値」にリセットする関数
+function resetMatchSettingsUI() {
+    playSE('click'); // 音を鳴らす
+
+    // セレクトボックス（CPUレベル）を「ふつう(1)」に戻す
+    const elCpu = document.getElementById('set-cpu');
+    if (elCpu) elCpu.value = "1";
+
+    // スライダーと、横の数値テキストを初期値に戻す
+    const elDiscard = document.getElementById('set-discard');
+    if (elDiscard) { elDiscard.value = 60; document.getElementById('val-discard').innerText = "60"; }
+
+    const elCall = document.getElementById('set-call');
+    if (elCall) { elCall.value = 20; document.getElementById('val-call').innerText = "20"; }
+
+    const elExchange = document.getElementById('set-exchange');
+    if (elExchange) { elExchange.value = 30; document.getElementById('val-exchange').innerText = "30"; }
+
+    // チェックボックスを初期状態に戻す
+    const elTsumogiri = document.getElementById('set-tsumogiri');
+    if (elTsumogiri) elTsumogiri.checked = true;
+
+    const elWaits = document.getElementById('set-waits');
+    if (elWaits) elWaits.checked = true;
+
+    const elEffective = document.getElementById('set-effective');
+    if (elEffective) elEffective.checked = false;
+}
 
 // ⏳ 持ち時間タイマーを開始し、0秒になったら指定のコールバック処理を実行する関数
 function startTimer(seconds, timeoutCallback) {
@@ -3350,20 +3422,24 @@ function backToTitle() {
     document.getElementById('title-screen').style.display = 'flex';
 }
 
-// 🎮 「CPU戦」を選択し、ゲーム画面へ移行して初期化を開始する関数
+// 🎮 「CPU戦」を選択した時、いきなり始めずに【設定画面を開く】ように変更
 function startCpuGame() {
     playSE('click');
     currentGameMode = 'cpu';
     const modeScreen = document.getElementById('mode-select-screen');
 
+    // モード選択画面をフワッと消す
     modeScreen.style.opacity = '0';
-    modeScreen.style.transition = 'opacity 1s';
+    modeScreen.style.transition = 'opacity 0.5s';
 
     setTimeout(() => {
         modeScreen.style.display = 'none';
         modeScreen.style.opacity = '1';
-        init();
-    }, 1000);
+
+        // 🌟 雀卓(init)ではなく、設定画面を呼び出す！
+        document.getElementById('settings-screen').style.display = 'flex';
+        document.getElementById('settings-screen').style.zIndex = '35000'; // 念のため最前面に
+    }, 500);
 }
 
 // ==========================================

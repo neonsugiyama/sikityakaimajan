@@ -86,6 +86,69 @@
         </div>
     </div>
 
+    <div id="settings-screen" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="width: 800px !important; height: 600px !important; display: flex; flex-direction: column;">
+            <h2 class="modal-title">MATCH SETTINGS</h2>
+
+            <div class="settings-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; padding: 10px;">
+
+                <div class="settings-box" style="background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid #555; border-radius: 8px;">
+                    <h3 style="color: #e67e22; margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px;">難易度・タイマー</h3>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; color: #bdc3c7; margin-bottom: 5px;">CPUレベル</label>
+                        <select id="set-cpu" style="width: 100%; padding: 8px; background: #2c3e50; color: white; border: 1px solid #3498db; border-radius: 5px; font-size: 16px;">
+                            <option value="0">よわい</option>
+                            <option value="1" selected>ふつう</option>
+                            <option value="2">つよい</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; color: #bdc3c7; margin-bottom: 5px;">打牌時間: <span id="val-discard" style="color: #f1c40f; font-weight: bold;">60</span> 秒</label>
+                        <input type="range" id="set-discard" min="5" max="300" step="5" value="60" style="width: 100%;" oninput="document.getElementById('val-discard').innerText=this.value">
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; color: #bdc3c7; margin-bottom: 5px;">鳴き時間: <span id="val-call" style="color: #f1c40f; font-weight: bold;">20</span> 秒</label>
+                        <input type="range" id="set-call" min="5" max="300" step="5" value="20" style="width: 100%;" oninput="document.getElementById('val-call').innerText=this.value">
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; color: #bdc3c7; margin-bottom: 5px;">交換時間: <span id="val-exchange" style="color: #f1c40f; font-weight: bold;">30</span> 秒</label>
+                        <input type="range" id="set-exchange" min="5" max="300" step="5" value="30" style="width: 100%;" oninput="document.getElementById('val-exchange').innerText=this.value">
+                    </div>
+                </div>
+
+                <div class="settings-box" style="background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid #555; border-radius: 8px;">
+                    <h3 style="color: #3498db; margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px;">画面・アシスト機能</h3>
+
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <label style="color: #bdc3c7;">ツモ切り表示 (暗くする)</label>
+                        <input type="checkbox" id="set-tsumogiri" checked style="transform: scale(1.5);">
+                    </div>
+
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <label style="color: #bdc3c7;">待ち牌ヒントボタン表示</label>
+                        <input type="checkbox" id="set-waits" checked style="transform: scale(1.5);">
+                    </div>
+
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <label style="color: #bdc3c7;">有効牌表示 (何切る機能)</label>
+                        <input type="checkbox" id="set-effective" style="transform: scale(1.5);">
+                    </div>
+                </div>
+
+            </div>
+
+            <div style="display: flex; justify-content: center; align-items: center; gap: 30px; margin-top: 10px;">
+                <button class="btn-start" style="padding: 15px 60px; font-size: 28px;" onclick="applySettingsAndStart()">対局開始！</button>
+
+                <button onclick="resetMatchSettingsUI()" style="background: transparent; border: 2px solid #7f8c8d; color: #bdc3c7; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.color='#fff'; this.style.borderColor='#bdc3c7';" onmouseout="this.style.color='#bdc3c7'; this.style.borderColor='#7f8c8d';">↺ 初期設定に戻す</button>
+            </div>
+        </div>
+    </div>
+
     <div id="friend-match-modal" class="modal-overlay" style="display: none; z-index: 40000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.85);">
         <div style="background: #1e272e; padding: 30px; border-radius: 12px; width: 400px; text-align: center; color: white; border: 2px solid #3498db; box-shadow: 0 0 20px rgba(52, 152, 219, 0.5);">
             <h2 style="margin-top: 0; color: #3498db;">🤝 友人戦ロビー</h2>
@@ -883,135 +946,135 @@
         </div>
     </div>
 
-        <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
-            <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
+    <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
+        <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
 
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
-            <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
-            <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
+        <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
 
-            <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
-        </div>
-        <div class="table">
-            <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
+        <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
+    </div>
+    <div class="table">
+        <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
 
-            <div id="center-message"></div>
-            <div id="dice-overlay"></div>
+        <div id="center-message"></div>
+        <div id="dice-overlay"></div>
 
-            <div class="center-info">
-                <div id="round-info-center">
-                    <span id="round-text">第 -- 局</span>
-                    <button id="btn-toggle-bgm" class="btn-mini-icon" onclick="toggleBGM()" title="BGM切替: ON">🎵</button>
-                </div>
-                <div id="wall-count">山: --</div>
-                <div id="msg"></div>
+        <div class="center-info">
+            <div id="round-info-center">
+                <span id="round-text">第 -- 局</span>
+                <button id="btn-toggle-bgm" class="btn-mini-icon" onclick="toggleBGM()" title="BGM切替: ON">🎵</button>
             </div>
-
-            <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
-            <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
-            <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
-            <div id="c-status-2" class="charleston-status pos-c-status-2"></div>
-            <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
-
-            <div class="pos-name-0">
-                <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
-            </div>
-            <div class="pos-score-0">
-                <div id="player-score-0" class="player-score"></div>
-            </div>
-            <div class="pos-round-score-0">
-                <div id="player-round-score-0" class="player-round-score"></div>
-            </div>
-
-            <div class="pos-waits-btn">
-                <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
-            </div>
-            <div class="pos-auto-btn">
-                <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
-            </div>
-            <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
-                <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
-            </div>
-
-            <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
-            <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
-            <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
-
-            <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
-            <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
-            <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
-
-            <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
-            <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
-            <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
-
-            <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
-            <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
-            <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
-            <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
-
-            <div id="charleston-ui">
-                <div>
-                    <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
-                    <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
-                    <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;" onclick="execExchange()">交換決定！</button>
-                </div>
-            </div>
-
-            <div id="charleston-confirm-ui">
-                <div>
-                    <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
-                    <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
-                    <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(true)">はい、参加する</button>
-                    <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(false)">いいえ</button>
-                </div>
-            </div>
-
-            <div id="win-zone-0" class="win-zone win-zone-0" style="display:none;"></div>
-            <div id="win-zone-1" class="win-zone win-zone-1" style="display:none;"></div>
-            <div id="win-zone-2" class="win-zone win-zone-2" style="display:none;"></div>
-            <div id="win-zone-3" class="win-zone win-zone-3" style="display:none;"></div>
-
-            <div class="action-wrapper">
-                <div class="action-layer" id="opponent-actions">
-                    <button id="btn-win" class="btn-act btn-red">アガリ！</button>
-                    <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
-                    <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
-                    <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
-                    <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
-                    <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
-                    <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
-                </div>
-                <div class="action-layer" id="self-actions"></div>
-            </div>
-
-            <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
-            <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
-            <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
-            <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
-            <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
-            <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
-
-            <div id="waits-panel" class="waits-panel" style="display:none;">
-                <div class="waits-header">
-                    <span>待ち牌・残り枚数</span>
-                    <button onclick="hideWaitsPanel()">×</button>
-                </div>
-                <div id="waits-list" class="waits-list"></div>
-            </div>
-
-            <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
+            <div id="wall-count">山: --</div>
+            <div id="msg"></div>
         </div>
 
-        <div id="flash-overlay"></div>
-        <div id="special-yaku-overlay"></div>
-        <div id="big-yaku-text"></div>
+        <div id="timer-display">⏱ <span id="timer-sec">60</span>s</div>
+        <div id="c-status-0" class="charleston-status pos-c-status-0"></div>
+        <div id="c-status-1" class="charleston-status pos-c-status-1"></div>
+        <div id="c-status-2" class="charleston-status pos-c-status-2"></div>
+        <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
 
-        <script src="game.js?v=2"></script>
+        <div class="pos-name-0">
+            <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
+        </div>
+        <div class="pos-score-0">
+            <div id="player-score-0" class="player-score"></div>
+        </div>
+        <div class="pos-round-score-0">
+            <div id="player-round-score-0" class="player-round-score"></div>
+        </div>
+
+        <div class="pos-waits-btn">
+            <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
+        </div>
+        <div class="pos-auto-btn">
+            <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
+        </div>
+        <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
+            <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
+        </div>
+
+        <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
+        <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
+        <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
+
+        <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
+        <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
+        <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
+
+        <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
+        <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
+        <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
+
+        <div class="call-wrap-0"><div id="call-text-0" class="call-text"></div></div>
+        <div class="call-wrap-1"><div id="call-text-1" class="call-text"></div></div>
+        <div class="call-wrap-2"><div id="call-text-2" class="call-text"></div></div>
+        <div class="call-wrap-3"><div id="call-text-3" class="call-text"></div></div>
+
+        <div id="charleston-ui">
+            <div>
+                <h2 id="c-title" style="color: #3498db; margin: 0 0 5px 0; font-size: 20px;">第1交換（換三張）</h2>
+                <p style="font-size: 16px; font-weight: bold; margin: 0;">手牌から不要な牌を <span style="color: #e74c3c;">3枚</span> 選んでください</p>
+                <button id="btn-exchange" class="btn-act btn-blue" style="margin: 15px auto 0; display: none; font-size: 16px; padding: 8px 16px;" onclick="execExchange()">交換決定！</button>
+            </div>
+        </div>
+
+        <div id="charleston-confirm-ui">
+            <div>
+                <h2 style="color: #f1c40f; margin: 0 0 5px 0; font-size: 20px;">第2交換 (Second Charleston)</h2>
+                <p style="font-size: 16px; font-weight: bold; margin: 0;">続けてもう一度交換を行いますか？</p>
+                <button class="btn-act btn-blue" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(true)">はい、参加する</button>
+                <button class="btn-act btn-gray" style="display: inline-block; margin: 15px 10px 0; font-size: 16px; padding: 8px 16px;" onclick="confirmSecondCharleston(false)">いいえ</button>
+            </div>
+        </div>
+
+        <div id="win-zone-0" class="win-zone win-zone-0" style="display:none;"></div>
+        <div id="win-zone-1" class="win-zone win-zone-1" style="display:none;"></div>
+        <div id="win-zone-2" class="win-zone win-zone-2" style="display:none;"></div>
+        <div id="win-zone-3" class="win-zone win-zone-3" style="display:none;"></div>
+
+        <div class="action-wrapper">
+            <div class="action-layer" id="opponent-actions">
+                <button id="btn-win" class="btn-act btn-red">アガリ！</button>
+                <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
+                <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
+                <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
+                <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
+                <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
+                <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
+            </div>
+            <div class="action-layer" id="self-actions"></div>
+        </div>
+
+        <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
+        <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
+        <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
+        <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
+        <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
+        <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
+
+        <div id="waits-panel" class="waits-panel" style="display:none;">
+            <div class="waits-header">
+                <span>待ち牌・残り枚数</span>
+                <button onclick="hideWaitsPanel()">×</button>
+            </div>
+            <div id="waits-list" class="waits-list"></div>
+        </div>
+
+        <div id="debug-log" style="position: absolute; bottom: 10px; left: 10px; width: 300px; height: 150px; background: rgba(0,0,0,0.8); color: #2ecc71; font-family: monospace; font-size: 12px; overflow-y: scroll; padding: 10px; border: 1px solid #2ecc71; z-index: 1000; display: none; border-radius: 5px;"></div>
+    </div>
+
+    <div id="flash-overlay"></div>
+    <div id="special-yaku-overlay"></div>
+    <div id="big-yaku-text"></div>
+
+    <script src="game.js?v=2"></script>
 </body>
 </html>
