@@ -4313,3 +4313,24 @@ function copyRoomUrl() {
         alert("コピーに失敗しました。手動でURLを共有してください。");
     });
 }
+
+// ==========================================
+// ★ マウス操作・ショートカット制御
+// ==========================================
+
+// 🖱️ 右クリックでツモ切り（引いてきた牌をそのまま捨てる）機能
+document.addEventListener('contextmenu', (e) => {
+    // ブラウザ標準の右クリックメニューが出るのを防ぐ
+    e.preventDefault();
+
+    // 自分のターンで、処理中ではなく、ツモ牌が存在し、交換フェーズではない場合
+    if (!isProc && turn === 0 && drawnTile !== "" && !charlestonPhase) {
+
+        // 特殊な選択待ち状態（他家の牌を鳴くかどうかの場面など）では誤爆を防ぐ
+        const msgText = document.getElementById('msg').innerText;
+        if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
+        // ツモ切りを実行（true を渡すことでエフェクトがツモ切り専用の青白い光になる）
+        discard(drawnTile, true);
+    }
+});
