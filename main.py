@@ -482,30 +482,35 @@ def cpu_turn(cpu_idx: int):
         }
         res = evaluate_hand(win_data)
         if "error" not in res:
-            is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+            has_won_already = len(game.win_tiles[cpu_idx]) > 0
+            has_season_in_hand = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"])
+            is_pass = False
             
-            jokers_count = sum(1 for t in game.hands[cpu_idx] + [drawn] if t in SEASON_TILES)
-            is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[cpu_idx] in [1, 2])
-            
-            is_kokushi_pass = False
-            if "十三幺九" in res.get("yaku", []):
-                waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
-                if len(waits) < 13:
-                    remaining = 0
-                    for w in waits:
-                        visible = get_visible_count(w, game)
-                        remaining += max(0, 4 - visible - game.hands[cpu_idx].count(w))
-                    if len(game.wall) >= 24 and remaining >= 3:
-                        is_kokushi_pass = True
-            
-            is_infinite_wait_pass = False
-            has_season = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"])
-            if has_season and len(game.wall) > 20: # 残り20枚以上を「序盤〜中盤」と定義
-                waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
-                if len(waits) < 27:
-                    is_infinite_wait_pass = True # まだ無限待ちじゃないなら見逃す
+            # 🌟 修正：すでに和了しているか、または「無花果（四季牌なし）」の状態で聴牌した場合は見逃さない！
+            if not has_won_already and has_season_in_hand:
+                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                jokers_count = sum(1 for t in game.hands[cpu_idx] + [drawn] if t in SEASON_TILES)
+                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[cpu_idx] in [1, 2])
+                
+                if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
+                    is_pass = True
 
-            if not is_hanari_zentan and not is_hanari_qixing and not is_kokushi_pass:
+                if "十三幺九" in res.get("yaku", []):
+                    waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                    if len(waits) < 13:
+                        remaining = 0
+                        for w in waits:
+                            visible = get_visible_count(w, game)
+                            remaining += max(0, 4 - visible - game.hands[cpu_idx].count(w))
+                        if len(game.wall) >= 24 and remaining >= 3:
+                            is_pass = True
+
+                if len(game.wall) > 20: 
+                    waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                    if len(waits) < 27:
+                        is_pass = True 
+
+            if not is_pass:
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
                 game.turn = (cpu_idx + 1) % 4 
@@ -669,36 +674,35 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
             data = {"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx}
             res = evaluate_hand(data)
             if "error" not in res:
-                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                has_won_already = len(game.win_tiles[i]) > 0
+                has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
+                is_pass = False
                 
-                jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
-                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
-                
-                if is_hanari_zentan or is_hanari_qixing:
-                    continue 
+                # 🌟 修正：すでに和了しているか、または「無花果（四季牌なし）」の状態で聴牌した場合は見逃さない！
+                if not has_won_already and has_season_in_hand:
+                    is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                    jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
+                    is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+                    
+                    if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
+                        is_pass = True
 
-                # 🌟 修正：ここで変数を初期化し、if文の中身もきっちりインデントする
-                is_kokushi_pass = False
-                if "十三幺九" in res.get("yaku", []):
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 13:
-                        remaining = 0
-                        for w in waits:
-                            visible = get_visible_count(w, game)
-                            remaining += max(0, 4 - visible - game.hands[i].count(w))
-                        
-                        if len(game.wall) >= 24 and remaining >= 3:
-                            is_kokushi_pass = True
+                    if "十三幺九" in res.get("yaku", []):
+                        waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                        if len(waits) < 13:
+                            remaining = 0
+                            for w in waits:
+                                visible = get_visible_count(w, game)
+                                remaining += max(0, 4 - visible - game.hands[i].count(w))
+                            if len(game.wall) >= 24 and remaining >= 3:
+                                is_pass = True
 
-                # 🌟 追加：四季牌を持っている時、序盤なら無限待ち（27面以上）になるまで妥協和了を見逃す！
-                is_infinite_wait_pass = False
-                has_season = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
-                if has_season and len(game.wall) > 20: # 残り20枚以上を「序盤〜中盤」と定義
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 27:
-                        is_infinite_wait_pass = True
+                    if len(game.wall) > 20: 
+                        waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                        if len(waits) < 27:
+                            is_pass = True 
 
-                if is_kokushi_pass or is_infinite_wait_pass:
+                if is_pass:
                     continue
 
                 if not is_chankan_bool and game.discards[discarder_idx] and game.discards[discarder_idx][-1] == tile:
@@ -1179,7 +1183,7 @@ def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list)
     is_haitei = (len(game.wall) == 0)
     for i in target_players:
         if i == 0: continue # 人間はJS側で処理するので除外
-        if len(game.win_tiles[i]) > 0: continue # 既に和了っている場合は除外
+        if len(game.win_tiles[i]) > 0: continue # 🌟 既に和了っている場合は横取り(頭ハネ)しない
         
         ctx = {
             "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
@@ -1189,28 +1193,33 @@ def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list)
         }
         res = evaluate_hand({"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx})
         if "error" not in res:
-            is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
-            jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
-            is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
-            if is_hanari_zentan or is_hanari_qixing: continue 
+            # 🌟 修正：手牌に四季牌がない（無花果の）状態からのロンは絶対に見逃さない
+            has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
+            
+            if has_season_in_hand:
+                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
+                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+                
+                if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: 
+                    continue 
 
-            is_kokushi_pass = False
-            if "十三幺九" in res.get("yaku", []):
-                waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                if len(waits) < 13:
-                    remaining = 0
-                    for w in waits:
-                        visible = get_visible_count(w, game)
-                        remaining += max(0, 4 - visible - game.hands[i].count(w))
-                    if len(game.wall) >= 24 and remaining >= 3: is_kokushi_pass = True
-            if is_kokushi_pass: continue
+                is_kokushi_pass = False
+                if "十三幺九" in res.get("yaku", []):
+                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                    if len(waits) < 13:
+                        remaining = 0
+                        for w in waits:
+                            visible = get_visible_count(w, game)
+                            remaining += max(0, 4 - visible - game.hands[i].count(w))
+                        if len(game.wall) >= 24 and remaining >= 3: is_kokushi_pass = True
+                if is_kokushi_pass: continue
 
-            is_infinite_wait_pass = False
-            has_season = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
-            if has_season and len(game.wall) > 20:
-                waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                if len(waits) < 27: is_infinite_wait_pass = True
-            if is_infinite_wait_pass: continue
+                is_infinite_wait_pass = False
+                if len(game.wall) > 20:
+                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                    if len(waits) < 27: is_infinite_wait_pass = True
+                if is_infinite_wait_pass: continue
 
             return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
     return None
@@ -1472,6 +1481,7 @@ def debug_setup(scenario: str):
         game.turn = 1 
         game.is_first_turn = [False, False, False, False]
         game.hands[1] = ["1p","1p","1m","3p","5p","7p","1s","3s","3s","7s","7s","9s","春"]
+        game.hands[0] = ["1p","1p","1m","3p","5p","7p","1s","3s","3s","7s","7s","9s","春"]
         game.wall.append("8s")
 
     elif scenario == "test_qixing_flower":

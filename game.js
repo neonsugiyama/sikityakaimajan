@@ -1704,7 +1704,7 @@ async function askNextSecondCharleston() {
 
     if (currentAsker === 0) {
         // 🌟 人間の番：UIを表示して選択を促す
-        document.getElementById('msg').innerText = "第2交換：3枚選んで決定、またはスルー";
+        document.getElementById('msg').innerText = "交換";
         const cUi = document.getElementById('charleston-ui');
         const cTitle = document.getElementById('c-title');
         cTitle.innerText = "第2交換 (Second Charleston)";
@@ -1728,7 +1728,7 @@ async function askNextSecondCharleston() {
         });
     } else {
         // 🌟 CPUの番：悩む演出の後に決断
-        document.getElementById('msg').innerText = `CPU ${currentAsker} 決断中...`;
+        document.getElementById('msg').innerText = `CPU ${currentAsker} ...`;
         await sleep(800 / speedMult); // 演出のタメ
         let willDo = Math.random() < 0.7; // TODO: CPUの性格に合わせる
         processAskSecondCharleston(currentAsker, willDo);
@@ -2896,7 +2896,7 @@ async function handleRoundEnd() {
     document.getElementById('waits-panel').style.display = 'none';
 
     isProc = true;
-    document.getElementById('msg').innerHTML = "局終了<br>点数計算中...";
+    document.getElementById('msg').innerHTML = "点数計算中...";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
 
     isAutoPlay = false;
