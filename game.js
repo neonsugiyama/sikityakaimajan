@@ -1555,13 +1555,23 @@ function startCharlestonSelection() {
         cTitle.innerText = "第2交換 (Second Charleston)";
         cTitle.style.color = "#f1c40f";
     }
-    document.getElementById('msg').innerText = "";
+
     const cUi = document.getElementById('charleston-ui');
     cUi.style.zIndex = "9999";
     cUi.style.display = "block";
 
     document.getElementById('btn-exchange').style.display = "none";
     render();
+
+    // 🌟 描画の後にメッセージを上書きする
+    const msgEl = document.getElementById('msg');
+    if (charlestonCount === 1) {
+        msgEl.innerText = "交換";
+        msgEl.className = "blink-text";
+    } else {
+        msgEl.innerText = "交換";
+        msgEl.className = "";
+    }
 
     startTimer(timeExchange, () => {
         let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
@@ -1865,6 +1875,12 @@ function render() {
     try {
         myHand.sort((a, b) => SM[a] - SM[b]);
         const c = document.getElementById('hand-0'); c.innerHTML = "";
+
+        // 交換フェーズ中でない時だけ、メッセージを空にする（通常時への復帰）
+        if (!charlestonPhase) {
+            document.getElementById('msg').innerText = "";
+            document.getElementById('msg').className = "";
+        }
 
         let displayHand = [...myHand];
         let dTile = "";
