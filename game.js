@@ -1414,6 +1414,14 @@ async function updateWaitsButton() {
     const waitsBtn = document.getElementById('btn-show-waits');
     if (!waitsBtn) return;
 
+    if (!confWaitsHint) {
+        waitsBtn.style.display = 'none';
+        hideWaitsPanel();
+        return;
+    } else {
+        waitsBtn.style.display = 'block'; // ONなら表示
+    }
+
     if (charlestonPhase) {
         waitsBtn.disabled = true;
         waitsBtn.innerText = "ノーテン";
@@ -1433,6 +1441,7 @@ async function updateWaitsButton() {
         if (isTenpai || canListen) {
             waitsBtn.disabled = false;
             waitsBtn.innerText = isTenpai ? "待ち牌確認" : "聴牌確認(何切る)";
+            applyEffectiveHint();
         } else {
             waitsBtn.disabled = true;
             waitsBtn.innerText = "ノーテン";
@@ -1441,6 +1450,35 @@ async function updateWaitsButton() {
     } catch (e) {
         console.error("待ち牌取得エラー:", e);
     }
+}
+
+// 🌟 新規追加：手牌の中から「有効な打牌候補」を視覚的にハイライトする関数
+function applyEffectiveHint() {
+    // 手牌の画像をすべて取得
+    const tiles = document.querySelectorAll('#hand-0 .tile');
+
+    // 一旦すべてのアシスト装飾をリセット
+    tiles.forEach(img => {
+        img.style.boxShadow = "";
+        img.style.border = "";
+        img.style.transform = "";
+        img.style.transition = "all 0.2s ease";
+    });
+
+    // 設定がOFF、または何切る候補データが無い場合はここで終了
+    if (!confEffective || !currentNanikiru || Object.keys(currentNanikiru).length === 0) return;
+
+    // 候補データがある場合、該当する牌を光らせる
+    tiles.forEach(img => {
+        // 画像のURL (images/1m.pngなど) から牌の名前 ('1m') を抽出
+        let match = img.src.match(/images\/(.+?)\.png/);
+        if (match && currentNanikiru[match[1]]) {
+            // 切ると良い牌を緑色に光らせて少し浮かせる
+            img.style.boxShadow = "0 0 15px #2ecc71";
+            img.style.border = "2px solid #2ecc71";
+            img.style.transform = "translateY(-8px)";
+        }
+    });
 }
 
 // 👁️ 「待ち牌確認」パネルを開閉し、待ち牌や「何切る」の候補を描画する関数
@@ -2001,6 +2039,7 @@ function render() {
 
         renderMelds(0);
         renderWinTiles(0);
+        applyEffectiveHint();
 
     } catch (e) {
         logMsg(`[描画エラー] ${e.message}`, true);
@@ -3388,6 +3427,10 @@ function addR(idx, t, isTsumogiri = false) {
 
     if (isTsumogiri) {
         i.classList.add('discard-tsumogiri');
+        // 設定ONなら、ツモ切り牌をずっと暗く表示する
+        if (confTsumogiri) {
+            i.style.filter = "brightness(0.65)";
+        }
     } else {
         i.classList.add('discard-tedashi');
     }
