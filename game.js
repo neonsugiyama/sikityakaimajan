@@ -78,6 +78,7 @@ async function takeResultScreenshot() {
 
 // ⚙️ 設定モーダルを開く関数
 function openSettings() {
+    closeAllModals();
     document.getElementById('settings-modal').style.display = 'flex';
     playSE('click');
 
@@ -451,8 +452,18 @@ const yakuEnMap = {
 // 🇺🇸 中国語の役名を英語名に翻訳する関数
 function getEnYakuName(zhName) { return yakuEnMap[zhName] || zhName; }
 
+// 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
+function closeAllModals() {
+    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal'];
+    modals.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
 // 📖 遊び方モーダルを開く関数
 function openHowTo() {
+    closeAllModals();
     document.getElementById('howto-modal').style.display = 'flex';
     playSE('click');
 }
@@ -465,6 +476,7 @@ function closeHowTo() {
 
 // 📜 役一覧モーダルを開く関数
 function openYakuList() {
+    closeAllModals();
     document.getElementById('yaku-modal').style.display = 'flex';
     playSE('click');
 }
@@ -1306,8 +1318,8 @@ function updateInfoUI() {
         let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
 
         let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>⚙️ あなた ${rateStr}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i} ${rateStr}`;
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${playerStats.playerName}` :
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
         let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
@@ -3073,9 +3085,8 @@ async function handleRoundEnd() {
     checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
     saveGameData();
 
-    document.getElementById('settings-modal').style.display = 'none';
-    document.getElementById('howto-modal').style.display = 'none';
-    document.getElementById('yaku-modal').style.display = 'none';
+    // 🌟 先ほど作った一括閉じ関数を呼び出して、開いている戦績データ等をすべて消す
+    closeAllModals();
     document.getElementById('waits-panel').style.display = 'none';
 
     isProc = true;
@@ -3549,6 +3560,7 @@ function startCpuGame() {
 
 // 🏅 実績（アチーブメント）画面を開き、達成度を描画する関数
 function openAchievements() {
+    closeAllModals();
     playSE('click');
     renderAchievements();
     document.getElementById('achievement-modal').style.display = 'flex';
@@ -3865,47 +3877,50 @@ function updateHomeStats() {
     }
 }
 
-// 📊 マイページ（詳細戦績）の描画
-function openMyPage() {
-    document.getElementById('input-player-name').value = playerStats.playerName;
-    updateNameCounter(playerStats.playerName);
+// 📊 CPU用のダミー戦績データ（必要に応じて数値を調整してください）
+const cpuStats = {
+    1: { playerName: "CPU 1", totalGamesPlayed: 50, totalRoundsPlayed: 200, totalWins: 45, totalScoreSum: 75000, rankCounts: [12, 13, 13, 12], maxWinStreak: 3, yakuCollected: { "無花果": 20, "嶺上開花": 3 } },
+    2: { playerName: "CPU 2", totalGamesPlayed: 48, totalRoundsPlayed: 190, totalWins: 38, totalScoreSum: 68000, rankCounts: [10, 12, 14, 12], maxWinStreak: 2, yakuCollected: { "無花果": 15, "妙手回春": 2 } },
+    3: { playerName: "CPU 3", totalGamesPlayed: 55, totalRoundsPlayed: 220, totalWins: 52, totalScoreSum: 82000, rankCounts: [18, 12, 15, 10], maxWinStreak: 4, yakuCollected: { "無花果": 25, "花天月地": 4 } }
+};
 
+// 📊 モーダル内の戦績とグラフ（既存のリッチなChart.js）を更新する共通関数
+function updateStatsModalUI(targetStats) {
     // 基本データの取得（0割防止のための || 1）
-    let totalG = playerStats.totalGamesPlayed || 0;
-    let totalR = playerStats.totalRoundsPlayed || 1;
-    let totalW = playerStats.totalWins || 0; // 和了回数は0もあり得る
-    let totalScore = playerStats.totalScoreSum || 0; // スコアの総計変数（元のコードに合わせています）
+    let totalG = targetStats.totalGamesPlayed || 0;
+    let totalR = targetStats.totalRoundsPlayed || 1;
+    let totalW = targetStats.totalWins || 0;
+    let totalScore = targetStats.totalScoreSum || 0;
 
-    // --- 📊 総合指標の計算（0割防止のための条件分岐を追加） ---
+    // --- 📊 総合指標の計算 ---
     let avgRank = "0.00";
     let topRate = "0.00";
     let rentaiRate = "0.00";
     let rasuKaihiRate = "0.00";
 
     if (totalG > 0) {
-        avgRank = ((playerStats.rankCounts[0] * 1 + playerStats.rankCounts[1] * 2 + playerStats.rankCounts[2] * 3 + playerStats.rankCounts[3] * 4) / totalG).toFixed(2);
-        topRate = ((playerStats.rankCounts[0] / totalG) * 100).toFixed(2);
-        rentaiRate = (((playerStats.rankCounts[0] + playerStats.rankCounts[1]) / totalG) * 100).toFixed(2);
-        rasuKaihiRate = ((1 - (playerStats.rankCounts[3] / totalG)) * 100).toFixed(2);
+        avgRank = ((targetStats.rankCounts[0] * 1 + targetStats.rankCounts[1] * 2 + targetStats.rankCounts[2] * 3 + targetStats.rankCounts[3] * 4) / totalG).toFixed(2);
+        topRate = ((targetStats.rankCounts[0] / totalG) * 100).toFixed(2);
+        rentaiRate = (((targetStats.rankCounts[0] + targetStats.rankCounts[1]) / totalG) * 100).toFixed(2);
+        rasuKaihiRate = ((1 - (targetStats.rankCounts[3] / totalG)) * 100).toFixed(2);
     }
 
-    let maxStreak = playerStats.maxWinStreak || 0;
+    let maxStreak = targetStats.maxWinStreak || 0;
 
     // --- ⚔️ 詳細スコア・技術指標の計算 ---
     let avgWins = (totalW / totalR).toFixed(1);
     let avgWinScore = totalW > 0 ? Math.floor(totalScore / totalW) : 0;
     let avgRoundScore = Math.floor(totalScore / totalR);
-    let avgGameScore = playerStats.totalGamesPlayed > 0 ? Math.floor(totalScore / totalG) : 0;
+    let avgGameScore = targetStats.totalGamesPlayed > 0 ? Math.floor(totalScore / totalG) : 0;
 
-    // 役図鑑オブジェクトが存在しない場合のエラー回避
-    let yakuData = playerStats.yakuCollected || {};
+    let yakuData = targetStats.yakuCollected || {};
     let muhanaCount = yakuData["無花果"] || 0;
     let muhanaRate = totalW > 0 ? ((muhanaCount / totalW) * 100).toFixed(2) : "0.00";
 
     let luckCount = (yakuData["嶺上開花"] || 0) + (yakuData["妙手回春"] || 0) + (yakuData["花天月地"] || 0);
     let luckRate = totalW > 0 ? ((luckCount / totalW) * 100).toFixed(2) : "0.00";
 
-    // 🌟 1. HTMLに数値を流し込む（新しいIDに対応）
+    // 🌟 1. HTMLに数値を流し込む
     document.getElementById('stat-total-games').innerText = totalG;
     document.getElementById('stat-max-streak').innerText = maxStreak + " 連勝";
     document.getElementById('stat-avg-rank').innerText = avgRank;
@@ -3920,10 +3935,9 @@ function openMyPage() {
     document.getElementById('stat-muhana-rate').innerText = muhanaRate + "%";
     document.getElementById('stat-luck-rate').innerText = luckRate + "%";
 
-    // 🌟 2. 生涯累計獲得スコア
     document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
 
-    // 🌟 3. レーダーチャートの描画(最初は伸びやすく、徐々に伸びにくくする)
+    // 🌟 2. レーダーチャートの描画
     let chartAvgWins = Math.min(Math.sqrt(avgWins / 60) * 100, 100);
     let chartAvgScore = Math.min(Math.sqrt(avgWinScore / 2000) * 100, 100);
     let chartMuhana = Math.min((muhanaRate / 80) * 100, 100);
@@ -3950,7 +3964,7 @@ function openMyPage() {
         }
     });
 
-    // 🌟 4. 円グラフの描画
+    // 🌟 3. 円グラフの描画
     if (pieChart) pieChart.destroy();
     const ctxPie = document.getElementById('mypage-rank-pie-chart').getContext('2d');
 
@@ -3962,7 +3976,6 @@ function openMyPage() {
             const meta = chart.getDatasetMeta(0);
             const total = data.reduce((a, b) => a + b, 0);
 
-            // 🌟 未プレイ時（ダミーデータ）は線やラベルを描画しないように除外！
             if (total === 0 || chart.data.labels[0] === '未プレイ') return;
 
             meta.data.forEach((arc, index) => {
@@ -4005,16 +4018,15 @@ function openMyPage() {
         }
     };
 
-    // 🌟 未プレイかどうかを判定
     let isZeroData = totalG === 0;
 
     pieChart = new Chart(ctxPie, {
         type: 'doughnut',
         data: {
-            // 未プレイ時はラベルもデータもダミーのグレー色にする
             labels: isZeroData ? ['未プレイ'] : ['1位', '2位', '3位', '4位'],
             datasets: [{
-                data: isZeroData ? [1] : playerStats.rankCounts,
+                // 🌟 ここで必ず対象プレイヤーのデータが入るように修正
+                data: isZeroData ? [1] : targetStats.rankCounts,
                 backgroundColor: isZeroData ? ['#333333'] : ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
                 borderColor: '#2c3e50',
                 borderWidth: 2
@@ -4024,22 +4036,43 @@ function openMyPage() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                /* 🌟 ここのパディングを大きくするとグラフ自体は小さくなり、
-                   外側のラベル（引き出し線）のスペースが広くなります */
-                padding: {
-                    left: 60,
-                    right: 60,
-                    top: 20,
-                    bottom: 20
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: !isZeroData }
-            }
+            layout: { padding: { left: 60, right: 60, top: 20, bottom: 20 } },
+            plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
         }
     });
+}
+
+// 👤 マイページ（自分の戦績と名前変更）を開く関数
+function openMyPage() {
+    closeAllModals();
+    document.getElementById('input-player-name').value = playerStats.playerName;
+    updateNameCounter(playerStats.playerName);
+
+    document.getElementById('mypage-edit-mode').style.display = 'flex';
+    document.getElementById('mypage-view-mode').style.display = 'none';
+
+    // 🌟 あなたのデータ(playerStats)を流し込んでグラフを描画
+    updateStatsModalUI(playerStats);
+
+    document.getElementById('mypage-modal').style.display = 'flex';
+    playSE('click');
+}
+
+// 👁️ 卓から各プレイヤーの詳細戦績（閲覧モード）を開く関数
+function openPlayerStats(idx) {
+    closeAllModals();
+    // 🌟 0なら自分のデータ、1〜3ならCPUのデータを取得
+    let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
+    let targetRate = playerRatings[idx];
+
+    document.getElementById('mypage-edit-mode').style.display = 'none';
+    document.getElementById('mypage-view-mode').style.display = 'flex';
+
+    document.getElementById('mypage-view-name').innerText = targetStats.playerName;
+    document.getElementById('mypage-view-rate').innerText = targetRate;
+
+    // 🌟 取得したデータを流し込んでグラフを描画
+    updateStatsModalUI(targetStats);
 
     document.getElementById('mypage-modal').style.display = 'flex';
     playSE('click');
@@ -4069,6 +4102,7 @@ function saveNewName() {
     saveGameData();
     updateProfileUI(); // タイトル画面の表示も更新
     updateNameCounter(newName); // カウンターの数字も更新
+    updateInfoUI();
 
     alert(`名前を「${newName}」に変更しました！`);
 }

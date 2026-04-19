@@ -181,7 +181,8 @@
         <div class="modal-content" style="width: 95%; max-width: 1000px; height: 90vh;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px;">
                 <h2 style="color: #3498db; margin: 0; font-size: 24px;">📊 詳細戦績データ</h2>
-                <div style="display: flex; gap: 10px; align-items: center;">
+
+                <div id="mypage-edit-mode" style="display: flex; gap: 10px; align-items: center;">
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
                         <div style="position: relative; display: inline-block;">
                             <input type="text" id="input-player-name" maxlength="10"
@@ -191,14 +192,19 @@
                                    onblur="this.style.border='1px dashed #f39c12'; this.style.background='#222';"
                                    oninput="updateNameCounter(this.value)"
                                    onchange="saveNewName()">
-
                             <span onclick="clearNameInput()" title="名前をクリア" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 18px; line-height: 1;">×</span>
                         </div>
-
                         <span id="name-char-counter" style="font-size: 11px; color: #aaa; margin-top: 4px;">0/10</span>
                     </div>
-
                     <button class="btn-act btn-blue" onclick="saveNewName()" style="padding: 5px 15px; font-size: 14px; align-self: flex-start;">名前変更</button>
+                </div>
+
+                <div id="mypage-view-mode" style="display: none; gap: 15px; align-items: center;">
+                    <div id="mypage-view-name" style="font-size: 22px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px #000;">プレイヤー名</div>
+                    <div style="background: rgba(0,0,0,0.6); border: 2px solid #f1c40f; padding: 5px 20px; border-radius: 30px; box-shadow: 0 0 10px rgba(241, 196, 15, 0.4);">
+                        <span style="color: #bdc3c7; font-size: 14px; font-weight: bold; margin-right: 8px;">Rate</span>
+                        <span id="mypage-view-rate" style="color: #f1c40f; font-size: 22px; font-weight: bold;">----</span>
+                    </div>
                 </div>
             </div>
 
@@ -1004,7 +1010,7 @@
         <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
 
         <div class="pos-name-0">
-            <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openSettings()"></div>
+            <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(0)"></div>
         </div>
         <div class="pos-score-0">
             <div id="player-score-0" class="player-score"></div>
@@ -1020,15 +1026,21 @@
             <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
         </div>
 
-        <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>
+        <div class="pos-name-1">
+            <div id="player-name-1" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(1)"></div>
+        </div>
         <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
         <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
 
-        <div class="pos-name-2"><div id="player-name-2" class="player-name"></div></div>
+        <div class="pos-name-2">
+            <div id="player-name-2" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(2)"></div>
+        </div>
         <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
         <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
 
-        <div class="pos-name-3"><div id="player-name-3" class="player-name"></div></div>
+        <div class="pos-name-3">
+            <div id="player-name-3" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(3)"></div>
+        </div>
         <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
         <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>
 
