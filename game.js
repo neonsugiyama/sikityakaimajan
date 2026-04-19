@@ -4495,3 +4495,64 @@ document.addEventListener('contextmenu', (e) => {
         discard(drawnTile, true);
     }
 });
+
+// ==========================================
+// 🍔 サイドバーメニューの開閉とボタン連動（修正版）
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebarMenu = document.getElementById('sidebar-menu');
+    const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    // メニューを開く
+    function openSidebar() {
+        playSE('click'); // 🌟 音を鳴らす
+        sidebarMenu.classList.add('open');
+        sidebarOverlay.classList.add('show');
+    }
+
+    // メニューを閉じる
+    function closeSidebar() {
+        playSE('click'); // 🌟 音を鳴らす
+        sidebarMenu.classList.remove('open');
+        sidebarOverlay.classList.remove('show');
+    }
+
+    // 開閉イベントの登録
+    if (hamburgerBtn) hamburgerBtn.addEventListener('click', openSidebar);
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // ▼ 各ボタンを押した時の処理 ▼
+
+    // ⚙️ 設定（既存の openSettings() を直接呼ぶ）
+    document.getElementById('sidebar-settings')?.addEventListener('click', () => {
+        closeSidebar();
+        openSettings(); // 🌟 モーダルを開く関数
+    });
+
+    // 📖 ルール（遊び方）（既存の openHowTo() を直接呼ぶ）
+    document.getElementById('sidebar-rules')?.addEventListener('click', () => {
+        closeSidebar();
+        openHowTo(); // 🌟 モーダルを開く関数
+    });
+
+    // 🀄 役一覧（既存の openYakuList() を直接呼ぶ）
+    document.getElementById('sidebar-yaku')?.addEventListener('click', () => {
+        closeSidebar();
+        openYakuList(); // 🌟 モーダルを開く関数
+    });
+
+    // 🚪 退出（既存の quitGame() のロジックを使う）
+    document.getElementById('sidebar-exit')?.addEventListener('click', () => {
+        closeSidebar();
+        // 🌟 quitGame() と同じ確認＆ホーム直行処理
+        if (confirm("本当に対局を中断してホーム画面に戻りますか？\n（進行中のスコアや戦績は保存されません）")) {
+            playSE('click');
+            stopTimer();
+            sessionStorage.setItem('shiki_mahjong_return_home', 'true');
+            location.reload();
+        }
+    });
+});

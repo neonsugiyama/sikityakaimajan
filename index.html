@@ -960,6 +960,28 @@
 
         <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
     </div>
+
+    <div id="hamburger-btn">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <div id="sidebar-menu">
+        <div class="sidebar-header">
+            <h2>MENU</h2>
+            <button id="sidebar-close-btn">×</button>
+        </div>
+        <div class="sidebar-content">
+            <button class="sidebar-item" id="sidebar-settings">⚙️ 設定</button>
+            <button class="sidebar-item" id="sidebar-rules">📖 ルール</button>
+            <button class="sidebar-item" id="sidebar-yaku">🀄 役一覧</button>
+            <div class="sidebar-spacer"></div> <button class="sidebar-item exit-btn" id="sidebar-exit">🚪 退出</button>
+        </div>
+    </div>
+
+    <div id="sidebar-overlay"></div>
+
     <div class="table">
         <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
 
@@ -996,9 +1018,6 @@
         </div>
         <div class="pos-auto-btn">
             <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
-        </div>
-        <div style="position: absolute; top: 81%; left: 26.5%; transform: translate(-50%, -50%); z-index: 50;">
-            <button class="btn-waits" style="background: #8e44ad; box-shadow: 0 3px #732d91; padding: 6px 16px; font-size: 14px;" onclick="openYakuList()">📜 役一覧</button>
         </div>
 
         <div class="pos-name-1"><div id="player-name-1" class="player-name"></div></div>

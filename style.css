@@ -2684,3 +2684,157 @@ body.lang-en .en {
     transform: translateY(-5px) scale(1.05) !important;
     box-shadow: 0 10px 15px rgba(0,0,0,0.7), 0 0 10px rgba(241, 196, 15, 0.4) !important;
 }
+
+/* ==========================================================
+   🍔 ハンバーガーメニュー ＆ スライドサイドバー
+   ========================================================== */
+
+/* ▼ 左上の3本線ボタン */
+#hamburger-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    background: rgba(20, 25, 30, 0.85);
+    border: 2px solid #3498db;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    z-index: 40000; /* 卓より手前に */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    transition: 0.2s;
+}
+
+    #hamburger-btn:hover {
+        background: rgba(52, 152, 219, 0.4);
+        transform: translateY(-2px) scale(1.05);
+    }
+
+    #hamburger-btn span {
+        display: block;
+        width: 26px;
+        height: 3px;
+        background: #fff;
+        border-radius: 3px;
+    }
+
+/* ▼ スライドアウトするサイドバー本体 */
+#sidebar-menu {
+    position: fixed;
+    top: 0;
+    /* 🌟 ここがポイント：最初は画面の左外(-300px)に隠しておく */
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #1a252f 0%, #0d131a 100%);
+    border-right: 2px solid #3498db;
+    z-index: 40002;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    /* スムーズにスライドさせるアニメーション */
+    transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+    /* クラス「open」が付いた時だけ、画面内(left: 0)に入ってくる！ */
+    #sidebar-menu.open {
+        left: 0;
+    }
+
+/* ▼ サイドバーの中身のデザイン */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+    .sidebar-header h2 {
+        margin: 0;
+        color: #f1c40f;
+        font-size: 24px;
+        letter-spacing: 2px;
+    }
+
+#sidebar-close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+    #sidebar-close-btn:hover {
+        color: #e74c3c;
+        transform: scale(1.2);
+    }
+
+.sidebar-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex-grow: 1;
+}
+
+.sidebar-item {
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    border: 1px solid #555;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+    .sidebar-item:hover {
+        background: #3498db;
+        border-color: #2980b9;
+        /* ホバーで少し右にピクッと動くカッコいい演出 */
+        transform: translateX(8px);
+    }
+
+.sidebar-spacer {
+    flex-grow: 1; /* 退出ボタンを一番下に押しやるための空白 */
+}
+
+.sidebar-item.exit-btn {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: #e74c3c;
+    color: #ff7675;
+}
+
+    .sidebar-item.exit-btn:hover {
+        background: #e74c3c;
+        color: #fff;
+    }
+
+/* ▼ メニューを開いた時の暗い背景カバー */
+#sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.6);
+    z-index: 40001;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(3px);
+}
+
+    #sidebar-overlay.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
