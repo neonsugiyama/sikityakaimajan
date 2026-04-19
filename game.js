@@ -773,6 +773,8 @@ let humanSecondCharlestonTiles = [];
 let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
+// 🌟 追加：引く前からテンパイしていたかを記憶するフラグ
+let isAlreadyTenpai = false;
 let isAutoPlay = false;
 // 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
 let isWelcomeHomeTest = false;
@@ -954,16 +956,27 @@ function toggleAutoPlay() {
     }
 }
 
-// 🌟 新規追加：プレイヤーがテンパイしているか（13枚時・14枚時どちらも）を正確に判定する関数
+// 🌟 修正：プレイヤーがテンパイしているか（副露も考慮して）正確に判定する関数
 function isPlayerTenpai() {
-    return currentWaits.length > 0 || (currentNanikiru && Object.keys(currentNanikiru).length > 0);
+    // 手牌の枚数 + (鳴き回数 × 3) で仮想的な手牌枚数を計算
+    let totalVirtualTiles = myHand.length + (myMelds.length * 3);
+
+    if (totalVirtualTiles % 3 === 1) {
+        // 13枚相当の時（他家のターン等）は、現在の待ちを見る
+        return currentWaits.length > 0;
+    } else {
+        // 14枚相当の時（自分のツモ番）は「引く前からテンパイしていたか」の記憶を見る
+        return isAlreadyTenpai;
+    }
 }
 
 // 🤖 オートモード中、状況に応じて自動でツモ切りや鳴きスルーなどのボタンを押す関数
 function triggerAutoPlayIfNeeded() {
     if (!isAutoPlay || isProc) return;
 
-    // 🌟 余計なテンパイ判定縛りを削除。ONなら常に自動実行する本来の仕様に復元
+    // 🌟 修正：テンパイしていない間はオートを「完全に殺しておく」
+    if (!isPlayerTenpai()) return;
+
     const msgText = document.getElementById('msg').innerText;
     const btnWin = document.getElementById('btn-win');
 
@@ -971,9 +984,14 @@ function triggerAutoPlayIfNeeded() {
 
     if (turn === 0 && msgText.includes("打牌")) {
         const selfActions = document.getElementById('self-actions');
+        // 🌟 追加：暗槓やJokerSwapのボタンが出ている場合は、勝手にボタンを押さずにストップ！
+        if (selfActions.innerHTML !== '') {
+            return;
+        }
+
         if (isWinVisible) {
             btnWin.click();
-        } else if (selfActions.innerHTML === '') {
+        } else {
             if (drawnTile !== "") {
                 discard(drawnTile, true);
             } else {
@@ -1450,6 +1468,12 @@ async function updateWaitsButton() {
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));
         currentNanikiru = data.nanikiru || null;
+
+        // 🌟🌟 修正：副露も加味して「13枚相当」の時にテンパイ状態を記憶する！
+        let totalVirtualTiles = myHand.length + (myMelds.length * 3);
+        if (totalVirtualTiles % 3 === 1) {
+            isAlreadyTenpai = (currentWaits.length > 0);
+        }
 
         const isTenpai = currentWaits.length > 0;
         const canListen = currentNanikiru && Object.keys(currentNanikiru).length > 0;
@@ -2180,7 +2204,8 @@ async function checkT() {
             let shouldAlert = false;
             if (btnWin.style.display === "block" || btnWin.style.display === "flex" || selfActions.innerHTML !== '') {
                 shouldAlert = true;
-                if (isAutoPlay && myWinTiles.length > 0 && selfActions.innerHTML === '') {
+                // 🌟 修正：オート中でも「アクション（暗槓・JokerSwap）」がある場合はアラート音を鳴らす！
+                if (isAutoPlay && isPlayerTenpai() && selfActions.innerHTML === '') {
                     shouldAlert = false;
                 }
             }
@@ -2191,13 +2216,20 @@ async function checkT() {
             isProc = false;
 
             let autoActed = false;
-            if (isAutoPlay) {
-                if (canWin && selfActions.innerHTML === '') {
+            // 🌟 修正：オートON、かつ【テンパイしている時だけ】自動ツモ切りを行う
+            if (isAutoPlay && isPlayerTenpai()) {
+                // 🌟 最優先：暗槓やJokerSwapができる牌を引いた時は、和了やツモ切りよりも「待機」を優先する！
+                if (selfActions.innerHTML !== '') {
+                    showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
+                    setTimeout(hideCenterMessage, 2500);
+                    // autoActed = false のままなので、下のタイマーが起動して手動操作になる
+                }
+                else if (canWin) {
                     isProc = true;
                     setTimeout(() => { isProc = false; execTsumo(); }, 800 / speedMult);
                     autoActed = true;
-                } else if (selfActions.innerHTML === '') {
-                    // 🌟 テンパイ縛りを削除。オートONなら引いた牌を即ツモ切り
+                }
+                else {
                     if (drawnTile !== "") {
                         isProc = true;
                         setTimeout(() => { isProc = false; discard(drawnTile, true); }, 600 / speedMult);
@@ -2206,6 +2238,7 @@ async function checkT() {
                 }
             }
 
+            // 🌟 オートが機能していない（テンパイ前、またはOFF）場合は手動操作を待つ
             if (!autoActed) {
                 startTimer(timeDiscard, () => {
                     if (drawnTile !== "") {
@@ -2218,7 +2251,7 @@ async function checkT() {
             }
 
         } else {
-            // 🌟 私が勝手に 0 に改悪した部分を、お客様の本来のコード (1) に戻しました
+            // 🌟 絶対に 1 が正解です（山が残り1枚の時に、引くか引かないかの選択を出すため）
             if (wallCount === 1) {
                 document.getElementById('msg').className = "";
                 document.getElementById('msg').innerText = "海底牌";
@@ -2679,8 +2712,8 @@ async function checkHumanReaction(discarderIdx, tile) {
     renderCPU();
 
     if (showAny) {
-        // 🌟 テンパイ縛りを撤廃し、オートONなら無条件でスルー（またはロン）を実行する
-        let isAutoDigest = isAutoPlay;
+        // 🌟 修正：オートON かつ テンパイしている時だけ、ポンなどを自動スルーしてロンを優先させる
+        let isAutoDigest = (isAutoPlay && isPlayerTenpai());
 
         if (!isAutoDigest) {
             playSE('alert');
@@ -2708,6 +2741,7 @@ async function checkHumanReaction(discarderIdx, tile) {
                 }
             }, 800 / speedMult);
         } else {
+            // テンパイ前（機能を殺している間）は普通にタイマーを動かして手動でポンなどを選ばせる
             startTimer(timeCall, () => {
                 skipAction();
             });
