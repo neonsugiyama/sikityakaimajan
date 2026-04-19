@@ -2589,10 +2589,17 @@ body.lang-en .en {
    ========================================================== */
 
 /* ▼ 画面中央パネル系 */
-#charleston-ui, #charleston-confirm-ui, #center-message, #timer-display, #score-diff-panel, .center-info {
+#center-message, #timer-display, .center-info {
     transform: translate(-50%, -50%) translateZ(20px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
+}
+
+#charleston-ui, #charleston-confirm-ui, #timer-display, #score-diff-panel, #dice-overlay {
+    transform: translate(-50%, -50%) translateZ(60px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+    z-index: 9999 !important;
 }
 
 /* ▼ アクションボタンの親（全体枠：ここで中央に寄せて浮かせる） */
@@ -2642,6 +2649,12 @@ body.lang-en .en {
     transform: translateZ(20px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
+}
+
+/* 待ち牌パネルは中央配置ではないため、Z軸だけ手前に出す */
+#waits-panel {
+    transform: translateX(-50%) translateZ(60px) !important;
+    z-index: 9999 !important;
 }
 
 /* ▼ 操作するボタン類（これらは平らにしてピクピクを防ぐ） */
@@ -2833,3 +2846,14 @@ body.lang-en .en {
         opacity: 1;
         pointer-events: auto;
     }
+
+/* ==========================================================
+   🌟 中央メッセージパネルのサイズ固定化（空っぽ時の縮小防止）
+   ========================================================== */
+#msg {
+    min-height: 28px !important; /* 文字が消えても最低50pxの高さを維持 */
+    min-width: 126px !important; /* 文字が消えても最低160pxの横幅を維持 */
+    display: flex !important; /* 箱の大きさが固定されても、中の文字を常にど真ん中に配置する */
+    align-items: center !important;
+    justify-content: center !important;
+}
