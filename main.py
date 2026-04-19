@@ -1560,10 +1560,10 @@ def debug_setup(scenario: str):
         game.turn = 2 
         game.is_first_turn = [False]*4
         game.hands[0] = ["1p","1p","2s","3s","4s","5s","6s","7s","8s","9s","東","南","西"]
-        game.hands[1] = ["2p","3p","4p","5p","6p","7p","8p","9p","1m","2m","3m","4m","4m"]
+        game.hands[1] = ["1p","白","發","中","東","南","西","北","1s","9s","1m","9m","9p"]
         game.hands[2] = ["1p","白","發","中","東","南","西","北","1s","9m","1m","1p","9p"]
         game.hands[3] = ["1p","白","發","中","東","南","西","北","1s","9s","1m","9m","9p"]
-        game.wall = ["1p", "1p"]
+        game.wall = ["1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p"]
 
     elif scenario == "test_cpu_keep_joker":
         # CPU四季牌キープテスト：和了済みのCPU1が四季牌を引いた時、手持ちの「東」と入れ替えて捨てるか

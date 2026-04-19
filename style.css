@@ -2585,23 +2585,26 @@ body.lang-en .en {
         }
 
 /* ==========================================================
-   🌟 全UIパーツのめり込み完全解消（最終調整版）
+   🌟 全UIパーツのめり込み完全解消（位置ズレ＆ピクピク修正・最終版）
    ========================================================== */
 
-/* --------------------------------------------------------
-   1. 親の箱を「元の配置を維持したまま、Z軸(手前)に20px浮かせる」
-   -------------------------------------------------------- */
-
-/* ▼ 画面中央パネル系（🚨BGMボタンの親である .center-info を追加！） */
+/* ▼ 画面中央パネル系 */
 #charleston-ui, #charleston-confirm-ui, #center-message, #timer-display, #score-diff-panel, .center-info {
     transform: translate(-50%, -50%) translateZ(20px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
 }
 
-/* ▼ アクションボタンの親 */
-.action-wrapper, .action-layer {
+/* ▼ アクションボタンの親（全体枠：ここで中央に寄せて浮かせる） */
+.action-wrapper {
     transform: translateX(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ アクションボタンの並び枠（🚨左ズレ防止のため transform を消去！） */
+.action-layer {
+    transform: none !important;
     transform-style: flat !important;
     pointer-events: none !important;
 }
@@ -2634,19 +2637,15 @@ body.lang-en .en {
     pointer-events: none !important;
 }
 
-/* ▼ 待ち牌・オート・役一覧ボタンの親 */
+/* ▼ 待ち牌・オートボタンの親 */
 .pos-waits-btn, .pos-auto-btn {
     transform: translateZ(20px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
 }
 
-/* --------------------------------------------------------
-   2. ボタン・パネル本体（中身）を「完全に平ら」にする
-   -------------------------------------------------------- */
-
-/* ▼ 操作するボタン類（🚨役一覧ボタン #btn-yaku-list などを追加！） */
-.btn-act, .btn-waits, #btn-auto-play, #btn-yaku-list, #btn-show-waits,
+/* ▼ 操作するボタン類（これらは平らにしてピクピクを防ぐ） */
+.btn-act, .btn-waits, #btn-auto-play, #btn-show-waits,
 .player-name, .player-score, .btn-mini-icon,
 #charleston-ui button, #charleston-confirm-ui button {
     pointer-events: auto !important;
@@ -2658,23 +2657,19 @@ body.lang-en .en {
     -webkit-backface-visibility: hidden !important;
 }
 
-/* ▼ 🚨修正：交換メッセージの「黒い背景箱」本体
-   （箱自体はフワッと浮かせず、ただの平らな背景として固定する） */
+/* ▼ 交換メッセージの「黒い背景箱」本体（フワッとさせない） */
 #charleston-ui > div, #charleston-confirm-ui > div {
     pointer-events: auto !important;
-    cursor: default !important; /* 指マークにはしない */
+    cursor: default !important;
     transform: none !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
 }
 
-/* --------------------------------------------------------
-   3. ホバー時のフワッとアクション（交換パネル背景は除外！）
-   -------------------------------------------------------- */
+/* ▼ ホバー時のフワッとアクション（Z軸ではなくY軸で動かす） */
 .btn-act:hover,
 .btn-waits:not(:disabled):hover,
 #btn-auto-play:hover,
-#btn-yaku-list:hover,
 #btn-show-waits:hover,
 .player-score:hover,
 .player-name:hover,

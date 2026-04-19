@@ -933,36 +933,45 @@ function stopTimer() {
     }
 }
 
-// 🤖 アガリ後の「オート進行（消化試合）」モードをON/OFFする関数
+// 🤖 オート進行モードのON/OFFを切り替える関数（いつでも予約可能）
 function toggleAutoPlay() {
     isAutoPlay = !isAutoPlay;
     const btn = document.getElementById('btn-auto-play');
+
     if (isAutoPlay) {
+        // ON状態（聴牌前でも緑色にする）
         btn.innerText = "オート(和了後): ON";
         btn.style.background = "#27ae60";
         btn.style.boxShadow = "0 3px #2ecc71";
+
+        // もしONにした瞬間にすでに聴牌・打牌番なら即座に実行を試みる
         triggerAutoPlayIfNeeded();
     } else {
+        // OFF状態
         btn.innerText = "オート(和了後): OFF";
         btn.style.background = "#7f8c8d";
         btn.style.boxShadow = "0 3px #95a5a6";
     }
 }
 
+// 🌟 新規追加：プレイヤーがテンパイしているか（13枚時・14枚時どちらも）を正確に判定する関数
+function isPlayerTenpai() {
+    return currentWaits.length > 0 || (currentNanikiru && Object.keys(currentNanikiru).length > 0);
+}
+
 // 🤖 オートモード中、状況に応じて自動でツモ切りや鳴きスルーなどのボタンを押す関数
 function triggerAutoPlayIfNeeded() {
     if (!isAutoPlay || isProc) return;
 
+    // 🌟 余計なテンパイ判定縛りを削除。ONなら常に自動実行する本来の仕様に復元
     const msgText = document.getElementById('msg').innerText;
     const btnWin = document.getElementById('btn-win');
 
-    // 🌟 修正：ボタンの表示方式が block でも flex でもアガリと認識するようにする
     let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
 
     if (turn === 0 && msgText.includes("打牌")) {
         const selfActions = document.getElementById('self-actions');
         if (isWinVisible) {
-            // アガれる時は絶対にアガる！
             btnWin.click();
         } else if (selfActions.innerHTML === '') {
             if (drawnTile !== "") {
@@ -975,9 +984,8 @@ function triggerAutoPlayIfNeeded() {
     } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
         const btnSkip = document.getElementById('btn-skip');
         if (isWinVisible) {
-            // ロンできる時は絶対にロンする！
             btnWin.click();
-        } else if (btnSkip.style.display === "block" || btnSkip.style.display === "flex") {
+        } else if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
             btnSkip.click();
         }
     }
@@ -2170,7 +2178,7 @@ async function checkT() {
             const selfActions = document.getElementById('self-actions');
 
             let shouldAlert = false;
-            if (btnWin.style.display === "block" || selfActions.innerHTML !== '') {
+            if (btnWin.style.display === "block" || btnWin.style.display === "flex" || selfActions.innerHTML !== '') {
                 shouldAlert = true;
                 if (isAutoPlay && myWinTiles.length > 0 && selfActions.innerHTML === '') {
                     shouldAlert = false;
@@ -2189,14 +2197,12 @@ async function checkT() {
                     setTimeout(() => { isProc = false; execTsumo(); }, 800 / speedMult);
                     autoActed = true;
                 } else if (selfActions.innerHTML === '') {
+                    // 🌟 テンパイ縛りを削除。オートONなら引いた牌を即ツモ切り
                     if (drawnTile !== "") {
                         isProc = true;
                         setTimeout(() => { isProc = false; discard(drawnTile, true); }, 600 / speedMult);
                         autoActed = true;
                     }
-                } else {
-                    showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
-                    setTimeout(hideCenterMessage, 2500);
                 }
             }
 
@@ -2212,6 +2218,7 @@ async function checkT() {
             }
 
         } else {
+            // 🌟 私が勝手に 0 に改悪した部分を、お客様の本来のコード (1) に戻しました
             if (wallCount === 1) {
                 document.getElementById('msg').className = "";
                 document.getElementById('msg').innerText = "海底牌";
@@ -2219,7 +2226,6 @@ async function checkT() {
                 document.getElementById('btn-ryukyoku').style.display = "block";
 
                 playSE('alert');
-
                 isProc = false;
 
                 startTimer(timeCall, () => {
@@ -2255,7 +2261,6 @@ async function checkT() {
             if (turn === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
 
             c.appendChild(img);
-
             updateWall(wallCount - 1);
         }
 
@@ -2601,37 +2606,36 @@ async function checkHumanReaction(discarderIdx, tile) {
     const isHaitei = (wallCount === 0);
 
     let showAny = false;
-
-    // 🌟 追加：ボタンの中に埋め込む用の「小さな牌画像」を作る関数
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
-    // 🌟 追加：ボタンを出す前に、CPUがロンを狙っているかサーバーに探りを入れる
-    const interceptRes = await apiCall('/check_cpu_ron_interceptor', { discarder_idx: discarderIdx, tile: tile });
-    const cpuWillRon = interceptRes.intercepted;
-    const cpuRonPlayer = interceptRes.player;
 
-    // 🌟 ロンの優先度（頭ハネ）を計算
-    let humanHasPriority = false;
-    if (wd.can_win) {
-        if (cpuWillRon) {
-            let humanDist = (0 - discarderIdx + 4) % 4;
-            let cpuDist = (cpuRonPlayer - discarderIdx + 4) % 4;
-            if (humanDist < cpuDist) {
-                humanHasPriority = true;
+    // 🌟 頭ハネ判定（ここはお客様の希望通り正常に動作します）
+    let anyCpuWillRon = false;
+    let higherPriorityCpuWillRon = false;
+    let humanDist = (0 - discarderIdx + 4) % 4;
+
+    for (let i = 1; i <= 3; i++) {
+        if (i === discarderIdx) continue;
+        try {
+            const cpuWd = await apiCall('/check_win', { player_idx: i, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
+            if (cpuWd.can_win) {
+                anyCpuWillRon = true;
+                let cpuDist = (i - discarderIdx + 4) % 4;
+                if (cpuDist < humanDist) {
+                    higherPriorityCpuWillRon = true;
+                }
             }
-        } else {
-            humanHasPriority = true;
-        }
+        } catch (e) { }
     }
 
-    // 🌟 追加：CPUがロン予定で、人間に優先権がないなら、一切のボタンを出さずにCPUのロン処理へ直行！
-    if (cpuWillRon && !humanHasPriority) {
+    let canHumanRon = wd.can_win && !higherPriorityCpuWillRon;
+
+    if (!canHumanRon && anyCpuWillRon) {
         return checkCpuReactions(discarderIdx, tile);
     }
 
-    // プレイヤーがロン可能で、かつ優先権がある場合のみロンボタンを表示
-    if (wd.can_win && humanHasPriority) {
+    if (canHumanRon) {
         const btn = document.getElementById('btn-win');
         btn.innerHTML = `ロン ${getImg(tile)}`;
         btn.style.display = "flex";
@@ -2639,14 +2643,13 @@ async function checkHumanReaction(discarderIdx, tile) {
         btn.style.gap = "5px";
         btn.onclick = () => execRon(false);
 
-        if (isAutoPlay && myWinTiles.length > 0) {
+        if (isAutoPlay) {
             btn.style.display = "none";
         }
         showAny = true;
     }
 
-    // 🌟 修正：鳴きボタン（ポン・カン）は、CPUのロンが無いときだけ表示する
-    if (myWinTiles.length === 0 && !cpuWillRon) {
+    if (!anyCpuWillRon && myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.innerHTML = `ポン ${getImg(tile)}`;
@@ -2676,30 +2679,37 @@ async function checkHumanReaction(discarderIdx, tile) {
     renderCPU();
 
     if (showAny) {
-        let isAutoDigest = (isAutoPlay);
+        // 🌟 テンパイ縛りを撤廃し、オートONなら無条件でスルー（またはロン）を実行する
+        let isAutoDigest = isAutoPlay;
 
         if (!isAutoDigest) {
             playSE('alert');
             document.getElementById('btn-skip').style.display = "block";
         }
 
-        document.getElementById('btn-skip').onclick = () => {
+        const skipAction = () => {
             stopTimer();
             document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
             checkCpuReactions(discarderIdx, tile);
         };
+
+        document.getElementById('btn-skip').onclick = skipAction;
         isProc = false;
         document.getElementById('msg').innerText = "鳴き";
 
         if (isAutoDigest) {
             isProc = true;
-            setTimeout(() => { isProc = false; execRon(false); }, 800 / speedMult);
+            setTimeout(() => {
+                isProc = false;
+                if (canHumanRon) {
+                    execRon(false);
+                } else {
+                    skipAction();
+                }
+            }, 800 / speedMult);
         } else {
             startTimer(timeCall, () => {
-                const skipBtn = document.getElementById('btn-skip');
-                if (skipBtn && skipBtn.style.display !== "none") {
-                    skipBtn.click();
-                }
+                skipAction();
             });
         }
 
@@ -3376,7 +3386,9 @@ async function handleRoundEnd() {
             // レート実績判定
             let newRate = playerRatings[0];
             if (oldRate < 1600 && newRate >= 1600) showAchievementUnlock("レートの階段 (1600)", "📈");
-            // ... (省略: 1700, 1800, 1900 の判定)
+            if (oldRate < 1700 && newRate >= 1700) showAchievementUnlock("レートの階段 (1700)", "📈");
+            if (oldRate < 1800 && newRate >= 1800) showAchievementUnlock("レートの階段 (1800)", "📈");
+            if (oldRate < 1900 && newRate >= 1900) showAchievementUnlock("レートの階段 (1900)", "📈");
             if (oldRate < 2000 && newRate >= 2000) showAchievementUnlock("頂に立つ者", "👑");
         }
 
