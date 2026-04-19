@@ -2848,6 +2848,49 @@ body.lang-en .en {
     }
 
 /* ==========================================================
+   🌟 ハンバーガーメニュー ＆ サイドバーのスケール完全同期
+   ========================================================== */
+
+/* ▼ 左上の3本線ボタン（卓と同じ比率で縮小・拡大させる） */
+#hamburger-btn {
+    transform-origin: top left !important;
+    transform: scale(var(--game-scale, 1)) !important;
+}
+
+    /* ホバーアニメーションもスケールを維持したまま重ね掛けする */
+    #hamburger-btn:hover {
+        transform: scale(calc(var(--game-scale, 1) * 1.05)) translateY(-2px) !important;
+    }
+
+/* ▼ スライドアウトするサイドバー本体 */
+#sidebar-menu {
+    position: fixed;
+    top: 0;
+    /* 🌟 修正：leftで隠すのをやめて0に固定する */
+    left: 0;
+    width: 280px;
+    background: linear-gradient(180deg, #1a252f 0%, #0d131a 100%);
+    border-right: 2px solid #3498db;
+    z-index: 40002;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    /* 🌟 修正：スケールを保ったまま、確実に「自身の幅の105%分」だけ左に隠す！ */
+    transform-origin: top left !important;
+    transform: scale(var(--game-scale, 1)) translateX(-105%) !important;
+    /* 🌟 アニメーションの対象をleftからtransformに変更 */
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    /* 縮小されても画面の底まで黒背景が届くように高さを逆算補正する */
+    height: calc(100vh / var(--game-scale, 1)) !important;
+}
+
+    /* クラス「open」が付いた時だけ、画面内(translateX(0))に入ってくる！ */
+    #sidebar-menu.open {
+        /* 🌟 修正：X軸の移動を0に戻して画面内に出現させる */
+        transform: scale(var(--game-scale, 1)) translateX(0) !important;
+    }
+
+/* ==========================================================
    🌟 中央メッセージパネルのサイズ固定化（空っぽ時の縮小防止）
    ========================================================== */
 #msg {
@@ -3047,3 +3090,30 @@ body.lang-en .en {
     z-index: 10000 !important;
     pointer-events: none !important;
 }
+
+/* ==========================================================
+   🌟 対局前設定画面 (MatchSettings) のスケール同期
+   ========================================================== */
+
+#settings-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 35000;
+    display: none; /* JSでflexに切り替わる */
+    justify-content: center;
+    align-items: center;
+}
+
+    /* 設定画面の中身の箱を中央固定にする */
+    #settings-screen > div {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform-origin: center center;
+        /* 🌟 ここでJSが計算した倍率を適用（game.jsの処理と二重保険） */
+        transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+    }

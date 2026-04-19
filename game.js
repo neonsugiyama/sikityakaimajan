@@ -666,6 +666,9 @@ function toggleBGM() {
 function resizeGame() {
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
 
+    // 🌟 CSS変数としてスケール値を全体に渡す（サイドバーなどのサイズ同期用）
+    document.documentElement.style.setProperty('--game-scale', scale);
+
     // 🌟 空間全体に「3Dカメラの奥行き」を設定
     document.body.style.perspective = "1200px";
 
@@ -702,7 +705,8 @@ function resizeGame() {
         '#yaku-modal > div',           // 役一覧
         '#achievement-modal > div',    // 実績
         '#mypage-modal > div',         // 戦績データ
-        '#friend-match-modal > div'    // 友人戦ロビー
+        '#friend-match-modal > div',   // 友人戦ロビー
+        '#settings-screen > div'       // 対局前設定
     ];
 
     modalContents.forEach(selector => {
