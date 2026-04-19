@@ -280,7 +280,19 @@ def expand_wild_melds(parses):
 
 # 🧮 成立した役のリストから、重複ルールの除外処理を行って最終的な点数を計算する関数
 def calc_yaku_score(yaku_list):
-    filtered = list(dict.fromkeys(yaku_list))
+    multi_countable_yaku = ["字刻", "下雨", "刮風", "双同刻"]
+    
+    # 🌟 各役がいくつ含まれているかをカウントして退避させておく
+    multi_counts = {y: yaku_list.count(y) for y in multi_countable_yaku}
+    
+    # 複数回カウントする役「以外」の役だけで重複消去を行う
+    filtered = list(dict.fromkeys([y for y in yaku_list if y not in multi_countable_yaku]))
+    
+    # 🌟 退避させておいた役を、元の数だけ追加し直す
+    for y, count in multi_counts.items():
+        if count > 0:
+            filtered.extend([y] * count)
+
     if "七星攬月" in filtered: filtered = [y for y in filtered if y in ["七星攬月", "無花果"]]
     for higher, lowers in OVERRIDE_RULES.items():
         if higher in filtered:
