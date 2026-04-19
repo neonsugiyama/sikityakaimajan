@@ -2857,3 +2857,193 @@ body.lang-en .en {
     align-items: center !important;
     justify-content: center !important;
 }
+
+/* ==========================================================
+   🌟 特定UI（名前・パネル・演出文字）の傾きを垂直に補正
+   ========================================================== */
+
+/* 1. プレイヤー名だけを「親の箱ごと」垂直に立たせる（持ち点は寝かせたまま） */
+.pos-name-0, .pos-name-2 {
+    transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
+}
+
+.pos-name-1, .pos-name-3 {
+    transform: translateY(-50%) translateZ(40px) rotateX(-20deg) !important;
+}
+
+/* ※ 中の文字自体の回転は不要になったので解除（ホバー時のバグを防止） */
+.player-name {
+    display: inline-block;
+    transform: none !important;
+}
+
+/* 2. 中央の各メッセージパネル・タイマー・点差パネルを垂直に立たせる */
+#charleston-ui,
+#charleston-confirm-ui,
+#timer-display,
+#score-diff-panel {
+    /* 中央寄せと手前への浮遊(60px)を維持しつつ逆回転 */
+    transform: translate(-50%, -50%) translateZ(60px) rotateX(-20deg) !important;
+}
+
+/* 3. 鳴き（ポン/カン）・和了り・JokerSwapなどの演出文字を垂直に立たせる */
+.call-text,
+.special-yaku,
+.joker-swap-style {
+    transform: rotateX(-20deg) !important;
+}
+
+/* 4. 待ち牌確認パネルを高く浮かせ、下を軸に立たせる（埋もれ防止） (なんかキモいので傾かせたままにするかも)*/
+#waits-panel, .waits-panel {
+    /* 🌟 修正：中央寄せを復活させ、高さを120pxに引き上げ！ */
+    transform: translateX(-50%) translateZ(120px) rotateX(-20deg) !important;
+    /* 🌟 修正：下側を軸にして起き上がらせることで、卓へのめり込みを完全防止！ */
+    transform-origin: bottom center !important;
+    z-index: 9999 !important;
+}
+
+/* ==========================================================
+   🌟 持ち点パネルのサイズと位置の微調整
+   ========================================================== */
+
+/* 1. 箱の大きさと文字サイズを小さくする */
+.player-score {
+    padding: 3px 10px !important; /* 元は 5px 15px（上下・左右の余白を減らす） */  
+}
+
+/* ==========================================================
+   🌟 全体UIの「手前（画面下側）へのシフト」調整
+   ========================================================== */
+
+/* 1. 中央パネル系を全体的に手前（下）に引き寄せる */
+#center-message,
+#score-diff-panel,
+.center-info,
+#dice-overlay {
+    /* 🌟 元の50%から下げて手前へ（数値が大きいほど手前に来ます） */
+    top: 51% !important;
+}
+
+/* 2. あなた（手前）の持ち点・名前パネルを手前に下げる */
+.pos-score-0 {
+    bottom: 295px !important; /* 🌟 河から離して手前へ（元は300px） */
+}
+
+/* ==========================================================
+   🌟 他家UI・演出・タイマーの「手前シフト」個別調整
+   ========================================================== */
+
+/* --------------------------------------------------------
+   1. 他の3人の持ち点・名前も全体的に手前（下）へズラす
+   -------------------------------------------------------- */
+/* ▼ 対面（上側：トップからの距離を増やして手前へ引き寄せる） */
+.pos-score-2 {
+    top: 310px !important; /* 元は300px。大きくすると下(手前)へ */
+}
+
+/* ▼ 下家（右側：上下の中央基準を少し下へ） */
+.pos-score-1 {
+    top: 51% !important; /* 元は50% */
+}
+
+/* ▼ 上家（左側：上下の中央基準を少し下へ） */
+.pos-score-3 {
+    top: 51% !important; /* 元は50% */
+}
+
+/* ==========================================================
+   🌟 レイヤー（重なり順）とタイマー文字あふれの完全修正
+   ========================================================== */
+
+/* 1. タイマーの枠から文字がはみ出るバグの修正 */
+#timer-display {
+    padding: 10px 10px !important; /* 枠を少し太くして文字を包み込む */
+    height: auto !important; /* 高さを文字サイズに合わせて自動可変に */
+    min-height: 45px !important; /* 最低限の高さを確保 */
+    line-height: 1.2 !important; /* 行の高さをリセット */
+    box-sizing: border-box !important;
+    white-space: nowrap !important; /* 文字の改行を禁止 */
+    bottom: auto !important;
+    /* 位置と傾きの補正 */
+    top: 75% !important;
+    left: calc(50% + 220px) !important;
+    transform: translate(-50%, -50%) translateZ(60px) rotateX(-20deg) !important;
+}
+
+/* 2. 牌交換アニメーション（飛んでいく牌）のレイヤーをZ=80に引き上げ */
+/* JSの座標移動を邪魔しないように、親を3D化して中身の牌だけをZ軸で浮かせる */
+.flying-pack {
+    transform-style: preserve-3d !important;
+    z-index: 550 !important;
+}
+
+    .flying-pack .tile {
+        transform: translateZ(80px) !important;
+        box-shadow: -2px 5px 15px rgba(0,0,0,0.6) !important; /* 浮遊感のある影 */
+    }
+
+/* 3. 鳴き・和了り文字のレイヤーをZ=80に引き上げ ＆ アニメーション復活 */
+/* 🌟 超重要：文字自体を回転させると拡大アニメーションが死ぬので、親の箱ごと回転させて持ち上げる */
+.call-wrap-0 {
+    bottom: 130px !important; /* 自分の文字を少し手前へ */
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+}
+
+.call-wrap-2 {
+    top: 150px !important; /* 対面の文字を少し手前へ */
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+}
+
+.call-wrap-1 {
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+}
+
+.call-wrap-3 {
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+}
+
+/* 前回、文字自体にかけていた回転指定を消去（これでポップアップアニメーションが正常に動きます） */
+.call-text, .special-yaku, .joker-swap-style {
+    transform: none !important;
+}
+
+/* ==========================================================
+   🌟 点数加算アニメーション（+8000など）の位置調整
+   ========================================================== */
+
+/* あなた（下側）の点数飛び出し位置 */
+.pos-round-score-0 {
+    bottom: 100px !important; /* 数値を大きくすると奥（上）へ、小さくすると手前（下）へ */
+    left: 50% !important;
+    /* 垂直に起こして、レイヤーを演出文字と同じ高さ(80px)に設定 */
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+}
+
+/* 対面（上側）の点数飛び出し位置 */
+.pos-round-score-2 {
+    top: 250px !important; /* 数値を大きくすると手前（下）へ、小さくすると奥（上）へ */
+    left: 50% !important;
+    /* 垂直に起こして、レイヤーを演出文字と同じ高さ(80px)に設定 */
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+}
+
+/* ついでに左右の点数も垂直に起こしておく（位置はそのままでOKな場合） */
+.pos-round-score-1 {
+    top: 60% !important; /* 🌟 持ち点に合わせて下（手前）へ。大きくするとさらに下へ */
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+}
+
+.pos-round-score-3 {
+    top: 60% !important; /* 🌟 持ち点に合わせて下（手前）へ。大きくするとさらに下へ */
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+}
+
+/* 数字自体のスタイル微調整（重なり順を一番上に） */
+.player-round-score {
+    z-index: 10000 !important;
+    pointer-events: none !important;
+}
