@@ -664,10 +664,11 @@ function toggleBGM() {
 
 // 📱 画面サイズに合わせてゲーム画面全体を拡大縮小する関数
 function resizeGame() {
-    // 基準サイズ（1280x800）に対する現在の画面の倍率を計算
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
 
-    // 1. 卓やタイトルなど、画面中央に絶対配置（absolute）しているもの
+    // 🌟 空間全体に「3Dカメラの奥行き」を設定
+    document.body.style.perspective = "1200px";
+
     const mainElements = [
         '.table',
         '.title-content',
@@ -681,7 +682,14 @@ function resizeGame() {
             el.style.left = "50%";
             el.style.top = "50%";
             el.style.transformOrigin = "center center";
-            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+            // 🌟 修正：35度から「20度」に傾きを緩めて、上の空間を詰める！
+            if (selector === '.table') {
+                el.style.transform = `translate(-50%, -50%) scale(${scale}) rotateX(20deg)`;
+                el.style.transformStyle = "preserve-3d";
+            } else {
+                el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            }
             el.classList.add('ready');
         }
     });

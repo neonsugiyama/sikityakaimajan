@@ -3,9 +3,9 @@
 
 /* =====================================================================
         📺 画面全体と雀卓のベース設定
-        ===================================================================== */
+   ===================================================================== */
 body {
-    background-color: #0a0a0a;
+    background-color: #050505;
     color: white;
     font-family: sans-serif;
     margin: 0;
@@ -15,25 +15,40 @@ body {
     justify-content: center;
     height: 100vh;
     width: 100vw;
+    /* 🌟 卓の外側の背景（宇宙のような深い空間） */
+    background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
 }
 
+/* 🌟 雀卓本体（雀魂風の深いブルーマット） */
 .table {
     position: relative;
     width: 1280px;
     height: 800px;
-    background-color: #1a5e3a;
-    border-radius: 10px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8);
-    transform-origin: center center;
+    /* 深いブルーのマット素材（うっすら中央が明るい） */
+    background: radial-gradient(circle at center, #284c7e 0%, #152b4d 100%);
+    /* 物理的な枠（手前側を極端に太くしてパースを強調） */
+    border-top: 15px solid #2a2a2a;
+    border-bottom: 50px solid #111;
+    border-left: 25px solid #1a1a1a;
+    border-right: 25px solid #1a1a1a;
+    border-radius: 20px;
+    /* マットの内側に落ちる影と、卓全体が床に落とす影 */
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
 }
 
 /* =====================================================================
         🀄 牌の基本サイズ設定
         ===================================================================== */
+/* 🌟 牌の画像に「側面の厚み（フェイク3Dブロック）」を持たせる */
 .tile {
-    background-color: #ecf0f1;
-    border: 1px solid #bdc3c7;
-    border-radius: 3px;
+    width: 40px;
+    height: 56px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    /* 画像の斜め下方向に、グレーの影（側面）と黒い影（落とし影）を重ねて立体ブロック化！ */
+    box-shadow: -2px 4px 0px #b0b0b0, -4px 8px 8px rgba(0,0,0,0.6);
+    /* 卓が斜めに傾いているので、牌が寝そべりすぎないように少しだけ起き上がらせる */
+    transform: rotateX(-15deg);
 }
 
 .hand-0 .tile {
@@ -2530,3 +2545,142 @@ body.lang-en .en {
     #mode-select-container.ready {
         opacity: 1;
     }
+
+/* ==========================================================
+   🌟 3Dクリック点滅バグの完全解決（当たり判定のフラット化）
+   ========================================================== */
+
+/* 1. 親である「手牌の箱」だけを傾けて、3Dの計算をここでストップさせる */
+#hand-0 {
+    bottom: -10px !important;
+    z-index: 99999 !important;
+    transform-origin: bottom center !important;
+    /* 箱ごと手前に引き上げ、奥に傾ける */
+    transform: translateX(-50%) translateZ(40px) rotateX(-15deg) scale(1.1) !important;
+    /* 🌟 超重要：中身の牌どうしが3D空間で干渉するのを防止（フラット化） */
+    transform-style: flat !important;
+    padding-bottom: 20px !important;
+}
+
+    /* 2. 中身の牌は、個別の3D回転を一切やめる（箱の傾きにそのまま従う） */
+    #hand-0 .tile {
+        pointer-events: auto !important;
+        transform: none !important; /* 個別の傾きを解除して隣との干渉を消滅させる */
+        transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+    }
+
+        /* 3. ホバー時もZ軸（手前）ではなく、Y軸（斜めの板の上を滑らせる）で表現する */
+        #hand-0 .tile:hover {
+            /* Z軸で飛び出させると判定がバグるので、Y軸（上方向）と拡大(scale)で表現！ */
+            transform: translateY(-15px) scale(1.05) !important;
+            /* 浮かんだように見える影を落とす */
+            box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(241, 196, 15, 0.4) !important;
+            cursor: pointer !important;
+        }
+
+        /* 4. 交換で選択中の牌も同様にY軸で浮かせる */
+        #hand-0 .tile.selected-exchange {
+            transform: translateY(-25px) scale(1.05) !important;
+            box-shadow: -5px 10px 0px #b0b0b0, -10px 25px 25px rgba(0,0,0,0.7), 0 0 20px rgba(52, 152, 219, 0.8) !important;
+        }
+
+/* ==========================================================
+   🌟 全UIパーツのめり込み完全解消（最終調整版）
+   ========================================================== */
+
+/* --------------------------------------------------------
+   1. 親の箱を「元の配置を維持したまま、Z軸(手前)に20px浮かせる」
+   -------------------------------------------------------- */
+
+/* ▼ 画面中央パネル系（🚨BGMボタンの親である .center-info を追加！） */
+#charleston-ui, #charleston-confirm-ui, #center-message, #timer-display, #score-diff-panel, .center-info {
+    transform: translate(-50%, -50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ アクションボタンの親 */
+.action-wrapper, .action-layer {
+    transform: translateX(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ 上下の名前・持ち点 */
+.pos-name-0, .pos-score-0, .pos-name-2, .pos-score-2 {
+    transform: translateX(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ 左右の名前 */
+.pos-name-1, .pos-name-3 {
+    transform: translateY(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ 右の持ち点 */
+.pos-score-1 {
+    transform: translate(-50%, -50%) rotate(-90deg) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ 左の持ち点 */
+.pos-score-3 {
+    transform: translate(-50%, -50%) rotate(90deg) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* ▼ 待ち牌・オート・役一覧ボタンの親 */
+.pos-waits-btn, .pos-auto-btn {
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* --------------------------------------------------------
+   2. ボタン・パネル本体（中身）を「完全に平ら」にする
+   -------------------------------------------------------- */
+
+/* ▼ 操作するボタン類（🚨役一覧ボタン #btn-yaku-list などを追加！） */
+.btn-act, .btn-waits, #btn-auto-play, #btn-yaku-list, #btn-show-waits,
+.player-name, .player-score, .btn-mini-icon,
+#charleston-ui button, #charleston-confirm-ui button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    transform: none !important;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.5) !important;
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+}
+
+/* ▼ 🚨修正：交換メッセージの「黒い背景箱」本体
+   （箱自体はフワッと浮かせず、ただの平らな背景として固定する） */
+#charleston-ui > div, #charleston-confirm-ui > div {
+    pointer-events: auto !important;
+    cursor: default !important; /* 指マークにはしない */
+    transform: none !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+}
+
+/* --------------------------------------------------------
+   3. ホバー時のフワッとアクション（交換パネル背景は除外！）
+   -------------------------------------------------------- */
+.btn-act:hover,
+.btn-waits:not(:disabled):hover,
+#btn-auto-play:hover,
+#btn-yaku-list:hover,
+#btn-show-waits:hover,
+.player-score:hover,
+.player-name:hover,
+.btn-mini-icon:hover,
+#charleston-ui button:hover,
+#charleston-confirm-ui button:hover {
+    transform: translateY(-5px) scale(1.05) !important;
+    box-shadow: 0 10px 15px rgba(0,0,0,0.7), 0 0 10px rgba(241, 196, 15, 0.4) !important;
+}
