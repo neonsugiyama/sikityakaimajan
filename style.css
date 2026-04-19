@@ -827,7 +827,7 @@ html, body {
 /* 📦 複数ボタンのグループを横に並べる親枠 */
 .action-wrapper {
     position: absolute;
-    bottom: 80px;
+    bottom: 55px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -885,7 +885,7 @@ html, body {
 
 #charleston-ui, #charleston-confirm-ui {
     position: absolute;
-    top: 75%;
+    top: 80%;
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
@@ -2601,7 +2601,7 @@ body.lang-en .en {
 }
 
 #charleston-ui, #charleston-confirm-ui, #timer-display, #score-diff-panel, #dice-overlay {
-    transform: translate(-50%, -50%) translateZ(60px) !important;
+    transform: translate(-50%, -50%) translateZ(200px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
     z-index: 9999 !important;
@@ -2609,7 +2609,7 @@ body.lang-en .en {
 
 /* ▼ アクションボタンの親（全体枠：ここで中央に寄せて浮かせる） */
 .action-wrapper {
-    transform: translateX(-50%) translateZ(20px) !important;
+    transform: translateX(-50%) translateZ(200px) !important;
     transform-style: flat !important;
     pointer-events: none !important;
 }
@@ -2942,7 +2942,7 @@ body.lang-en .en {
 #timer-display,
 #score-diff-panel {
     /* 中央寄せと手前への浮遊(60px)を維持しつつ逆回転 */
-    transform: translate(-50%, -50%) translateZ(60px) rotateX(-20deg) !important;
+    transform: translate(-50%, -50%) translateZ(200px) rotateX(-20deg) !important;
 }
 
 /* 3. 鳴き（ポン/カン）・和了り・JokerSwapなどの演出文字を垂直に立たせる */
@@ -2977,10 +2977,14 @@ body.lang-en .en {
 /* 1. 中央パネル系を全体的に手前（下）に引き寄せる */
 #center-message,
 #score-diff-panel,
-.center-info,
-#dice-overlay {
+.center-info {
     /* 🌟 元の50%から下げて手前へ（数値が大きいほど手前に来ます） */
     top: 51% !important;
+}
+
+#dice-overlay {
+    /* 🌟 元の50%から下げて手前へ（数値が大きいほど手前に来ます） */
+    top: 53% !important;
 }
 
 /* 2. あなた（手前）の持ち点・名前パネルを手前に下げる */
@@ -3025,7 +3029,7 @@ body.lang-en .en {
     bottom: auto !important;
     /* 位置と傾きの補正 */
     top: 75% !important;
-    left: calc(50% + 220px) !important;
+    left: calc(50% + 235px) !important;
     transform: translate(-50%, -50%) translateZ(60px) rotateX(-20deg) !important;
 }
 
