@@ -4546,6 +4546,27 @@ document.addEventListener('contextmenu', (e) => {
     }
 });
 
+// 🖱️ ダブルクリックでツモ切り機能（新規追加）
+// 🌟 修正: 画面全体(document)ではなく、卓全体(.table)にだけイベントを設定する
+const gameTable = document.querySelector('.table');
+if (gameTable) {
+    gameTable.addEventListener('dblclick', (e) => {
+        // 🌟 究極の安全装置: クリックした要素が「卓そのもの」または「河(river)」の場合のみ作動
+        // （ボタン、名前、持ち点、牌など、卓の上に乗っているUIはすべて e.target !== gameTable になるため自動的に弾かれます）
+        if (e.target !== gameTable && !e.target.classList.contains('river')) {
+            return;
+        }
+
+        if (!isProc && turn === 0 && drawnTile !== "" && !charlestonPhase) {
+            const msgText = document.getElementById('msg').innerText;
+            if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
+            discard(drawnTile, true);
+            window.getSelection().removeAllRanges();
+        }
+    });
+}
+
 // ==========================================
 // 🍔 サイドバーメニューの開閉とボタン連動（修正版）
 // ==========================================
