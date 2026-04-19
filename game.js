@@ -693,16 +693,19 @@ function resizeGame() {
     mainElements.forEach(selector => {
         const el = document.querySelector(selector);
         if (el) {
-            el.style.position = "absolute";
-            el.style.left = "50%";
-            el.style.top = "50%";
+            el.style.position = "relative";
+            el.style.left = "auto";
+            el.style.top = "auto";
             el.style.transformOrigin = "center center";
 
-            // 🌟 修正：35度から「20度」に傾きを緩めて、上の空間を詰める！
             if (selector === '.table') {
-                el.style.transform = `translate(-50%, -50%) scale(${scale}) rotateX(20deg)`;
+                el.style.transform = `scale(${scale}) rotateX(20deg)`;
                 el.style.transformStyle = "preserve-3d";
             } else {
+                // タイトル画面などは絶対配置のまま中央に固定する
+                el.style.position = "absolute";
+                el.style.left = "50%";
+                el.style.top = "50%";
                 el.style.transform = `translate(-50%, -50%) scale(${scale})`;
             }
             el.classList.add('ready');
@@ -1712,6 +1715,7 @@ function updateWall(c) { document.getElementById('wall-count').innerText = `山:
 function startCharlestonSelection() {
     charlestonPhase = true;
     exchangeSelection = [];
+    updateStampVisibility();
 
     const cTitle = document.getElementById('c-title');
     if (charlestonCount === 1) {
@@ -3308,11 +3312,13 @@ async function handleRoundEnd() {
         document.getElementById('overlay').scrollTop = 0;
         document.getElementById('overlay').style.display = "flex";
 
+        updateStampVisibility();
         playSE('score');
 
         await waitWithTimerAndSkip(8);
 
         document.getElementById('overlay').style.display = "none";
+        updateStampVisibility();
         await sleep(500);
     }
 
@@ -3735,86 +3741,97 @@ let lineChart = null;
 // ==========================================
 
 // 📊 タイトル画面用のプロフィール描画（折れ線グラフ化）
-function updateProfileUI() {
+// 🌟 修正：async を追加して、中で「待機」できるようにする
+async function updateProfileUI() {
     document.getElementById('prof-name').innerText = playerStats.playerName;
     let rate = playerRatings[0];
     document.getElementById('prof-rank').innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
 
-    // 折れ線グラフの描画
-    if (lineChart) lineChart.destroy();
-    const ctxLine = document.getElementById('prof-history-chart').getContext('2d');
+    // 🌟 追加：Chart.jsの読み込みが完了するまで最大2秒間（0.2秒×10回）待機する
+    let retryCount = 0;
+    while (typeof Chart === 'undefined' && retryCount < 10) {
+        console.log("Chart.js読み込み待ち...");
+        await new Promise(res => setTimeout(res, 200));
+        retryCount++;
+    }
 
-    // データがない場合はダミーを入れる
-    let recordsRev = playerStats.recentRecords.length > 0 ? [...playerStats.recentRecords].reverse() : [0];
-    let lineData = recordsRev.map(r => (typeof r === 'object') ? r.rank : r);
-    let scoreData = recordsRev.map(r => (typeof r === 'object') ? r.score : null);
+    // 🌟 追加：もし読み込めた場合のみ、以下のグラフ描画を実行する
+    if (typeof Chart !== 'undefined') {
+        // 折れ線グラフの描画
+        if (lineChart) lineChart.destroy();
+        const ctxLine = document.getElementById('prof-history-chart').getContext('2d');
 
-    Chart.defaults.color = '#fff';
-    lineChart = new Chart(ctxLine, {
-        type: 'line',
-        data: {
-            labels: lineData.map((_, i) => `${lineData.length - i}戦前`),
-            datasets: [{
-                label: '順位',
-                data: lineData,
-                borderColor: '#e67e22',
-                backgroundColor: 'rgba(230, 126, 34, 0.2)',
-                borderWidth: 3,
-                tension: 0.3,
-                fill: true,
-                pointBackgroundColor: '#f1c40f',
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                clip: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: {
-                padding: { top: 15, bottom: 15, left: 10, right: 10 }
+        // データがない場合はダミーを入れる
+        let recordsRev = playerStats.recentRecords.length > 0 ? [...playerStats.recentRecords].reverse() : [0];
+        let lineData = recordsRev.map(r => (typeof r === 'object') ? r.rank : r);
+        let scoreData = recordsRev.map(r => (typeof r === 'object') ? r.score : null);
+
+        Chart.defaults.color = '#fff';
+        lineChart = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: lineData.map((_, i) => `${lineData.length - i}戦前`),
+                datasets: [{
+                    label: '順位',
+                    data: lineData,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#f1c40f',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    clip: false
+                }]
             },
-            scales: {
-                y: {
-                    reverse: true,
-                    min: 1,
-                    max: 4,
-                    ticks: {
-                        stepSize: 1,
-                        color: '#fff',
-                        font: { size: 14, weight: 'bold' },
-                        callback: function (value) {
-                            return value + "位";
-                        }
-                    },
-                    grid: { color: '#444' }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 15, bottom: 15, left: 10, right: 10 }
                 },
-                x: { display: false }
-            },
-            plugins: {
-                legend: { display: false },
-                // 🌟 ここを追加！マウスを乗せた時のポップアップ（ツールチップ）を魔改造！
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleFont: { size: 14 },
-                    bodyFont: { size: 16, weight: 'bold' },
-                    displayColors: false, // 四角いカラーアイコンを消してスタイリッシュに
-                    callbacks: {
-                        label: function (context) {
-                            let idx = context.dataIndex;
-                            let score = scoreData[idx];
-                            // スコアデータがあれば「獲得スコア」を、無ければ今まで通り「順位」を出す
-                            if (score !== null && score !== undefined) {
-                                return `獲得スコア: ${score} 点`;
+                scales: {
+                    y: {
+                        reverse: true,
+                        min: 1,
+                        max: 4,
+                        ticks: {
+                            stepSize: 1,
+                            color: '#fff',
+                            font: { size: 14, weight: 'bold' },
+                            callback: function (value) {
+                                return value + "位";
                             }
-                            return `順位: ${context.parsed.y}位`;
+                        },
+                        grid: { color: '#444' }
+                    },
+                    x: { display: false }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 16, weight: 'bold' },
+                        displayColors: false,
+                        callbacks: {
+                            label: function (context) {
+                                let idx = context.dataIndex;
+                                let score = scoreData[idx];
+                                if (score !== null && score !== undefined) {
+                                    return `獲得スコア: ${score} 点`;
+                                }
+                                return `順位: ${context.parsed.y}位`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
+    // 🌟 ここから下（牌姿の表示など）はグラフの成否に関わらず常に実行
     document.getElementById('best-score-val').innerText = `${playerStats.maxScore} 点`;
     const handTiles = document.getElementById('best-hand-tiles');
     handTiles.innerHTML = '';
@@ -4661,3 +4678,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==========================================
+// ★ スタンプ機能制御
+// ==========================================
+let stampTimers = [null, null, null, null];
+
+// 🎨 スタンプパレットの開閉
+function toggleStampMenu() {
+    playSE('click');
+    const menu = document.getElementById('stamp-menu');
+    menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'flex' : 'none';
+}
+
+// 📤 自分がスタンプを送信する処理
+function sendStamp(stampContent) {
+    document.getElementById('stamp-menu').style.display = 'none';
+    showStamp(0, stampContent);
+}
+
+// 💬 画面にスタンプを表示する共通処理
+function showStamp(playerIdx, content) {
+    const el = document.getElementById(`stamp-display-${playerIdx}`);
+    if (!el) return;
+
+    el.classList.remove('show');
+    void el.offsetWidth;
+
+    el.innerText = content;
+    el.classList.add('show');
+
+    playSE('click');
+
+    if (stampTimers[playerIdx]) clearTimeout(stampTimers[playerIdx]);
+    stampTimers[playerIdx] = setTimeout(() => {
+        el.classList.remove('show');
+    }, 3000);
+}
+
+// 👁️ スタンプボタンの表示/非表示を自動管理する関数
+function updateStampVisibility() {
+    const btn = document.getElementById('btn-open-stamp');
+    const menu = document.getElementById('stamp-menu');
+    if (!btn) return;
+
+    // タイトル画面とモード選択画面が消えている（＝ゲーム中である）か
+    const isGameActive = document.getElementById('title-screen').style.display === 'none' &&
+        document.getElementById('mode-select-screen').style.display === 'none';
+
+    // 画面を覆うモーダル（設定、リザルト、戦績など）が開いていないか
+    // ※待ち牌パネル('waits-panel')はここに含めないので、開いていてもスタンプは消えません！
+    const noModalsOpen =
+        document.getElementById('settings-modal').style.display !== 'flex' &&
+        document.getElementById('mypage-modal').style.display !== 'flex' &&
+        document.getElementById('howto-modal').style.display !== 'flex' &&
+        document.getElementById('yaku-modal').style.display !== 'flex' &&
+        document.getElementById('achievement-modal').style.display !== 'flex' &&
+        document.getElementById('overlay').style.display !== 'flex'; // リザルト画面
+
+    // ゲーム中で、かつ邪魔な画面が開いていなければ表示
+    if (isGameActive && noModalsOpen) {
+        btn.style.display = 'flex';
+    } else {
+        btn.style.display = 'none';
+        if (menu) menu.style.display = 'none'; // メニューも強制クローズ
+    }
+}
+
+// 🛠️ デバッグ用：全CPUのスタンプを常時表示する関数（テストツールから呼ぶ）
+function debugShowAllStamps() {
+    // 既存のタイマーをすべてキャンセルして消えないようにする
+    for (let i = 1; i <= 3; i++) {
+        if (stampTimers[i]) clearTimeout(stampTimers[i]);
+
+        const el = document.getElementById(`stamp-display-${i}`);
+        if (el) {
+            el.innerText = "😎"; // デバッグ用の固定絵文字
+            el.classList.add('show');
+        }
+    }
+    alert("CPUのスタンプを常時表示モードにしました。\n位置調整に利用してください。");
+}
