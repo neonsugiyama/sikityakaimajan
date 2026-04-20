@@ -677,57 +677,41 @@ function toggleBGM() {
 // 📱 画面サイズに合わせてゲーム画面全体を拡大縮小する関数
 function resizeGame() {
     const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
-
-    // 🌟 CSS変数としてスケール値を全体に渡す（サイドバーなどのサイズ同期用）
     document.documentElement.style.setProperty('--game-scale', scale);
 
-    // 🌟 空間全体に「3Dカメラの奥行き」を設定
-    document.body.style.perspective = "1200px";
+    // 🌟 1. 親箱をスケールするだけ（translateはCSSのマージンに任せるので不要！）
+    const container = document.getElementById('game-container');
+    if (container) {
+        container.style.transform = `scale(${scale})`;
+        container.classList.add('ready');
+    }
 
-    const mainElements = [
-        '.table',
-        '.title-content',
-        '#mode-select-container'
-    ];
-
-    mainElements.forEach(selector => {
+    // 🌟 2. タイトル画面などは今まで通り translate が必要
+    const screens = ['.title-content', '#mode-select-container'];
+    screens.forEach(selector => {
         const el = document.querySelector(selector);
         if (el) {
-            el.style.position = "relative";
-            el.style.left = "auto";
-            el.style.top = "auto";
-            el.style.transformOrigin = "center center";
-
-            if (selector === '.table') {
-                el.style.transform = `scale(${scale}) rotateX(20deg)`;
-                el.style.transformStyle = "preserve-3d";
-            } else {
-                // タイトル画面などは絶対配置のまま中央に固定する
-                el.style.position = "absolute";
-                el.style.left = "50%";
-                el.style.top = "50%";
-                el.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            }
+            el.style.position = "absolute";
+            el.style.left = "50%";
+            el.style.top = "50%";
+            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
             el.classList.add('ready');
         }
     });
 
-    // 2. ポップアップ画面（モーダル）の「中身の箱」だけを縮小する
-    // ※モーダル全体を縮小すると背景の黒い暗幕まで小さくなってしまうため、直下のdiv要素を狙う
+    // 🌟 3. モーダル群
     const modalContents = [
-        '#settings-modal > div',       // 設定
-        '#howto-modal > div',          // 遊び方
-        '#yaku-modal > div',           // 役一覧
-        '#achievement-modal > div',    // 実績
-        '#mypage-modal > div',         // 戦績データ
-        '#friend-match-modal > div',   // 友人戦ロビー
-        '#settings-screen > div'       // 対局前設定
+        '#settings-modal > div',
+        '#howto-modal > div',
+        '#yaku-modal > div',
+        '#achievement-modal > div',
+        '#mypage-modal > div',
+        '#friend-match-modal > div',
+        '#settings-screen > div'
     ];
-
     modalContents.forEach(selector => {
         const elements = document.querySelectorAll(selector);
         elements.forEach(el => {
-            // 🌟 卓と同じように「絶対配置＋中央揃え」を指定してから縮小をかける
             el.style.position = "absolute";
             el.style.left = "50%";
             el.style.top = "50%";
@@ -736,25 +720,21 @@ function resizeGame() {
         });
     });
 
-    // 🌟 3. リザルト画面専用の縮小処理（重なりバグの解消）
-    const overlayChildren = document.querySelectorAll('#overlay > *');
-    const resultScale = scale * 0.85;
+    // 🌟 4. リザルト
     const resultWrapper = document.getElementById('result-wrapper');
     if (resultWrapper) {
         resultWrapper.style.position = "absolute";
         resultWrapper.style.left = "50%";
         resultWrapper.style.top = "50%";
         resultWrapper.style.transformOrigin = "center center";
-
-        // 💡 scale * 0.85 で全体を少し小さめに表示（好みに合わせて 0.8 や 0.9 に調整可能）
         resultWrapper.style.transform = `translate(-50%, -50%) scale(${scale * 0.85})`;
     }
 
-    // 🌟 4. 天和・地和などの巨大文字（アニメーションと喧嘩しないようフォントサイズ自体を縮小）
+    // 🌟 5. 巨大文字
     const bigYaku = document.getElementById('big-yaku-text');
     if (bigYaku) {
         bigYaku.style.fontSize = `${180 * scale}px`;
-        bigYaku.style.webkitTextStrokeWidth = `${4 * scale}px`; // 縁取りの太さも合わせて調整
+        bigYaku.style.webkitTextStrokeWidth = `${4 * scale}px`;
     }
 }
 
