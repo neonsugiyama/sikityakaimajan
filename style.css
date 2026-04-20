@@ -27,13 +27,10 @@ html, body {
     left: 50%;
     width: 1280px;
     height: 800px;
-    /* 🌟 ここが魔法！幅と高さの半分をマイナスして、画面のド真ん中に強制固定する */
     margin-top: -400px;
     margin-left: -640px;
-    /* 箱の中心から3Dの奥行きを発生させる */
-    perspective: 1200px;
-    transform-style: preserve-3d;
     transform-origin: center center;
+    /* 🚨 超重要：ここにあった perspective: 1200px; を削除して親箱の3Dを解除！ */
 }
 
 /* 🌟 雀卓本体の設定 */
@@ -50,8 +47,8 @@ html, body {
     border-right: 25px solid #1a1a1a;
     border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
-    /* 🌟 卓をここで傾ける！ */
-    transform: rotateX(20deg);
+    /* 🌟 ここで「卓だけ」に3D遠近感(perspective)を持たせる！ */
+    transform: perspective(1200px) rotateX(20deg);
     transform-style: preserve-3d;
 }
 
@@ -2867,47 +2864,128 @@ body.lang-en .en {
     }
 
 /* ==========================================================
-   🌟 ハンバーガーメニュー ＆ サイドバーのスケール完全同期
+   🚨 ハンバーガーメニュー ＆ サイドバー ＆ テストツール 🚨
+   （絶対画面端・2D最前面・はみ出し完全防止版）
    ========================================================== */
 
-/* ▼ 左上の3本線ボタン（卓と同じ比率で縮小・拡大させる） */
+/* ▼ 左上の3本線ボタン：画面の左上(ブラウザ基準)に完全固定 */
 #hamburger-btn {
-    transform-origin: top left !important;
-    transform: scale(var(--game-scale, 1)) !important;
+    position: fixed !important;
+    top: 20px !important;
+    left: 20px !important;
+    width: 50px !important;
+    height: 50px !important;
+    background: rgba(20, 25, 30, 0.85) !important;
+    border: 2px solid #3498db !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    z-index: 99999 !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
+    transform: none !important;
+    transition: background 0.2s, transform 0.2s !important;
 }
 
-    /* ホバーアニメーションもスケールを維持したまま重ね掛けする */
     #hamburger-btn:hover {
-        transform: scale(calc(var(--game-scale, 1) * 1.05)) translateY(-2px) !important;
+        background: rgba(52, 152, 219, 0.4) !important;
+        transform: translateY(-2px) scale(1.05) !important;
+    }
+
+    #hamburger-btn span {
+        display: block !important;
+        width: 26px !important;
+        height: 3px !important;
+        background: #fff !important;
+        border-radius: 3px !important;
+    }
+
+/* ▼ メニューを開いた時の暗い背景カバー：画面全体を覆う */
+#sidebar-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0,0,0,0.6) !important;
+    z-index: 99998 !important;
+    transform: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.3s ease !important;
+    backdrop-filter: blur(3px) !important;
+}
+
+    #sidebar-overlay.show {
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 
 /* ▼ スライドアウトするサイドバー本体 */
 #sidebar-menu {
-    position: fixed;
-    top: 0;
-    /* 🌟 修正：leftで隠すのをやめて0に固定する */
-    left: 0;
-    width: 280px;
-    background: linear-gradient(180deg, #1a252f 0%, #0d131a 100%);
-    border-right: 2px solid #3498db;
-    z-index: 40002;
-    box-shadow: 5px 0 25px rgba(0,0,0,0.8);
-    display: flex;
-    flex-direction: column;
-    /* 🌟 修正：スケールを保ったまま、確実に「自身の幅の105%分」だけ左に隠す！ */
-    transform-origin: top left !important;
-    transform: scale(var(--game-scale, 1)) translateX(-105%) !important;
-    /* 🌟 アニメーションの対象をleftからtransformに変更 */
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-    /* 縮小されても画面の底まで黒背景が届くように高さを逆算補正する */
-    height: calc(100vh / var(--game-scale, 1)) !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 280px !important;
+    /* 🌟 ここが重要：退出ボタンのはみ出しを絶対に防ぐ！ */
+    height: 100vh !important;
+    height: 100dvh !important; /* スマホやタブレットのバーも考慮した完璧な高さ */
+    box-sizing: border-box !important; /* パディング等による下のはみ出しを防止 */
+
+    background: linear-gradient(180deg, #1a252f 0%, #0d131a 100%) !important;
+    border-right: 2px solid #3498db !important;
+    z-index: 99999 !important;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.8) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transform: translateX(-100%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s !important;
 }
 
-    /* クラス「open」が付いた時だけ、画面内(translateX(0))に入ってくる！ */
     #sidebar-menu.open {
-        /* 🌟 修正：X軸の移動を0に戻して画面内に出現させる */
-        transform: scale(var(--game-scale, 1)) translateX(0) !important;
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
+
+/* ▼ テストツールパネル（右） */
+.debug-panel {
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    width: 220px !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    padding: 10px !important;
+    border: 2px solid #e74c3c !important;
+    border-radius: 8px !important;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5) !important;
+    z-index: 99999 !important;
+    transform: none !important;
+}
+
+/* ▼ 実績テストパネル（左） */
+.achievement-debug-panel {
+    position: fixed !important;
+    top: 80px !important;
+    left: 10px !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    padding: 10px !important;
+    border: 2px solid #f39c12 !important;
+    border-radius: 5px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.5) !important;
+    z-index: 99999 !important;
+    transform: none !important;
+}
 
 /* ==========================================================
    🌟 中央メッセージパネルのサイズ固定化（空っぽ時の縮小防止）
@@ -3153,17 +3231,88 @@ body.lang-en .en {
     }
 
 /* ==========================================================
-   🌟 スタンプ機能のスタイルとスケール完全同期
+   🌟 スタンプ機能：名前パネル完全同期版（絶対ズレない仕様）
    ========================================================== */
+
+/* 🌟 親玉となる名前パネルを「相対配置の基準」にする */
+.pos-name-0, .pos-name-1, .pos-name-2, .pos-name-3 {
+    position: absolute;
+    /* (既存のtop, left, transformなどの設定はそのまま維持されます) */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 🌟 名前の中の文字部分。ホバー時のピクピクを防止 */
+.player-name {
+    display: inline-block;
+    transform: none !important;
+}
+
+/* ==========================================
+   ▼ スタンプを開くボタン（自分の名前のすぐ右に配置）
+   ========================================== */
+#btn-open-stamp {
+    position: absolute !important;
+    left: 100% !important; /* 名前の右端 */
+    top: 50% !important;
+    /* 🌟 transform: none を消して、縦方向のド真ん中配置を有効化 */
+    transform: translateY(-50%) translateZ(10px) !important;
+    margin-left: 10px;
+    background: rgba(0,0,0,0.6) !important;
+    border: 2px solid #3498db !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 18px !important;
+    cursor: pointer !important;
+    display: none;
+    z-index: 10001 !important;
+    /* 🌟 超重要：親パネルのクリック無効を上書きして、ボタンを押せるようにする！ */
+    pointer-events: auto !important;
+    transition: all 0.2s !important;
+    padding: 0 !important;
+    text-align: center !important;
+    line-height: 32px !important; /* 高さ36px から 上下の枠線4px分 を引いた数値 */
+    padding-left: 4px !important;
+}
+
+    #btn-open-stamp:hover {
+        background: rgba(52, 152, 219, 0.4) !important;
+        transform: translateY(-50%) translateZ(10px) scale(1.1) !important;
+    }
+
+/* ==========================================
+   ▼ スタンプメニュー（パレット）
+   ========================================== */
+#stamp-menu {
+    position: absolute !important;
+    left: -15% !important;
+    top: -50px !important;
+    width: 200px !important;
+    background: rgba(0,0,0,0.85) !important;
+    border: 2px solid #3498db !important;
+    border-radius: 10px !important;
+    padding: 8px !important;
+    display: none;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    z-index: 10002 !important;
+    /* 🌟 ここもメニュー枠をクリックできるようにする！ */
+    pointer-events: auto !important;
+}
+
 .stamp-item {
     background: #2c3e50;
-    border: 1px solid #7f8c8d;
-    border-radius: 5px;
-    padding: 5px 10px;
-    font-size: 16px;
     color: white;
+    border: 1px solid #7f8c8d;
+    padding: 3px 8px;
+    font-size: 13px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: 0.2s;
+    white-space: nowrap !important;
+    /* 🌟 念のためボタン単体もクリック可能に */
+    pointer-events: auto !important;
 }
 
     .stamp-item:hover {
@@ -3171,37 +3320,10 @@ body.lang-en .en {
         transform: scale(1.1);
     }
 
-/* ▼ スタンプを開くボタン（左下に固定しつつ、卓と同じ比率で拡大縮小） */
-#btn-open-stamp {
-    position: fixed !important;
-    bottom: 230px !important;
-    left: 700px !important;
-    transform-origin: bottom left !important;
-    transform: scale(var(--game-scale, 1)) !important;
-    z-index: 30000 !important;
-    display: none; /* 初期状態はJSで制御するため非表示 */
-    justify-content: center;
-    align-items: center;
-}
-
-    #btn-open-stamp:hover {
-        transform: scale(calc(var(--game-scale, 1) * 1.1)) !important;
-    }
-
-/* ▼ スタンプメニュー本体（ボタンと同じ比率でスケール） */
-#stamp-menu {
-    position: fixed !important;
-    bottom: 320px !important;
-    left: 580px !important;
-    transform-origin: bottom left !important;
-    transform: scale(var(--game-scale, 1)) !important;
-    z-index: 30000 !important;
-}
-
-/* ▼ ポップアップアニメーションと立体配置（卓の中に配置されている前提） */
+/* ==========================================
+   ▼ ポップアップする吹き出し（スタンプ本体）
+   ========================================== */
 .stamp-popup {
-    position: absolute !important;
-    z-index: 15000 !important;
     background: rgba(255, 255, 255, 0.95) !important;
     color: #000 !important;
     font-size: 32px !important;
@@ -3211,70 +3333,55 @@ body.lang-en .en {
     border: 3px solid #3498db !important;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
     pointer-events: none !important;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    opacity: 0 !important;
-    line-height: 1 !important; /* 絵文字特有の高さブレを完全に封じる */
+    line-height: 1 !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
 }
 
-    /* ==========================================================
-   🌟 吹き出しの「しっぽ」をすべて下向き(▼)に統一
-   ========================================================== */
-    .stamp-popup::after, .stamp-popup::before {
+    /* しっぽの枠線（青） */
+    .stamp-popup::before {
         content: "";
         position: absolute;
+        top: 100%;
+        left: 50%;
         border: solid transparent;
         pointer-events: none;
-        /* しっぽをスタンプの「下端」に配置 */
-        top: 100%;
-        /* しっぽをスタンプの「真ん中」に配置（左寄せがいい場合は left: 20px; などに変更） */
-        left: 50%;
-    }
-
-    /* しっぽの「枠線（青色）」部分 */
-    .stamp-popup::before {
         border-top-color: #3498db;
         border-width: 12px;
         margin-left: -12px;
     }
-
-    /* しっぽの「中身（白色）」部分 */
+    /* しっぽの中身（白） */
     .stamp-popup::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        border: solid transparent;
+        pointer-events: none;
         border-top-color: rgba(255, 255, 255, 0.95);
         border-width: 8px;
         margin-left: -8px;
     }
 
-/* ==========================================================
-   ▼ 各プレイヤーの位置（ご提示いただいた数値をそのまま適用！）
-   ========================================================== */
-.pos-stamp-0 {
-    bottom: 470px !important;
-    left: calc(50% - 520px) !important;
-    transform: translateZ(120px) scale(0.5) !important;
+/* ==========================================
+   ▼ 各スタンプの表示位置とアニメーション
+   ========================================== */
+/* 🌟 名前パネルの中での相対位置（共通） */
+.pos-stamp-inner {
+    position: absolute !important;
+    bottom: 120% !important; /* 名前のすぐ上 */
+    left: 50% !important; /* 名前のど真ん中 */
+    /* 🌟 ここが重要：中心を維持したまま、初期状態は透明＆縮小しておく */
+    transform: translateX(-50%) scale(0.5) !important;
+    opacity: 0 !important;
+    white-space: nowrap !important;
+    z-index: 200 !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
 
-.pos-stamp-1 {
-    right: 610px !important;
-    top: calc(50% + 80px) !important;
-    transform: translateZ(120px) scale(0.5) !important;
-}
-
-.pos-stamp-2 {
-    top: 250px !important;
-    left: calc(50% + 385px) !important;
-    transform: translateZ(120px) scale(0.5) !important;
-}
-
-.pos-stamp-3 {
-    left: 670px !important;
-    top: calc(50% - 370px) !important;
-    transform: translateZ(120px) scale(0.5) !important;
-}
-
-    /* 🌟 表示される時のクラス（スケールを1に戻す） */
-    .pos-stamp-0.show, .pos-stamp-1.show, .pos-stamp-2.show, .pos-stamp-3.show {
+    /* 表示された時 */
+    .pos-stamp-inner.show {
         opacity: 1 !important;
-        transform: translateZ(120px) scale(1) !important;
+        /* 中心を維持したまま、元の大きさに戻る！ */
+        transform: translateX(-50%) scale(1) !important;
     }

@@ -962,22 +962,6 @@
         <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
     </div>
 
-    <button id="btn-open-stamp" onclick="toggleStampMenu()" style="position: absolute; bottom: 250px; left: 700px; z-index: 3000; background: rgba(0,0,0,0.6); border: 2px solid #3498db; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; transition: 0.2s;">😊</button>
-
-    <div id="stamp-menu" style="position: absolute; bottom: 80px; left: 20px; z-index: 3000; background: rgba(0,0,0,0.8); border: 2px solid #3498db; border-radius: 10px; padding: 10px; display: none; gap: 5px; flex-wrap: wrap; width: 180px;">
-        <button class="stamp-item" onclick="sendStamp('よろしく！')">よろしく</button>
-        <button class="stamp-item" onclick="sendStamp('🙏')">🙏 ごめん</button>
-        <button class="stamp-item" onclick="sendStamp('😭')">😭 泣き</button>
-        <button class="stamp-item" onclick="sendStamp('😎')">😎 余裕</button>
-        <button class="stamp-item" onclick="sendStamp('💢')">💢 激怒</button>
-        <button class="stamp-item" onclick="sendStamp('🎉')">🎉 祝</button>
-    </div>
-
-    <div id="stamp-display-0" class="stamp-popup pos-stamp-0"></div>
-    <div id="stamp-display-1" class="stamp-popup pos-stamp-1"></div>
-    <div id="stamp-display-2" class="stamp-popup pos-stamp-2"></div>
-    <div id="stamp-display-3" class="stamp-popup pos-stamp-3"></div>
-
     <div id="hamburger-btn">
         <span></span>
         <span></span>
@@ -1002,7 +986,6 @@
     <div id="game-container">
 
         <div class="table">
-            <div id="score-diff-panel" class="score-diff-panel" style="display:none;" onclick="this.style.display='none'"></div>
 
             <div id="center-message"></div>
             <div id="dice-overlay"></div>
@@ -1023,14 +1006,23 @@
             <div id="c-status-3" class="charleston-status pos-c-status-3"></div>
 
             <div class="pos-name-0">
-                <div id="player-name-0" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(0)"></div>
+                <div id="player-name-0" class="player-name" onclick="openPlayerStats(0)"></div>
+
+                <button id="btn-open-stamp" onclick="toggleStampMenu()">😊</button>
+
+                <div id="stamp-menu">
+                    <button class="stamp-item" onclick="sendStamp('よろしく！')">よろしく</button>
+                    <button class="stamp-item" onclick="sendStamp('🙏')">🙏 ごめん</button>
+                    <button class="stamp-item" onclick="sendStamp('😭')">😭 泣き</button>
+                    <button class="stamp-item" onclick="sendStamp('😎')">😎 余裕</button>
+                    <button class="stamp-item" onclick="sendStamp('💢')">💢 激怒</button>
+                    <button class="stamp-item" onclick="sendStamp('🎉')">🎉 祝</button>
+                </div>
+
+                <div id="stamp-display-0" class="stamp-popup pos-stamp-inner"></div>
             </div>
-            <div class="pos-score-0">
-                <div id="player-score-0" class="player-score"></div>
-            </div>
-            <div class="pos-round-score-0">
-                <div id="player-round-score-0" class="player-round-score"></div>
-            </div>
+            <div class="pos-score-0"><div id="player-score-0" class="player-score"></div></div>
+            <div class="pos-round-score-0"><div id="player-round-score-0" class="player-round-score"></div></div>
 
             <div class="pos-waits-btn">
                 <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
@@ -1040,19 +1032,24 @@
             </div>
 
             <div class="pos-name-1">
-                <div id="player-name-1" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(1)"></div>
+                <div id="player-name-1" class="player-name" onclick="openPlayerStats(1)"></div>
+                <div id="stamp-display-1" class="stamp-popup pos-stamp-inner"></div>
             </div>
             <div class="pos-score-1"><div id="player-score-1" class="player-score"></div></div>
             <div class="pos-round-score-1"><div id="player-round-score-1" class="player-round-score"></div></div>
 
+
             <div class="pos-name-2">
-                <div id="player-name-2" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(2)"></div>
+                <div id="player-name-2" class="player-name" onclick="openPlayerStats(2)"></div>
+                <div id="stamp-display-2" class="stamp-popup pos-stamp-inner"></div>
             </div>
             <div class="pos-score-2"><div id="player-score-2" class="player-score"></div></div>
             <div class="pos-round-score-2"><div id="player-round-score-2" class="player-round-score"></div></div>
 
+
             <div class="pos-name-3">
-                <div id="player-name-3" class="player-name" style="cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="openPlayerStats(3)"></div>
+                <div id="player-name-3" class="player-name" onclick="openPlayerStats(3)"></div>
+                <div id="stamp-display-3" class="stamp-popup pos-stamp-inner"></div>
             </div>
             <div class="pos-score-3"><div id="player-score-3" class="player-score"></div></div>
             <div class="pos-round-score-3"><div id="player-round-score-3" class="player-round-score"></div></div>

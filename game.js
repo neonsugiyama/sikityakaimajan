@@ -676,10 +676,10 @@ function toggleBGM() {
 
 // 📱 画面サイズに合わせてゲーム画面全体を拡大縮小する関数
 function resizeGame() {
-    const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
+    const scale = Math.min(window.innerWidth / 1400, window.innerHeight / 950);
     document.documentElement.style.setProperty('--game-scale', scale);
 
-    // 🌟 1. 親箱をスケールするだけ（translateはCSSのマージンに任せるので不要！）
+    // 🌟 1. 親箱をスケールするだけ
     const container = document.getElementById('game-container');
     if (container) {
         container.style.transform = `scale(${scale})`;
