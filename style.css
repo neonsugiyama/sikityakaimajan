@@ -2,10 +2,7 @@
 @charset "UTF-8";
 
 /* =====================================================================
-        📺 画面全体と雀卓のベース設定
-   ===================================================================== */
-/* =====================================================================
-        📺 画面全体と雀卓のベース設定
+        📺 画面全体の設定
    ===================================================================== */
 html, body {
     margin: 0;
@@ -13,25 +10,39 @@ html, body {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    /* 🌟 ガタつき防止の要：スクロールを完全禁止 */
+    /* ガタつき防止 */
     overflow: hidden !important;
     position: fixed;
     background-color: #050505;
     color: white;
     font-family: sans-serif;
     background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
-    /* 🌟 3D視点の歪みを直すため、もう一度 flex に戻す */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* ❌ Flexboxは悪さをするので完全に削除します！ */
+}
+
+/* 🌟 お節介な自動縮小を完全に防ぐ「鋼鉄の親箱」 */
+#game-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1280px;
+    height: 800px;
+    /* 🌟 ここが魔法！幅と高さの半分をマイナスして、画面のド真ん中に強制固定する */
+    margin-top: -400px;
+    margin-left: -640px;
+    /* 箱の中心から3Dの奥行きを発生させる */
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    transform-origin: center center;
 }
 
 /* 🌟 雀卓本体の設定 */
 .table {
-    /* 🌟 absoluteとtranslateを消して、普通のブロックに戻す */
-    position: relative;
-    width: 1280px;
-    height: 800px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: radial-gradient(circle at center, #284c7e 0%, #152b4d 100%);
     border-top: 15px solid #2a2a2a;
     border-bottom: 50px solid #111;
@@ -39,6 +50,9 @@ html, body {
     border-right: 25px solid #1a1a1a;
     border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
+    /* 🌟 卓をここで傾ける！ */
+    transform: rotateX(20deg);
+    transform-style: preserve-3d;
 }
 
 /* =====================================================================
