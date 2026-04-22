@@ -676,7 +676,8 @@ function toggleBGM() {
 
 // 📱 画面サイズに合わせてゲーム画面全体を拡大縮小する関数
 function resizeGame() {
-    const scale = Math.min(window.innerWidth / 1400, window.innerHeight / 950);
+    // 🌟 1400, 950 という無駄な余白を生んでいた数値を減らし、画面ギリギリまで拡大させる！
+    const scale = Math.min(window.innerWidth / 1300, window.innerHeight / 820);
     document.documentElement.style.setProperty('--game-scale', scale);
 
     // 🌟 1. 親箱をスケールするだけ
