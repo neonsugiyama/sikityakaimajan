@@ -3455,6 +3455,11 @@ body.lang-en .en {
         padding: 10px !important;
         font-size: 15px !important;
     }
+    /* ▼ スマホの時はカードの最低幅を細くして、絶対に「3列」を死守する！ ▼ */
+    .achieve-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+    }
+
 }
 
 /* ==========================================================
@@ -3468,7 +3473,7 @@ body.lang-en .en {
 }
 
 .profile-name-large {
-    font-size: 80px !important;
+    font-size: 55px !important;
     margin-bottom: 0 !important;
     line-height: 1 !important; /* 行の高さをさらに詰める */
 }
