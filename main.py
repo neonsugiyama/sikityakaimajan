@@ -1575,6 +1575,27 @@ def debug_setup(scenario: str):
         game.hands[0] = ["南","西","北","白","發","中","1m","9m","1s","9s","1p","9p","2m"]
         game.wall = ["春", "西"]
 
+    elif scenario == "syabomachi":
+        game.dealer = 0
+        game.turn = 3  # CPU3に捨てさせる
+        game.is_first_turn = [False]*4
+        
+        # 0番（あなた）の副露をセット
+        game.melds[0] = [
+            {"type": "ankan", "tiles": ["1m","1m","1m","1m"]},
+            {"type": "minkan", "tiles": ["2p","2p","2p","2p"]},
+            {"type": "minkan", "tiles": ["3s","3s","3s","3s"]}
+        ]
+        
+        # 0番の手牌をセット
+        game.hands[0] = ["4s","4s","5s","5s"]
+        
+        # 山札のセット
+        game.wall = ["4s", "5s"] + ["1p"] * 20
+        
+        # CPU3の手牌をセット
+        game.hands[3] = ["4s", "1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p", "2p", "3p"]
+
     #実績解除テストケース
     elif scenario == "achieve_wide_wait":
         game.dealer = 0

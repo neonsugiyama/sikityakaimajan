@@ -2639,11 +2639,11 @@ async function checkHumanReaction(discarderIdx, tile) {
     const isHaitei = (wallCount === 0);
 
     let showAny = false;
-    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
 
-    // 🌟 頭ハネ判定（ここはお客様の希望通り正常に動作します）
+    // 🌟 頭ハネ判定
     let anyCpuWillRon = false;
     let higherPriorityCpuWillRon = false;
     let humanDist = (0 - discarderIdx + 4) % 4;
@@ -2664,10 +2664,7 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     let canHumanRon = wd.can_win && !higherPriorityCpuWillRon;
 
-    if (!canHumanRon && anyCpuWillRon) {
-        return checkCpuReactions(discarderIdx, tile);
-    }
-
+    // 🌟 修正1：CPUの動向に関わらず、ロンできるならロンボタンを出す
     if (canHumanRon) {
         const btn = document.getElementById('btn-win');
         btn.innerHTML = `ロン ${getImg(tile)}`;
@@ -2682,7 +2679,8 @@ async function checkHumanReaction(discarderIdx, tile) {
         showAny = true;
     }
 
-    if (!anyCpuWillRon && myWinTiles.length === 0) {
+    // 🌟 修正2：!anyCpuWillRon という「CPUがロンするならポンボタンを隠す」余計なお節介を消去！
+    if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.innerHTML = `ポン ${getImg(tile)}`;
@@ -2709,46 +2707,45 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
     }
 
+    // 🌟 修正3：自分が何のアクションもできない時だけ、即座にCPUへ処理を回す
+    if (!showAny) {
+        return checkCpuReactions(discarderIdx, tile);
+    }
+
     renderCPU();
 
-    if (showAny) {
-        // 🌟 修正：オートON かつ テンパイしている時だけ、ポンなどを自動スルーしてロンを優先させる
-        let isAutoDigest = (isAutoPlay && isPlayerTenpai());
+    // 自分がアクションできる場合の表示処理
+    let isAutoDigest = (isAutoPlay && isPlayerTenpai());
 
-        if (!isAutoDigest) {
-            playSE('alert');
-            document.getElementById('btn-skip').style.display = "block";
-        }
+    if (!isAutoDigest) {
+        playSE('alert');
+        document.getElementById('btn-skip').style.display = "block";
+    }
 
-        const skipAction = () => {
-            stopTimer();
-            document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-            checkCpuReactions(discarderIdx, tile);
-        };
-
-        document.getElementById('btn-skip').onclick = skipAction;
-        isProc = false;
-        document.getElementById('msg').innerText = "鳴き";
-
-        if (isAutoDigest) {
-            isProc = true;
-            setTimeout(() => {
-                isProc = false;
-                if (canHumanRon) {
-                    execRon(false);
-                } else {
-                    skipAction();
-                }
-            }, 800 / speedMult);
-        } else {
-            // テンパイ前（機能を殺している間）は普通にタイマーを動かして手動でポンなどを選ばせる
-            startTimer(timeCall, () => {
-                skipAction();
-            });
-        }
-
-    } else {
+    const skipAction = () => {
+        stopTimer();
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
         checkCpuReactions(discarderIdx, tile);
+    };
+
+    document.getElementById('btn-skip').onclick = skipAction;
+    isProc = false;
+    document.getElementById('msg').innerText = "鳴き";
+
+    if (isAutoDigest) {
+        isProc = true;
+        setTimeout(() => {
+            isProc = false;
+            if (canHumanRon) {
+                execRon(false);
+            } else {
+                skipAction();
+            }
+        }, 800 / speedMult);
+    } else {
+        startTimer(timeCall, () => {
+            skipAction();
+        });
     }
 }
 
