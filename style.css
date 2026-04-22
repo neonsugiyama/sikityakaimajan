@@ -1937,16 +1937,16 @@ body.lang-en .en {
 
 /* 🏷️ 名前とレートの表示 */
 .profile-name-large {
-    font-size: 48px;
+    font-size: 64px;
     font-weight: bold;
     color: #fff;
     margin-bottom: 5px;
 }
 
 .profile-rank-badge {
-    font-size: 20px;
+    font-size: 28px;
     color: #f1c40f;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
 }
 
 /* 📊 直近の戦績 */
@@ -3404,38 +3404,141 @@ body.lang-en .en {
 /* 画面の横幅が1000px以下、または高さが600px以下の「スマホサイズ」の時だけ、以下の設定で上書きする */
 @media screen and (max-width: 1000px), screen and (max-height: 600px) {
 
-    /* 1. モーダル画面の「強制固定サイズ(950px等)」を解除して、画面いっぱいに広げる */
-    .modal-content {
-        width: 96vw !important;
-        height: 96vh !important;
-        min-width: 0 !important;
-        min-height: 0 !important;
-        padding: 15px !important;
+    /* 1. モーダル画面のサイズをPC比率（950x700）に戻しつつ、スマホの画面限界まで拡大（1.15倍） */
+    .modal-content, #settings-screen > div {
+        width: 950px !important;
+        height: 700px !important;
+        min-width: 950px !important;
+        min-height: 700px !important;
+        padding: 20px 30px !important;
+        box-sizing: border-box !important;
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        /* 🌟 魔法のコード：JSの縮小率を少しだけ和らげて(1.15倍)、スマホ画面にピタッと収める！ */
+        transform: translate(-50%, -50%) scale(calc(var(--game-scale) * 1.15)) !important;
     }
 
-    /* 2. 遊び方やルール、詳細データの文字をスマホ向けに大きくする */
-    .modal-scroll-area p,
-    .modal-scroll-area li {
+    /* ボタン本体を小さくして、さらに画面の左上スレスレに寄せる */
+    #hamburger-btn {
+        width: 36px !important;
+        height: 36px !important;
+        top: 10px !important;
+        left: 10px !important;
+        border-width: 1px !important;
+    }
+    /* ボタンの中の3本線も細く・短くする */
+    #hamburger-btn span {
+        width: 18px !important;
+        height: 2px !important;
+    }
+    
+    /* サイドバーの横幅をスリムにする (280px -> 200px) */
+    #sidebar-menu {
+        width: 200px !important;
+    }
+    .sidebar-header {
+        padding: 10px 15px !important;
+    }
+    .sidebar-header h2 {
+        font-size: 20px !important;
+    }
+    #sidebar-close-btn {
+        font-size: 24px !important;
+    }
+    /* メニューの各項目の余白と文字を小さくする */
+    .sidebar-content {
+        padding: 10px 15px !important;
+        gap: 10px !important;
+    }
+    .sidebar-item {
+        padding: 10px !important;
+        font-size: 15px !important;
+    }
+}
+
+/* ==========================================================
+   📱 モード選択画面の「UIパーツ巨大化」設定（見切れ修正版）
+   ========================================================== */
+
+/* 🌟 追加：親玉の箱の無駄な余白を極限まで削る！ */
+.profile-panel {
+    gap: 8px !important; /* 項目間の強制的な隙間(元20px)を縮小 */
+    padding: 25px 50px !important; /* 箱の上下の分厚いクッション(元40px)を薄くする */
+}
+
+.profile-name-large {
+    font-size: 80px !important;
+    margin-bottom: 0 !important;
+    line-height: 1 !important; /* 行の高さをさらに詰める */
+}
+
+.profile-rank-badge {
+    font-size: 26px !important;
+    margin-bottom: 0 !important; /* ここにあった20pxの余白を消去 */
+}
+
+/* 「直近20戦の順位推移」ラベル */
+.profile-panel > div:nth-child(3) {
+    font-size: 16px !important;
+    margin-bottom: 0 !important;
+}
+
+/* 折れ線グラフの箱 */
+.profile-panel > div:nth-child(4) {
+    height: 200px !important; /* 安全のためさらに20pxだけダイエット */
+    margin-bottom: 5px !important;
+    width: 100% !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+}
+
+/* LIFETIME SCORE系のラベル */
+.profile-panel > div:nth-child(5) > div:first-child > div:first-child,
+#best-hand-area > div:first-child {
+    font-size: 24px !important;
+}
+
+/* 各種数値のサイズアップ */
+#home-lifetime-score {
+    font-size: 42px !important;
+}
+
+    #home-lifetime-score span {
         font-size: 18px !important;
-        line-height: 1.5 !important;
     }
 
-    .modal-title {
-        font-size: 22px !important;
-    }
+#best-score-val {
+    font-size: 32px !important;
+}
 
-    /* 3. 役一覧・図鑑のカードは、スマホで3列だと潰れるので「2列」に戻す */
-    .yaku-card,
-    .yaku-dex-card {
-        width: calc(50% - 6px) !important;
-        padding: 8px !important;
-    }
+/* 最高打点の牌サイズアップ */
+#best-hand-tiles img {
+    width: 26px !important;
+    height: 36px !important;
+}
 
-    .dex-yaku-name {
-        font-size: 16px !important;
-    }
+#best-hand-tiles div[style*="width:2px"] {
+    height: 32px !important; /* 境界線の縦線 */
+}
 
-    .dex-points {
-        font-size: 13px !important;
-    }
+/* ▼ 右パネル（メニュー）のサイズ調整 ▼ */
+.menu-panel h2 {
+    font-size: 32px !important;
+    margin-bottom: 20px !important;
+}
+
+/* モード選択ボタンの巨大化（少しだけスリムに） */
+.mode-btn {
+    width: 500px !important;
+    padding: 20px 30px !important;
+    margin: 10px !important;
+    font-size: 26px !important;
+    border-radius: 14px !important;
+}
+
+/* 「タイトルへ戻る」ボタン */
+.menu-panel button[onclick="backToTitle()"] {
+    font-size: 18px !important;
+    margin-top: 20px !important;
 }
