@@ -2664,7 +2664,9 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     let canHumanRon = wd.can_win && !higherPriorityCpuWillRon;
 
-    // 🌟 修正1：CPUの動向に関わらず、ロンできるならロンボタンを出す
+    // ----------------------------------------------------
+    // 1. ロン判定（優先）
+    // ----------------------------------------------------
     if (canHumanRon) {
         const btn = document.getElementById('btn-win');
         btn.innerHTML = `ロン ${getImg(tile)}`;
@@ -2679,7 +2681,10 @@ async function checkHumanReaction(discarderIdx, tile) {
         showAny = true;
     }
 
-    // 🌟 修正2：!anyCpuWillRon という「CPUがロンするならポンボタンを隠す」余計なお節介を消去！
+    // ----------------------------------------------------
+    // 2. 鳴き判定（ロンと同時発生可能）
+    // ----------------------------------------------------
+    // すでにアガっている状態（myWinTilesに牌がある）なら鳴きは不可
     if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
@@ -2707,14 +2712,15 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
     }
 
-    // 🌟 修正3：自分が何のアクションもできない時だけ、即座にCPUへ処理を回す
+    // ----------------------------------------------------
+    // 3. アクション表示・自動進行制御
+    // ----------------------------------------------------
     if (!showAny) {
         return checkCpuReactions(discarderIdx, tile);
     }
 
     renderCPU();
 
-    // 自分がアクションできる場合の表示処理
     let isAutoDigest = (isAutoPlay && isPlayerTenpai());
 
     if (!isAutoDigest) {
@@ -2730,7 +2736,7 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     document.getElementById('btn-skip').onclick = skipAction;
     isProc = false;
-    document.getElementById('msg').innerText = "鳴き";
+    document.getElementById('msg').innerText = canHumanRon ? "ロン！" : "鳴き"; // ロン優先表示
 
     if (isAutoDigest) {
         isProc = true;
