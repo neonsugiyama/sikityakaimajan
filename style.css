@@ -27,7 +27,7 @@ html, body {
     left: 50%;
     width: 1280px;
     height: 800px;
-    margin-top: -400px;
+    margin-top: -440px;
     margin-left: -640px;
     transform-origin: center center;
     /* 🚨 超重要：ここにあった perspective: 1200px; を削除して親箱の3Dを解除！ */
@@ -1617,7 +1617,7 @@ body.lang-en .yaku-tag .en {
     width: 100vw;
     height: 100vh;
     background: rgba(0,0,0,0.85);
-    z-index: 35000;
+    z-index: 80000;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2546,21 +2546,25 @@ body.lang-en .en {
     }
 }
 
-/* 🌟 ロード時の画面のビクつきを隠すための透明ベール */
-.table,
+/* ==========================================================
+   🌟 ロード時の画面のビクつきを隠すための透明ベール（卓の透明化は禁止！）
+   ========================================================== */
 .title-content,
 #mode-select-container {
     transform-origin: center center !important;
-    transition: opacity 0.3s ease !important; /* 透明からフワッと表示させる */
-    opacity: 0; /* 最初は透明にしておく */
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0s !important;
 }
 
-    /* JSの計算が終わったらこのクラスがついて表示される */
-    .table.ready,
     .title-content.ready,
     #mode-select-container.ready {
         opacity: 1;
     }
+
+/* 🚨 卓本体は絶対に最初から不透明にする（3D崩壊バグ防止） */
+.table {
+    opacity: 1 !important;
+}
 
 /* ==========================================================
    🌟 3Dクリック点滅バグの完全解決（当たり判定のフラット化）
@@ -3398,71 +3402,6 @@ body.lang-en .en {
 }
 
 /* ==========================================================
-   📱 スマホ用レスポンシブ設定（画面が小さい時だけ発動する魔法）
-   ========================================================== */
-
-/* 画面の横幅が1000px以下、または高さが600px以下の「スマホサイズ」の時だけ、以下の設定で上書きする */
-@media screen and (max-width: 1000px), screen and (max-height: 600px) {
-
-    /* 1. モーダル画面のサイズをPC比率（950x700）に戻しつつ、スマホの画面限界まで拡大（1.15倍） */
-    .modal-content, #settings-screen > div {
-        width: 950px !important;
-        height: 700px !important;
-        min-width: 950px !important;
-        min-height: 700px !important;
-        padding: 20px 30px !important;
-        box-sizing: border-box !important;
-        position: absolute !important;
-        left: 50% !important;
-        top: 50% !important;
-        /* 🌟 魔法のコード：JSの縮小率を少しだけ和らげて(1.15倍)、スマホ画面にピタッと収める！ */
-        transform: translate(-50%, -50%) scale(calc(var(--game-scale) * 1.15)) !important;
-    }
-
-    /* ボタン本体を小さくして、さらに画面の左上スレスレに寄せる */
-    #hamburger-btn {
-        width: 36px !important;
-        height: 36px !important;
-        top: 10px !important;
-        left: 10px !important;
-        border-width: 1px !important;
-    }
-    /* ボタンの中の3本線も細く・短くする */
-    #hamburger-btn span {
-        width: 18px !important;
-        height: 2px !important;
-    }
-    
-    /* サイドバーの横幅をスリムにする (280px -> 200px) */
-    #sidebar-menu {
-        width: 200px !important;
-    }
-    .sidebar-header {
-        padding: 10px 15px !important;
-    }
-    .sidebar-header h2 {
-        font-size: 20px !important;
-    }
-    #sidebar-close-btn {
-        font-size: 24px !important;
-    }
-    /* メニューの各項目の余白と文字を小さくする */
-    .sidebar-content {
-        padding: 10px 15px !important;
-        gap: 10px !important;
-    }
-    .sidebar-item {
-        padding: 10px !important;
-        font-size: 15px !important;
-    }
-    /* ▼ スマホの時はカードの最低幅を細くして、絶対に「3列」を死守する！ ▼ */
-    .achieve-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
-    }
-
-}
-
-/* ==========================================================
    📱 モード選択画面の「UIパーツ巨大化」設定（見切れ修正版）
    ========================================================== */
 
@@ -3546,4 +3485,110 @@ body.lang-en .en {
 .menu-panel button[onclick="backToTitle()"] {
     font-size: 18px !important;
     margin-top: 20px !important;
+}
+
+/* ==========================================================
+   🌟 設定・ルール・役一覧が「Match Settings」の裏に隠れるバグの強制修正
+   （🚨 順番変更：メディアクエリより前に置く！）
+   ========================================================== */
+/* ① まず、対局前設定画面は少し低い値(35000)に固定する */
+#settings-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    /* 🌟 修正：rgba(0, 0, 0, 0.9) を #0a0a0a にして、絶対に後ろが透けないようにする！ */
+    background: #0a0a0a;
+    /* ※ 以下、先ほど修正した z-index: 35000 !important; などは残したままでOKです */
+    z-index: 35000 !important;
+    display: none; /* JSでflexに切り替わる */
+    justify-content: center;
+    align-items: center;
+}
+
+/* ② そのうえで、各モーダル（設定・ルール等）を圧倒的に高い値(80000)にする！ */
+#settings-modal,
+#howto-modal,
+#yaku-modal,
+#mypage-modal,
+#achievement-modal,
+#friend-match-modal {
+    z-index: 80000 !important;
+}
+
+/* さらに、モーダルの背景となる黒い半透明の箱自体も手前に持ってくる */
+.modal-overlay {
+    z-index: 79999 !important;
+}
+
+
+/* ==========================================================
+   📱 スマホ用レスポンシブ設定（画面が小さい時だけ発動する魔法）
+   （🚨 順番変更：必ずファイルの一番最後に置く！）
+   ========================================================== */
+
+/* 画面の横幅が1000px以下、または高さが600px以下の「スマホサイズ」の時だけ、以下の設定で上書きする */
+@media screen and (max-width: 1000px), screen and (max-height: 600px) {
+
+    /* 1. モーダル画面のサイズをPC比率（950x700）に戻しつつ、スマホの画面限界まで拡大（1.15倍） */
+    .modal-content, #settings-screen > div {
+        width: 950px !important;
+        height: 700px !important;
+        min-width: 950px !important;
+        min-height: 700px !important;
+        padding: 20px 30px !important;
+        box-sizing: border-box !important;
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        /* 🌟 魔法のコード：JSの縮小率を少しだけ和らげて(1.15倍)、スマホ画面にピタッと収める！ */
+        transform: translate(-50%, -50%) scale(calc(var(--game-scale) * 1.15)) !important;
+    }
+
+    /* ボタン本体を小さくして、さらに画面の左上スレスレに寄せる */
+    #hamburger-btn {
+        width: 36px !important;
+        height: 36px !important;
+        top: 10px !important;
+        left: 10px !important;
+        border-width: 1px !important;
+    }
+        /* ボタンの中の3本線も細く・短くする */
+        #hamburger-btn span {
+            width: 18px !important;
+            height: 2px !important;
+        }
+
+    /* サイドバーの横幅をスリムにする (280px -> 200px) */
+    #sidebar-menu {
+        width: 200px !important;
+    }
+
+    .sidebar-header {
+        padding: 10px 15px !important;
+    }
+    
+        .sidebar-header h2 {
+            font-size: 20px !important;
+        }
+
+    #sidebar-close-btn {
+        font-size: 24px !important;
+    }
+    /* メニューの各項目の余白と文字を小さくする */
+    .sidebar-content {
+        padding: 10px 15px !important;
+        gap: 10px !important;
+    }
+
+    .sidebar-item {
+        padding: 10px !important;
+        font-size: 15px !important;
+    }
+
+    /* ▼ スマホの時はカードの最低幅を細くして、絶対に「3列」を死守する！ ▼ */
+    .achieve-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+    }
 }

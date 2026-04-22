@@ -76,8 +76,38 @@ async function takeResultScreenshot() {
 // ★ 設定画面（Settings）の制御
 // ==========================================
 
+// 🛠️ デバッグ用：画面の状態をコンソールに丸裸で出力する関数
+function dumpModalStatus(actionName) {
+    console.log(`\n[LOG] 🔍 【${actionName}】実行直後の状態`);
+    const targets = [
+        'settings-screen',  // 対局前設定（Match Settings）
+        'settings-modal',   // 設定
+        'howto-modal',      // ルール（遊び方）
+        'yaku-modal',       // 役一覧
+        'mypage-modal',     // マイページ
+        'achievement-modal' // 実績
+    ];
+
+    targets.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const style = window.getComputedStyle(el);
+            const isVisible = style.display !== 'none';
+            if (isVisible) {
+                console.log(`  ✅ [表示中] #${id} | z-index: ${style.zIndex} | display: ${style.display}`);
+            } else {
+                console.log(`  ❌ [非表示] #${id} | z-index: ${style.zIndex} | display: ${style.display}`);
+            }
+        } else {
+            console.log(`  ⚠️ [要素なし] #${id}`);
+        }
+    });
+    console.log(`--------------------------------------------------\n`);
+}
+
 // ⚙️ 設定モーダルを開く関数
 function openSettings() {
+    console.log("[LOG] ▶ openSettings が呼ばれました");
     closeAllModals();
     document.getElementById('settings-modal').style.display = 'flex';
     playSE('click');
@@ -95,12 +125,15 @@ function openSettings() {
             quitBtn.style.display = 'none';
         }
     }
+    dumpModalStatus('openSettings');
 }
 
 // ⚙️ 設定モーダルを閉じる関数
 function closeSettings() {
+    console.log("[LOG] ▶ closeSettings が呼ばれました");
     document.getElementById('settings-modal').style.display = 'none';
     playSE('click');
+    dumpModalStatus('closeSettings');
 }
 
 // 🚪 対局を強制中断してホーム画面に戻る関数
@@ -454,6 +487,7 @@ function getEnYakuName(zhName) { return yakuEnMap[zhName] || zhName; }
 
 // 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
 function closeAllModals() {
+    console.log("[LOG] ▶ closeAllModals が呼ばれました");
     const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
@@ -463,22 +497,28 @@ function closeAllModals() {
 
 // 📖 遊び方モーダルを開く関数
 function openHowTo() {
+    console.log("[LOG] ▶ openHowTo が呼ばれました");
     closeAllModals();
     document.getElementById('howto-modal').style.display = 'flex';
     playSE('click');
+    dumpModalStatus('openHowTo');
 }
 
 // 📖 遊び方モーダルを閉じる関数
 function closeHowTo() {
+    console.log("[LOG] ▶ closeHowTo が呼ばれました");
     document.getElementById('howto-modal').style.display = 'none';
     playSE('click');
+    dumpModalStatus('closeHowTo');
 }
 
 // 📜 役一覧モーダルを開く関数
 function openYakuList() {
+    console.log("[LOG] ▶ openYakuList が呼ばれました");
     closeAllModals();
     document.getElementById('yaku-modal').style.display = 'flex';
     playSE('click');
+    dumpModalStatus('openYakuList');
 }
 
 // 📑 役一覧画面のタブ（点数ごとのページ）を切り替える関数
@@ -500,8 +540,10 @@ function switchYakuTab(evt, tabId) {
 
 // 📜 役一覧モーダルを閉じる関数
 function closeYakuList() {
+    console.log("[LOG] ▶ closeYakuList が呼ばれました");
     document.getElementById('yaku-modal').style.display = 'none';
     playSE('click');
+    dumpModalStatus('closeYakuList');
 }
 
 // 🎖️ 役の点数（強さ）に応じて、CSSの色分け用クラス名を返す関数
@@ -803,37 +845,45 @@ let confTsumogiri = true;   // ツモ切り表示ON/OFF
 let confWaitsHint = true;   // 待ち牌ヒントON/OFF
 let confEffective = false;  // 有効牌表示ON/OFF
 
-// ==========================================
 // ⚙️ 設定を適用してゲームを開始する関数
-// ==========================================
-function applySettingsAndStart() {
+async function applySettingsAndStart() {
     playSE('start');
 
-    // 1. 画面の入力値を変数に保存 (HTML側のIDに合わせて安全に取得)
     let elDiscard = document.getElementById('set-discard');
     if (elDiscard) timeDiscard = parseInt(elDiscard.value);
-
     let elCall = document.getElementById('set-call');
     if (elCall) timeCall = parseInt(elCall.value);
-
     let elExchange = document.getElementById('set-exchange');
     if (elExchange) timeExchange = parseInt(elExchange.value);
-
     let elCpu = document.getElementById('set-cpu');
     if (elCpu) confCpuLevel = parseInt(elCpu.value);
-
     let elTsumogiri = document.getElementById('set-tsumogiri');
     if (elTsumogiri) confTsumogiri = elTsumogiri.checked;
-
     let elWaits = document.getElementById('set-waits');
     if (elWaits) confWaitsHint = elWaits.checked;
 
-    // 2. 設定画面を閉じる
-    document.getElementById('settings-screen').style.display = 'none';
+    // 🌟 卓の親箱も透明化をやめる（3D崩壊防止）
+    const gameContainer = document.getElementById('game-container');
+    gameContainer.style.opacity = '1';
 
-    // 3. 🌟 ここでようやく雀卓を表示し、ゲーム初期化（init）を走らせる！
-    document.querySelector('.table').style.opacity = 1;
-    init();
+    // 🌟 フタ（設定画面）を閉じたまま、裏側で通信と画面生成を実行
+    await init();
+    resizeGame();
+
+    // 描画と3D計算が完了するまで待つ
+    await new Promise(res => setTimeout(res, 150));
+
+    // 🚨 究極の解決策：卓をフェードインするのではなく、「設定画面（フタ）」をフェードアウトさせる！
+    const settingsScreen = document.getElementById('settings-screen');
+    settingsScreen.style.transition = 'opacity 0.4s ease-out';
+    settingsScreen.style.opacity = '0'; // フタを透明にして、後ろの卓を見せる
+
+    // フタが完全に透けきったら、display:none にして裏に隠し、次回の為にリセット
+    setTimeout(() => {
+        settingsScreen.style.display = 'none';
+        settingsScreen.style.transition = 'none';
+        settingsScreen.style.opacity = '1';
+    }, 400);
 
     console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel, confTsumogiri, confWaitsHint });
 }
@@ -1714,7 +1764,6 @@ function startCharlestonSelection() {
     document.getElementById('btn-exchange').style.display = "none";
     render();
 
-    // 🌟 描画の後にメッセージを上書きする
     const msgEl = document.getElementById('msg');
     if (charlestonCount === 1) {
         msgEl.innerText = "交換";
@@ -3526,6 +3575,7 @@ function backToTitle() {
 
 // 🎮 「CPU戦」を選択した時、いきなり始めずに【設定画面を開く】ように変更
 function startCpuGame() {
+    console.log("[LOG] ▶ startCpuGame が呼ばれました");
     playSE('click');
     currentGameMode = 'cpu';
     const modeScreen = document.getElementById('mode-select-screen');
@@ -3535,12 +3585,14 @@ function startCpuGame() {
     modeScreen.style.transition = 'opacity 0.5s';
 
     setTimeout(() => {
+        console.log("[LOG] ▶ startCpuGame 内の setTimeout (0.5秒後) が発動しました");
         modeScreen.style.display = 'none';
         modeScreen.style.opacity = '1';
 
         // 🌟 雀卓(init)ではなく、設定画面を呼び出す！
         document.getElementById('settings-screen').style.display = 'flex';
         document.getElementById('settings-screen').style.zIndex = '35000'; // 念のため最前面に
+        dumpModalStatus('startCpuGame (Match Settings表示)');
     }, 500);
 }
 
