@@ -28,7 +28,7 @@ html, body {
     width: 1280px;
     height: 800px;
     margin-top: -440px;
-    margin-left: -640px;
+    margin-left: -650px;
     transform-origin: center center;
     /* 🚨 超重要：ここにあった perspective: 1200px; を削除して親箱の3Dを解除！ */
 }
@@ -277,7 +277,7 @@ html, body {
 .win-zone-0 {
     bottom: 10px;
     right: 10px;
-    max-width: 280px;
+    max-width: 260px;
     flex-direction: row-reverse;
     flex-wrap: wrap-reverse;
     padding-bottom: 23px; /* はみ出し防止のクッション */
@@ -287,7 +287,7 @@ html, body {
 .win-zone-2 {
     top: 10px;
     left: calc(50% - 630px);
-    max-width: 280px;
+    max-width: 260px;
     padding-bottom: 23px; /* はみ出し防止のクッション */
 }
 
@@ -3530,6 +3530,12 @@ body.lang-en .en {
 
 /* 画面の横幅が1000px以下、または高さが600px以下の「スマホサイズ」の時だけ、以下の設定で上書きする */
 @media screen and (max-width: 1000px), screen and (max-height: 600px) {
+
+    /* 🌟 新規追加：スマホの時だけ、上に上がりすぎた卓を少し下に下げる！ */
+    #game-container {
+        /* PCは -440px ですが、スマホは -380px くらいにすると中央に落ち着きます */
+        margin-top: -420px !important;
+    }
 
     /* 1. モーダル画面のサイズをPC比率（950x700）に戻しつつ、スマホの画面限界まで拡大（1.15倍） */
     .modal-content, #settings-screen > div {
