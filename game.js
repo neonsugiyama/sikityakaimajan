@@ -136,19 +136,75 @@ function closeSettings() {
     dumpModalStatus('closeSettings');
 }
 
+// 🚪 画面をリロードせずに安全にホーム（モード選択）に戻る関数
+function returnToHomeGracefully() {
+    stopTimer();
+    isProc = false;
+    charlestonPhase = false;
+
+    // 1. 麻雀卓やリザルト画面を隠す
+    document.querySelector('.table').style.opacity = 0;
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('charleston-ui').style.display = 'none';
+    document.getElementById('charleston-confirm-ui').style.display = 'none';
+    document.getElementById('center-message').style.display = 'none';
+    document.getElementById('dice-overlay').style.display = 'none';
+
+    // 🌟 ここを追加：対局前設定画面（Match Settings）を確実に消す
+    const settingsScreen = document.getElementById('settings-screen');
+    if (settingsScreen) {
+        settingsScreen.style.display = 'none';
+        settingsScreen.style.opacity = '1'; // 次回開く時のために不透明度をリセットしておく
+    }
+
+    // 2. DOM（牌や文字）をきれいにお掃除する
+    for (let i = 0; i < 4; i++) {
+        document.getElementById(`river-${i}`).innerHTML = "";
+        document.getElementById(`meld-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).style.display = "none";
+
+        let callText = document.getElementById(`call-text-${i}`);
+        if (callText) {
+            callText.className = "call-text";
+            callText.innerText = "";
+        }
+        let roundScore = document.getElementById(`player-round-score-${i}`);
+        if (roundScore) roundScore.className = "player-round-score";
+
+        let stamp = document.getElementById(`stamp-display-${i}`);
+        if (stamp) stamp.classList.remove('show');
+    }
+
+    document.getElementById('msg').innerText = "";
+    document.getElementById('msg').className = "";
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    hideWaitsPanel();
+
+    isAutoPlay = false;
+    const btnAuto = document.getElementById('btn-auto-play');
+    if (btnAuto) {
+        btnAuto.innerText = "オート(和了後): OFF";
+        btnAuto.style.background = "#7f8c8d";
+        btnAuto.style.boxShadow = "0 3px #95a5a6";
+    }
+
+    // 3. モード選択画面をフワッと表示する
+    updateProfileUI();
+    const modeScreen = document.getElementById('mode-select-screen');
+    modeScreen.style.display = 'flex';
+    setTimeout(() => { modeScreen.style.opacity = '1'; }, 50);
+
+    updateStampVisibility();
+}
+
 // 🚪 対局を強制中断してホーム画面に戻る関数
 function quitGame() {
     if (!confirm("本当に対局を中断してホーム画面に戻りますか？\n（進行中のスコアや戦績は保存されません）")) {
         return;
     }
-
     playSE('click');
-    stopTimer(); // タイマーのカウントダウンを止める
-
-    // 🌟 先ほど作った「ホーム直行切符」を使ってリロード！
-    // ※ゲームデータをセーブしていないので、戦績は汚れません
-    sessionStorage.setItem('shiki_mahjong_return_home', 'true');
-    location.reload();
+    returnToHomeGracefully(); // 🌟 リロードの代わりにこれを使う！
 }
 
 // 💾 現在の音量やスピードなどの設定をローカルストレージに保存する関数
@@ -3503,10 +3559,9 @@ async function handleRoundEnd() {
         alert(resultMsg);
         sessionStorage.setItem('shiki_mahjong_return_home', 'true');
 
-        // 🌟 修正箇所！ すべての処理が終わった一番最後にサーバーデータをリセットする
+        // 🌟 修正箇所！ サーバーデータをリセットした後、リロードせずにホームへ戻る
         await apiCall('/next_round');
-
-        location.reload();
+        returnToHomeGracefully();
         return;
     }
 
@@ -4662,10 +4717,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarMenu = document.getElementById('sidebar-menu');
     const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const exitBtn = document.getElementById('sidebar-exit'); // 🌟 退出ボタンを取得
 
     // メニューを開く
     function openSidebar() {
-        playSE('click'); // 🌟 音を鳴らす
+        playSE('click');
+
+        // 🌟 退出ボタンの表示/非表示を切り替える
+        if (exitBtn) {
+            const titleScreen = document.getElementById('title-screen');
+            const modeScreen = document.getElementById('mode-select-screen');
+
+            // タイトル画面とモード選択画面の両方が隠れている（＝対局中 or 設定中）時だけ表示
+            if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none') {
+                exitBtn.style.display = 'block';
+            } else {
+                exitBtn.style.display = 'none';
+            }
+        }
+
         sidebarMenu.classList.add('open');
         sidebarOverlay.classList.add('show');
     }
@@ -4702,15 +4772,12 @@ document.addEventListener('DOMContentLoaded', () => {
         openYakuList(); // 🌟 モーダルを開く関数
     });
 
-    // 🚪 退出（既存の quitGame() のロジックを使う）
+    // 🚪 退出
     document.getElementById('sidebar-exit')?.addEventListener('click', () => {
         closeSidebar();
-        // 🌟 quitGame() と同じ確認＆ホーム直行処理
         if (confirm("本当に対局を中断してホーム画面に戻りますか？\n（進行中のスコアや戦績は保存されません）")) {
             playSE('click');
-            stopTimer();
-            sessionStorage.setItem('shiki_mahjong_return_home', 'true');
-            location.reload();
+            returnToHomeGracefully(); // 🌟 リロードの代わりにこれを使う！
         }
     });
 });
