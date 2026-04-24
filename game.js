@@ -1267,7 +1267,7 @@ async function playExchangeAnimation(dirStr, participants) {
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
     try {
-        let url = `http://127.0.0.1:8000${endpoint}`;
+        let url = endpoint;
 
         params._t = new Date().getTime();
 
@@ -1513,7 +1513,7 @@ async function updateWaitsButton() {
     }
 
     try {
-        const res = await fetch(`http://127.0.0.1:8000/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
+        const res = await fetch(`/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
         const data = await res.json();
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));
@@ -4794,4 +4794,45 @@ function debugShowAllStamps() {
         }
     }
     alert("CPUのスタンプを常時表示モードにしました。\n位置調整に利用してください。");
+}
+
+// ==========================================
+// 📱 スマホ用：フルスクリーン＆横画面強制ロック関数
+// ==========================================
+async function lockScreen() {
+    try {
+        // 1. 邪魔なURLバーなどを消してフルスクリーンにする
+        let elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            await elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) { /* iPhone(Safari)用 */
+            await elem.webkitRequestFullscreen();
+        }
+
+        // 2. スマホの向きを強制的に「横画面(landscape)」に固定する
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+        }
+    } catch (e) {
+        console.log("フルスクリーン/画面ロックがブロックされました:", e);
+    }
+}
+
+// 🏠 タイトル画面から「モード選択画面」へ移行する関数（★修正）
+function showModeSelect() {
+    playSE('start');
+
+    // 🌟 追加：ボタンを押した瞬間にフルスクリーン＆横画面を発動！
+    lockScreen();
+
+    if (!audioState.initialized) {
+        audioState.initialized = true;
+        if (audioState.bgmOn) {
+            sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
+        }
+    }
+
+    updateProfileUI();
+    document.getElementById('title-screen').style.display = 'none';
+    document.getElementById('mode-select-screen').style.display = 'flex';
 }

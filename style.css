@@ -2465,9 +2465,12 @@ body.lang-en .en {
 ===================================================================== */
 .achievement-toast {
     position: fixed;
-    top: -100px; /* 🌟 初期位置は画面の外（上）に隠す */
+    top: -150px; /* 余裕を持って画面外に隠す */
     left: 50%;
-    transform: translateX(-50%);
+    /* 🌟 修正：translateX（中央寄せ）に scale（拡大縮小）を合体させる */
+    transform: translateX(-50%) scale(var(--game-scale, 1));
+    /* 🌟 重要：上端中央を基準に縮小させることで、降りてくる位置を安定させる */
+    transform-origin: top center;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(44, 62, 80, 0.95));
     border: 2px solid #f1c40f;
     border-radius: 50px;
@@ -2475,10 +2478,11 @@ body.lang-en .en {
     display: flex;
     align-items: center;
     gap: 15px;
-    z-index: 40000; /* 🌟 どんな画面（リザルト等）よりも最前面に出す */
+    z-index: 100000; /* サイドバー(99999)よりもさらに手前へ */
     box-shadow: 0 5px 20px rgba(241, 196, 15, 0.6);
-    transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 🌟 ぽよんと降りてくるアニメーション */
+    transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     pointer-events: none;
+    white-space: nowrap; /* 文字の折り返しを防止 */
 }
 
 .toast-icon {
@@ -2509,7 +2513,7 @@ body.lang-en .en {
 
 /* 🌟 JSでこのクラスが付与されると画面内に降りてくる */
 .toast-show {
-    top: 30px !important;
+    top: 20px !important;
 }
 
 /* =====================================================================
@@ -3590,5 +3594,11 @@ body.lang-en .en {
     /* ▼ スマホの時はカードの最低幅を細くして、絶対に「3列」を死守する！ ▼ */
     .achieve-grid {
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+    }
+
+    /* 🌟 追加：スマホ時は通知をさらにコンパクトにする */
+    .achievement-toast {
+        /* game-scaleに対してさらに0.8倍をかけて、控えめなサイズにします */
+        transform: translateX(-50%) scale(calc(var(--game-scale) * 0.8)) !important;
     }
 }
