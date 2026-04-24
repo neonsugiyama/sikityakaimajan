@@ -1685,13 +1685,38 @@ function showWaitsPanel() {
 
         sortedWaits.forEach(w => {
             let visible = 0;
+
+            // 1. 自分の手牌をカウント
             myHand.forEach(t => { if (t === w) visible++; });
-            myAllMelds.forEach(pm => { pm.forEach(m => { m.tiles.forEach(t => { if (t === w) visible++; }); }); });
-            myAllWinTiles.forEach(wtList => { wtList.forEach(t => { if (t === w) visible++; }); });
+
+            // 2. 全員の副露（鳴き牌）をカウント
+            if (myAllMelds) {
+                myAllMelds.forEach(pm => {
+                    if (pm) pm.forEach(m => { m.tiles.forEach(t => { if (t === w) visible++; }); });
+                });
+            }
+
+            // 3. 全員のアガリ牌をカウント
+            if (myAllWinTiles) {
+                myAllWinTiles.forEach(wtList => {
+                    if (wtList) wtList.forEach(t => { if (t === w) visible++; });
+                });
+            }
+
+            // 4. 🌟 修正：全員の河（捨て牌）をカウント
             for (let i = 0; i < 4; i++) {
                 const r = document.getElementById(`river-${i}`);
-                Array.from(r.children).forEach(img => { if (img.src.includes(`/${w}.png`)) visible++; });
+                if (r) {
+                    Array.from(r.children).forEach(img => {
+                        // 🚨 究極の安全策：どんなブラウザでも確実に日本語URLを解読する
+                        const srcPath = decodeURIComponent(img.src);
+                        if (srcPath.includes(`/${w}.png`)) {
+                            visible++;
+                        }
+                    });
+                }
             }
+
             let rem = Math.max(0, 4 - visible);
             const div = document.createElement('div');
             div.className = 'wait-item';
@@ -2544,6 +2569,7 @@ async function checkWinPossible() {
 
 // 🎴 山から牌を1枚引く（ツモる）通信を行う関数
 async function draw() {
+    stopTimer();
     if (isProc) return; isProc = true;
     try {
         await apiCall('/draw', { player_idx: 0 });
@@ -2788,10 +2814,11 @@ async function checkHumanReaction(discarderIdx, tile) {
     }
 
     // ----------------------------------------------------
-    // 2. 鳴き判定（ロンと同時発生可能）
+    // 2. 鳴き判定（和了絶対優先の法則を適用！）
     // ----------------------------------------------------
-    // すでにアガっている状態（myWinTilesに牌がある）なら鳴きは不可
-    if (myWinTiles.length === 0) {
+    // 🚨 究極の修正：他家（CPU）がロン和了する予定の牌は、絶対に鳴けないようにブロックする！
+    // 以前は anyCpuWillRon をチェックせずにボタンを出してしまっていたのが原因です。
+    if (myWinTiles.length === 0 && !anyCpuWillRon) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.innerHTML = `ポン ${getImg(tile)}`;

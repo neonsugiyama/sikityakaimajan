@@ -2465,7 +2465,7 @@ body.lang-en .en {
 ===================================================================== */
 .achievement-toast {
     position: fixed;
-    top: -150px; /* 余裕を持って画面外に隠す */
+    top: -200px; /* 余裕を持って画面外に隠す */
     left: 50%;
     /* 🌟 修正：translateX（中央寄せ）に scale（拡大縮小）を合体させる */
     transform: translateX(-50%) scale(var(--game-scale, 1));
@@ -3045,13 +3045,6 @@ body.lang-en .en {
     transform: translate(-50%, -50%) translateZ(200px) rotateX(-20deg) !important;
 }
 
-/* 3. 鳴き（ポン/カン）・和了り・JokerSwapなどの演出文字を垂直に立たせる */
-.call-text,
-.special-yaku,
-.joker-swap-style {
-    transform: rotateX(-20deg) !important;
-}
-
 /* 4. 待ち牌確認パネルを高く浮かせ、下を軸に立たせる（埋もれ防止） (なんかキモいので傾かせたままにするかも)*/
 #waits-panel, .waits-panel {
     /* 🌟 修正：中央寄せを復活させ、高さを120pxに引き上げ！ */
@@ -3167,11 +3160,6 @@ body.lang-en .en {
 .call-wrap-3 {
     transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
     transform-style: flat !important;
-}
-
-/* 前回、文字自体にかけていた回転指定を消去（これでポップアップアニメーションが正常に動きます） */
-.call-text, .special-yaku, .joker-swap-style {
-    transform: none !important;
 }
 
 /* ==========================================================
