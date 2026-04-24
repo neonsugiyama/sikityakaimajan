@@ -1,0 +1,598 @@
+@charset "UTF-8";
+
+/* =====================================================================
+        📺 画面全体の設定
+   ===================================================================== */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden !important;
+    position: fixed;
+    background-color: #0a0a0a; /* テスト用：見やすい黒 */
+    color: white;
+    font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 🌟 お節介な自動縮小を完全に防ぐ「鋼鉄の親箱」 */
+#game-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1280px;
+    height: 800px;
+    margin-top: -440px; /* 本番と同じ高さ調整 */
+    margin-left: -650px; /* 本番と同じ左右調整 */
+    transform-origin: center center;
+}
+
+/* 🌟 雀卓本体の設定 */
+.table {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, #1a5e3a 0%, #0d3b22 100%);
+    border-top: 15px solid #2a2a2a;
+    border-bottom: 50px solid #111;
+    border-left: 25px solid #1a1a1a;
+    border-right: 25px solid #1a1a1a;
+    border-radius: 20px;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
+    /* 🌟 ここで「卓だけ」に3D遠近感(perspective)を持たせる！ */
+    transform: perspective(1200px) rotateX(20deg);
+    transform-style: preserve-3d;
+}
+
+/* =====================================================================
+        🀄 牌の基本サイズ設定
+        ===================================================================== */
+/* 🌟 牌の画像に「側面の厚み（フェイク3Dブロック）」を持たせる */
+.tile {
+    width: 40px;
+    height: 56px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    /* 画像の斜め下方向に、グレーの影（側面）と黒い影（落とし影）を重ねて立体ブロック化！ */
+    box-shadow: -2px 4px 0px #b0b0b0, -4px 8px 8px rgba(0,0,0,0.6);
+    /* 卓が斜めに傾いているので、牌が寝そべりすぎないように少しだけ起き上がらせる */
+    transform: rotateX(-15deg);
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+}
+
+.hand-0 .tile {
+    width: 36px;
+    height: 50px;
+}
+
+.hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
+    width: 28px;
+    height: 39px;
+}
+
+.meld-0 .tile {
+    width: 32px;
+    height: 45px;
+}
+
+.meld-1 .tile, .meld-2 .tile, .meld-3 .tile {
+    width: 28px;
+    height: 39px;
+}
+
+.river .tile {
+    width: 28px;
+    height: 39px;
+}
+
+/* =====================================================================
+        🗑️ 捨て牌（河）の配置エリア
+        ===================================================================== */
+.river {
+    position: absolute;
+    display: grid;
+    grid-template-columns: repeat(6, 32px); /* テスト用にマージン調整 */
+    gap: 1px;
+    width: 190px;
+}
+
+.river-0 {
+    top: calc(50% + 105px);
+    left: calc(50% - 95px);
+}
+
+.river-1 {
+    top: calc(50% + 95px);
+    left: calc(50% + 110px);
+    transform-origin: top left;
+    transform: rotate(-90deg);
+}
+
+.river-2 {
+    top: calc(50% - 105px);
+    left: calc(50% - 95px);
+    transform-origin: top center;
+    transform: rotate(180deg);
+}
+
+.river-3 {
+    top: calc(50% + 95px);
+    right: calc(50% + 110px);
+    transform-origin: top right;
+    transform: rotate(90deg);
+}
+
+/* =====================================================================
+        🖐️ 手牌の配置エリア
+        ===================================================================== */
+.hand {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 50;
+}
+
+/* 1. 親である「手牌の箱」だけを傾けて、3Dの計算をここでストップさせる */
+#hand-0 {
+    bottom: -10px !important;
+    z-index: 99999 !important;
+    left: 50%;
+    transform-origin: bottom center !important;
+    /* 箱ごと手前に引き上げ、奥に傾ける */
+    transform: translateX(-50%) translateZ(40px) rotateX(-15deg) scale(1.1) !important;
+    /* 🌟 超重要：中身の牌どうしが3D空間で干渉するのを防止（フラット化） */
+    transform-style: flat !important;
+    padding-bottom: 20px !important;
+}
+
+    /* 2. 中身の牌は、個別の3D回転を一切やめる（箱の傾きにそのまま従う） */
+    #hand-0 .tile {
+        pointer-events: auto !important;
+        transform: none !important; /* 個別の傾きを解除して隣との干渉を消滅させる */
+        transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+    }
+
+        /* 3. ホバー時もZ軸（手前）ではなく、Y軸（斜めの板の上を滑らせる）で表現する */
+        #hand-0 .tile:hover {
+            /* Z軸で飛び出させると判定がバグるので、Y軸（上方向）と拡大(scale)で表現！ */
+            transform: translateY(-15px) scale(1.05) !important;
+            /* 浮かんだように見える影を落とす */
+            box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(241, 196, 15, 0.4) !important;
+            cursor: pointer !important;
+        }
+
+.hand-1 {
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .hand-1 .tile {
+        transform: rotate(-90deg);
+        margin: -8px 0;
+    }
+
+.hand-2 {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.hand-3 {
+    left: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+}
+
+    .hand-3 .tile {
+        transform: rotate(90deg);
+        margin: -8px 0;
+    }
+
+/* =====================================================================
+        📢 副露（鳴き牌）エリア
+        ==================================================================== */
+.meld {
+    position: absolute;
+    display: flex;
+    gap: 5px;
+    z-index: 100;
+}
+
+.meld-0 {
+    bottom: 70px;
+    left: calc(50% - 303px);
+    flex-direction: row;
+}
+
+.meld-1 {
+    right: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+}
+
+.meld-2 {
+    top: 70px;
+    left: calc(50% - 270px);
+    flex-direction: row;
+}
+
+.meld-3 {
+    left: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+}
+
+    .meld-1 .meld-group, .meld-3 .meld-group {
+        flex-direction: column;
+        width: 40px;
+        height: max-content;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+.meld-1 .tile {
+    transform: rotate(-90deg);
+    margin: -6px 0;
+    display: block;
+}
+
+.meld-3 .tile {
+    transform: rotate(90deg);
+    margin: -6px 0;
+    display: block;
+}
+
+.meld-group {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 5px;
+}
+
+/* =====================================================================
+        🏆 アガリ牌（Win Zone）エリア（限界45枚想定）
+        ===================================================================== */
+.win-zone {
+    position: absolute;
+    border: 2px solid #f1c40f;
+    padding: 5px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+    .win-zone .tile {
+        width: 24px;
+        height: 34px;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
+    }
+
+/* ⬇️ あなた（下側）の全体枠 */
+.win-zone-0 {
+    bottom: 10px;
+    right: 10px;
+    max-width: 260px; /* 本番合わせ */
+    flex-direction: row-reverse;
+    flex-wrap: wrap-reverse;
+    padding-bottom: 23px; /* はみ出し防止のクッション */
+}
+
+/* ⬇️ CPU 2（上側）の全体枠 */
+.win-zone-2 {
+    top: 10px;
+    left: calc(50% - 630px); /* 左上に寄せる本番設定 */
+    max-width: 260px; /* 本番合わせ */
+    padding-bottom: 23px; /* はみ出し防止のクッション */
+}
+
+/* ⬇️ CPU 1（右側）の全体枠 */
+.win-zone-1 {
+    right: 10px;
+    top: 10px;
+    max-height: 115px; /* 本番合わせ */
+    flex-direction: column;
+    flex-wrap: wrap-reverse;
+    padding-right: 15px;
+    padding-top: 20px; /* 🛡️ 上の牌が枠外に突き抜けないためのクッション */
+}
+
+/* ⬇️ CPU 3（左側）の全体枠 */
+.win-zone-3 {
+    left: 10px;
+    bottom: 10px;
+    max-height: 115px; /* 本番合わせ */
+    flex-direction: column-reverse;
+    flex-wrap: wrap;
+    padding-left: 15px;
+    padding-bottom: 20px; /* 🛡️ 下の牌が枠外に突き抜けないためのクッション */
+}
+
+/* 📐 アガリ牌の重なり調整（上下） */
+.win-zone-0 .tile, .win-zone-2 .tile {
+    margin-bottom: -12px;
+    margin-left: 0;
+}
+
+/* 📐 CPU 1（右側）の牌１つ１つの重なり具合 */
+.win-zone-1 .tile {
+    transform: rotate(-90deg);
+    margin-top: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
+    margin-left: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
+}
+
+/* 📐 CPU 3（左側）の牌１つ１つの重なり具合 */
+.win-zone-3 .tile {
+    transform: rotate(90deg);
+    margin-bottom: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
+    margin-right: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
+    margin-top: 0;
+}
+
+/* =====================================================================
+        ℹ️ 中央情報パネル・プレイヤー情報
+        ===================================================================== */
+.center-info {
+    position: absolute;
+    top: 51%; /* 手前シフト本番合わせ */
+    left: 50%;
+    transform: translate(-50%, -50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    background: rgba(0,0,0,0.8);
+    padding: 10px 15px;
+    border-radius: 15px;
+    text-align: center;
+    border: 3px solid #f1c40f;
+    z-index: 150;
+    min-width: 140px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    pointer-events: none !important;
+}
+
+#round-info-center {
+    position: relative;
+    display: block;
+    font-size: 22px;
+    font-weight: bold;
+    color: #f1c40f;
+    margin-bottom: 5px;
+}
+
+#wall-count {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 5px;
+}
+
+.player-name {
+    display: inline-block;
+    transform: none !important;
+    background: rgba(0,0,0,0.8);
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #3498db;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.player-score {
+    background: rgba(0,0,0,0.8);
+    padding: 3px 10px !important; /* 本番合わせ */
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    border: 2px solid #2ecc71;
+    color: #2ecc71;
+    text-align: center;
+    white-space: nowrap;
+    width: 130px;
+    box-sizing: border-box;
+}
+
+/* 🌟 絶対位置・傾き補正 本番合わせ */
+.pos-name-0 {
+    position: absolute;
+    bottom: 180px;
+    left: calc(50% - 300px);
+    z-index: 40;
+    transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-name-1 {
+    position: absolute;
+    right: 250px !important;
+    top: calc(50% + 160px) !important;
+    z-index: 40;
+    transform: translate(50%, -50%) translateZ(40px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-name-2 {
+    position: absolute;
+    top: 180px;
+    left: calc(50% + 300px);
+    z-index: 40;
+    transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-name-3 {
+    position: absolute;
+    left: 250px !important;
+    top: calc(50% - 160px) !important;
+    z-index: 40;
+    transform: translate(-50%, -50%) translateZ(40px) rotateX(-20deg) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-score-0 {
+    position: absolute;
+    bottom: 295px !important;
+    left: 50%;
+    z-index: 40;
+    transform: translateX(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-score-1 {
+    position: absolute;
+    left: calc(50% + 90px);
+    top: 51% !important;
+    z-index: 40;
+    transform: translate(-50%, -50%) rotate(-90deg) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-score-2 {
+    position: absolute;
+    top: 310px !important;
+    left: 50%;
+    z-index: 40;
+    transform: translateX(-50%) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-score-3 {
+    position: absolute;
+    left: calc(50% - 90px);
+    top: 51% !important;
+    z-index: 40;
+    transform: translate(-50%, -50%) rotate(90deg) translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+/* 🌟 アクションボタン群 テスト配置用 */
+.action-wrapper {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateZ(200px) !important;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    z-index: 200;
+    pointer-events: none !important;
+    transform-style: flat !important;
+    width: 1000px;
+}
+
+.action-layer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    transform: none !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.btn-act {
+    padding: 12px 20px;
+    font-size: 20px;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    pointer-events: auto !important;
+    transform: none !important;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.5) !important;
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+}
+
+    .btn-act:hover {
+        transform: translateY(-5px) scale(1.05) !important;
+        box-shadow: 0 10px 15px rgba(0,0,0,0.7), 0 0 10px rgba(241, 196, 15, 0.4) !important;
+    }
+
+.btn-red {
+    background: #e74c3c;
+}
+
+.btn-blue {
+    background: #3498db;
+}
+
+.btn-green {
+    background: #2ecc71;
+}
+
+.btn-gray {
+    background: #7f8c8d;
+}
+
+/* 🌟 待ち牌・オートボタン テスト配置用 */
+.pos-waits-btn {
+    position: absolute;
+    bottom: 136px;
+    left: calc(50% - 230px);
+    z-index: 50;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.pos-auto-btn {
+    position: absolute;
+    bottom: 136px;
+    left: calc(50% + 120px);
+    z-index: 50;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+.btn-waits {
+    background: #e67e22;
+    color: white;
+    border: none;
+    padding: 4px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 15px;
+    pointer-events: auto !important;
+    transform: none !important;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.5) !important;
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+}
+
+/* ==========================================================
+   📱 スマホ用レスポンシブ設定（テスト用にも適用）
+   ========================================================== */
+@media screen and (max-width: 1000px), screen and (max-height: 600px) {
+    #game-container {
+        margin-top: -380px !important;
+        margin-left: -660px !important; /* スマホ時の左寄せ補正 */
+    }
+}
