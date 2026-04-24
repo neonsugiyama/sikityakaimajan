@@ -41,6 +41,13 @@ def read_css():
 def read_js():
     return FileResponse("game.js")
 
+from fastapi.responses import FileResponse
+
+# --- 既存の index.html や game.js を返す処理の近くにこれを追加 ---
+@app.get("/manifest.json")
+def get_manifest():
+    return FileResponse("manifest.json", media_type="application/json; charset=utf-8")
+
 # ==========================================
 # 🤝 友人戦ロビー（WebSocket）管理システム
 # ==========================================

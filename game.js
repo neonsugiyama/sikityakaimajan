@@ -4822,17 +4822,16 @@ async function lockScreen() {
 function showModeSelect() {
     playSE('start');
 
-    // 🌟 追加：ボタンを押した瞬間にフルスクリーン＆横画面を発動！
-    lockScreen();
-
-    if (!audioState.initialized) {
-        audioState.initialized = true;
-        if (audioState.bgmOn) {
-            sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
-        }
-    }
-
     updateProfileUI();
     document.getElementById('title-screen').style.display = 'none';
     document.getElementById('mode-select-screen').style.display = 'flex';
 }
+
+// 📱 画面のどこかを初めて触った瞬間に全画面・横画面化を試みる
+window.addEventListener('click', () => {
+    lockScreen();
+}, { once: true }); // 1回だけ実行
+
+window.addEventListener('touchstart', () => {
+    lockScreen();
+}, { once: true });
