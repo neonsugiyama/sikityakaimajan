@@ -2574,39 +2574,37 @@ body.lang-en .en {
    🌟 3Dクリック点滅バグの完全解決（当たり判定のフラット化）
    ========================================================== */
 
-/* 1. 親である「手牌の箱」だけを傾けて、3Dの計算をここでストップさせる */
+/* 1. 親要素から scale(1.1) を完全に削除する */
 #hand-0 {
     bottom: -10px !important;
     z-index: 99999 !important;
+    left: 50%;
     transform-origin: bottom center !important;
-    /* 箱ごと手前に引き上げ、奥に傾ける */
-    transform: translateX(-50%) translateZ(40px) rotateX(-15deg) scale(1.1) !important;
-    /* 🌟 超重要：中身の牌どうしが3D空間で干渉するのを防止（フラット化） */
+    /* 🚨 ここにあった scale(1.1) を消去！ */
+    transform: translateX(-50%) translateZ(40px) rotateX(-15deg) !important;
     transform-style: flat !important;
     padding-bottom: 20px !important;
 }
 
-    /* 2. 中身の牌は、個別の3D回転を一切やめる（箱の傾きにそのまま従う） */
-    #hand-0 .tile {
-        pointer-events: auto !important;
-        transform: none !important; /* 個別の傾きを解除して隣との干渉を消滅させる */
-        transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+/* 2. 代わりに牌自体のサイズを約1.1倍（10%増し）にする */
+.hand-0 .tile {
+    /* 元は width: 36px, height: 50px */
+    width: 40px; /* 36 * 1.1 ≒ 40 */
+    height: 55px; /* 50 * 1.1 = 55 */
+}
+
+/* 3. 牌の動きと初期状態の設定 */
+#hand-0 .tile {
+    pointer-events: auto !important;
+    transform: translateY(0px) scale(1) !important;
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+}
+
+    #hand-0 .tile:hover {
+        transform: translateY(-15px) scale(1.05) !important;
+        box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(241, 196, 15, 0.4) !important;
+        cursor: pointer !important;
     }
-
-        /* 3. ホバー時もZ軸（手前）ではなく、Y軸（斜めの板の上を滑らせる）で表現する */
-        #hand-0 .tile:hover {
-            /* Z軸で飛び出させると判定がバグるので、Y軸（上方向）と拡大(scale)で表現！ */
-            transform: translateY(-15px) scale(1.05) !important;
-            /* 浮かんだように見える影を落とす */
-            box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(241, 196, 15, 0.4) !important;
-            cursor: pointer !important;
-        }
-
-        /* 4. 交換で選択中の牌も同様にY軸で浮かせる */
-        #hand-0 .tile.selected-exchange {
-            transform: translateY(-25px) scale(1.05) !important;
-            box-shadow: -5px 10px 0px #b0b0b0, -10px 25px 25px rgba(0,0,0,0.7), 0 0 20px rgba(52, 152, 219, 0.8) !important;
-        }
 
 /* ==========================================================
    🌟 全UIパーツのめり込み完全解消（位置ズレ＆ピクピク修正・最終版）
