@@ -384,7 +384,7 @@ def charleston(session_id: str = "default",player_idx: int = 0, t1: str = "", t2
             game.hands[i] = game.sort_hand(game.hands[i])
             
         game.just_drawn = -1 
-        return get_safe_state(0, {"dice": dice, "direction": msg})
+        return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         return {"error": str(e)}
 
@@ -397,7 +397,7 @@ def second_charleston(session_id: str = "default",player_idx: int = 0, t1: str =
         active = [i for i in range(4) if participating[i]]
 
         if len(active) <= 1:
-            return get_safe_state(0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
+            return get_safe_state(game, 0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
 
         passed_tiles = {i: [] for i in active}
 
@@ -450,7 +450,7 @@ def second_charleston(session_id: str = "default",player_idx: int = 0, t1: str =
 
         for i in range(4): game.hands[i] = game.sort_hand(game.hands[i])
         game.just_drawn = -1 
-        return get_safe_state(0, {"dice": dice, "direction": msg})
+        return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
         return {"error": f"サーバー内部エラー(/second_charleston): {str(e)}"}
@@ -465,7 +465,7 @@ def draw_tile(session_id: str = "default",player_idx: int = 0):
     game.last_drawn[player_idx] = tile
     game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
     game.just_drawn = player_idx 
-    return get_safe_state(0, {"drawn_tile": tile})
+    return get_safe_state(game, 0, {"drawn_tile": tile})
 
 # 🗑️ プレイヤーが牌を捨てる（打牌）API
 @app.get("/discard")
@@ -482,7 +482,7 @@ def discard_tile(session_id: str = "default",player_idx: int = 0, tile: str = ""
         game.discards_count += 1
         game.turn = (player_idx + 1) % 4
         game.just_drawn = -1 
-        return get_safe_state()
+        return get_safe_state(game)
     return {"error": "通信エラー: 牌が見つかりません"}
 
 # 🤖 CPUのターン処理（ツモ、アガリ判定、鳴き判断、打牌）を全自動で行うAPI
@@ -668,7 +668,7 @@ def cpu_turn(cpu_idx: int, session_id: str = "default"):
         game.turn = (cpu_idx + 1) % 4
         game.just_drawn = -1 
         
-        return get_safe_state(0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
+        return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -741,9 +741,9 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", s
                     game.discards[discarder_idx].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
-                return get_safe_state(0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
+                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
-        if is_chankan_bool: return get_safe_state(0, {"reacted": False})
+        if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
 
         if not is_haitei:
             for i in turn_order:
@@ -787,9 +787,9 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", s
                         
                         game.turn = (i + 1) % 4
                         game.just_drawn = -1 
-                        return get_safe_state(0, {"reacted": True, "type": call_type, "player": i, "discard": discard})
+                        return get_safe_state(game, 0, {"reacted": True, "type": call_type, "player": i, "discard": discard})
 
-        return get_safe_state(0, {"reacted": False})
+        return get_safe_state(game, 0, {"reacted": False})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -809,7 +809,7 @@ def process_meld(session_id: str = "default",player_idx: int = 0, type: str = ""
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+                return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
         game.any_meld_occurred = True 
@@ -849,7 +849,7 @@ def process_meld(session_id: str = "default",player_idx: int = 0, type: str = ""
                 game.just_drawn = -1 
                 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        return get_safe_state(0, {"drawn_tile": drawn_tile})
+        return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         return {"error": str(e)}
 
@@ -908,7 +908,7 @@ def process_self_meld(session_id: str = "default",player_idx: int = 0, type: str
 
             if chankan_winner is not None:
                 game.is_first_turn[player_idx] = False
-                return get_safe_state(0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
+                return get_safe_state(game, 0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
 
             for m in game.melds[player_idx]:
                 if m["type"] == "pong" and m["tiles"][0] == tile:
@@ -933,7 +933,7 @@ def process_self_meld(session_id: str = "default",player_idx: int = 0, type: str
             game.just_drawn = player_idx 
 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        return get_safe_state(0, {"drawn_tile": drawn_tile})
+        return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -962,7 +962,7 @@ def process_joker_swap(session_id: str = "default",player_idx: int = 0, tile: st
         game.turn = player_idx
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
         
-        return get_safe_state(0, {"drawn_tile": season})
+        return get_safe_state(game, 0, {"drawn_tile": season})
     except Exception as e:
         return {"error": str(e)}
 
@@ -999,7 +999,7 @@ def process_win_tsumo(session_id: str = "default",player_idx: int = 0, is_joker_
         game.win_tiles[player_idx].append(tile)
         game.turn = (player_idx + 1) % 4 
         
-        return get_safe_state(player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -1025,7 +1025,7 @@ def process_win_ron(session_id: str = "default",player_idx: int = 0, tile: str =
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+                return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         robbed_player_idx = -1
         
@@ -1075,7 +1075,7 @@ def process_win_ron(session_id: str = "default",player_idx: int = 0, tile: str =
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
 
-        return get_safe_state(player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -1702,7 +1702,7 @@ def debug_setup(scenario: str, session_id: str = "default"):
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
         
-    return get_safe_state()
+    return get_safe_state(game)
 
 # 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
