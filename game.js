@@ -1574,8 +1574,7 @@ async function updateWaitsButton() {
     }
 
     try {
-        const res = await fetch(`/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
-        const data = await res.json();
+        const data = await apiCall('/get_waits', { player_idx: 0 });
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));
         currentNanikiru = data.nanikiru || null;
