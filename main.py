@@ -326,14 +326,14 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
 
 # 🚀 新しいゲームを初期化してスタートするAPI
 @app.get("/start")
-def start_game(session_id: str = "default",):
+def start_game(session_id: str = "default"):
     game = get_game(session_id)
     game.__init__()
-    return get_safe_state()
+    return get_safe_state(game)
 
 # 🔄 次の局（ラウンド）へ進め、親の更新とスコアの集計を行うAPI
 @app.get("/next_round")
-def next_round(session_id: str = "default",):
+def next_round(session_id: str = "default"):
     game = get_game(session_id)
     sorted_indices = sorted(range(4), key=lambda i: (game.scores[i], -((i - game.dealer) % 4)), reverse=True)
     next_dealer = sorted_indices[0] 
@@ -345,7 +345,7 @@ def next_round(session_id: str = "default",):
     game.current_round += 1
     game.dealer = next_dealer
     game.reset_round()
-    return get_safe_state()
+    return get_safe_state(game)
 
 # 🀄 第1交換（チャールストン）：不要牌を3枚選んで他家と交換するAPI
 @app.get("/charleston")
