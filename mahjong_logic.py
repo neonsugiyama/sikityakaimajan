@@ -634,23 +634,23 @@ class GameState:
 game = GameState()
 
 # 📦 フロントエンド（JS）に送付するための、安全な盤面データをまとめる関数
-def get_safe_state(player_idx=0, extra_data=None):
+def get_safe_state(game_instance, player_idx=0, extra_data=None):
     res = {
         "status": "success",
-        "player_hand": game.hands[player_idx],
-        "player_melds": game.melds[player_idx],
-        "player_win_tiles": game.win_tiles[player_idx],
-        "wall_count": len(game.wall),
-        "turn": game.turn,
-        "dealer": game.dealer,
-        "current_round": game.current_round,
-        "scores": game.scores,
-        "total_scores": game.total_scores,
-        "all_hands": game.hands,
-        "all_melds": game.melds,
-        "all_win_tiles": game.win_tiles,
-        "cpu_targets": game.cpu_targets,
-        "cpu_personalities": game.cpu_personalities 
+        "player_hand": game_instance.hands[player_idx],
+        "player_melds": game_instance.melds[player_idx],
+        "player_win_tiles": game_instance.win_tiles[player_idx],
+        "wall_count": len(game_instance.wall),
+        "turn": game_instance.turn,
+        "dealer": game_instance.dealer,
+        "current_round": game_instance.current_round,
+        "scores": game_instance.scores,
+        "total_scores": game_instance.total_scores,
+        "all_hands": game_instance.hands,
+        "all_melds": game_instance.melds,
+        "all_win_tiles": game_instance.win_tiles,
+        "cpu_targets": game_instance.cpu_targets,
+        "cpu_personalities": game_instance.cpu_personalities 
     }
     if extra_data: res.update(extra_data)
     return res

@@ -1320,12 +1320,17 @@ async function playExchangeAnimation(dirStr, participants) {
     }
 }
 
+// 🌟 追加：このタブ（プレイヤー）専用のIDをランダム生成する
+const mySessionId = Math.random().toString(36).substring(2, 15);
+
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
     try {
         let url = endpoint;
 
         params._t = new Date().getTime();
+        // 🌟🌟 ここを追加！すべての通信に自分専用のIDを乗せる！
+        params.session_id = mySessionId;
 
         if (Object.keys(params).length > 0) {
             const query = new URLSearchParams(params).toString();

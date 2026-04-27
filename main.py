@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 # 🧠 分離した「麻雀の脳みそ（ルールとAI）」を読み込む
 from mahjong_logic import (
-    game, get_safe_state, evaluate_hand, get_waits_for_hand,
+    GameState, get_safe_state, evaluate_hand, get_waits_for_hand,
     determine_target, evaluate_tile_dynamically, is_kan_valid_for_player,
     get_visible_count, SEASON_TILES, TILE_NAMES, ODDS
 )
@@ -21,6 +21,23 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.mount("/static", StaticFiles(directory="."), name="static")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 app.mount("/audio", StaticFiles(directory="audio"), name="audio")
+
+# ==========================================
+# 🧠 セッション（同時プレイ）管理システム
+# ==========================================
+# 🌟 追加：プレイヤー（ブラウザ）ごとに独立したゲームを保存するロッカー
+active_sessions: Dict[str, GameState] = {}
+
+def get_game(session_id: str) -> GameState:
+    """指定されたセッションIDのゲームを取得。無ければ新しく作る"""
+    if not session_id:
+        session_id = "default" # IDがない場合の保険
+        
+    if session_id not in active_sessions:
+        print(f"[DEBUG] 新しいセッションを作成しました: {session_id}")
+        active_sessions[session_id] = GameState()
+        
+    return active_sessions[session_id]
 
 # ==========================================
 # 🌐 画面表示用のAPI（フロントエンド配信）
@@ -112,12 +129,12 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         if player_count == 4:
             print(f"[DEBUG LOG] 4人揃いました！ゲームの初期化を開始します...")
             try:
-                # 🌟 あなたの元のコードに合わせて、グローバルの game を割り当てます
                 if room_id not in lobby_manager.games:
-                    lobby_manager.games[room_id] = game  
+                    # 🌟 修正：古いgameをコピーするのではなく、新しく「GameState()」を作る！
+                    lobby_manager.games[room_id] = GameState()  
                 
                 room_game = lobby_manager.games[room_id]
-                room_game.__init__() 
+                room_game.reset_round() # 🌟 ついでに初期化メソッドも正しい名前に修正
                 
                 lobby_manager.charleston_selections[room_id] = {}
                 lobby_manager.second_charleston_confirms[room_id] = {}
@@ -309,13 +326,15 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
 
 # 🚀 新しいゲームを初期化してスタートするAPI
 @app.get("/start")
-def start_game():
+def start_game(session_id: str = "default",):
+    game = get_game(session_id)
     game.__init__()
     return get_safe_state()
 
 # 🔄 次の局（ラウンド）へ進め、親の更新とスコアの集計を行うAPI
 @app.get("/next_round")
-def next_round():
+def next_round(session_id: str = "default",):
+    game = get_game(session_id)
     sorted_indices = sorted(range(4), key=lambda i: (game.scores[i], -((i - game.dealer) % 4)), reverse=True)
     next_dealer = sorted_indices[0] 
     
@@ -330,7 +349,8 @@ def next_round():
 
 # 🀄 第1交換（チャールストン）：不要牌を3枚選んで他家と交換するAPI
 @app.get("/charleston")
-def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
+def charleston(session_id: str = "default",player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
+    game = get_game(session_id)
     try:
         player_passed = [t1, t2, t3]
         for t in player_passed: game.hands[0].remove(t)
@@ -370,7 +390,8 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
 
 # 🀄 第2交換：希望者のみで再度不要牌を交換するAPI
 @app.get("/second_charleston")
-def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false"):
+def second_charleston(session_id: str = "default",player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false"):
+    game = get_game(session_id)
     try:
         participating = [p0.lower() == "true", p1.lower() == "true", p2.lower() == "true", p3.lower() == "true"]
         active = [i for i in range(4) if participating[i]]
@@ -436,7 +457,8 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
 
 # 🎯 プレイヤーが山から牌を1枚ツモるAPI
 @app.get("/draw")
-def draw_tile(player_idx: int = 0):
+def draw_tile(session_id: str = "default",player_idx: int = 0):
+    game = get_game(session_id)
     if not game.wall: return {"error": "流局"}
     tile = game.wall.pop()
     game.hands[player_idx].append(tile)
@@ -447,7 +469,8 @@ def draw_tile(player_idx: int = 0):
 
 # 🗑️ プレイヤーが牌を捨てる（打牌）API
 @app.get("/discard")
-def discard_tile(player_idx: int = 0, tile: str = ""):
+def discard_tile(session_id: str = "default",player_idx: int = 0, tile: str = ""):
+    game = get_game(session_id)
     game.is_first_turn[player_idx] = False 
     if len(game.win_tiles[player_idx]) > 0:
         if tile != game.last_drawn[player_idx]:
@@ -464,7 +487,8 @@ def discard_tile(player_idx: int = 0, tile: str = ""):
 
 # 🤖 CPUのターン処理（ツモ、アガリ判定、鳴き判断、打牌）を全自動で行うAPI
 @app.get("/cpu_turn")
-def cpu_turn(cpu_idx: int):
+def cpu_turn(cpu_idx: int, session_id: str = "default"):
+    game = get_game(session_id)
     try:
         if not game.wall: return {"error": "流局"}
         drawn = game.wall.pop()
@@ -651,7 +675,8 @@ def cpu_turn(cpu_idx: int):
 
 # ⚡ 誰かが牌を捨てた時、CPUがロンや鳴き（ポン・カン）をするか判定・実行するAPI
 @app.get("/check_cpu_reaction")
-def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
+def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", session_id: str = "default"):
+    game = get_game(session_id)
     try:
         turn_order = [(discarder_idx + 1) % 4, (discarder_idx + 2) % 4, (discarder_idx + 3) % 4]
         is_haitei = (len(game.wall) == 0)
@@ -771,7 +796,8 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
 
 # 🗣️ プレイヤーが他家の捨て牌から鳴く（ポン・明槓・花槓）処理を行うAPI
 @app.get("/meld")
-def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1):
+def process_meld(session_id: str = "default",player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1):
+    game = get_game(session_id)
     try:
         # 🌟 追加：ロン（胡）の優先権チェック（他家の鳴きより、ロンを優先する「頭ハネ」処理）
         if discarder != -1:
@@ -829,7 +855,8 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
 
 # 🗣️ プレイヤーが自分自身のツモ番で鳴く（暗槓・加槓・暗花槓など）処理を行うAPI
 @app.get("/self_meld")
-def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false"):
+def process_self_meld(session_id: str = "default",player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false"):
+    game = get_game(session_id)
     try:
         drawn_tile = ""
         is_hidden_bool = is_hidden.lower() == "true" 
@@ -913,7 +940,8 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
 
 # 🃏 他家の花槓に対して、正規の牌を渡して四季牌（Joker）を強奪するAPI
 @app.get("/joker_swap")
-def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0):
+def process_joker_swap(session_id: str = "default",player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0):
+    game = get_game(session_id)
     try:
         if tile not in game.hands[player_idx]: return {"error": "指定された牌が手牌にありません"}
         target_meld = None
@@ -940,7 +968,8 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
 
 # 🏆 プレイヤーが「ツモ」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_tsumo")
-def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false"):
+def process_win_tsumo(session_id: str = "default",player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false"):
+    game = get_game(session_id)
     try:
         tile = game.last_drawn[player_idx]
         if tile in game.hands[player_idx]: game.hands[player_idx].remove(tile)
@@ -977,7 +1006,8 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
 
 # 🏆 プレイヤーが「ロン」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_ron")
-def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1):
+def process_win_ron(session_id: str = "default",player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1):
+    game = get_game(session_id)
     try:
         is_chankan_bool = is_chankan.lower() == "true"
         # 🌟 追加：プレイヤーがロンした場合も、優先順位（ターン順）でCPUが横取りできるかチェック
@@ -1052,7 +1082,8 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
 
 # 🔍 プレイヤーの手牌が現在アガれる状態（役があるか）を事前にチェックするAPI
 @app.get("/check_win")
-def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false"):
+def check_win(session_id: str = "default",player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false"):
+    game = get_game(session_id)
     hand = list(game.hands[player_idx])
     is_ron_bool = is_ron.lower() == "true"
     is_rinshan_bool = is_rinshan.lower() == "true"
@@ -1101,7 +1132,8 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
 
 # 📊 局の終了時に、全員の和了履歴から最終的な点数移動と順位を計算するAPI
 @app.get("/calculate_round_scores")
-def calculate_round_scores():
+def calculate_round_scores(session_id: str = "default",):
+    game = get_game(session_id)
     results = []
     for i in range(4):
         player_total = 0
@@ -1138,7 +1170,8 @@ def calculate_round_scores():
 
 # 💡 プレイヤーのターン中、現在実行可能な「自摸鳴き（暗槓や加槓など）」のリストを返すAPI
 @app.get("/get_valid_self_melds")
-def get_valid_self_melds(player_idx: int = 0):
+def get_valid_self_melds(session_id: str = "default",player_idx: int = 0):
+    game = get_game(session_id)
     valid_melds = []
     hand = list(game.hands[player_idx])
     melds = game.melds[player_idx]
@@ -1186,7 +1219,8 @@ def get_valid_self_melds(player_idx: int = 0):
     return {"valid_melds": valid_melds}
 
 # 🌟 追加：指定したプレイヤー達の中で、ロン和了りできるCPUがいるかチェックし、優先度順に返す関数
-def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list):
+def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list, session_id: str = "default"):
+    game = get_game(session_id)
     is_haitei = (len(game.wall) == 0)
     for i in target_players:
         if i == 0: continue # 人間はJS側で処理するので除外
@@ -1233,7 +1267,8 @@ def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list)
 
 # 🌟 追加：JSから「CPUがロンするかどうか」だけを事前に確認するAPI
 @app.get("/check_cpu_ron_interceptor")
-def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = ""):
+def check_cpu_ron_interceptor_api(session_id: str = "default",discarder_idx: int = 0, tile: str = ""):
+    game = get_game(session_id)
     turn_order = [(discarder_idx + 1) % 4, (discarder_idx + 2) % 4, (discarder_idx + 3) % 4]
     interceptor = get_cpu_ron_interceptor(discarder_idx, tile, turn_order)
     if interceptor:
@@ -1242,7 +1277,8 @@ def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = ""):
 
 # 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
-def debug_setup(scenario: str):
+def debug_setup(scenario: str, session_id: str = "default"):
+    game = get_game(session_id)
     game.reset_round()
     game.discards_count = 0
     game.any_meld_occurred = False
@@ -1670,7 +1706,8 @@ def debug_setup(scenario: str):
 
 # 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
-def get_waits(player_idx: int = 0):
+def get_waits(session_id: str = "default",player_idx: int = 0):
+    game = get_game(session_id)
     hand = list(game.hands[player_idx])
     melds = game.melds[player_idx]
     has_won = len(game.win_tiles[player_idx]) > 0
