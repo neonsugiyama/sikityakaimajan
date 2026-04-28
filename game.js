@@ -1320,12 +1320,19 @@ async function playExchangeAnimation(dirStr, participants) {
     }
 }
 
+let currentSessionRoomId = ""; // 🌟 追加：現在の自分のルームIDを記憶する変数
+
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
     try {
         let url = endpoint;
-
         params._t = new Date().getTime();
+
+        // 🌟 追加：新規スタート以外は、必ず自分のルームIDを送信する
+        if (endpoint !== '/start') {
+            if (!currentSessionRoomId) throw new Error("セッションが切断されました。リロードしてください。");
+            params.room_id = currentSessionRoomId;
+        }
 
         if (Object.keys(params).length > 0) {
             const query = new URLSearchParams(params).toString();
@@ -1337,6 +1344,13 @@ async function apiCall(endpoint, params = {}) {
         if (!res.ok) throw new Error(`サーバーエラー(${res.status})。`);
 
         const data = await res.json();
+
+        // 🌟 追加：サーバーから新しいルームIDが届いたら記憶する
+        if (data.room_id) {
+            currentSessionRoomId = data.room_id;
+            console.log(`[ROOM] 割り当てられたルームID: ${currentSessionRoomId}`);
+        }
+
         if (data.error) {
             if (data.error === "流局") throw new Error("流局");
             throw new Error(data.error);
@@ -1348,7 +1362,7 @@ async function apiCall(endpoint, params = {}) {
     } catch (e) {
         if (e.message === "流局") throw e;
         logMsg(`[エラー] ${e.message}`, true);
-        alert(`【システムエラー】\n${e.message}\n\n※ボタンを連打した可能性があります。もう一度操作してください。`);
+        alert(`【システムエラー】\n${e.message}\n\n※画面をリロードしてもう一度お試しください。`);
         isProc = false;
         throw e;
     }

@@ -1,7 +1,7 @@
 ﻿import random
 import traceback
 from typing import Dict, List  # 🌟 追加
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # 🌟 追加
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends  # 🌟 ここに HTTPException, Depends を追加！
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from mahjong_logic import (
     game, get_safe_state, evaluate_hand, get_waits_for_hand,
     determine_target, evaluate_tile_dynamically, is_kan_valid_for_player,
-    get_visible_count, SEASON_TILES, TILE_NAMES, ODDS
+    get_visible_count, SEASON_TILES, TILE_NAMES, ODDS,SORT_ORDER
 )
 
 app = FastAPI()
@@ -303,19 +303,134 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         print(f"==============================================================\n")
         lobby_manager.disconnect(websocket, room_id)
 
+class GameState:
+    def __init__(self):
+        self.current_round = 1
+        self.dealer = random.randint(0, 3) 
+        self.scores = [0, 0, 0, 0] 
+        self.total_scores = [0, 0, 0, 0] 
+        self.cpu_targets = ["", "", "", ""]
+        self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
+        self.just_drawn = -1 
+        self.reset_round()
+
+    def reset_round(self):
+        self.wall = (TILE_NAMES * 4) + list(SEASON_TILES)
+        random.shuffle(self.wall)
+        self.hands = [self.sort_hand([self.wall.pop() for _ in range(13)]) for _ in range(4)]
+        self.melds = [[] for _ in range(4)]
+        self.win_tiles = [[] for _ in range(4)]
+        self.last_drawn = [""] * 4
+        self.discards = [[] for _ in range(4)]
+        self.turn = self.dealer 
+        self.scores = [0, 0, 0, 0]
+        self.cpu_targets = ["", "", "", ""]
+        self.just_drawn = -1 
+        self.win_records = [[] for _ in range(4)]
+        self.is_first_turn = [True, True, True, True]
+        self.any_meld_occurred = False
+        self.discards_count = 0
+        
+    def sort_hand(self, hand):
+        return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
+
+# 🌟 10000パターンのルーム管理システム
+ROOM_COUNTER = 0
+active_rooms: Dict[str, GameState] = {}
+
+# 🌟 通信が来るたびに、自動的に「その人の卓データ(game)」を取り出す魔法の関数
+def get_current_game(room_id: str = "") -> GameState:
+    if not room_id or room_id not in active_rooms:
+        raise HTTPException(status_code=400, detail="ルームが見つかりません。画面をリロードしてください。")
+    return active_rooms[room_id]
+
+# 🌟 第一引数に必ず game を受け取るように変更！
+def get_safe_state(game: GameState, player_idx=0, extra_data=None):
+    res = {
+        "status": "success",
+        "player_hand": game.hands[player_idx],
+        "player_melds": game.melds[player_idx],
+        "player_win_tiles": game.win_tiles[player_idx],
+        "wall_count": len(game.wall),
+        "turn": game.turn,
+        "dealer": game.dealer,
+        "current_round": game.current_round,
+        "scores": game.scores,
+        "total_scores": game.total_scores,
+        "all_hands": game.hands,
+        "all_melds": game.melds,
+        "all_win_tiles": game.win_tiles,
+        "cpu_targets": game.cpu_targets,
+        "cpu_personalities": game.cpu_personalities 
+    }
+    if extra_data: res.update(extra_data)
+    return res
+
+# 🌟 第一引数に必ず game を受け取るように変更！
+def get_cpu_ron_interceptor(game: GameState, discarder_idx: int, tile: str, target_players: list):
+    is_haitei = (len(game.wall) == 0)
+    for i in target_players:
+        if i == 0: continue 
+        if len(game.win_tiles[i]) > 0: continue 
+        
+        ctx = {
+            "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
+            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
+            "is_first_turn": game.is_first_turn[i], "any_meld_occurred": game.any_meld_occurred,
+            "is_dealer": game.dealer == i, "discards_count": game.discards_count
+        }
+        res = evaluate_hand({"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx})
+        if "error" not in res:
+            has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
+            
+            if has_season_in_hand:
+                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
+                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+                
+                if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: 
+                    continue 
+
+            is_kokushi_pass = False
+            if "十三幺九" in res.get("yaku", []):
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 13:
+                    remaining = 0
+                    for w in waits:
+                        visible = get_visible_count(w, game)
+                        remaining += max(0, 4 - visible - game.hands[i].count(w))
+                    if len(game.wall) >= 24 and remaining >= 3: is_kokushi_pass = True
+            if is_kokushi_pass: continue
+
+            is_infinite_wait_pass = False
+            if len(game.wall) > 20:
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 27: is_infinite_wait_pass = True
+            if is_infinite_wait_pass: continue
+
+            return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
+    return None
+
 # ==========================================
 # 🎮 ゲーム進行・操作受付用API
 # ==========================================
 
-# 🚀 新しいゲームを初期化してスタートするAPI
 @app.get("/start")
 def start_game():
-    game.__init__()
-    return get_safe_state()
+    global ROOM_COUNTER
+    # 0000〜9999 のルームIDを発行して、10000を超えたら0に戻る
+    room_id = f"{ROOM_COUNTER:04d}"
+    ROOM_COUNTER = (ROOM_COUNTER + 1) % 10000
+    
+    new_game = GameState()
+    active_rooms[room_id] = new_game
+    print(f"🎮 新規ルーム作成: {room_id} (現在稼働中: {len(active_rooms)}卓)")
+    
+    return get_safe_state(new_game, 0, {"room_id": room_id})
 
-# 🔄 次の局（ラウンド）へ進め、親の更新とスコアの集計を行うAPI
+# 🌟 全てのAPIに `game: GameState = Depends(get_current_game)` を追加！
 @app.get("/next_round")
-def next_round():
+def next_round(game: GameState = Depends(get_current_game)):
     sorted_indices = sorted(range(4), key=lambda i: (game.scores[i], -((i - game.dealer) % 4)), reverse=True)
     next_dealer = sorted_indices[0] 
     
@@ -326,11 +441,10 @@ def next_round():
     game.current_round += 1
     game.dealer = next_dealer
     game.reset_round()
-    return get_safe_state()
+    return get_safe_state(game)
 
-# 🀄 第1交換（チャールストン）：不要牌を3枚選んで他家と交換するAPI
 @app.get("/charleston")
-def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
+def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", game: GameState = Depends(get_current_game)):
     try:
         player_passed = [t1, t2, t3]
         for t in player_passed: game.hands[0].remove(t)
@@ -364,19 +478,18 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = ""):
             game.hands[i] = game.sort_hand(game.hands[i])
             
         game.just_drawn = -1 
-        return get_safe_state(0, {"dice": dice, "direction": msg})
+        return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         return {"error": str(e)}
 
-# 🀄 第2交換：希望者のみで再度不要牌を交換するAPI
 @app.get("/second_charleston")
-def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false"):
+def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false", game: GameState = Depends(get_current_game)):
     try:
         participating = [p0.lower() == "true", p1.lower() == "true", p2.lower() == "true", p3.lower() == "true"]
         active = [i for i in range(4) if participating[i]]
 
         if len(active) <= 1:
-            return get_safe_state(0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
+            return get_safe_state(game, 0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
 
         passed_tiles = {i: [] for i in active}
 
@@ -429,25 +542,23 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
 
         for i in range(4): game.hands[i] = game.sort_hand(game.hands[i])
         game.just_drawn = -1 
-        return get_safe_state(0, {"dice": dice, "direction": msg})
+        return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
         return {"error": f"サーバー内部エラー(/second_charleston): {str(e)}"}
 
-# 🎯 プレイヤーが山から牌を1枚ツモるAPI
 @app.get("/draw")
-def draw_tile(player_idx: int = 0):
+def draw_tile(player_idx: int = 0, game: GameState = Depends(get_current_game)):
     if not game.wall: return {"error": "流局"}
     tile = game.wall.pop()
     game.hands[player_idx].append(tile)
     game.last_drawn[player_idx] = tile
     game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
     game.just_drawn = player_idx 
-    return get_safe_state(0, {"drawn_tile": tile})
+    return get_safe_state(game, 0, {"drawn_tile": tile})
 
-# 🗑️ プレイヤーが牌を捨てる（打牌）API
 @app.get("/discard")
-def discard_tile(player_idx: int = 0, tile: str = ""):
+def discard_tile(player_idx: int = 0, tile: str = "", game: GameState = Depends(get_current_game)):
     game.is_first_turn[player_idx] = False 
     if len(game.win_tiles[player_idx]) > 0:
         if tile != game.last_drawn[player_idx]:
@@ -459,12 +570,11 @@ def discard_tile(player_idx: int = 0, tile: str = ""):
         game.discards_count += 1
         game.turn = (player_idx + 1) % 4
         game.just_drawn = -1 
-        return get_safe_state()
+        return get_safe_state(game)
     return {"error": "通信エラー: 牌が見つかりません"}
 
-# 🤖 CPUのターン処理（ツモ、アガリ判定、鳴き判断、打牌）を全自動で行うAPI
 @app.get("/cpu_turn")
-def cpu_turn(cpu_idx: int):
+def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
     try:
         if not game.wall: return {"error": "流局"}
         drawn = game.wall.pop()
@@ -493,7 +603,6 @@ def cpu_turn(cpu_idx: int):
             has_season_in_hand = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"])
             is_pass = False
             
-            # 🌟 修正：すでに和了しているか、または「無花果（四季牌なし）」の状態で聴牌した場合は見逃さない！
             if not has_won_already and has_season_in_hand:
                 is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
                 jokers_count = sum(1 for t in game.hands[cpu_idx] + [drawn] if t in SEASON_TILES)
@@ -531,19 +640,15 @@ def cpu_turn(cpu_idx: int):
 
         while game.wall:
             seasons = [t for t in game.hands[cpu_idx] if t in SEASON_TILES]
-            
             hanakan_seasons = seasons if game.cpu_personalities[cpu_idx] in [2, 4] else []
-            
             counts = {t: game.hands[cpu_idx].count(t) for t in set(game.hands[cpu_idx])}
             did_meld = False
             has_won = len(game.win_tiles[cpu_idx]) > 0
             
-            if has_won and len(seasons) > 0:
-                break
+            if has_won and len(seasons) > 0: break
                 
             current_target = determine_target(cpu_idx, game.hands[cpu_idx], game)
-            if current_target in ["十三幺九", "七星不靠"]:
-                break
+            if current_target in ["十三幺九", "七星不靠"]: break
                 
             for t, c in counts.items():
                 if c == 4 and t not in SEASON_TILES:
@@ -644,14 +749,13 @@ def cpu_turn(cpu_idx: int):
         game.turn = (cpu_idx + 1) % 4
         game.just_drawn = -1 
         
-        return get_safe_state(0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
+        return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
-# ⚡ 誰かが牌を捨てた時、CPUがロンや鳴き（ポン・カン）をするか判定・実行するAPI
 @app.get("/check_cpu_reaction")
-def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
+def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", game: GameState = Depends(get_current_game)):
     try:
         turn_order = [(discarder_idx + 1) % 4, (discarder_idx + 2) % 4, (discarder_idx + 3) % 4]
         is_haitei = (len(game.wall) == 0)
@@ -662,20 +766,13 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
             
             if is_chankan_bool:
                 waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                if len(waits) >= 31:
-                    continue
+                if len(waits) >= 31: continue
             
             ctx = {
-                "winning_tile": tile,
-                "is_tsumo": False, 
-                "is_haitei": is_haitei,
-                "is_joker_swap": False,
-                "is_rinshan": False,
-                "is_chankan": is_chankan_bool,
-                "is_first_turn": game.is_first_turn[i],
-                "any_meld_occurred": game.any_meld_occurred,
-                "is_dealer": game.dealer == i,
-                "discards_count": game.discards_count
+                "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
+                "is_joker_swap": False, "is_rinshan": False, "is_chankan": is_chankan_bool,
+                "is_first_turn": game.is_first_turn[i], "any_meld_occurred": game.any_meld_occurred,
+                "is_dealer": game.dealer == i, "discards_count": game.discards_count
             }
 
             data = {"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx}
@@ -685,14 +782,12 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                 has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
                 is_pass = False
                 
-                # 🌟 修正：すでに和了しているか、または「無花果（四季牌なし）」の状態で聴牌した場合は見逃さない！
                 if not has_won_already and has_season_in_hand:
                     is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
                     jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
                     is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
                     
-                    if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
-                        is_pass = True
+                    if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: is_pass = True
 
                     if "十三幺九" in res.get("yaku", []):
                         waits = get_waits_for_hand(game.hands[i], game.melds[i])
@@ -701,24 +796,21 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                             for w in waits:
                                 visible = get_visible_count(w, game)
                                 remaining += max(0, 4 - visible - game.hands[i].count(w))
-                            if len(game.wall) >= 24 and remaining >= 3:
-                                is_pass = True
+                            if len(game.wall) >= 24 and remaining >= 3: is_pass = True
 
                     if len(game.wall) > 20: 
                         waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                        if len(waits) < 27:
-                            is_pass = True 
+                        if len(waits) < 27: is_pass = True 
 
-                if is_pass:
-                    continue
+                if is_pass: continue
 
                 if not is_chankan_bool and game.discards[discarder_idx] and game.discards[discarder_idx][-1] == tile:
                     game.discards[discarder_idx].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
-                return get_safe_state(0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
+                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
-        if is_chankan_bool: return get_safe_state(0, {"reacted": False})
+        if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
 
         if not is_haitei:
             for i in turn_order:
@@ -726,8 +818,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                 if len(game.win_tiles[i]) > 0: continue
                 
                 current_target = determine_target(i, game.hands[i], game)
-                if current_target in ["十三幺九", "七星不靠"]:
-                    continue
+                if current_target in ["十三幺九", "七星不靠"]: continue
 
                 count = game.hands[i].count(tile)
                 if count >= 2:
@@ -762,28 +853,26 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false"):
                         
                         game.turn = (i + 1) % 4
                         game.just_drawn = -1 
-                        return get_safe_state(0, {"reacted": True, "type": call_type, "player": i, "discard": discard})
+                        return get_safe_state(game, 0, {"reacted": True, "type": call_type, "player": i, "discard": discard})
 
-        return get_safe_state(0, {"reacted": False})
+        return get_safe_state(game, 0, {"reacted": False})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
-# 🗣️ プレイヤーが他家の捨て牌から鳴く（ポン・明槓・花槓）処理を行うAPI
 @app.get("/meld")
-def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1):
+def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1, game: GameState = Depends(get_current_game)):
     try:
-        # 🌟 追加：ロン（胡）の優先権チェック（他家の鳴きより、ロンを優先する「頭ハネ」処理）
         if discarder != -1:
             turn_order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
-            interceptor = get_cpu_ron_interceptor(discarder, tile, turn_order)
+            interceptor = get_cpu_ron_interceptor(game, discarder, tile, turn_order)
             if interceptor:
                 i = interceptor["player"]
                 if game.discards[discarder] and game.discards[discarder][-1] == tile:
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+                return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
         game.any_meld_occurred = True 
@@ -823,13 +912,12 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 game.just_drawn = -1 
                 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        return get_safe_state(0, {"drawn_tile": drawn_tile})
+        return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         return {"error": str(e)}
 
-# 🗣️ プレイヤーが自分自身のツモ番で鳴く（暗槓・加槓・暗花槓など）処理を行うAPI
 @app.get("/self_meld")
-def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false"):
+def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", season: str = "", is_hidden: str = "false", game: GameState = Depends(get_current_game)):
     try:
         drawn_tile = ""
         is_hidden_bool = is_hidden.lower() == "true" 
@@ -864,8 +952,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                 if len(game.win_tiles[p]) > 0: continue 
 
                 waits = get_waits_for_hand(game.hands[p], game.melds[p])
-                if len(waits) >= 31:
-                    continue
+                if len(waits) >= 31: continue
 
                 ctx = {
                     "winning_tile": tile, "is_tsumo": False, "is_haitei": False,
@@ -881,7 +968,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
 
             if chankan_winner is not None:
                 game.is_first_turn[player_idx] = False
-                return get_safe_state(0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
+                return get_safe_state(game, 0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
 
             for m in game.melds[player_idx]:
                 if m["type"] == "pong" and m["tiles"][0] == tile:
@@ -906,14 +993,13 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
             game.just_drawn = player_idx 
 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        return get_safe_state(0, {"drawn_tile": drawn_tile})
+        return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
-# 🃏 他家の花槓に対して、正規の牌を渡して四季牌（Joker）を強奪するAPI
 @app.get("/joker_swap")
-def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0):
+def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", target_idx: int = 0, game: GameState = Depends(get_current_game)):
     try:
         if tile not in game.hands[player_idx]: return {"error": "指定された牌が手牌にありません"}
         target_meld = None
@@ -934,18 +1020,15 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
         game.turn = player_idx
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
         
-        return get_safe_state(0, {"drawn_tile": season})
+        return get_safe_state(game, 0, {"drawn_tile": season})
     except Exception as e:
         return {"error": str(e)}
 
-# 🏆 プレイヤーが「ツモ」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_tsumo")
-def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false"):
+def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false", game: GameState = Depends(get_current_game)):
     try:
         tile = game.last_drawn[player_idx]
         if tile in game.hands[player_idx]: game.hands[player_idx].remove(tile)
-        
-        is_pure_first = (game.discards_count == 0) 
         
         ctx = {
             "winning_tile": tile, 
@@ -970,32 +1053,30 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         game.win_tiles[player_idx].append(tile)
         game.turn = (player_idx + 1) % 4 
         
-        return get_safe_state(player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
-# 🏆 プレイヤーが「ロン」ボタンを押した時の和了処理を行うAPI
 @app.get("/win_ron")
-def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1):
+def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1, game: GameState = Depends(get_current_game)):
     try:
         is_chankan_bool = is_chankan.lower() == "true"
-        # 🌟 追加：プレイヤーがロンした場合も、優先順位（ターン順）でCPUが横取りできるかチェック
         if discarder != -1 and not is_chankan_bool:
             turn_order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
             higher_priority_players = []
             for p in turn_order:
-                if p == player_idx: break # 自分の順番が来たら終了（自分より前が優先される）
+                if p == player_idx: break
                 higher_priority_players.append(p)
                 
-            interceptor = get_cpu_ron_interceptor(discarder, tile, higher_priority_players)
+            interceptor = get_cpu_ron_interceptor(game, discarder, tile, higher_priority_players)
             if interceptor:
                 i = interceptor["player"]
                 if game.discards[discarder] and game.discards[discarder][-1] == tile:
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                return get_safe_state(0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
+                return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         robbed_player_idx = -1
         
@@ -1045,14 +1126,13 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
 
-        return get_safe_state(player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
 
-# 🔍 プレイヤーの手牌が現在アガれる状態（役があるか）を事前にチェックするAPI
 @app.get("/check_win")
-def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false"):
+def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", is_rinshan: str = "false", is_haitei: str = "false", is_chankan: str = "false", game: GameState = Depends(get_current_game)):
     hand = list(game.hands[player_idx])
     is_ron_bool = is_ron.lower() == "true"
     is_rinshan_bool = is_rinshan.lower() == "true"
@@ -1099,9 +1179,8 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
     if "error" in res: return {"can_win": False, "reason": res["error"]}
     return {"can_win": True, "score": res["score"], "yaku": res["yaku"]}
 
-# 📊 局の終了時に、全員の和了履歴から最終的な点数移動と順位を計算するAPI
 @app.get("/calculate_round_scores")
-def calculate_round_scores():
+def calculate_round_scores(game: GameState = Depends(get_current_game)):
     results = []
     for i in range(4):
         player_total = 0
@@ -1136,9 +1215,8 @@ def calculate_round_scores():
             
     return {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
 
-# 💡 プレイヤーのターン中、現在実行可能な「自摸鳴き（暗槓や加槓など）」のリストを返すAPI
 @app.get("/get_valid_self_melds")
-def get_valid_self_melds(player_idx: int = 0):
+def get_valid_self_melds(player_idx: int = 0, game: GameState = Depends(get_current_game)):
     valid_melds = []
     hand = list(game.hands[player_idx])
     melds = game.melds[player_idx]
@@ -1185,64 +1263,17 @@ def get_valid_self_melds(player_idx: int = 0):
                     
     return {"valid_melds": valid_melds}
 
-# 🌟 追加：指定したプレイヤー達の中で、ロン和了りできるCPUがいるかチェックし、優先度順に返す関数
-def get_cpu_ron_interceptor(discarder_idx: int, tile: str, target_players: list):
-    is_haitei = (len(game.wall) == 0)
-    for i in target_players:
-        if i == 0: continue # 人間はJS側で処理するので除外
-        if len(game.win_tiles[i]) > 0: continue # 🌟 既に和了っている場合は横取り(頭ハネ)しない
-        
-        ctx = {
-            "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
-            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
-            "is_first_turn": game.is_first_turn[i], "any_meld_occurred": game.any_meld_occurred,
-            "is_dealer": game.dealer == i, "discards_count": game.discards_count
-        }
-        res = evaluate_hand({"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx})
-        if "error" not in res:
-            # 🌟 修正：手牌に四季牌がない（無花果の）状態からのロンは絶対に見逃さない
-            has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
-            
-            if has_season_in_hand:
-                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
-                jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
-                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
-                
-                if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: 
-                    continue 
-
-                is_kokushi_pass = False
-                if "十三幺九" in res.get("yaku", []):
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 13:
-                        remaining = 0
-                        for w in waits:
-                            visible = get_visible_count(w, game)
-                            remaining += max(0, 4 - visible - game.hands[i].count(w))
-                        if len(game.wall) >= 24 and remaining >= 3: is_kokushi_pass = True
-                if is_kokushi_pass: continue
-
-                is_infinite_wait_pass = False
-                if len(game.wall) > 20:
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 27: is_infinite_wait_pass = True
-                if is_infinite_wait_pass: continue
-
-            return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
-    return None
-
-# 🌟 追加：JSから「CPUがロンするかどうか」だけを事前に確認するAPI
 @app.get("/check_cpu_ron_interceptor")
-def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = ""):
+def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = "", game: GameState = Depends(get_current_game)):
     turn_order = [(discarder_idx + 1) % 4, (discarder_idx + 2) % 4, (discarder_idx + 3) % 4]
-    interceptor = get_cpu_ron_interceptor(discarder_idx, tile, turn_order)
+    interceptor = get_cpu_ron_interceptor(game, discarder_idx, tile, turn_order)
     if interceptor:
         return {"intercepted": True, "player": interceptor["player"]}
     return {"intercepted": False}
 
 # 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
-def debug_setup(scenario: str):
+def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
     game.reset_round()
     game.discards_count = 0
     game.any_meld_occurred = False
@@ -1670,7 +1701,7 @@ def debug_setup(scenario: str):
 
 # 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
-def get_waits(player_idx: int = 0):
+def get_waits(player_idx: int = 0, game: GameState = Depends(get_current_game)):
     hand = list(game.hands[player_idx])
     melds = game.melds[player_idx]
     has_won = len(game.win_tiles[player_idx]) > 0
