@@ -244,16 +244,45 @@ def parse_hand(tiles, jokers):
                     t[i] -= actual_p
                     find_melds(t, j - needed_p, pongs + [i], chows, pair_idx, i)
                     t[i] += actual_p
+                # 順子の最小値から順子を探索
                 if (0 <= i <= 6) or (9 <= i <= 15):
                     needed_c = 0
                     used = []
                     for offset in range(3):
                         if t[i + offset] > 0:
-                            t[i + offset] -= 1
-                            used.append(i + offset)
+                           t[i + offset] -= 1
+                           used.append(i + offset)
                         else: needed_c += 1
                     if j >= needed_c:
                         find_melds(t, j - needed_c, pongs, chows + [i], pair_idx, i)
+                    for ut in used: t[ut] += 1
+
+                # 順子の中間から順子を探索
+                if (i == 7) or (i == 16):
+                    needed_c = 0
+                    used = []
+                    for offset in range(3):
+                        idx = (i - 1) + offset
+                        if t[idx] > 0:
+                           t[idx] -= 1
+                           used.append(idx)
+                        else: needed_c += 1
+                    if j >= needed_c:
+                       find_melds(t, j - needed_c, pongs, chows + [i - 1], pair_idx, i)
+                    for ut in used: t[ut] += 1
+
+                 # 順子の最大値から順子を探索
+                if (i == 8) or (i == 17):
+                    needed_c = 0
+                    used = []
+                    for offset in range(3):
+                        idx = (i - 2) + offset
+                        if t[idx] > 0:
+                           t[idx] -= 1
+                           used.append(idx)
+                        else: needed_c += 1
+                    if j >= needed_c:
+                       find_melds(t, j - needed_c, pongs, chows + [i - 2], pair_idx, i)
                     for ut in used: t[ut] += 1
                 return
     for i in range(27):
