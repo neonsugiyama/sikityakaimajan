@@ -1634,6 +1634,13 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         # CPU3の手牌をセット
         game.hands[3] = ["4s", "1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p", "2p", "3p"]
 
+    elif scenario == "test_chow_patern":
+        game.dealer = 0
+        game.turn = 0
+        game.is_first_turn = [False]*4
+        game.hands[0] = ["夏","秋","9s","1p","1p","1p","西","9p","9p","9p","白","白","白"]
+        game.wall = ["8s"]
+
     #実績解除テストケース
     elif scenario == "achieve_wide_wait":
         game.dealer = 0
