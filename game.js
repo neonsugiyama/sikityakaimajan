@@ -1583,7 +1583,8 @@ async function updateWaitsButton() {
     }
 
     try {
-        const res = await fetch(`/get_waits?player_idx=0&_t=${new Date().getTime()}`, { cache: 'no-store' });
+        // 🌟 apiCallだと無限ループになるため、fetchに戻しつつ「room_id」を手動で付ける！
+        const res = await fetch(`/get_waits?player_idx=0&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`, { cache: 'no-store' });
         const data = await res.json();
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));

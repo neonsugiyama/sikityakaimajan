@@ -1697,7 +1697,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
         
-    return get_safe_state()
+    return get_safe_state(game)
 
 # 🎯 UI表示用：現在のテンパイ待ち牌、または「何を切ればテンパイか」を計算して返すAPI
 @app.get("/get_waits")
