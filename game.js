@@ -2798,7 +2798,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         } catch (e) { }
     }
 
-    let canHumanRon = wd.can_win && !higherPriorityCpuWillRon;
+    let canHumanRon = wd.can_win;
 
     // ----------------------------------------------------
     // 1. ロン判定（優先）
@@ -2820,9 +2820,8 @@ async function checkHumanReaction(discarderIdx, tile) {
     // ----------------------------------------------------
     // 2. 鳴き判定（和了絶対優先の法則を適用！）
     // ----------------------------------------------------
-    // 🚨 究極の修正：他家（CPU）がロン和了する予定の牌は、絶対に鳴けないようにブロックする！
-    // 以前は anyCpuWillRon をチェックせずにボタンを出してしまっていたのが原因です。
-    if (myWinTiles.length === 0 && !anyCpuWillRon) {
+    // 🌟 修正：メタ読み防止！CPUがロンする予定でも鳴きボタンは出す！（押したら頭ハネされる）
+    if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.innerHTML = `ポン ${getImg(tile)}`;
