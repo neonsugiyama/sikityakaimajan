@@ -329,6 +329,8 @@ class GameState:
         self.cpu_targets = ["", "", "", ""]
         self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
         self.just_drawn = -1 
+        self.round_calculated = False # 🌟 追加：スコア計算済みフラグ
+        self.last_calc_data = None    # 🌟 追加：計算結果の保存
         self.reset_round()
 
     def reset_round(self):
@@ -347,7 +349,9 @@ class GameState:
         self.is_first_turn = [True, True, True, True]
         self.any_meld_occurred = False
         self.discards_count = 0
-        self.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加：誰が何を捨てたか記憶
+        self.last_discard_info = {"player": -1, "tile": ""}
+        self.round_calculated = False # 🌟 追加：次の局でリセット
+        self.last_calc_data = None    # 🌟 追加：次の局でリセット
         
     def sort_hand(self, hand):
         return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
@@ -383,9 +387,10 @@ def get_safe_state(game: GameState, player_idx=0, extra_data=None):
         # 🌟 追加：再開時に絶対に必要になる「進行度」と「河」のデータ
         "discards_count": game.discards_count,
         "any_meld_occurred": game.any_meld_occurred,
-        "just_drawn": game.just_drawn,                 # 🌟 追加：自摸牌の分離用
-        "last_drawn": game.last_drawn,                 # 🌟 追加：自摸牌の特定用
-        "last_discard_info": game.last_discard_info    # 🌟 追加：リロード時のアクション復元用
+        "just_drawn": game.just_drawn,
+        "last_drawn": game.last_drawn,
+        "last_discard_info": game.last_discard_info,
+        "round_calculated": getattr(game, 'round_calculated', False) # 🌟 追加
     }
     if extra_data: res.update(extra_data)
     return res
@@ -1240,6 +1245,10 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
 
 @app.get("/calculate_round_scores")
 def calculate_round_scores(game: GameState = Depends(get_current_game)):
+    # 🌟 追加：既に計算済みなら、保存しておいた結果を返すだけにする（二重加算防止）
+    if getattr(game, 'round_calculated', False):
+        return game.last_calc_data
+
     results = []
     for i in range(4):
         player_total = 0
@@ -1272,7 +1281,10 @@ def calculate_round_scores(game: GameState = Depends(get_current_game)):
     for rank, idx in enumerate(sorted_indices):
         ranking_points[idx] = [300, 200, 100, 0][rank]
             
-    return {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
+    # 🌟 追加：計算が終わったら結果を保存してフラグを立てる
+    game.round_calculated = True
+    game.last_calc_data = {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
+    return game.last_calc_data
 
 @app.get("/get_valid_self_melds")
 def get_valid_self_melds(player_idx: int = 0, game: GameState = Depends(get_current_game)):

@@ -3,16 +3,22 @@ let resultWaitResolver = null;
 let resultTimerInterval = null;
 let currentGameMode = 'cpu'; // 'cpu' または 'online'
 
+// ⏱️ 指定秒数待機しつつ、スキップ可能なタイマーUIを表示する関数
 function waitWithTimerAndSkip(seconds) {
     const controls = document.getElementById('result-controls');
     const timerText = document.getElementById('result-timer-text');
     controls.style.display = "flex";
 
-    let timeLeft = seconds;
+    // 🌟 修正：引数で渡された seconds（残り秒数）をそのまま使う
+    let timeLeft = Math.max(0, Math.floor(seconds));
     timerText.innerText = `次へ: ${timeLeft}s`;
 
     return new Promise(resolve => {
         resultWaitResolver = resolve;
+        if (timeLeft <= 0) {
+            skipResultWait();
+            return;
+        }
         resultTimerInterval = setInterval(() => {
             timeLeft--;
             timerText.innerText = `次へ: ${timeLeft}s`;
@@ -864,6 +870,7 @@ let isAlreadyTenpai = false;
 let isAutoPlay = false;
 // 🌟 追加：リロードからの再開中であることを示すフラグ
 let isResuming = false;
+let isResumingResult = false; // 🌟 追加：リザルト画面の再開フラグ
 // 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
 let isWelcomeHomeTest = false;
 let timerInterval = null;
@@ -3286,16 +3293,26 @@ function skipAction() {
 }
 
 // 🏁 1局の終了（アガリまたは流局）時に点数計算を行い、リザルト画面を表示する関数
-async function handleRoundEnd() {
+// 🌟 修正：再開時は isReplayingResult=true となり、実績等の二重加算をスキップする！
+async function handleRoundEnd(isReplayingResult = false) {
     stopTimer();
 
-    // 🏆 ここを変更！【継続は力なり】
-    let oldRounds = playerStats.totalRoundsPlayed;
-    playerStats.totalRoundsPlayed++;
-    checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
-    saveGameData();
+    // 🌟 追加：リザルトフェーズの開始時刻を記録（未記録の場合のみ）
+    let startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
+    if (!startTime) {
+        startTime = Date.now().toString();
+        sessionStorage.setItem(`result_phase_start_${currentSessionRoomId}`, startTime);
+    }
+    const resultStartTime = parseInt(startTime);
 
-    // 🌟 先ほど作った一括閉じ関数を呼び出して、開いている戦績データ等をすべて消す
+    // 実績等の保存は初回のみ
+    if (!isReplayingResult) {
+        let oldRounds = playerStats.totalRoundsPlayed;
+        playerStats.totalRoundsPlayed++;
+        checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
+        saveGameData();
+    }
+
     closeAllModals();
     document.getElementById('waits-panel').style.display = 'none';
 
@@ -3311,91 +3328,99 @@ async function handleRoundEnd() {
         btnAuto.style.boxShadow = "0 3px #95a5a6";
     }
 
+    // Python側でブロックしてあるので、再開時も安全に呼び出せる
     const calcData = await apiCall('/calculate_round_scores');
 
     let iWon = false;
     for (let res of calcData.results) {
         if (res.player === 0) {
             iWon = true;
-            playerStats.totalWins++;
 
-            // --- 💰 ここに追加：大富豪の判定 ---
-            let oldTotalScore = playerStats.totalScoreSum || 0;
-            playerStats.totalScoreSum = oldTotalScore + res.total_score;
-            // tiers は renderAchievements で設定した [1000, 500000, 1000000, 5000000] に合わせる
-            checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
+            // 🌟 初回実行時のみ実績と戦績を加算する
+            if (!isReplayingResult) {
+                playerStats.totalWins++;
+                let oldTotalScore = playerStats.totalScoreSum || 0;
+                playerStats.totalScoreSum = oldTotalScore + res.total_score;
+                checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
 
-            // 🏆 ここに追加！【無限の選択肢】（アガった瞬間に27面待ちだったか）
-            if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
-                playerStats.wideWaitCount = 1;
-                showAchievementUnlock("無限の選択肢", "🌀");
-            }
+                if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
+                    playerStats.wideWaitCount = 1;
+                    showAchievementUnlock("無限の選択肢", "🌀");
+                }
 
-            // 🏆 ここに追加！【神の領域】＆【インフレの体現者】
-            for (let detail of res.details) {
-                if (detail.yaku.includes("天胡") || detail.yaku.includes("地胡")) {
-                    if (playerStats.heavenlyCount === 0) {
-                        playerStats.heavenlyCount = 1;
-                        showAchievementUnlock("神の領域", "⚡");
+                for (let detail of res.details) {
+                    if (detail.yaku.includes("天胡") || detail.yaku.includes("地胡")) {
+                        if (playerStats.heavenlyCount === 0) {
+                            playerStats.heavenlyCount = 1;
+                            showAchievementUnlock("神の領域", "⚡");
+                        }
+                    }
+                    if (detail.yaku.length > playerStats.maxComboCount) {
+                        let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
+                        playerStats.maxComboCount = detail.yaku.length;
+                        if (isFirstTime) showAchievementUnlock("インフレの体現者", "🌈");
                     }
                 }
-                if (detail.yaku.length > playerStats.maxComboCount) {
-                    let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
-                    playerStats.maxComboCount = detail.yaku.length;
-                    if (isFirstTime) showAchievementUnlock("インフレの体現者", "🌈");
-                }
-            }
 
-            // 🏆 ここに追加！【四季常春】
-            let allMyTiles = [...myHand];
-            myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
-            if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
-                if (playerStats.masterOfSeasonsCount === 0) {
-                    playerStats.masterOfSeasonsCount = 1;
-                    showAchievementUnlock("四季常春", "🌍");
-                }
-            }
-
-            // --- 💰 ここに追加：最高到達打点の判定 ---
-            if (res.total_score > playerStats.maxScore) {
-                let oldMax = playerStats.maxScore;
-                playerStats.maxScore = res.total_score;
-                // tiers は [100, 1000, 5000, 10000] に合わせる
-                checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 500, 1000, 2000]);
-
-                playerStats.maxScoreHand = {
-                    tiles: [...myHand],
-                    melds: JSON.parse(JSON.stringify(myMelds)),
-                    winTile: res.details.length > 0 ? res.details[0].tile : ""
-                };
-            }
-
-            if (Array.isArray(playerStats.yakuCollected)) {
-                let migrated = {};
-                playerStats.yakuCollected.forEach(y => migrated[y] = 1);
-                playerStats.yakuCollected = migrated;
-            }
-
-            for (let detail of res.details) {
-                for (let y of detail.yaku) {
-                    if (!playerStats.yakuCollected[y]) {
-                        playerStats.yakuCollected[y] = 0;
+                let allMyTiles = [...myHand];
+                myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
+                if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
+                    if (playerStats.masterOfSeasonsCount === 0) {
+                        playerStats.masterOfSeasonsCount = 1;
+                        showAchievementUnlock("四季常春", "🌍");
                     }
-                    playerStats.yakuCollected[y]++;
+                }
+
+                if (res.total_score > playerStats.maxScore) {
+                    let oldMax = playerStats.maxScore;
+                    playerStats.maxScore = res.total_score;
+                    checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 500, 1000, 2000]);
+
+                    playerStats.maxScoreHand = {
+                        tiles: [...myHand],
+                        melds: JSON.parse(JSON.stringify(myMelds)),
+                        winTile: res.details.length > 0 ? res.details[0].tile : ""
+                    };
+                }
+
+                if (Array.isArray(playerStats.yakuCollected)) {
+                    let migrated = {};
+                    playerStats.yakuCollected.forEach(y => migrated[y] = 1);
+                    playerStats.yakuCollected = migrated;
+                }
+
+                for (let detail of res.details) {
+                    for (let y of detail.yaku) {
+                        if (!playerStats.yakuCollected[y]) {
+                            playerStats.yakuCollected[y] = 0;
+                        }
+                        playerStats.yakuCollected[y]++;
+                    }
                 }
             }
         }
     }
 
     // 📊 詳細戦績の更新
-    saveGameData();
+    if (!isReplayingResult) saveGameData();
 
     // 🌟 変更点1: 勝者だけ(calcData.results)のループをやめ、0〜3の4人全員のループにする
     for (let i = 0; i < 4; i++) {
+        // 🌟 追加：今現在の経過時間を計算
+        let elapsed = (Date.now() - resultStartTime) / 1000;
+
+        // 🌟 追加：もしこのプレイヤーの表示時間（i*8秒〜）を既に過ぎていたら、次へ飛ばす
+        if (elapsed >= (i + 1) * 8) continue;
+
+        // 🌟 追加：このプレイヤーの「残り表示時間」を計算
+        let currentWaitTime = 8 - (elapsed - (i * 8));
+        if (currentWaitTime > 8) currentWaitTime = 8;
+        if (currentWaitTime < 0) currentWaitTime = 0;
+
         let isWinner = false;
         let winData = null;
 
-        // 🌟 変更点2: 今処理している人(i)がアガったかどうかをチェックする
+        // 今処理している人(i)がアガったかどうかをチェックする
         for (let res of calcData.results) {
             if (res.player === i) {
                 isWinner = true;
@@ -3411,9 +3436,8 @@ async function handleRoundEnd() {
         let scoreText = "";
         let scoreColor = "";
 
-        // 🌟 変更点3: アガった人と、それ以外(0点・失点)で表示内容を分ける
+        // アガった人と、それ以外(0点・失点)で表示内容を分ける
         if (isWinner) {
-            // ▼ アガった人（今まで通りの役リスト計算処理）
             titleText = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
             scoreText = `${winData.total_score} 点`;
             scoreColor = "#2ecc71"; // 緑色
@@ -3467,7 +3491,6 @@ async function handleRoundEnd() {
                     </div>`;
             }
         } else {
-            // ▼ アガれなかった人・マイナスの人用の表示
             titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
             let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
             scoreText = `${diffStr} 点`;
@@ -3480,7 +3503,6 @@ async function handleRoundEnd() {
                 </div>`;
         }
 
-        // 🌟 変更点4: 手牌の取得元を「res.player」から「i」に変更
         let closedHand = (i === 0) ? myHand : (myAllHands[i] || []);
         let melds = (i === 0) ? myMelds : (myAllMelds[i] || []);
         let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
@@ -3508,7 +3530,6 @@ async function handleRoundEnd() {
         }
         handHtml += `</div>`;
 
-        // 🌟 画面へのセット（scoreは色付けのため innerHTML で上書き）
         document.getElementById('win-label-text').innerText = titleText;
         document.getElementById('win-score').innerHTML = scoreText;
         document.getElementById('win-score').style.color = scoreColor;
@@ -3519,9 +3540,12 @@ async function handleRoundEnd() {
         document.getElementById('overlay').style.display = "flex";
 
         updateStampVisibility();
-        playSE('score');
 
-        await waitWithTimerAndSkip(8);
+        // 再開時は音を鳴らさず、即座に次の画面へ行けるようにする
+        if (!isReplayingResult) playSE('score');
+
+        // 🌟 修正：8秒固定ではなく、残り時間分だけ待機する
+        await waitWithTimerAndSkip(currentWaitTime);
 
         document.getElementById('overlay').style.display = "none";
         updateStampVisibility();
@@ -3531,151 +3555,135 @@ async function handleRoundEnd() {
     scores = calcData.scores;
     let rankingPoints = calcData.ranking_points || [0, 0, 0, 0];
 
-    // 🏆 ここに追加！【漁夫の利】
-    let myNetScore = scores[0] + rankingPoints[0];
-    let isPacifistTop = true;
-    for (let i = 1; i < 4; i++) {
-        if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
-    }
-    if (!iWon && isPacifistTop && playerStats.pacifistCount === 0) {
-        playerStats.pacifistCount = 1;
-        showAchievementUnlock("漁夫の利", "🕊️");
-    }
-    saveGameData();
-
-    let startIdx = dealer;
-    for (let step = 0; step < 4; step++) {
-        let targetIdx = (startIdx + step) % 4;
-        let roundScore = scores[targetIdx];
-        let rankPoint = rankingPoints[targetIdx];
-
-        await sleep(1000);
-
-        let rsEl = document.getElementById(`player-round-score-${targetIdx}`);
-
-        if (!rsEl) continue;
-
-        // 🌟 位置の微調整（座席ごとに数値を書き換えて調整してください）
-        const posOffsets = [
-            { bottom: "110px", left: "50%" },  // 0: あなた（下）
-            { right: "120px", top: "50%" },    // 1: 下家（右）
-            { top: "110px", left: "50%" },     // 2: 対面（上）
-            { left: "120px", top: "50%" }      // 3: 上家（左）
-        ];
-
-        // スタイル適用
-        const offset = posOffsets[targetIdx];
-        rsEl.style.bottom = offset.bottom || "auto";
-        rsEl.style.top = offset.top || "auto";
-        rsEl.style.left = offset.left || "auto";
-        rsEl.style.right = offset.right || "auto";
-        rsEl.style.zIndex = "10000"; // アニメーションは全UIの最前面
-
-        let sign = roundScore > 0 ? "+" : "";
-
-        let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
-        let rankCls = rankPoint > 0 ? "score-rank-plus" : "score-rank-zero";
-
-        rsEl.innerHTML = `<div class="${mainCls}">${sign}${roundScore}</div>
-                                                      <div class="${rankCls}">順位点 +${rankPoint}</div>`;
-        rsEl.className = `player-round-score show-score`;
-
-        playSE('coin');
-
-        totalScores[targetIdx] += roundScore + rankPoint;
-        let scoreEl = document.getElementById(`player-score-${targetIdx}`);
-        scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
-
-        scoreEl.style.transform = "scale(1.2)";
-        setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
+    if (!isReplayingResult) {
+        let myNetScore = scores[0] + rankingPoints[0];
+        let isPacifistTop = true;
+        for (let i = 1; i < 4; i++) {
+            if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
+        }
+        if (!iWon && isPacifistTop && playerStats.pacifistCount === 0) {
+            playerStats.pacifistCount = 1;
+            showAchievementUnlock("漁夫の利", "🕊️");
+        }
+        saveGameData();
     }
 
-    await sleep(3500);
+    // 🌟 追加：コイン演出フェーズのスキップ判定
+    let finalElapsed = (Date.now() - resultStartTime) / 1000;
+    if (finalElapsed < 35) {
+        let startIdx = dealer;
+        for (let step = 0; step < 4; step++) {
+            let targetIdx = (startIdx + step) % 4;
+            let roundScore = scores[targetIdx];
+            let rankPoint = rankingPoints[targetIdx];
 
-    for (let i = 0; i < 4; i++) {
-        document.getElementById(`player-round-score-${i}`).className = "player-round-score";
+            await sleep(1000);
+
+            let rsEl = document.getElementById(`player-round-score-${targetIdx}`);
+            if (!rsEl) continue;
+
+            const posOffsets = [
+                { bottom: "110px", left: "50%" },
+                { right: "120px", top: "50%" },
+                { top: "110px", left: "50%" },
+                { left: "120px", top: "50%" }
+            ];
+
+            const offset = posOffsets[targetIdx];
+            rsEl.style.bottom = offset.bottom || "auto";
+            rsEl.style.top = offset.top || "auto";
+            rsEl.style.left = offset.left || "auto";
+            rsEl.style.right = offset.right || "auto";
+            rsEl.style.zIndex = "10000";
+
+            let sign = roundScore > 0 ? "+" : "";
+            let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
+            let rankCls = rankPoint > 0 ? "score-rank-plus" : "score-rank-zero";
+
+            rsEl.innerHTML = `<div class="${mainCls}">${sign}${roundScore}</div>
+                              <div class="${rankCls}">順位点 +${rankPoint}</div>`;
+            rsEl.className = `player-round-score show-score`;
+
+            if (!isReplayingResult) playSE('coin');
+
+            // 🌟 修正：再開時はすでに変数に加算済みなので足さない！
+            if (!isReplayingResult) {
+                totalScores[targetIdx] += roundScore + rankPoint;
+            }
+
+            let scoreEl = document.getElementById(`player-score-${targetIdx}`);
+            scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
+            scoreEl.style.transform = "scale(1.2)";
+            setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
+        }
+
+        await sleep(3500);
+
+        for (let i = 0; i < 4; i++) {
+            document.getElementById(`player-round-score-${i}`).className = "player-round-score";
+        }
     }
+
+    // 🌟 局の完全終了：リザルト用の記憶を消去
+    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
 
     if (currentRound >= 4) {
-        // 🌟 1. まず現在の最終スコアで順位を確定させる
         let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
-        let myRank = sortedIndices.indexOf(0) + 1; // 1位～4位
+        let myRank = sortedIndices.indexOf(0) + 1;
 
-        // 🌟 2. 歴史(recentRecords)に今回の順位とスコアを追加（ここを先に行う！）
-        playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
-        if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
+        if (!isReplayingResult) {
+            playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
+            if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
 
-        // 📊 累計データの更新
-        playerStats.totalGamesPlayed++;
-        playerStats.rankCounts[myRank - 1]++;
+            playerStats.totalGamesPlayed++;
+            playerStats.rankCounts[myRank - 1]++;
 
-        // 🏆 連勝記録・逆転の劇薬などの判定（ここは既存通り）
-        if (myRank === 1) {
-            playerStats.currentWinStreak++;
-            if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
-                let oldStreak = playerStats.maxWinStreak;
-                playerStats.maxWinStreak = playerStats.currentWinStreak;
-                checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
-            }
-        } else {
-            playerStats.currentWinStreak = 0;
-        }
-
-        // --- 📈 レート計算（ジャイアントキリング補正版） ---
-        let oldRate = playerRatings[0];
-        let rateChanges = [0, 0, 0, 0];
-        let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-        let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
-
-        if (currentGameMode === 'online' || currentGameMode === 'cpu') {
-            let placementPoints = [15, 5, -5, -15];
-            for (let rank = 0; rank < 4; rank++) {
-                let pIdx = sortedIndices[rank];
-                let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
-                let rateDiff = avgTableRate - playerRatings[pIdx];
-                let rateCorrection = Math.round(rateDiff / 40);
-
-                let change = placementPoints[rank] + scoreBonus + rateCorrection;
-                if (rank === 0 && change <= 0) change = 1;
-                if (rank === 3 && change >= 0) change = -1;
-
-                rateChanges[pIdx] = change;
-                playerRatings[pIdx] += change;
-                if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
+            if (myRank === 1) {
+                playerStats.currentWinStreak++;
+                if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
+                    let oldStreak = playerStats.maxWinStreak;
+                    playerStats.maxWinStreak = playerStats.currentWinStreak;
+                    checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
+                }
+            } else {
+                playerStats.currentWinStreak = 0;
             }
 
-            // レート実績判定
-            let newRate = playerRatings[0];
-            if (oldRate < 1600 && newRate >= 1600) showAchievementUnlock("レートの階段 (1600)", "📈");
-            if (oldRate < 1700 && newRate >= 1700) showAchievementUnlock("レートの階段 (1700)", "📈");
-            if (oldRate < 1800 && newRate >= 1800) showAchievementUnlock("レートの階段 (1800)", "📈");
-            if (oldRate < 1900 && newRate >= 1900) showAchievementUnlock("レートの階段 (1900)", "📈");
-            if (oldRate < 2000 && newRate >= 2000) showAchievementUnlock("頂に立つ者", "👑");
-        }
+            let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
+            let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
 
-        // 🌟 3. 全てのデータが確定してからセーブ！
-        saveGameData();
+            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+                let placementPoints = [15, 5, -5, -15];
+                for (let rank = 0; rank < 4; rank++) {
+                    let pIdx = sortedIndices[rank];
+                    let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
+                    let rateDiff = avgTableRate - playerRatings[pIdx];
+                    let rateCorrection = Math.round(rateDiff / 40);
+
+                    let change = placementPoints[rank] + scoreBonus + rateCorrection;
+                    if (rank === 0 && change <= 0) change = 1;
+                    if (rank === 3 && change >= 0) change = -1;
+
+                    playerRatings[pIdx] += change;
+                    if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
+                }
+            }
+            saveGameData();
+        }
 
         let resultMsg = "【ゲーム終了！最終結果】\n\n";
         for (let rank = 0; rank < 4; rank++) {
             let pIdx = sortedIndices[rank];
             let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
             resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
-
-            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
-                let sign = rateChanges[pIdx] >= 0 ? "+" : "";
-                resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
-            }
         }
 
-        // 🌟🌟 実績ポップアップがすべて出終わるまで待機する 🌟🌟
         while (isToastShowing || toastQueue.length > 0) {
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         alert(resultMsg);
 
-        // 🌟 修正箇所！ サーバーデータをリセットした後、リロードせずにホームへ戻る
         await apiCall('/next_round');
         returnToHomeGracefully();
         return;
@@ -3740,11 +3748,39 @@ async function showModeSelect() {
 
             if (data.exists) {
                 if (confirm("中断された対局データが見つかりました。再開しますか？\n（「キャンセル」でデータを破棄して新規開始します）")) {
-                    isResuming = true; // 🌟 追加：再開フラグON
+                    isResuming = true; // 🌟 再開フラグON
 
                     const stateData = await apiCall('/get_room_state');
 
+                    // 🌟 リザルト画面のリアルタイム再開判定
+                    if (stateData.round_calculated) {
+                        const startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
+                        if (startTime) {
+                            const elapsed = (Date.now() - parseInt(startTime)) / 1000;
+                            if (elapsed > 35) { // 32秒(表示) + 3秒(演出・通信バッファ)
+                                console.log("リザルト時間を超過しているため、次の局を開始します");
+                                await apiCall('/next_round'); // サーバーを次局へ
+                                sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+                                // このまま下の通常の開始処理へ流す
+                            } else {
+                                isResumingResult = true;
+
+                                // 🌟 修正2：リザルト画面復帰時にも、タイトル画面を消して雀卓を表示する！
+                                document.getElementById('title-screen').style.display = 'none';
+                                document.getElementById('mode-select-screen').style.display = 'none';
+                                document.querySelector('.table').style.opacity = 1;
+                                document.getElementById('game-container').style.opacity = 1;
+
+                                safeUpdate(stateData);
+                                handleRoundEnd(true); // リザルトの途中から再開
+                                return;
+                            }
+                        }
+                    }
+
+                    // 🌟 修正1：退出ボタン消失バグ防止のため、モード選択画面も明示的に非表示にする
                     document.getElementById('title-screen').style.display = 'none';
+                    document.getElementById('mode-select-screen').style.display = 'none';
                     document.querySelector('.table').style.opacity = 1;
                     document.getElementById('game-container').style.opacity = 1;
 
@@ -3754,7 +3790,7 @@ async function showModeSelect() {
 
                     let isCharlestonDone = sessionStorage.getItem(`charleston_done_${currentSessionRoomId}`) === "true";
 
-                    // 🌟 修正：チャールストン中か、対局中かで復帰ルートを分岐
+                    // チャールストン中か、対局中かで復帰ルートを分岐
                     if (!isCharlestonDone) {
                         let savedCount = sessionStorage.getItem(`charleston_count_${currentSessionRoomId}`);
                         if (savedCount === "2") {
@@ -3768,9 +3804,8 @@ async function showModeSelect() {
                         charlestonPhase = false;
                         document.getElementById('charleston-ui').style.display = "none";
 
-                        // 🌟 追加：直前に誰かが牌を捨てた状態（アクション待ち）なら、反応を再チェック
+                        // 直前に誰かが牌を捨てた状態（アクション待ち）なら、反応を再チェック
                         if (lastDiscardPlayer !== -1 && lastT !== "") {
-                            // 自分が鳴けるかどうかチェック（自分の打牌なら普通のターン判定）
                             if (lastDiscardPlayer !== 0) {
                                 checkHumanReaction(lastDiscardPlayer, lastT);
                             } else {
