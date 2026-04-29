@@ -142,6 +142,13 @@ function returnToHomeGracefully() {
     isProc = false;
     charlestonPhase = false;
 
+    // 🌟 追加：サーバーに「この卓はもう使わないからお掃除して！」と伝える
+    if (currentSessionRoomId) {
+        // ※裏側でひっそり破棄させるため、apiCall ではなく直接 fetch で投げっぱなしにします
+        fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
+        currentSessionRoomId = ""; // 自分の記憶からも完全に消す
+    }
+
     // 1. 麻雀卓やリザルト画面を隠す
     document.querySelector('.table').style.opacity = 0;
     document.getElementById('overlay').style.display = 'none';

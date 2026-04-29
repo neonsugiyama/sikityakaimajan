@@ -1803,3 +1803,12 @@ def get_waits(player_idx: int = 0, game: GameState = Depends(get_current_game)):
         return {"nanikiru": nanikiru_results}
     
     return {"waits": []}
+
+# 🧹 対局終了時や退出時に、使い終わった卓をメモリから削除するAPI
+@app.get("/exit_room")
+def exit_room(room_id: str = ""):
+    global active_rooms
+    if room_id in active_rooms:
+        del active_rooms[room_id]
+        print(f"🧹 ルーム {room_id} を削除・お掃除しました！ (現在稼働中: {len(active_rooms)}卓)")
+    return {"status": "success"}
