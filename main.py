@@ -1334,6 +1334,16 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[1] = ["2p","2p","3p","3p","4p","4p","5p","5p","6p","6p","7p","7p","1p"]
         game.wall.append("2s") 
 
+    elif scenario == "kokushi_chankan":
+        game.dealer = 0
+        game.turn = 0
+        game.is_first_turn = [False, False, False, False]
+        game.discards_count = 5
+        game.melds[0] = [{"type": "pong", "tiles": ["1p", "1p", "1p"]}]
+        game.hands[0] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s"]
+        game.hands[1] = ["9p","9p","1s","9s","1m","9m","東","南","西","北","白","發","中"]
+        game.wall.append("2s") 
+
     elif scenario == "kan_jokerswap":
         game.dealer = 0
         game.turn = 0
