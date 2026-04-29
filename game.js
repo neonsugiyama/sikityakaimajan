@@ -2309,6 +2309,12 @@ function renderWinTiles(idx) {
 async function checkT() {
     isProc = true;
 
+    let totalVirtualTiles = myHand.length + (myMelds.length * 3);
+    let isPlayerDrawPhase = (totalVirtualTiles % 3 === 1);
+
+    // 🌟 ご要望のログ出力：現在の処理状況（ターンのバトンパス）を丸裸にします！
+    console.log(`[処理順確認] ターン判定開始 -> 現在のターン: ${turn === 0 ? "あなた" : "CPU " + turn}, 山札残り: ${wallCount}枚, 自分の手牌相当: ${totalVirtualTiles}枚`);
+
     for (let i = 0; i < 4; i++) {
         const nameEl = document.getElementById(`player-name-${i}`);
         if (nameEl) nameEl.classList.remove('active-turn');
@@ -2319,9 +2325,22 @@ async function checkT() {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     document.getElementById('self-actions').innerHTML = '';
 
+    // 🌟 修正1：海底牌の選択ボタンが「引き終わった後」にも残り続けるバグを修正
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
+    // 🌟 修正2：誰かが最後の1枚を引き終わって山が0枚になった後、
+    // 引けないはずのツモ番（ゴーストターン）が発生してしまうバグをブロック！
+    if (wallCount === 0 && ((turn === 0 && isPlayerDrawPhase) || turn !== 0)) {
+        console.log(`[処理順確認] 🛑 山札が0枚のため、これ以上ターンを回さずに流局（または終了）処理へ移行します`);
+        handleRoundEnd();
+        return;
+    }
+
     if (turn === 0) {
-        let totalVirtualTiles = myHand.length + (myMelds.length * 3);
-        if (totalVirtualTiles % 3 === 2) {
+        if (!isPlayerDrawPhase) {
             const msgEl = document.getElementById('msg');
             msgEl.innerText = "↓打牌↓";
             msgEl.className = "blink-text";
@@ -2339,7 +2358,6 @@ async function checkT() {
             let shouldAlert = false;
             if (btnWin.style.display === "block" || btnWin.style.display === "flex" || selfActions.innerHTML !== '') {
                 shouldAlert = true;
-                // 🌟 修正：オート中でも「アクション（暗槓・JokerSwap）」がある場合はアラート音を鳴らす！
                 if (isAutoPlay && isPlayerTenpai() && selfActions.innerHTML === '') {
                     shouldAlert = false;
                 }
@@ -2351,13 +2369,10 @@ async function checkT() {
             isProc = false;
 
             let autoActed = false;
-            // 🌟 修正：オートON、かつ【テンパイしている時だけ】自動ツモ切りを行う
             if (isAutoPlay && isPlayerTenpai()) {
-                // 🌟 最優先：暗槓やJokerSwapができる牌を引いた時は、和了やツモ切りよりも「待機」を優先する！
                 if (selfActions.innerHTML !== '') {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
                     setTimeout(hideCenterMessage, 2500);
-                    // autoActed = false のままなので、下のタイマーが起動して手動操作になる
                 }
                 else if (canWin) {
                     isProc = true;
@@ -2373,7 +2388,6 @@ async function checkT() {
                 }
             }
 
-            // 🌟 オートが機能していない（テンパイ前、またはOFF）場合は手動操作を待つ
             if (!autoActed) {
                 startTimer(timeDiscard, () => {
                     if (drawnTile !== "") {
@@ -2386,18 +2400,18 @@ async function checkT() {
             }
 
         } else {
-            // 🌟 絶対に 1 が正解です（山が残り1枚の時に、引くか引かないかの選択を出すため）
+            // 🌟 山が残り1枚の時に、引くか引かないかの選択を出す
             if (wallCount === 1) {
                 document.getElementById('msg').className = "";
                 document.getElementById('msg').innerText = "海底牌";
-                document.getElementById('btn-haitei-tsumo').style.display = "block";
-                document.getElementById('btn-ryukyoku').style.display = "block";
+                if (btnHaitei) btnHaitei.style.display = "block";
+                if (btnRyukyoku) btnRyukyoku.style.display = "block";
 
                 playSE('alert');
                 isProc = false;
 
                 startTimer(timeCall, () => {
-                    document.getElementById('btn-ryukyoku').click();
+                    if (btnRyukyoku) btnRyukyoku.click();
                 });
                 return;
             }

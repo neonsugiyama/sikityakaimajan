@@ -545,7 +545,8 @@ def cpu_turn(cpu_idx: int, session_id: str = "default"):
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
                 game.turn = (cpu_idx + 1) % 4 
-                return {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": res.get("yaku", []), "score": res.get("score", 0)}
+                # 🌟 修正：ただの辞書ではなく、get_safe_state を使って山札0枚の事実をJSに知らせる！
+                return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
         game.hands[cpu_idx].append(drawn)
         
