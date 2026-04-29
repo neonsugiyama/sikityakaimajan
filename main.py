@@ -1305,7 +1305,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 0
         game.turn = 0
         game.hands[0] = ["1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","4p","5p"]
-        game.wall.append("5p") 
+        game.wall = ["1p","1p","1p","1p", "2p","2p","2p", "3p","3p","3p", "4p","4p","4p","1p","1p","1p","1p", "2p","2p","2p", "3p","3p","3p", "4p","4p","4p","1p","1p","1p","1p", "2p","2p","2p", "3p","3p","3p", "4p","4p","4p"]
         
     elif scenario == "chiihou":
         game.dealer = 1

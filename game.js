@@ -2629,6 +2629,10 @@ async function discard(t, isTsumogiri = false) {
     if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
     isProc = true;
 
+    // 🌟 修正：牌を捨てた瞬間に、暗槓などの「自分用アクションボタン」を完全に消去する！
+    document.getElementById('self-actions').innerHTML = '';
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
     await apiCall('/discard', { player_idx: 0, tile: t });
     drawnTile = ""; lastDiscardPlayer = 0; justPonged = false;
 
@@ -2795,6 +2799,9 @@ async function cpu() {
 
 // 👁️ 他家が牌を捨てた時、自分が鳴けるか・ロンできるか判定してボタンを出す関数
 async function checkHumanReaction(discarderIdx, tile) {
+    // 🌟 追加：他家の捨て牌に反応する時も、念のため自ターン用の暗槓ボタンなどを消去する
+    document.getElementById('self-actions').innerHTML = '';
+
     const count = myHand.filter(t => t === tile).length;
     const hasSeason = myHand.some(t => ["春", "夏", "秋", "冬"].includes(t));
     const isSeasonDiscard = ["春", "夏", "秋", "冬"].includes(tile);
@@ -3221,6 +3228,8 @@ function skipAction() {
     stopTimer();
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    // 🌟 追加：スキップ時も確実に自ターン用ボタンを消去する
+    document.getElementById('self-actions').innerHTML = '';
     checkCpuReactions(lastDiscardPlayer, lastT);
 }
 
