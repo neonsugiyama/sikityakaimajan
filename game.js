@@ -901,9 +901,15 @@ let confCpuLevel = 1;       // 0:よわい, 1:ふつう, 2:つよい
 let confTsumogiri = true;   // ツモ切り表示ON/OFF
 let confWaitsHint = true;   // 待ち牌ヒントON/OFF
 let confEffective = false;  // 有効牌表示ON/OFF
+// 🌟 追加：連打防止用のロックフラグ
+let isStartingGame = false;
 
 // ⚙️ 設定を適用してゲームを開始する関数
 async function applySettingsAndStart() {
+    // 🌟 追加：すでに開始処理中なら、何度ボタンを押されても無視して弾く！
+    if (isStartingGame) return;
+    isStartingGame = true;
+
     playSE('start');
 
     let elDiscard = document.getElementById('set-discard');
@@ -940,6 +946,9 @@ async function applySettingsAndStart() {
         settingsScreen.style.display = 'none';
         settingsScreen.style.transition = 'none';
         settingsScreen.style.opacity = '1';
+
+        // 🌟 追加：完全に画面が切り替わって安全になったら、ロックを解除する
+        isStartingGame = false;
     }, 400);
 
     console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel, confTsumogiri, confWaitsHint });
