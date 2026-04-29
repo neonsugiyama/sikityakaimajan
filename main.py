@@ -1643,6 +1643,15 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["夏","秋","9s","1p","1p","1p","西","9p","9p","9p","白","白","白"]
         game.wall = ["8s"]
 
+    elif scenario == "test_sibugao_sijiegao":
+        game.dealer = 0
+        game.turn = 0
+        game.is_first_turn = [False]*4
+        game.hands[0] = ["4s","5s","5s","5s","6s","6s","6s","7s","8s","8s","春","夏","秋"]
+        game.wall = ["7s","7s","7s","7s","4s","4s","4s","4s","3s","3s","3s","3s","2s","2s",
+                     "2s","2s","5s","5s","5s","5s","6s","6s","6s","6s","8s","8s","8s","8s",
+                     "1s","1s","1s","1s","9s","9s","9s","9s"]
+
     #実績解除テストケース
     elif scenario == "achieve_wide_wait":
         game.dealer = 0
