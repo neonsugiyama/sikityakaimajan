@@ -4741,14 +4741,22 @@ document.addEventListener('contextmenu', (e) => {
     // ブラウザ標準の右クリックメニューが出るのを防ぐ
     e.preventDefault();
 
-    // 自分のターンで、処理中ではなく、ツモ牌が存在し、交換フェーズではない場合
-    if (!isProc && turn === 0 && drawnTile !== "" && !charlestonPhase) {
+    if (isProc) return; // 処理中はブロック
 
-        // 特殊な選択待ち状態（他家の牌を鳴くかどうかの場面など）では誤爆を防ぐ
+    // 🌟 追加：スキップボタンが表示されている場合は、右クリックで「スルー」を実行！
+    const btnSkip = document.getElementById('btn-skip');
+    if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+        btnSkip.click(); // スキップボタンを押したことにする
+        return;          // ツモ切りの処理には進まない
+    }
+
+    // 自分のターンで、ツモ牌が存在し、チャールストン（交換）フェーズではない場合
+    if (turn === 0 && drawnTile !== "" && !charlestonPhase) {
+        // 特殊な選択待ち状態ではツモ切りを誤爆しないように防ぐ
         const msgText = document.getElementById('msg').innerText;
-        if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+        if (msgText === "鳴き" || msgText === "ロン！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
-        // ツモ切りを実行（true を渡すことでエフェクトがツモ切り専用の青白い光になる）
+        // ツモ切りを実行（true を渡すことでエフェクトが青白い光になる）
         discard(drawnTile, true);
     }
 });
