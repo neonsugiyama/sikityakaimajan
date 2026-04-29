@@ -26,7 +26,7 @@ KNITTED_PATTERNS = [[18, 1, 4, 7, 11, 14, 17], [18, 2, 5, 8, 10, 13, 16], [19, 0
 
 YAKU_DICT = {
     "天胡": (64, 'add'), "地胡": (64, 'add'), "七星攬月": (64, 'add'), "清幺九": (64, 'add'), "連七対": (64, 'add'), "九連宝燈": (64, 'add'),
-    "十八羅漢": (32, 'add'), "大四風会": (32, 'add'), "一色四節高": (32, 'add'), "一色四步高": (32, 'add'), "紅孔雀": (32, 'add'), "七星不靠": (32, 'add'),
+    "十八羅漢": (32, 'add'), "大四風会": (32, 'add'), "一色四節高": (32, 'add'), "一色四歩高": (32, 'add'), "紅孔雀": (32, 'add'), "七星不靠": (32, 'add'),
     "小四風会": (16, 'add'), "緑一色": (16, 'add'), "字一色": (16, 'add'), "陰陽両儀": (16, 'add'), "大三元": (16, 'add'), "全大": (16, 'add'), "全中": (16, 'add'), "全小": (16, 'add'), "寒江独釣": (16, 'add'), "十三幺九": (16, 'add'),
     "三節高": (8, 'add'), "三同刻": (8, 'add'), "断紅胡": (8, 'add'), "一気化三清": (8, 'add'), "十二金釵": (8, 'add'), "混幺九": (8, 'add'),
     "大于五": (6, 'add'), "小于五": (6, 'add'), "清一色": (6, 'add'), "清龍": (6, 'add'), "五門斉": (6, 'add'), "推不倒": (6, 'add'),
@@ -244,16 +244,45 @@ def parse_hand(tiles, jokers):
                     t[i] -= actual_p
                     find_melds(t, j - needed_p, pongs + [i], chows, pair_idx, i)
                     t[i] += actual_p
+                # 順子の最小値から順子を探索
                 if (0 <= i <= 6) or (9 <= i <= 15):
                     needed_c = 0
                     used = []
                     for offset in range(3):
                         if t[i + offset] > 0:
-                            t[i + offset] -= 1
-                            used.append(i + offset)
+                           t[i + offset] -= 1
+                           used.append(i + offset)
                         else: needed_c += 1
                     if j >= needed_c:
                         find_melds(t, j - needed_c, pongs, chows + [i], pair_idx, i)
+                    for ut in used: t[ut] += 1
+
+                # 順子の中間から順子を探索
+                if (1 <= i <= 7) or (10 <= i <= 16):
+                    needed_c = 0
+                    used = []
+                    for offset in range(3):
+                        idx = (i - 1) + offset
+                        if t[idx] > 0:
+                           t[idx] -= 1
+                           used.append(idx)
+                        else: needed_c += 1
+                    if j >= needed_c:
+                       find_melds(t, j - needed_c, pongs, chows + [i - 1], pair_idx, i)
+                    for ut in used: t[ut] += 1
+
+                 # 順子の最大値から順子を探索
+                if (2 <= i <= 8) or (11 <= i <= 17):
+                    needed_c = 0
+                    used = []
+                    for offset in range(3):
+                        idx = (i - 2) + offset
+                        if t[idx] > 0:
+                           t[idx] -= 1
+                           used.append(idx)
+                        else: needed_c += 1
+                    if j >= needed_c:
+                       find_melds(t, j - needed_c, pongs, chows + [i - 2], pair_idx, i)
                     for ut in used: t[ut] += 1
                 return
     for i in range(27):
@@ -464,7 +493,7 @@ def evaluate_hand(data):
             for i in range(4):
                 if all((i+k) in chow_set for k in range(4)): has_shihoukou = True
             if all(k in chow_set for k in [0, 2, 4, 6]): has_shihoukou = True
-        if has_shihoukou: struct_yaku.append("一色四步高")
+        if has_shihoukou: struct_yaku.append("一色四歩高")
 
         has_chinryu = False
         for suit in [0, 9]:

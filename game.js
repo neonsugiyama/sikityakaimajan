@@ -424,6 +424,7 @@ window.addEventListener('DOMContentLoaded', () => {
         updateTableGradient();
     }
 
+    //ここあとでなおせ
     // 🌟 ここを追加！リロード時に切符を持っていたらタイトルをスキップして直行！
     if (sessionStorage.getItem('shiki_mahjong_return_home') === 'true') {
         sessionStorage.removeItem('shiki_mahjong_return_home'); // 切符を回収
@@ -1320,17 +1321,19 @@ async function playExchangeAnimation(dirStr, participants) {
     }
 }
 
-// 🌟 追加：このタブ（プレイヤー）専用のIDをランダム生成する
-const mySessionId = Math.random().toString(36).substring(2, 15);
+let currentSessionRoomId = ""; // 🌟 追加：現在の自分のルームIDを記憶する変数
 
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
     try {
         let url = endpoint;
-
         params._t = new Date().getTime();
-        // 🌟🌟 ここを追加！すべての通信に自分専用のIDを乗せる！
-        params.session_id = mySessionId;
+
+        // 🌟 追加：新規スタート以外は、必ず自分のルームIDを送信する
+        if (endpoint !== '/start') {
+            if (!currentSessionRoomId) throw new Error("セッションが切断されました。リロードしてください。");
+            params.room_id = currentSessionRoomId;
+        }
 
         if (Object.keys(params).length > 0) {
             const query = new URLSearchParams(params).toString();
@@ -1342,6 +1345,13 @@ async function apiCall(endpoint, params = {}) {
         if (!res.ok) throw new Error(`サーバーエラー(${res.status})。`);
 
         const data = await res.json();
+
+        // 🌟 追加：サーバーから新しいルームIDが届いたら記憶する
+        if (data.room_id) {
+            currentSessionRoomId = data.room_id;
+            console.log(`[ROOM] 割り当てられたルームID: ${currentSessionRoomId}`);
+        }
+
         if (data.error) {
             if (data.error === "流局") throw new Error("流局");
             throw new Error(data.error);
@@ -1353,7 +1363,7 @@ async function apiCall(endpoint, params = {}) {
     } catch (e) {
         if (e.message === "流局") throw e;
         logMsg(`[エラー] ${e.message}`, true);
-        alert(`【システムエラー】\n${e.message}\n\n※ボタンを連打した可能性があります。もう一度操作してください。`);
+        alert(`【システムエラー】\n${e.message}\n\n※画面をリロードしてもう一度お試しください。`);
         isProc = false;
         throw e;
     }
@@ -1574,7 +1584,9 @@ async function updateWaitsButton() {
     }
 
     try {
-        const data = await apiCall('/get_waits', { player_idx: 0 });
+        // 🌟 apiCallだと無限ループになるため、fetchに戻しつつ「room_id」を手動で付ける！
+        const res = await fetch(`/get_waits?player_idx=0&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`, { cache: 'no-store' });
+        const data = await res.json();
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));
         currentNanikiru = data.nanikiru || null;
@@ -2812,7 +2824,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         } catch (e) { }
     }
 
-    let canHumanRon = wd.can_win;
+    let canHumanRon = wd.can_win; // 🟢 修正：頭ハネされる場合でも「ロン」ボタンを堂々と出す！
 
     // ----------------------------------------------------
     // 1. ロン判定（優先）
@@ -2834,7 +2846,7 @@ async function checkHumanReaction(discarderIdx, tile) {
     // ----------------------------------------------------
     // 2. 鳴き判定（和了絶対優先の法則を適用！）
     // ----------------------------------------------------
-    // 🌟 修正：メタ読み防止！CPUがロンする予定でも鳴きボタンは出す！（押したら頭ハネされる）
+    // 🟢 修正：CPUがロンする予定であっても、プレイヤーの「副露（ポン・カン等）」ボタンを隠さずに出す！
     if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
