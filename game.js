@@ -142,11 +142,11 @@ function returnToHomeGracefully() {
     isProc = false;
     charlestonPhase = false;
 
-    // 🌟 追加：サーバーに「この卓はもう使わないからお掃除して！」と伝える
+    // 🌟 追加：サーバーに「この卓はお掃除して！」と伝え、ブラウザの記憶も消す
     if (currentSessionRoomId) {
-        // ※裏側でひっそり破棄させるため、apiCall ではなく直接 fetch で投げっぱなしにします
         fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
-        currentSessionRoomId = ""; // 自分の記憶からも完全に消す
+        currentSessionRoomId = "";
+        localStorage.removeItem('shiki_mahjong_room_id'); // 🌟 記憶を消去
     }
 
     // 1. 麻雀卓やリザルト画面を隠す
@@ -157,11 +157,10 @@ function returnToHomeGracefully() {
     document.getElementById('center-message').style.display = 'none';
     document.getElementById('dice-overlay').style.display = 'none';
 
-    // 🌟 ここを追加：対局前設定画面（Match Settings）を確実に消す
     const settingsScreen = document.getElementById('settings-screen');
     if (settingsScreen) {
         settingsScreen.style.display = 'none';
-        settingsScreen.style.opacity = '1'; // 次回開く時のために不透明度をリセットしておく
+        settingsScreen.style.opacity = '1';
     }
 
     // 2. DOM（牌や文字）をきれいにお掃除する
@@ -429,25 +428,6 @@ window.addEventListener('DOMContentLoaded', () => {
         loadSettings();
     } else {
         updateTableGradient();
-    }
-
-    //ここあとでなおせ
-    // 🌟 ここを追加！リロード時に切符を持っていたらタイトルをスキップして直行！
-    if (sessionStorage.getItem('shiki_mahjong_return_home') === 'true') {
-        sessionStorage.removeItem('shiki_mahjong_return_home'); // 切符を回収
-
-        // BGMを鳴らす準備（自動再生制限対策のフラグ）
-        audioState.initialized = true;
-        if (audioState.bgmOn) {
-            sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
-        }
-
-        // タイトル画面を消してホーム画面を出す
-        document.getElementById('title-screen').style.display = 'none';
-        document.getElementById('mode-select-screen').style.display = 'flex';
-
-        // プロフィール（最新の戦績やグラフ）を更新して表示
-        updateProfileUI();
     }
 });
 
@@ -882,6 +862,8 @@ let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPe
 // 🌟 追加：引く前からテンパイしていたかを記憶するフラグ
 let isAlreadyTenpai = false;
 let isAutoPlay = false;
+// 🌟 追加：リロードからの再開中であることを示すフラグ
+let isResuming = false;
 // 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
 let isWelcomeHomeTest = false;
 let timerInterval = null;
@@ -997,6 +979,22 @@ function startTimer(seconds, timeoutCallback) {
     maxTimeForTimer = seconds;
     timerAction = timeoutCallback;
 
+    // 🌟 追加：再開時のタイマー復元処理
+    if (isResuming) {
+        const endTime = sessionStorage.getItem(`timer_end_time_${currentSessionRoomId}`);
+        if (endTime) {
+            const remaining = Math.ceil((parseInt(endTime) - Date.now()) / 1000);
+            if (remaining > 0 && remaining <= seconds) {
+                timeLeft = remaining;
+            } else if (remaining <= 0) {
+                timeLeft = 0;
+            }
+        }
+        isResuming = false; // 1度復元したらオフにする
+    } else {
+        sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, Date.now() + seconds * 1000);
+    }
+
     const display = document.getElementById('timer-display');
     const secSpan = document.getElementById('timer-sec');
     display.style.display = "block";
@@ -1032,10 +1030,8 @@ function startTimer(seconds, timeoutCallback) {
             stopTimer();
             if (isProc) return;
 
-            // ペナルティ処理
             timeDiscard = Math.max(5, timeDiscard - 20);
             timeCall = Math.max(5, timeCall - 5);
-            //timeExchange = Math.max(5, timeExchange - 10);
 
             if (typeof finalAction === 'function') {
                 finalAction();
@@ -1337,7 +1333,8 @@ async function playExchangeAnimation(dirStr, participants) {
     }
 }
 
-let currentSessionRoomId = ""; // 🌟 追加：現在の自分のルームIDを記憶する変数
+// 🌟 修正：起動時に前回のIDをブラウザの記憶（localStorage）から読み出す
+let currentSessionRoomId = localStorage.getItem('shiki_mahjong_room_id') || "";
 
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
@@ -1345,7 +1342,7 @@ async function apiCall(endpoint, params = {}) {
         let url = endpoint;
         params._t = new Date().getTime();
 
-        // 🌟 追加：新規スタート以外は、必ず自分のルームIDを送信する
+        // 新規スタート以外は、必ず自分のルームIDを送信する
         if (endpoint !== '/start') {
             if (!currentSessionRoomId) throw new Error("セッションが切断されました。リロードしてください。");
             params.room_id = currentSessionRoomId;
@@ -1362,9 +1359,10 @@ async function apiCall(endpoint, params = {}) {
 
         const data = await res.json();
 
-        // 🌟 追加：サーバーから新しいルームIDが届いたら記憶する
+        // サーバーから新しいルームIDが届いたら記憶して保存する
         if (data.room_id) {
             currentSessionRoomId = data.room_id;
+            localStorage.setItem('shiki_mahjong_room_id', currentSessionRoomId); // 🌟 永久保存
             console.log(`[ROOM] 割り当てられたルームID: ${currentSessionRoomId}`);
         }
 
@@ -1390,9 +1388,26 @@ function safeUpdate(data) {
     if (data.player_hand !== undefined) myHand = data.player_hand;
     if (data.player_melds !== undefined) myMelds = data.player_melds;
     if (data.player_win_tiles !== undefined) myWinTiles = data.player_win_tiles;
-    if (data.drawn_tile !== undefined) drawnTile = data.drawn_tile;
     if (data.turn !== undefined) turn = data.turn;
 
+    // 🌟 追加：自分のツモ番でリロードした時に、ツモ牌を右側に分離させる
+    if (data.just_drawn !== undefined && data.last_drawn !== undefined) {
+        if (data.just_drawn === 0) {
+            drawnTile = data.last_drawn[0];
+        } else {
+            drawnTile = "";
+        }
+    } else if (data.drawn_tile !== undefined) {
+        drawnTile = data.drawn_tile;
+    }
+
+    // 🌟 追加：他家が捨てた直後かどうかの判定用
+    if (data.last_discard_info !== undefined) {
+        lastDiscardPlayer = data.last_discard_info.player;
+        lastT = data.last_discard_info.tile;
+    }
+
+    // 🚨 これが消えていたのが原因です！！（山札の枚数更新を復活）
     if (data.wall_count !== undefined) {
         wallCount = data.wall_count;
         updateWall(wallCount);
@@ -1408,6 +1423,22 @@ function safeUpdate(data) {
     if (data.all_win_tiles !== undefined) myAllWinTiles = data.all_win_tiles;
     if (data.cpu_targets !== undefined) cpuTargets = data.cpu_targets;
     if (data.cpu_personalities !== undefined) cpuPersonalities = data.cpu_personalities;
+
+    // 🌟 修正：河（捨て牌）の復元時に、アニメーションクラス（discard-tedashi）を外す！
+    if (data.discards !== undefined) {
+        for (let i = 0; i < 4; i++) {
+            const r = document.getElementById(`river-${i}`);
+            if (r) {
+                r.innerHTML = "";
+                data.discards[i].forEach(t => {
+                    const img = document.createElement('img');
+                    img.className = 'tile'; // 🌟 アニメーションなしの素のクラスにする
+                    img.src = `images/${t}.png`;
+                    r.appendChild(img);
+                });
+            }
+        }
+    }
 
     // 🌟 修正：サーバーが勝者のデータを自分の変数に入れてしまうバグへの防御策
     // 全員分の公開情報 (all_*) から自分の分 (インデックス0) を強制的に同期します。
@@ -1847,6 +1878,7 @@ function switchDebugTab(evt, tabId) {
 async function init() {
     logMsg("=== ゲーム起動 ===");
     await apiCall('/start');
+    sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
     charlestonCount = 1;
     startCharlestonSelection();
     render(); renderCPU();
@@ -1857,6 +1889,7 @@ function updateWall(c) { document.getElementById('wall-count').innerText = `山:
 
 // 🔄 第1・第2交換のUIを表示し、プレイヤーに交換する3枚を選ばせる関数
 function startCharlestonSelection() {
+    sessionStorage.setItem(`charleston_count_${currentSessionRoomId}`, "1"); // 🌟 追加
     charlestonPhase = true;
     exchangeSelection = [];
     updateStampVisibility();
@@ -2010,6 +2043,7 @@ async function execExchange() {
 // ❓ 各プレイヤーに「第2チャールストンをやるか？」を順番に聞いていく関数
 async function askNextSecondCharleston() {
     if (askedCount === 0) {
+        sessionStorage.setItem(`charleston_count_${currentSessionRoomId}`, "2"); // 🌟 追加
         charlestonAskResults = [];
         clearCharlestonStatus();
         charlestonPhase = true; // 🌟 選択できるようにフェーズを戻す
@@ -2107,6 +2141,7 @@ async function finishAskSecondCharleston() {
         }
 
         hideCpuTiles = [0, 0, 0, 0];
+        sessionStorage.setItem(`charleston_done_${currentSessionRoomId}`, "true");
         clearCharlestonStatus();
         render(); renderCPU();
 
@@ -2173,6 +2208,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     }
 
     hideCpuTiles = [0, 0, 0, 0];
+    sessionStorage.setItem(`charleston_done_${currentSessionRoomId}`, "true");
     clearCharlestonStatus();
     humanSecondCharlestonTiles = []; // 役目終了
 
@@ -3638,7 +3674,6 @@ async function handleRoundEnd() {
         }
 
         alert(resultMsg);
-        sessionStorage.setItem('shiki_mahjong_return_home', 'true');
 
         // 🌟 修正箇所！ サーバーデータをリセットした後、リロードせずにホームへ戻る
         await apiCall('/next_round');
@@ -3686,8 +3721,8 @@ function addR(idx, t, isTsumogiri = false) {
 // ★ 画面遷移・モード選択制御
 // ==========================================
 
-// 🏠 タイトル画面から「モード選択画面」へ移行する関数
-function showModeSelect() {
+// 🏠 タイトル画面から「モード選択画面」へ移行する関数（再開チェック付き）
+async function showModeSelect() {
     playSE('start');
 
     if (!audioState.initialized) {
@@ -3697,6 +3732,67 @@ function showModeSelect() {
         }
     }
 
+    // 🌟 再開チェックロジック
+    if (currentSessionRoomId) {
+        try {
+            const res = await fetch(`/check_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`);
+            const data = await res.json();
+
+            if (data.exists) {
+                if (confirm("中断された対局データが見つかりました。再開しますか？\n（「キャンセル」でデータを破棄して新規開始します）")) {
+                    isResuming = true; // 🌟 追加：再開フラグON
+
+                    const stateData = await apiCall('/get_room_state');
+
+                    document.getElementById('title-screen').style.display = 'none';
+                    document.querySelector('.table').style.opacity = 1;
+                    document.getElementById('game-container').style.opacity = 1;
+
+                    safeUpdate(stateData);
+                    render();
+                    renderCPU();
+
+                    let isCharlestonDone = sessionStorage.getItem(`charleston_done_${currentSessionRoomId}`) === "true";
+
+                    // 🌟 修正：チャールストン中か、対局中かで復帰ルートを分岐
+                    if (!isCharlestonDone) {
+                        let savedCount = sessionStorage.getItem(`charleston_count_${currentSessionRoomId}`);
+                        if (savedCount === "2") {
+                            charlestonCount = 2;
+                            askNextSecondCharleston();
+                        } else {
+                            charlestonCount = 1;
+                            startCharlestonSelection();
+                        }
+                    } else {
+                        charlestonPhase = false;
+                        document.getElementById('charleston-ui').style.display = "none";
+
+                        // 🌟 追加：直前に誰かが牌を捨てた状態（アクション待ち）なら、反応を再チェック
+                        if (lastDiscardPlayer !== -1 && lastT !== "") {
+                            // 自分が鳴けるかどうかチェック（自分の打牌なら普通のターン判定）
+                            if (lastDiscardPlayer !== 0) {
+                                checkHumanReaction(lastDiscardPlayer, lastT);
+                            } else {
+                                checkT();
+                            }
+                        } else {
+                            checkT(); // 普通のターンを再開
+                        }
+                    }
+                    return; // ここで終了
+                } else {
+                    await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+                    currentSessionRoomId = "";
+                    localStorage.removeItem('shiki_mahjong_room_id');
+                }
+            }
+        } catch (e) {
+            console.log("再開チェック中にエラー:", e);
+        }
+    }
+
+    // 再開しない場合は、通常通りモード選択画面へ
     updateProfileUI();
     document.getElementById('title-screen').style.display = 'none';
     document.getElementById('mode-select-screen').style.display = 'flex';
@@ -4973,21 +5069,3 @@ async function lockScreen() {
         console.log("フルスクリーン/画面ロックがブロックされました:", e);
     }
 }
-
-// 🏠 タイトル画面から「モード選択画面」へ移行する関数（★修正）
-function showModeSelect() {
-    playSE('start');
-
-    updateProfileUI();
-    document.getElementById('title-screen').style.display = 'none';
-    document.getElementById('mode-select-screen').style.display = 'flex';
-}
-
-// 📱 画面のどこかを初めて触った瞬間に全画面・横画面化を試みる
-window.addEventListener('click', () => {
-    lockScreen();
-}, { once: true }); // 1回だけ実行
-
-window.addEventListener('touchstart', () => {
-    lockScreen();
-}, { once: true });
