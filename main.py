@@ -1469,6 +1469,21 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["1s","1s","1s","2s","3s","4s","5s","6s","7s","8s","9s","9s","9s"]
         game.wall = ["白", "發", "白", "白", "1p"]
 
+    elif scenario == "test_cpu_haitei":
+        game.dealer = 3
+        game.turn = 3
+        game.is_first_turn = [False]*4
+        game.win_tiles[3] = ["2s", "5s", "8s", "4s", "3s"]
+        game.win_records[0] = [
+            {"winning_tile": "2s", "is_tsumo": False, "is_haitei": False},
+            {"winning_tile": "5s", "is_tsumo": False, "is_haitei": False},
+            {"winning_tile": "8s", "is_tsumo": False, "is_haitei": False},
+            {"winning_tile": "4s", "is_tsumo": False, "is_haitei": False},
+            {"winning_tile": "3s", "is_tsumo": False, "is_haitei": False}
+        ]
+        game.hands[3] = ["1s","1s","1s","2s","3s","4s","春","6s","7s","8s","9s","9s","9s"]
+        game.wall = ["1p"]
+
     elif scenario == "test_player_chankan":
         game.dealer = 1
         game.turn = 1

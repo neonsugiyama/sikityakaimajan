@@ -424,6 +424,7 @@ window.addEventListener('DOMContentLoaded', () => {
         updateTableGradient();
     }
 
+    //ここあとでなおせ
     // 🌟 ここを追加！リロード時に切符を持っていたらタイトルをスキップして直行！
     if (sessionStorage.getItem('shiki_mahjong_return_home') === 'true') {
         sessionStorage.removeItem('shiki_mahjong_return_home'); // 切符を回収
@@ -2330,9 +2331,25 @@ async function checkT() {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     document.getElementById('self-actions').innerHTML = '';
 
+    // 🌟 修正1：海底牌の選択ボタンが「引き終わった後（打牌時）」にも残り続けるバグを修正
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
+    let totalVirtualTiles = myHand.length + (myMelds.length * 3);
+    let isPlayerDrawPhase = (totalVirtualTiles % 3 === 1);
+
+    // 🌟 修正2：誰かが最後の1枚（海底牌）を引き終わって山が0枚になった後、
+    // 次の人のツモ番（引けないゴーストターン）が発生してしまうバグを修正。
+    // 山が0枚でツモ番が回ってきた場合は、即座に流局としてゲームを終わらせる！
+    if (wallCount === 0 && ((turn === 0 && isPlayerDrawPhase) || turn !== 0)) {
+        handleRoundEnd();
+        return;
+    }
+
     if (turn === 0) {
-        let totalVirtualTiles = myHand.length + (myMelds.length * 3);
-        if (totalVirtualTiles % 3 === 2) {
+        if (!isPlayerDrawPhase) {
             const msgEl = document.getElementById('msg');
             msgEl.innerText = "↓打牌↓";
             msgEl.className = "blink-text";
@@ -2350,7 +2367,6 @@ async function checkT() {
             let shouldAlert = false;
             if (btnWin.style.display === "block" || btnWin.style.display === "flex" || selfActions.innerHTML !== '') {
                 shouldAlert = true;
-                // 🌟 修正：オート中でも「アクション（暗槓・JokerSwap）」がある場合はアラート音を鳴らす！
                 if (isAutoPlay && isPlayerTenpai() && selfActions.innerHTML === '') {
                     shouldAlert = false;
                 }
@@ -2362,13 +2378,10 @@ async function checkT() {
             isProc = false;
 
             let autoActed = false;
-            // 🌟 修正：オートON、かつ【テンパイしている時だけ】自動ツモ切りを行う
             if (isAutoPlay && isPlayerTenpai()) {
-                // 🌟 最優先：暗槓やJokerSwapができる牌を引いた時は、和了やツモ切りよりも「待機」を優先する！
                 if (selfActions.innerHTML !== '') {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
                     setTimeout(hideCenterMessage, 2500);
-                    // autoActed = false のままなので、下のタイマーが起動して手動操作になる
                 }
                 else if (canWin) {
                     isProc = true;
@@ -2384,7 +2397,6 @@ async function checkT() {
                 }
             }
 
-            // 🌟 オートが機能していない（テンパイ前、またはOFF）場合は手動操作を待つ
             if (!autoActed) {
                 startTimer(timeDiscard, () => {
                     if (drawnTile !== "") {
@@ -2397,18 +2409,18 @@ async function checkT() {
             }
 
         } else {
-            // 🌟 絶対に 1 が正解です（山が残り1枚の時に、引くか引かないかの選択を出すため）
+            // 🌟 山が残り1枚の時に、引くか引かないかの選択を出す
             if (wallCount === 1) {
                 document.getElementById('msg').className = "";
                 document.getElementById('msg').innerText = "海底牌";
-                document.getElementById('btn-haitei-tsumo').style.display = "block";
-                document.getElementById('btn-ryukyoku').style.display = "block";
+                if (btnHaitei) btnHaitei.style.display = "block";
+                if (btnRyukyoku) btnRyukyoku.style.display = "block";
 
                 playSE('alert');
                 isProc = false;
 
                 startTimer(timeCall, () => {
-                    document.getElementById('btn-ryukyoku').click();
+                    if (btnRyukyoku) btnRyukyoku.click();
                 });
                 return;
             }
