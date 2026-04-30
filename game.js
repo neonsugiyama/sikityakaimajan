@@ -1473,6 +1473,11 @@ function safeUpdate(data) {
                     const img = document.createElement('img');
                     img.className = 'tile'; // 🌟 アニメーションなしの素のクラスにする
                     img.src = `images/${t}.png`;
+
+                    // 🌟 追加：リロード復元時も影とフチを消して平面で統一する
+                    img.style.boxShadow = "none";
+                    img.style.border = "none";
+
                     r.appendChild(img);
                 });
             }
@@ -2403,6 +2408,10 @@ function renderWinTiles(idx) {
         if (idx === 0 || idx === 1) {
             i.style.zIndex = 1000 + tIdx;
         }
+
+        // 🌟 追加：和了ゾーンの牌も影とフチを消して平面で統一する
+        i.style.boxShadow = "none";
+        i.style.border = "none";
 
         wz.appendChild(i);
     });
@@ -3795,6 +3804,10 @@ function addR(idx, t, isTsumogiri = false) {
     } else {
         i.classList.add('discard-tedashi');
     }
+
+    // 🌟 追加：河の牌は影とフチを消して「ペタッと平面」で統一する
+    i.style.boxShadow = "none";
+    i.style.border = "none";
 
     r.appendChild(i);
 }
