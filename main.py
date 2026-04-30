@@ -675,9 +675,9 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
             if not is_pass:
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
-                game.turn = (cpu_idx + 1) % 4
-                game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
-                # 🌟 修正：ただの辞書ではなく、get_safe_state を使って山札0枚の事実をJSに知らせる！
+                game.turn = (cpu_idx + 1) % 4 
+                game.last_discard_info = {"player": -1, "tile": ""}
+                game.is_first_turn[cpu_idx] = False # 🌟 追加：二重地和を防ぐ
                 return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
         game.hands[cpu_idx].append(drawn)
@@ -704,7 +704,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                         for _ in range(4): game.hands[cpu_idx].remove(t)
                         game.melds[cpu_idx].append({"type": "ankan", "tiles": [t]*4, "is_hidden": True})
                         game.hands[cpu_idx].append(game.wall.pop())
-                        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+                        game.last_discard_info = {"player": -1, "tile": ""}
                         did_meld = True; break
 
             if did_meld: continue
@@ -722,7 +722,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                             did_meld = True
                             did_kakan_in_turn = True 
                             kakan_tile_in_turn = base_t 
-                            game.last_discard_info = {"player": cpu_idx, "tile": base_t} # 🌟 追加: 槍槓待ち
+                            game.last_discard_info = {"player": cpu_idx, "tile": base_t}
                             break
                     
             if did_meld: continue
@@ -742,7 +742,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                                     game.any_meld_occurred = True 
                                     did_meld = True
                                     did_joker_swap_in_turn = True 
-                                    game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+                                    game.last_discard_info = {"player": -1, "tile": ""}
                                     break
                         if did_meld: break
             if did_meld: continue
@@ -799,7 +799,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         game.hands[cpu_idx] = game.sort_hand(game.hands[cpu_idx])
         game.turn = (cpu_idx + 1) % 4
         game.just_drawn = -1 
-        game.last_discard_info = {"player": cpu_idx, "tile": discard} # 🌟 追加
+        game.last_discard_info = {"player": cpu_idx, "tile": discard}
         
         return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
     except Exception as e:
@@ -860,6 +860,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                     game.discards[discarder_idx].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
+                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
                 return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
         if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
@@ -924,7 +925,8 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+                game.last_discard_info = {"player": -1, "tile": ""}
+                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
@@ -965,7 +967,7 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 game.just_drawn = -1 
                 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+        game.last_discard_info = {"player": -1, "tile": ""}
         return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         return {"error": str(e)}
@@ -1112,7 +1114,8 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
         game.turn = (player_idx + 1) % 4 
-        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+        game.last_discard_info = {"player": -1, "tile": ""}
+        game.is_first_turn[player_idx] = False # 🌟 追加：二重地和を防ぐ
         
         return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
@@ -1137,7 +1140,8 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
                     game.discards[discarder].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
-                game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+                game.last_discard_info = {"player": -1, "tile": ""}
+                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         robbed_player_idx = -1
@@ -1162,6 +1166,11 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
                         break
                 if found_robbed: break
 
+        # 🌟 追加：通常のロンの際に、河から牌を取り除く処理を追加！（リロード時の河バグ防止）
+        if discarder != -1 and not is_chankan_bool:
+            if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                game.discards[discarder].pop()
+
         ctx = {
             "winning_tile": tile, 
             "is_tsumo": False, 
@@ -1184,11 +1193,12 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
 
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
+        game.is_first_turn[player_idx] = False # 🌟 追加：二重地和を防ぐ
 
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
 
-        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+        game.last_discard_info = {"player": -1, "tile": ""}
 
         return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:

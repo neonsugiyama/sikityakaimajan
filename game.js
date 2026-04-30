@@ -3368,7 +3368,7 @@ async function handleRoundEnd(isReplayingResult = false) {
         if (res.player === 0) {
             iWon = true;
 
-            // 🌟 初回実行時のみ実績と戦績を加算する
+            // 🌟 修正：初回実行時のみ実績と戦績を加算する
             if (!isReplayingResult) {
                 playerStats.totalWins++;
                 let oldTotalScore = playerStats.totalScoreSum || 0;
@@ -3436,8 +3436,20 @@ async function handleRoundEnd(isReplayingResult = false) {
     // 📊 詳細戦績の更新
     if (!isReplayingResult) saveGameData();
 
+    // 🌟 追加：再開時は「前回表示していたプレイヤー」からループを始める！
+    let startDisplayIdx = 0;
+    if (isReplayingResult) {
+        startDisplayIdx = parseInt(sessionStorage.getItem(`result_display_idx_${currentSessionRoomId}`)) || 0;
+        if (startDisplayIdx > 4) startDisplayIdx = 4; // 万が一のオーバーフロー対策
+    } else {
+        sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "0");
+    }
+
     // 🌟 変更点1: 勝者だけ(calcData.results)のループをやめ、0〜3の4人全員のループにする
-    for (let i = 0; i < 4; i++) {
+    for (let i = startDisplayIdx; i < 4; i++) {
+        // 今誰を表示しているかを記憶する
+        sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, i.toString());
+
         // 🌟 追加：今現在の経過時間を計算
         let elapsed = (Date.now() - resultStartTime) / 1000;
 
@@ -3584,8 +3596,14 @@ async function handleRoundEnd(isReplayingResult = false) {
         await sleep(500);
     }
 
+    // 🌟 全員の表示が終わったら、コイン（スコア加算）フェーズに進むことを記憶する
+    sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "4");
+
     scores = calcData.scores;
     let rankingPoints = calcData.ranking_points || [0, 0, 0, 0];
+
+    // 🌟 追加：レート変動の保存配列
+    let rateChanges = [0, 0, 0, 0];
 
     if (!isReplayingResult) {
         let myNetScore = scores[0] + rankingPoints[0];
@@ -3657,7 +3675,9 @@ async function handleRoundEnd(isReplayingResult = false) {
     }
 
     // 🌟 局の完全終了：リザルト用の記憶を消去
-    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`); // 追加：開始時間の記憶も消去
 
     if (currentRound >= 4) {
         let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
@@ -3696,11 +3716,27 @@ async function handleRoundEnd(isReplayingResult = false) {
                     if (rank === 0 && change <= 0) change = 1;
                     if (rank === 3 && change >= 0) change = -1;
 
+                    rateChanges[pIdx] = change; // 🌟 追加：変動値を保存
                     playerRatings[pIdx] += change;
                     if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
                 }
             }
             saveGameData();
+        } else {
+            // リロード等で再開した場合でも、表示用にダミー計算をしておく
+            let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
+            let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
+            let placementPoints = [15, 5, -5, -15];
+            for (let rank = 0; rank < 4; rank++) {
+                let pIdx = sortedIndices[rank];
+                let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
+                let rateDiff = avgTableRate - playerRatings[pIdx];
+                let rateCorrection = Math.round(rateDiff / 40);
+                let change = placementPoints[rank] + scoreBonus + rateCorrection;
+                if (rank === 0 && change <= 0) change = 1;
+                if (rank === 3 && change >= 0) change = -1;
+                rateChanges[pIdx] = change;
+            }
         }
 
         let resultMsg = "【ゲーム終了！最終結果】\n\n";
@@ -3708,6 +3744,12 @@ async function handleRoundEnd(isReplayingResult = false) {
             let pIdx = sortedIndices[rank];
             let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
             resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
+
+            // 🌟 追加：レート変動のテキストを追加
+            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+                let sign = rateChanges[pIdx] >= 0 ? "+" : "";
+                resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
+            }
         }
 
         while (isToastShowing || toastQueue.length > 0) {
