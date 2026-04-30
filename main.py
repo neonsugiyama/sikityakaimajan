@@ -1666,6 +1666,34 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         
         game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
 
+    elif scenario == "block_chiihou_by_meld":
+        # 【副露による地胡無効化テスト】
+        # 親(CPU3)が打牌 -> CPU1がポン(明槓) -> CPU1が打牌 -> あなた(0)がロン
+        # この流れで「誰かが鳴いたから地胡が消滅する」ことを確認するテスト
+        
+        game.dealer = 3
+        game.turn = 3
+        game.is_first_turn = [True, True, True, True]
+        
+        # 🌟 あなた(0)の手牌：「南」の単騎待ち
+        # ※「東」で誤爆ロンしないように、南だけを待つ形にする
+        game.hands[0] = ["1p","2p","3p","4p","5p","6p","1s","2s","3s","7s","8s","9s","南"]
+        
+        # 🌟 CPU1の手牌：「東」を3枚持たせて確実に鳴かせる。そして「南」を捨てさせる。
+        # ※字牌嫌いな性格にしておくことで、鳴いた直後に不要な南を吐き出させる
+        game.cpu_personalities[1] = 3
+        game.hands[1] = ["東","東","東","南","1m","1m","1m","9m","9m","9m","中","中","中"]
+        
+        # CPU2は無関係なので適当（絶対に鳴けない手牌）
+        game.hands[2] = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","發","白"]
+        
+        # 🌟 親(CPU3)の手牌：第一打牌で確実に「東」を捨てさせる
+        game.cpu_personalities[3] = 3
+        game.hands[3] = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","白","東"]
+        
+        # ツモ山 (CPU1がカンした直後に引く牌)
+        game.wall = ["4m", "4m", "4m"]
+
     elif scenario == "test_zentan_flower":
         game.dealer = 0
         game.turn = 1 
