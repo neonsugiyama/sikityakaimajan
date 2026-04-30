@@ -329,8 +329,10 @@ class GameState:
         self.cpu_targets = ["", "", "", ""]
         self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
         self.just_drawn = -1 
-        self.round_calculated = False # 🌟 追加：スコア計算済みフラグ
-        self.last_calc_data = None    # 🌟 追加：計算結果の保存
+        self.round_calculated = False 
+        self.last_calc_data = None    
+        self.charleston_done = False          # 🌟 追加：第1交換完了フラグ
+        self.second_charleston_done = False   # 🌟 追加：第2交換完了フラグ
         self.reset_round()
 
     def reset_round(self):
@@ -350,8 +352,10 @@ class GameState:
         self.any_meld_occurred = False
         self.discards_count = 0
         self.last_discard_info = {"player": -1, "tile": ""}
-        self.round_calculated = False # 🌟 追加：次の局でリセット
-        self.last_calc_data = None    # 🌟 追加：次の局でリセット
+        self.round_calculated = False 
+        self.last_calc_data = None    
+        self.charleston_done = False          # 🌟 追加
+        self.second_charleston_done = False   # 🌟 追加
         
     def sort_hand(self, hand):
         return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
@@ -384,13 +388,14 @@ def get_safe_state(game: GameState, player_idx=0, extra_data=None):
         "all_win_tiles": game.win_tiles,
         "cpu_targets": game.cpu_targets,
         "cpu_personalities": game.cpu_personalities,
-        # 🌟 追加：再開時に絶対に必要になる「進行度」と「河」のデータ
         "discards_count": game.discards_count,
         "any_meld_occurred": game.any_meld_occurred,
         "just_drawn": game.just_drawn,
         "last_drawn": game.last_drawn,
         "last_discard_info": game.last_discard_info,
-        "round_calculated": getattr(game, 'round_calculated', False) # 🌟 追加
+        "round_calculated": getattr(game, 'round_calculated', False),
+        "charleston_done": getattr(game, 'charleston_done', False),               # 🌟 追加
+        "second_charleston_done": getattr(game, 'second_charleston_done', False)  # 🌟 追加
     }
     if extra_data: res.update(extra_data)
     return res
@@ -487,9 +492,14 @@ def next_round(game: GameState = Depends(get_current_game)):
 
 @app.get("/charleston")
 def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", game: GameState = Depends(get_current_game)):
+    # 🌟 追加：既に終わっている場合は無視する（二重実行バグ防止）
+    if getattr(game, 'charleston_done', False):
+        return get_safe_state(game, 0, {"dice": 0, "direction": "すでに第1交換は完了しています"})
+
     try:
         player_passed = [t1, t2, t3]
-        for t in player_passed: game.hands[0].remove(t)
+        for t in player_passed: 
+            if t in game.hands[0]: game.hands[0].remove(t)
         
         cpu_passed = []
         for i in range(1, 4):
@@ -505,7 +515,8 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", ga
                     passed.append(st[0])
                     temp_hand.remove(st[0])
                 if len(passed) == 3: break
-            for t in passed: game.hands[i].remove(t)
+            for t in passed: 
+                if t in game.hands[i]: game.hands[i].remove(t)
             cpu_passed.append(passed)
         
         all_passed = [player_passed, cpu_passed[0], cpu_passed[1], cpu_passed[2]]
@@ -520,18 +531,25 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", ga
             game.hands[i] = game.sort_hand(game.hands[i])
             
         game.just_drawn = -1 
-        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+        game.last_discard_info = {"player": -1, "tile": ""}
+        game.charleston_done = True # 🌟 追加：終わったことを記録
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
+        traceback.print_exc()
         return {"error": str(e)}
 
 @app.get("/second_charleston")
 def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", p0: str = "false", p1: str = "false", p2: str = "false", p3: str = "false", game: GameState = Depends(get_current_game)):
+    # 🌟 追加：既に終わっている場合は無視する（二重実行バグ防止）
+    if getattr(game, 'second_charleston_done', False):
+        return get_safe_state(game, 0, {"dice": 0, "direction": "すでに第2交換は完了しています"})
+
     try:
         participating = [p0.lower() == "true", p1.lower() == "true", p2.lower() == "true", p3.lower() == "true"]
         active = [i for i in range(4) if participating[i]]
 
         if len(active) <= 1:
+            game.second_charleston_done = True # 🌟 追加
             return get_safe_state(game, 0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
 
         passed_tiles = {i: [] for i in active}
@@ -556,7 +574,8 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
                         passed.append(st[0])
                         temp_hand.remove(st[0])
                     if len(passed) == 3: break
-                for t in passed: game.hands[i].remove(t)
+                for t in passed: 
+                    if t in game.hands[i]: game.hands[i].remove(t)
                 passed_tiles[i] = passed
 
         dice = random.randint(1, 6)
@@ -585,7 +604,8 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
 
         for i in range(4): game.hands[i] = game.sort_hand(game.hands[i])
         game.just_drawn = -1 
-        game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+        game.last_discard_info = {"player": -1, "tile": ""} 
+        game.second_charleston_done = True # 🌟 追加
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()

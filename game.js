@@ -363,6 +363,8 @@ function updateTableGradient() {
 
 // 🛠️ 開発者モード（手牌全公開・ログ表示等）のON/OFFを切り替える関数
 let isDevMode = false;
+let isDebugUIHidden = false; // 🌟 追加：開発者用UIを隠すフラグ
+
 function toggleDevMode(isChecked) {
     isDevMode = isChecked;
     document.getElementById('settings-dev-mode').checked = isDevMode;
@@ -371,14 +373,73 @@ function toggleDevMode(isChecked) {
     const debugLog = document.getElementById('debug-log');
     const achieveDebugPanel = document.getElementById('achieve-debug-panel');
 
+    // 🌟 動的に「UI表示/非表示トグルボタン」を画面右下に生成する
+    let toggleBtn = document.getElementById('btn-toggle-debug-ui');
+    if (!toggleBtn) {
+        toggleBtn = document.createElement('button');
+        toggleBtn.id = 'btn-toggle-debug-ui';
+        toggleBtn.innerHTML = '👁️ UI非表示';
+        toggleBtn.style.position = 'absolute';
+        toggleBtn.style.bottom = '15px';
+        toggleBtn.style.right = '15px';
+        toggleBtn.style.zIndex = '99999';
+        toggleBtn.style.padding = '8px 12px';
+        toggleBtn.style.background = 'rgba(44, 62, 80, 0.8)';
+        toggleBtn.style.color = '#fff';
+        toggleBtn.style.border = '2px solid #f1c40f';
+        toggleBtn.style.borderRadius = '5px';
+        toggleBtn.style.cursor = 'pointer';
+        toggleBtn.style.fontWeight = 'bold';
+        toggleBtn.style.transition = 'all 0.2s';
+
+        toggleBtn.onmouseover = () => toggleBtn.style.background = 'rgba(44, 62, 80, 1)';
+        toggleBtn.onmouseout = () => toggleBtn.style.background = 'rgba(44, 62, 80, 0.8)';
+
+        // 🔘 ボタンが押された時の処理
+        toggleBtn.onclick = () => {
+            playSE('click');
+            isDebugUIHidden = !isDebugUIHidden;
+
+            if (isDebugUIHidden) {
+                // UIを隠す
+                toggleBtn.innerHTML = '👁️ UI表示';
+                toggleBtn.style.borderColor = '#e74c3c';
+                if (debugPanel) debugPanel.style.display = 'none';
+                if (debugLog) debugLog.style.display = 'none';
+                if (achieveDebugPanel) achieveDebugPanel.style.display = 'none';
+            } else {
+                // UIを再表示する
+                toggleBtn.innerHTML = '👁️ UI非表示';
+                toggleBtn.style.borderColor = '#f1c40f';
+                if (isDevMode) {
+                    if (debugPanel) debugPanel.style.display = 'flex';
+                    if (debugLog && debugLog.innerHTML !== '') debugLog.style.display = 'block';
+                    if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
+                }
+            }
+        };
+        document.body.appendChild(toggleBtn);
+    }
+
     if (isDevMode) {
-        debugPanel.style.display = 'flex';
-        if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
-        if (debugLog.innerHTML !== '') debugLog.style.display = 'block';
+        toggleBtn.style.display = 'block'; // トグルボタンを表示
+
+        // 隠す設定になっていなければパネルを表示する
+        if (!isDebugUIHidden) {
+            if (debugPanel) debugPanel.style.display = 'flex';
+            if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
+            if (debugLog && debugLog.innerHTML !== '') debugLog.style.display = 'block';
+        }
     } else {
-        debugPanel.style.display = 'none';
+        toggleBtn.style.display = 'none'; // 開発モードOFFならボタンも隠す
+        isDebugUIHidden = false; // フラグもリセット
+        toggleBtn.innerHTML = '👁️ UI非表示';
+        toggleBtn.style.borderColor = '#f1c40f';
+
+        // すべてのパネルを確実に隠す
+        if (debugPanel) debugPanel.style.display = 'none';
         if (achieveDebugPanel) achieveDebugPanel.style.display = 'none';
-        debugLog.style.display = 'none';
+        if (debugLog) debugLog.style.display = 'none';
     }
 
     // モードを切り替えた瞬間に再描画して、手牌とターゲット表示を更新
@@ -870,9 +931,10 @@ let isAlreadyTenpai = false;
 let isAutoPlay = false;
 // 🌟 追加：リロードからの再開中であることを示すフラグ
 let isResuming = false;
-let isResumingResult = false; // 🌟 追加：リザルト画面の再開フラグ
-// 🌟 ここに追加！「おかえりなさい」テスト発動用のフラグ
+let isResumingResult = false;
 let isWelcomeHomeTest = false;
+let charlestonDoneServer = false;        // 🌟 追加
+let secondCharlestonDoneServer = false;  // 🌟 追加
 let timerInterval = null;
 let timeLeft = 0;
 let maxTimeForTimer = 0;
@@ -1171,7 +1233,8 @@ function logMsg(msg, isError = false) {
 
     const logDiv = document.getElementById('debug-log');
     if (logDiv) {
-        if (isDevMode) {
+        // 🌟 修正：開発モードONで、かつ「UI非表示モード」でない時だけ画面に出す！
+        if (isDevMode && !isDebugUIHidden) {
             logDiv.style.display = "block";
         }
         const p = document.createElement('div');
@@ -1453,6 +1516,10 @@ function safeUpdate(data) {
     if (data.dealer !== undefined) dealer = data.dealer;
     if (data.scores !== undefined) scores = data.scores;
     if (data.total_scores !== undefined) totalScores = data.total_scores;
+
+    // 🌟 追加：サーバーから現在のチャールストン進行状況を正確に受け取る
+    if (data.charleston_done !== undefined) charlestonDoneServer = data.charleston_done;
+    if (data.second_charleston_done !== undefined) secondCharlestonDoneServer = data.second_charleston_done;
 
     if (data.all_hands !== undefined) myAllHands = data.all_hands;
     if (data.all_melds !== undefined) myAllMelds = data.all_melds;
@@ -3836,7 +3903,6 @@ async function showModeSelect() {
         }
     }
 
-    // 🌟 再開チェックロジック
     if (currentSessionRoomId) {
         console.log(`\n========================================`);
         console.log(`[再開ロジック] ルームID: ${currentSessionRoomId} の存在をチェックします...`);
@@ -3853,14 +3919,13 @@ async function showModeSelect() {
                     let stateData = await apiCall('/get_room_state');
                     console.log("[再開ロジック] サーバーから取得した状態:", stateData);
 
-                    // 🌟 リザルト画面のリアルタイム再開判定
                     if (stateData.round_calculated) {
                         console.log("[再開ロジック] 🎯 この局は既にスコア計算済み（リザルト画面中）です。");
                         const startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
                         if (startTime) {
                             const elapsed = (Date.now() - parseInt(startTime)) / 1000;
                             console.log(`[再開ロジック] リザルト開始からの経過時間: ${elapsed.toFixed(1)}秒`);
-                            if (elapsed > 35) { // 32秒(表示) + 3秒(演出・通信バッファ)
+                            if (elapsed > 35) {
                                 console.log("[再開ロジック] ⏩ リザルト時間(35秒)を超過！次の局へ強制進行します。");
 
                                 for (let i = 0; i < 4; i++) {
@@ -3879,14 +3944,8 @@ async function showModeSelect() {
                                 console.log("[再開ロジック] ⏩ 次局のデータを取得完了:", stateData);
 
                                 sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
-                                sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
-                                sessionStorage.removeItem(`charleston_count_${currentSessionRoomId}`);
-
-                                // 🚨 追加：新しい局なので、前局の古いタイマーの記憶を消し、タイマー復元処理もキャンセルする！
                                 sessionStorage.removeItem(`timer_end_time_${currentSessionRoomId}`);
                                 isResuming = false;
-
-                                // このまま下の通常の開始処理へ流す
                             } else {
                                 console.log("[再開ロジック] ⏸️ リザルト画面の途中から演出を再開します。");
                                 isResumingResult = true;
@@ -3897,16 +3956,12 @@ async function showModeSelect() {
                                 document.getElementById('game-container').style.opacity = 1;
 
                                 safeUpdate(stateData);
-                                handleRoundEnd(true); // リザルトの途中から再開
+                                handleRoundEnd(true);
                                 return;
                             }
                         } else {
                             console.log("[再開ロジック] ⚠️ リザルトの開始時刻記憶が消失しています。強制的に次局へ進めます。");
                             stateData = await apiCall('/next_round');
-                            sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
-                            sessionStorage.removeItem(`charleston_count_${currentSessionRoomId}`);
-
-                            // 🚨 追加：ここでもタイマー復元処理をキャンセル
                             sessionStorage.removeItem(`timer_end_time_${currentSessionRoomId}`);
                             isResuming = false;
                         }
@@ -3921,27 +3976,21 @@ async function showModeSelect() {
                     render();
                     renderCPU();
 
-                    let isCharlestonDone = sessionStorage.getItem(`charleston_done_${currentSessionRoomId}`) === "true";
-                    console.log(`[再開ロジック] チャールストン完了フラグ: ${isCharlestonDone}`);
-
-                    // チャールストン中か、対局中かで復帰ルートを分岐
-                    if (!isCharlestonDone) {
-                        let savedCount = sessionStorage.getItem(`charleston_count_${currentSessionRoomId}`);
-                        console.log(`[再開ロジック] 🔄 チャールストンフェーズから再開 (第${savedCount || 1}交換)`);
-                        if (savedCount === "2") {
-                            charlestonCount = 2;
-                            askNextSecondCharleston();
-                        } else {
-                            charlestonCount = 1;
-                            startCharlestonSelection();
-                        }
+                    // 🌟 修正：チャールストンのフェーズ判定をサーバー状態(絶対)に委ねる！
+                    if (!charlestonDoneServer && !secondCharlestonDoneServer) {
+                        console.log(`[再開ロジック] 🔄 まだ第1交換が終わっていません。第1交換から再開します。`);
+                        charlestonCount = 1;
+                        startCharlestonSelection();
+                    } else if (charlestonDoneServer && !secondCharlestonDoneServer) {
+                        console.log(`[再開ロジック] 🔄 第1交換完了済み。第2交換から再開します。`);
+                        charlestonCount = 2;
+                        askNextSecondCharleston();
                     } else {
-                        console.log("[再開ロジック] 🀄 通常の対局フェーズ(交換後)から再開します。");
+                        console.log("[再開ロジック] 🀄 チャールストンは全て完了済み。通常の対局フェーズから再開します。");
                         charlestonPhase = false;
                         document.getElementById('charleston-ui').style.display = "none";
 
                         console.log(`[再開ロジック] 直前の打牌記録 -> プレイヤー: ${lastDiscardPlayer}, 牌: ${lastT}`);
-                        // 直前に誰かが牌を捨てた状態（アクション待ち）なら、反応を再チェック
                         if (lastDiscardPlayer !== -1 && lastT !== "") {
                             if (lastDiscardPlayer !== 0) {
                                 console.log("[再開ロジック] 👁️ 他家の打牌直後のため、鳴き/ロンの判定から再開します。");
@@ -3952,11 +4001,11 @@ async function showModeSelect() {
                             }
                         } else {
                             console.log("[再開ロジック] アクション待ちではない通常のターンを再開します。");
-                            checkT(); // 普通のターンを再開
+                            checkT();
                         }
                     }
                     console.log(`========================================\n`);
-                    return; // ここで終了
+                    return;
                 } else {
                     console.log("[再開ロジック] ユーザーが破棄を選択。卓を削除します。");
                     await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
@@ -3975,7 +4024,6 @@ async function showModeSelect() {
         console.log("[再開ロジック] 保存されたルームIDはありません。通常起動します。");
     }
 
-    // 再開しない場合は、通常通りモード選択画面へ
     updateProfileUI();
     document.getElementById('title-screen').style.display = 'none';
     document.getElementById('mode-select-screen').style.display = 'flex';
