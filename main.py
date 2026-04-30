@@ -1556,6 +1556,13 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[1] = ["1s","1s","2s","2s","3s","3s","4s","4s","5s","5s","6s","6s","7s"]
         game.wall.append("7s")
 
+    elif scenario == "cpu_kang":
+        game.dealer = 0
+        game.turn = 1
+        game.is_first_turn = [True, True, True, True]
+        game.hands[1] = ["1s","1s","1s","3s","3s","3s","4s","4s","4s","5s","6s","6s","7s"]
+        game.wall = ["9p","1s","1s","1s","3s","3s","3s","4s","4s","4s","5s","6s","6s","7s"] 
+
     elif scenario == "bug_ui_tenhou":
         game.dealer = 0
         game.turn = 0

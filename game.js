@@ -2855,12 +2855,26 @@ async function cpu() {
         let newMeldCount = myAllMelds[currentCpuTurn] ? myAllMelds[currentCpuTurn].length : 0;
         if (newMeldCount > prevMeldCount || data.did_kakan) {
 
-            if (data.kakan_tile) {
-                wallCount += 1;
-                updateWall(wallCount);
-            }
+            // 🌟 修正：サーバーですでに引いているので、UI上の山札も1枚減らす
+            wallCount = Math.max(0, wallCount - 1);
+            updateWall(wallCount);
 
+            // まず副露（カン）の描画を更新する
             render(); renderCPU();
+
+            // 🌟 追加：嶺上牌を引くアニメーションと音を再現する！
+            playSE('tsumo');
+            const c = document.getElementById(`hand-${currentCpuTurn}`);
+            const dummyTile = document.createElement('img');
+            dummyTile.className = 'tile';
+            dummyTile.src = 'images/ura.png'; // 嶺上牌はとりあえず裏向き
+            dummyTile.style.position = 'absolute';
+            dummyTile.style.margin = '0';
+            if (currentCpuTurn === 1) { dummyTile.style.bottom = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
+            if (currentCpuTurn === 2) { dummyTile.style.right = 'calc(100% + 15px)'; dummyTile.style.top = '0'; }
+            if (currentCpuTurn === 3) { dummyTile.style.top = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
+            c.appendChild(dummyTile);
+
             showCallout(currentCpuTurn, "槓");
             await sleep(1500);
 
@@ -2871,13 +2885,12 @@ async function cpu() {
                     const btnWin = document.getElementById('btn-win');
                     const btnSkip = document.getElementById('btn-skip');
 
-                    // 🌟 追加：槍槓用のロンボタンにも画像を仕込む
                     let kTile = data.kakan_tile;
                     btnWin.innerHTML = `ロン <img src="images/${kTile}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
                     let isAutoDigest = (isAutoPlay);
                     if (!isAutoDigest) {
-                        btnWin.style.display = "flex";       // blockからflexに変更
+                        btnWin.style.display = "flex";
                         btnWin.style.alignItems = "center";
                         btnWin.style.gap = "5px";
                         btnSkip.style.display = "block";
@@ -2890,8 +2903,7 @@ async function cpu() {
                         btnWin.style.display = "none";
                         btnSkip.style.display = "none";
                         lastT = kTile;
-
-                        await execRon(true); // あなたがロン！
+                        await execRon(true);
                     };
 
                     btnSkip.onclick = async () => {
@@ -2899,9 +2911,6 @@ async function cpu() {
                         isProc = true;
                         btnWin.style.display = "none";
                         btnSkip.style.display = "none";
-
-                        wallCount -= 1;
-                        updateWall(wallCount);
 
                         if (data.did_joker_swap) {
                             render(); renderCPU();
@@ -2926,7 +2935,6 @@ async function cpu() {
                         await checkHumanReaction(currentCpuTurn, lastT);
                     };
 
-                    // 🌟 修正：フリーズ対策のロック解除
                     isProc = false;
 
                     if (isAutoDigest) {
@@ -2936,10 +2944,6 @@ async function cpu() {
                         startTimer(timeCall, () => btnSkip.click());
                     }
                     return;
-                } else {
-                    // 🌟 警告の原因：前回ここのカッコと処理が消えてしまっていました！
-                    wallCount -= 1;
-                    updateWall(wallCount);
                 }
             }
         }
@@ -2965,7 +2969,7 @@ async function cpu() {
 
         addR(currentCpuTurn, lastT, isTsumogiri);
 
-        renderCPU();
+        renderCPU(); // ここでダミーの嶺上牌が消え、正しい手牌になる
         await sleep(500);
         await checkHumanReaction(currentCpuTurn, lastT);
     } catch (e) {
@@ -3128,7 +3132,6 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                     removeLastDiscard();
                 }
 
-                // 🌟 ここで描画！文字が出たあとに牌が動く
                 render(); renderCPU();
 
                 if (data.yaku) {
@@ -3148,14 +3151,37 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 checkT();
                 return;
             } else {
-                let callText = (data.type === "minkan" || data.type === "hanakan" || data.type === "ankan" || String(data.type).includes("kan")) ? "槓" : "碰";
+                let isKan = (data.type === "minkan" || data.type === "hanakan" || data.type === "ankan" || String(data.type).includes("kan"));
+                let callText = isKan ? "槓" : "碰";
+
                 showCallout(data.player, callText);
-                await sleep(1500);
                 removeLastDiscard();
+
+                // 🌟 追加：カンの場合は、嶺上牌を引くアニメーションと音を再現！
+                if (isKan) {
+                    wallCount = Math.max(0, wallCount - 1);
+                    updateWall(wallCount);
+                    render(); renderCPU(); // 先にカンした後の手牌にする
+
+                    playSE('tsumo');
+                    const c = document.getElementById(`hand-${data.player}`);
+                    const dummyTile = document.createElement('img');
+                    dummyTile.className = 'tile';
+                    dummyTile.src = 'images/ura.png';
+                    dummyTile.style.position = 'absolute';
+                    dummyTile.style.margin = '0';
+                    if (data.player === 1) { dummyTile.style.bottom = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
+                    if (data.player === 2) { dummyTile.style.right = 'calc(100% + 15px)'; dummyTile.style.top = '0'; }
+                    if (data.player === 3) { dummyTile.style.top = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
+                    c.appendChild(dummyTile);
+                }
+
+                await sleep(1500);
+
                 lastT = data.discard;
                 lastDiscardPlayer = data.player;
                 addR(data.player, lastT);
-                render(); renderCPU();
+                render(); renderCPU(); // ここでダミーの嶺上牌が消える
 
                 await checkHumanReaction(data.player, lastT);
                 return;
