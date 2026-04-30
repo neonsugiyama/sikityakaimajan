@@ -697,7 +697,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 game.win_records[cpu_idx].append(ctx)
                 game.turn = (cpu_idx + 1) % 4 
                 game.last_discard_info = {"player": -1, "tile": ""}
-                game.is_first_turn[cpu_idx] = False # 🌟 追加：二重地和を防ぐ
+                game.is_first_turn[cpu_idx] = False
                 return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
         game.hands[cpu_idx].append(drawn)
@@ -880,7 +880,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                     game.discards[discarder_idx].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
-                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
+                # 🌟 削除：和了時の強制ストッパーを解除
                 return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
 
         if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
@@ -946,7 +946,7 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
                 game.last_discard_info = {"player": -1, "tile": ""}
-                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
+                # 🌟 削除：和了時の強制ストッパーを解除
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
@@ -1135,7 +1135,7 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         game.win_tiles[player_idx].append(tile)
         game.turn = (player_idx + 1) % 4 
         game.last_discard_info = {"player": -1, "tile": ""}
-        game.is_first_turn[player_idx] = False # 🌟 追加：二重地和を防ぐ
+        game.is_first_turn[player_idx] = False
         
         return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
     except Exception as e:
@@ -1161,7 +1161,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
                 game.last_discard_info = {"player": -1, "tile": ""}
-                game.is_first_turn[i] = False # 🌟 追加：二重地和を防ぐ
+                # 🌟 削除：和了時の強制ストッパーを解除
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         robbed_player_idx = -1
@@ -1186,7 +1186,6 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
                         break
                 if found_robbed: break
 
-        # 🌟 追加：通常のロンの際に、河から牌を取り除く処理を追加！（リロード時の河バグ防止）
         if discarder != -1 and not is_chankan_bool:
             if game.discards[discarder] and game.discards[discarder][-1] == tile:
                 game.discards[discarder].pop()
@@ -1213,7 +1212,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
 
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
-        game.is_first_turn[player_idx] = False # 🌟 追加：二重地和を防ぐ
+        # 🌟 削除：和了時の強制ストッパーを解除
 
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
@@ -1391,10 +1390,22 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
     elif scenario == "chiihou":
         game.dealer = 1
         game.turn = 1
-        game.hands[0] = ["1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","4p","5p"]
-        game.hands[1] = ["東","東","東","南","南","南","西","西","西","北","北","北","5p"]
-        game.wall = ["東", "東", "東", "東", "東", "東", "東", "東","西", "西", "西", "西","南", "南", "南", "南","東", "東", "東", "東",]
+        game.is_first_turn = [True, True, True, True]
         
+        # 🌟 あなたのアイデアを採用！完成メンツ×3 ＋ 四季牌4枚の「純正34面待ち」
+        game.hands[0] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        
+        # CPUの手牌（絶対にポン・カンできないバラバラの構成）
+        base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
+        
+        # もう何を捨てられても100%アガれるので、適当に字牌を持たせておく
+        game.hands[1] = base_hand + ["東"]
+        game.hands[2] = base_hand + ["南"]
+        game.hands[3] = base_hand + ["西"]
+        
+        # ツモ山
+        game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
+
     elif scenario == "jokerswap":
         game.dealer = 0
         game.turn = 1
@@ -1639,13 +1650,21 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.wall.append("5p") 
 
     elif scenario == "cpu_chiihou":
-        game.dealer = 0
-        game.turn = 1 
-        game.is_first_turn = [False, True, True, True]
-        game.discards_count = 1 
-        game.discards[0] = ["北"]
-        game.hands[1] = ["1s","1s","1s","2s","2s","2s","3s","3s","3s","4s","4s","4s","5s"]
-        game.wall.append("5s") 
+        game.dealer = 3
+        game.turn = 3
+        game.is_first_turn = [True, True, True, True]
+        
+        # 🌟 CPU(2)も「純正34面待ち」に変更
+        game.hands[2] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        
+        base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
+        
+        # 親(CPU3) -> あなた(0) -> CPU1 の順にターンが回る
+        game.hands[3] = base_hand + ["東"]
+        game.hands[0] = base_hand + ["南"] # ★あなたの番が来たら適当に何か捨ててください！絶対ロンされます
+        game.hands[1] = base_hand + ["西"]
+        
+        game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
 
     elif scenario == "test_zentan_flower":
         game.dealer = 0

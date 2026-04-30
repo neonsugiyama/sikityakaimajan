@@ -950,6 +950,26 @@ const SM = {
 };
 
 // ==========================================
+// 🚀 牌画像のプリロード（読み込み遅延・チラつき防止）
+// ==========================================
+const preloadedImages = []; // メモリ上に保持しておくための配列
+
+window.addEventListener('DOMContentLoaded', () => {
+    // SM（Sort Map）に登録されている全種類の牌の名前を取得
+    const allTiles = Object.keys(SM);
+    allTiles.push('ura'); // 裏向きの牌も追加しておく
+
+    // 裏側でこっそり画像をロードしてブラウザに記憶（キャッシュ）させる
+    allTiles.forEach(tileName => {
+        const img = new Image();
+        img.src = `images/${tileName}.png`;
+        preloadedImages.push(img);
+    });
+
+    console.log(`[Preload] ${allTiles.length}種類の牌画像をキャッシュしました！`);
+});
+
+// ==========================================
 // ⚙️ 設定用のグローバル変数（初期値）を追加
 // ==========================================
 let timeDiscard = 60;
