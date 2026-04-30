@@ -1090,14 +1090,25 @@
             <div class="action-wrapper">
                 <div class="action-layer" id="opponent-actions">
                     <button id="btn-win" class="btn-act btn-red">アガリ！</button>
-                    <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">ポン</button>
+                    <button id="btn-pon" class="btn-act btn-blue" onclick="execMeld('ポン')">碰</button>
                     <button id="btn-hanakan" class="btn-act btn-green" onclick="execMeld('花槓')">花槓</button>
-                    <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">大明槓</button>
+                    <button id="btn-kan" class="btn-act btn-blue" onclick="execMeld('カン')">槓</button>
                     <button id="btn-skip" class="btn-act btn-gray" onclick="skipAction()">スルー</button>
-                    <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底ツモ</button>
+                    <button id="btn-haitei-tsumo" class="btn-act btn-blue" onclick="draw()">海底自摸</button>
                     <button id="btn-ryukyoku" class="btn-act btn-gray" onclick="handleRoundEnd()">流局</button>
                 </div>
-                <div class="action-layer" id="self-actions"></div>
+                <div class="action-layer" id="self-actions">
+                    <button id="btn-self-0" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-1" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-2" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-3" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-4" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-5" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-6" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-7" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-8" class="btn-act" style="display: none;"></button>
+                    <button id="btn-self-9" class="btn-act" style="display: none;"></button>
+                </div>
             </div>
 
             <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>

@@ -1201,8 +1201,8 @@ function triggerAutoPlayIfNeeded() {
     let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
 
     if (turn === 0 && msgText.includes("打牌")) {
-        const selfActions = document.getElementById('self-actions');
-        if (selfActions.innerHTML !== '') {
+        // 🌟 修正：カウント変数で判定
+        if (activeSelfActionsCount > 0) {
             return;
         }
 
@@ -1210,10 +1210,10 @@ function triggerAutoPlayIfNeeded() {
             btnWin.click();
         } else {
             if (drawnTile !== "") {
-                discard(drawnTile, true, 'drawn'); // 🌟 修正
+                discard(drawnTile, true, 'drawn');
             } else {
                 let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-                discard(displayHand[displayHand.length - 1], false, displayHand.length - 1); // 🌟 修正
+                discard(displayHand[displayHand.length - 1], false, displayHand.length - 1);
             }
         }
     } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
@@ -2501,7 +2501,7 @@ async function checkT() {
     if (activeNameEl) activeNameEl.classList.add('active-turn');
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    document.getElementById('self-actions').innerHTML = '';
+    resetActionBtnPool(); // 🌟 修正：ここでプールも完全リセット
 
     const btnHaitei = document.getElementById('btn-haitei-tsumo');
     const btnRyukyoku = document.getElementById('btn-ryukyoku');
@@ -2520,20 +2520,22 @@ async function checkT() {
             msgEl.innerText = "↓打牌↓";
             msgEl.className = "blink-text";
 
-            await checkSelfMelds();
-
+            // 🌟🌟 修正：直列（順番）に待っていた通信を、並列（同時）に走らせて待機時間を半減させる！
             let canWin = false;
-            if (!justPonged) {
-                canWin = await checkWinPossible();
-            }
+            const meldTask = checkSelfMelds();
+            const winTask = (!justPonged) ? checkWinPossible() : Promise.resolve(false);
+
+            await Promise.all([meldTask, winTask]).then(results => {
+                canWin = results[1]; // winTask の結果（true/false）を受け取る
+            });
 
             const btnWin = document.getElementById('btn-win');
-            const selfActions = document.getElementById('self-actions');
 
             let shouldAlert = false;
-            if (btnWin.style.display === "block" || btnWin.style.display === "flex" || selfActions.innerHTML !== '') {
+            // 🌟 修正：カウント変数で判定
+            if (btnWin.style.display === "block" || btnWin.style.display === "flex" || activeSelfActionsCount > 0) {
                 shouldAlert = true;
-                if (isAutoPlay && isPlayerTenpai() && selfActions.innerHTML === '') {
+                if (isAutoPlay && isPlayerTenpai() && activeSelfActionsCount === 0) {
                     shouldAlert = false;
                 }
             }
@@ -2545,7 +2547,8 @@ async function checkT() {
 
             let autoActed = false;
             if (isAutoPlay && isPlayerTenpai()) {
-                if (selfActions.innerHTML !== '') {
+                // 🌟 修正：カウント変数で判定
+                if (activeSelfActionsCount > 0) {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
                     setTimeout(hideCenterMessage, 2500);
                 }
@@ -2557,7 +2560,7 @@ async function checkT() {
                 else {
                     if (drawnTile !== "") {
                         isProc = true;
-                        setTimeout(() => { isProc = false; discard(drawnTile, true, 'drawn'); }, 600 / speedMult); // 🌟 修正
+                        setTimeout(() => { isProc = false; discard(drawnTile, true, 'drawn'); }, 600 / speedMult);
                         autoActed = true;
                     }
                 }
@@ -2566,10 +2569,10 @@ async function checkT() {
             if (!autoActed) {
                 startTimer(timeDiscard, () => {
                     if (drawnTile !== "") {
-                        discard(drawnTile, true, 'drawn'); // 🌟 修正
+                        discard(drawnTile, true, 'drawn');
                     } else {
                         let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-                        discard(displayHand[displayHand.length - 1], false, displayHand.length - 1); // 🌟 修正
+                        discard(displayHand[displayHand.length - 1], false, displayHand.length - 1);
                     }
                 });
             }
@@ -2624,27 +2627,44 @@ async function checkT() {
     }
 }
 
-// 🖱️ アクション用のボタン（ポン、カンなど）を動的に生成する関数
-function createBtn(html, cls, onClick, parent) {
-    let b = document.createElement('button');
-    b.className = `btn-act ${cls}`;
+// ==========================================
+// 🌟 自分のアクションボタン制御（オブジェクトプール方式）
+// ==========================================
+let activeSelfActionsCount = 0;
 
-    b.innerHTML = html;
+// ボタンを全て隠してリセットする関数
+function resetActionBtnPool() {
+    for (let i = 0; i < 10; i++) {
+        let btn = document.getElementById(`btn-self-${i}`);
+        if (btn) {
+            btn.style.display = 'none';
+            btn.onclick = null;
+        }
+    }
+    activeSelfActionsCount = 0;
+}
 
-    b.style.display = 'flex';
-    b.style.alignItems = 'center';
-    b.style.justifyContent = 'center';
-    b.style.gap = '5px';
+// 空いているボタンを取り出して色と文字を設定する関数
+function setupActionBtn(html, cls, onClick) {
+    let btn = document.getElementById(`btn-self-${activeSelfActionsCount}`);
+    if (!btn) return; // 万が一足りなくなった場合は安全に無視
 
-    b.onclick = onClick;
-    parent.appendChild(b);
+    btn.className = `btn-act ${cls}`;
+    btn.innerHTML = html;
+    btn.style.display = 'flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+    btn.style.gap = '5px';
+    btn.onclick = onClick;
+
+    activeSelfActionsCount++;
 }
 
 let currentValidMelds = [];
 
 // 🔍 自分のツモ番で可能な鳴き（暗槓・加槓など）があるかサーバーに確認する関数
 async function checkSelfMelds() {
-    const actC = document.getElementById('self-actions'); actC.innerHTML = '';
+    resetActionBtnPool();
     if (wallCount === 0) return;
 
     try {
@@ -2661,7 +2681,7 @@ async function checkSelfMelds() {
 
 // 🎛️ 可能な暗槓や加槓をグループ化して、アクションボタンとして並べる関数
 function renderSelfMeldsMenu() {
-    const actC = document.getElementById('self-actions'); actC.innerHTML = '';
+    resetActionBtnPool();
 
     let melds = [...currentValidMelds];
     melds.sort((a, b) => {
@@ -2686,21 +2706,22 @@ function renderSelfMeldsMenu() {
 
     Object.values(groups).forEach(g => {
         if (g.type === "暗槓") {
-            createBtn(`${g.type} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile), actC);
+            setupActionBtn(`槓 ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile));
         } else if (g.type === "加槓" || g.type === "JokerSwap") {
-            let btnClass = g.type.includes("槓") ? 'btn-purple' : 'btn-green';
-            let label = g.type === "JokerSwap" ? "Swap" : g.type;
-            createBtn(`${label} ${getImg(g.tile)}`, btnClass, () => {
+            let btnClass = g.type.includes("槓") ? 'btn-blue' : 'btn-purple';
+            let label = g.type === "JokerSwap" ? "Swap" : "槓";
+            setupActionBtn(`${label} ${getImg(g.tile)}`, btnClass, () => {
                 if (g.type === "JokerSwap") execJokerSwap(g.tile, g.original.season, g.original.target_idx);
                 else execSelfMeld(g.type, g.tile, '');
-            }, actC);
+            });
         } else {
-            let btnLabel = g.type === "暗花槓" ? "暗花槓" : "昇格";
+            let btnClass = 'btn-act btn-blue';
+            let btnLabel = "花槓";
 
             if (g.seasons.length === 1) {
-                createBtn(`${btnLabel} ${getImg(g.tile)}${getImg(g.seasons[0])}`, 'btn-green', () => execSelfMeld(g.type, g.tile, g.seasons[0]), actC);
+                setupActionBtn(`${btnLabel} ${getImg(g.tile)}${getImg(g.seasons[0])}`, 'btn-blue', () => execSelfMeld(g.type, g.tile, g.seasons[0]));
             } else {
-                createBtn(`${btnLabel} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-green', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons), actC);
+                setupActionBtn(`${btnLabel} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-green', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons));
             }
         }
     });
@@ -2708,27 +2729,28 @@ function renderSelfMeldsMenu() {
 
 // 🎛️ 複数の花牌から昇格させるものを選ぶ「サブメニュー」を描画する関数
 function renderSelfMeldsSubMenu(type, tile, seasons) {
-    const actC = document.getElementById('self-actions'); actC.innerHTML = '';
+    resetActionBtnPool();
     const getImg = (tileName) => `<img src="images/${tileName}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
-    createBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu(), actC);
+    setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
 
+    let btnClass = 'btn-blue';
     seasons.forEach(s => {
-        let btnLabel = type === "暗花槓" ? "暗花槓" : "昇格";
-        createBtn(`${btnLabel} ${getImg(tile)}${getImg(s)}`, 'btn-green', () => execSelfMeld(type, tile, s), actC);
+        let btnLabel = "花槓";
+        setupActionBtn(`${btnLabel} ${getImg(tile)}${getImg(s)}`, 'btn-blue', () => execSelfMeld(type, tile, s));
     });
 }
 
 // 🎛️ 暗槓の際、「完全に伏せる」か「両端だけ裏返す」かを選ぶメニューを描画する関数
 function renderAnkanSubMenu(tile) {
-    const actC = document.getElementById('self-actions'); actC.innerHTML = '';
+    resetActionBtnPool();
     const getImg = (tileName) => `<img src="images/${tileName}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
-    createBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu(), actC);
+    setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
 
-    createBtn(`完全に伏せる ${getImg('ura')}${getImg('ura')}${getImg('ura')}${getImg('ura')}`, 'btn-purple', () => execSelfMeld('暗槓', tile, '', true), actC);
+    setupActionBtn(`完全に伏せる ${getImg('ura')}${getImg('ura')}${getImg('ura')}${getImg('ura')}`, 'btn-purple', () => execSelfMeld('暗槓', tile, '', true));
 
-    createBtn(`通常通り ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false), actC);
+    setupActionBtn(`通常通り ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
 }
 
 // 🏆 現在の手牌でアガれるか（役があるか）をサーバーに確認し、ツモボタンを出す関数
@@ -2742,17 +2764,19 @@ async function checkWinPossible() {
         let winTile = drawnTile !== "" ? drawnTile : myHand[myHand.length - 1];
         const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
-        btn.innerHTML = `ツモ ${getImg(winTile)}`;
+        btn.className = 'btn-act btn-red';
+        btn.innerHTML = `自摸 ${getImg(winTile)}`;
         btn.style.display = "flex";
         btn.style.alignItems = "center";
         btn.style.gap = "5px";
 
         btn.onclick = () => execTsumo();
 
-        if (isAutoPlay && myWinTiles.length > 0 && document.getElementById('self-actions').innerHTML === '') {
+        // 🌟 修正：変数のカウントで判定する
+        if (isAutoPlay && myWinTiles.length > 0 && activeSelfActionsCount === 0) {
             btn.style.display = "none";
         } else {
-            btn.style.display = "flex"; // 🌟 blockからflexに変更してレイアウト崩れ防止
+            btn.style.display = "flex";
         }
         return true;
     }
@@ -2791,7 +2815,7 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
     if (isProc) return;
     isProc = true;
 
-    document.getElementById('self-actions').innerHTML = '';
+    resetActionBtnPool(); // 🌟 修正
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     // 🌟 1. 手牌の中の牌を消す（幅を保ったまま透明にして隙間を作る）
@@ -2886,7 +2910,7 @@ async function cpu() {
                     const btnSkip = document.getElementById('btn-skip');
 
                     let kTile = data.kakan_tile;
-                    btnWin.innerHTML = `ロン <img src="images/${kTile}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+                    btnWin.innerHTML = `胡 <img src="images/${kTile}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
                     let isAutoDigest = (isAutoPlay);
                     if (!isAutoDigest) {
@@ -2979,8 +3003,7 @@ async function cpu() {
 
 // 👁️ 他家が牌を捨てた時、自分が鳴けるか・ロンできるか判定してボタンを出す関数
 async function checkHumanReaction(discarderIdx, tile) {
-    // 🌟 追加：他家の捨て牌に反応する時も、念のため自ターン用の暗槓ボタンなどを消去する
-    document.getElementById('self-actions').innerHTML = '';
+    resetActionBtnPool(); // 🌟 修正
 
     const count = myHand.filter(t => t === tile).length;
     const hasSeason = myHand.some(t => ["春", "夏", "秋", "冬"].includes(t));
@@ -3018,7 +3041,8 @@ async function checkHumanReaction(discarderIdx, tile) {
     // ----------------------------------------------------
     if (canHumanRon) {
         const btn = document.getElementById('btn-win');
-        btn.innerHTML = `ロン ${getImg(tile)}`;
+        btn.className = 'btn-act btn-red';
+        btn.innerHTML = `胡 ${getImg(tile)}`;
         btn.style.display = "flex";
         btn.style.alignItems = "center";
         btn.style.gap = "5px";
@@ -3037,7 +3061,8 @@ async function checkHumanReaction(discarderIdx, tile) {
     if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
-            btn.innerHTML = `ポン ${getImg(tile)}`;
+            btn.className = 'btn-act btn-green';
+            btn.innerHTML = `碰 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
@@ -3045,7 +3070,8 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
         if (count >= 3 && wallCount > 0) {
             const btn = document.getElementById('btn-kan');
-            btn.innerHTML = `明槓 ${getImg(tile)}`;
+            btn.className = 'btn-act btn-blue';
+            btn.innerHTML = `槓 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
@@ -3053,6 +3079,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
         if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
             const btn = document.getElementById('btn-hanakan');
+            btn.className = 'btn-act btn-blue';
             btn.innerHTML = `花槓 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
@@ -3343,7 +3370,8 @@ async function execMeld(type) {
 // 🗣️ 自分のツモ番で「暗槓」や「加槓」を実行する関数
 async function execSelfMeld(type, t, s, isHidden = false) {
     stopTimer();
-    if (isProc) return; isProc = true; document.getElementById('self-actions').innerHTML = '';
+    if (isProc) return; isProc = true;
+    resetActionBtnPool(); // 🌟 修正
 
     if (type.includes("花槓")) {
         // 🏆 ここを変更！【花槓マスター】（暗花槓など）
@@ -3405,7 +3433,8 @@ async function execSelfMeld(type, t, s, isHidden = false) {
 // 🃏 他家の花槓から四季牌(Joker)を正規の牌と交換して強奪する関数
 async function execJokerSwap(t, season, targetIdx) {
     stopTimer();
-    if (isProc) return; isProc = true; document.getElementById('self-actions').innerHTML = '';
+    if (isProc) return; isProc = true;
+    resetActionBtnPool(); // 🌟 修正
     await apiCall('/joker_swap', { player_idx: 0, tile: t, season: season, target_idx: targetIdx });
     render(); renderCPU();
 
@@ -3430,8 +3459,7 @@ function skipAction() {
     stopTimer();
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    // 🌟 追加：スキップ時も確実に自ターン用ボタンを消去する
-    document.getElementById('self-actions').innerHTML = '';
+    resetActionBtnPool(); // 🌟 修正
     checkCpuReactions(lastDiscardPlayer, lastT);
 }
 
