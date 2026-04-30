@@ -1131,8 +1131,6 @@ function isPlayerTenpai() {
 // 🤖 オートモード中、状況に応じて自動でツモ切りや鳴きスルーなどのボタンを押す関数
 function triggerAutoPlayIfNeeded() {
     if (!isAutoPlay || isProc) return;
-
-    // 🌟 修正：テンパイしていない間はオートを「完全に殺しておく」
     if (!isPlayerTenpai()) return;
 
     const msgText = document.getElementById('msg').innerText;
@@ -1142,7 +1140,6 @@ function triggerAutoPlayIfNeeded() {
 
     if (turn === 0 && msgText.includes("打牌")) {
         const selfActions = document.getElementById('self-actions');
-        // 🌟 追加：暗槓やJokerSwapのボタンが出ている場合は、勝手にボタンを押さずにストップ！
         if (selfActions.innerHTML !== '') {
             return;
         }
@@ -1151,10 +1148,10 @@ function triggerAutoPlayIfNeeded() {
             btnWin.click();
         } else {
             if (drawnTile !== "") {
-                discard(drawnTile, true);
+                discard(drawnTile, true, 'drawn'); // 🌟 修正
             } else {
                 let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-                discard(displayHand[displayHand.length - 1], false);
+                discard(displayHand[displayHand.length - 1], false, displayHand.length - 1); // 🌟 修正
             }
         }
     } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
@@ -2284,6 +2281,8 @@ function render() {
 
         displayHand.forEach((t, idx) => {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
+            i.id = `my-tile-${idx}`; // 🌟 追加：牌ごとにIDを付与する
+
             if (charlestonPhase && exchangeSelection.includes(idx)) i.classList.add('selected-exchange');
 
             i.onclick = () => {
@@ -2296,7 +2295,7 @@ function render() {
                     if (myWinTiles.length > 0) {
                         logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
                     } else {
-                        discard(t, false);
+                        discard(t, false, idx); // 🌟 修正：何番目の牌を捨てたか(idx)を渡す
                     }
                 }
             };
@@ -2305,6 +2304,7 @@ function render() {
 
         if (dTile !== "") {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${dTile}.png`;
+            i.id = `my-tile-drawn`; // 🌟 追加：ツモ牌専用のID
             i.style.position = "absolute";
             i.style.left = "calc(100% + 15px)";
             i.style.top = "0";
@@ -2314,7 +2314,7 @@ function render() {
                     let msgText = document.getElementById('msg').innerText;
                     if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
-                    discard(dTile, true);
+                    discard(dTile, true, 'drawn'); // 🌟 修正：ツモ牌であることを渡す
                 }
             };
             c.appendChild(i);
@@ -2424,7 +2424,6 @@ async function checkT() {
     let totalVirtualTiles = myHand.length + (myMelds.length * 3);
     let isPlayerDrawPhase = (totalVirtualTiles % 3 === 1);
 
-    // 🌟 ご要望のログ出力：現在の処理状況（ターンのバトンパス）を丸裸にします！
     console.log(`[処理順確認] ターン判定開始 -> 現在のターン: ${turn === 0 ? "あなた" : "CPU " + turn}, 山札残り: ${wallCount}枚, 自分の手牌相当: ${totalVirtualTiles}枚`);
 
     for (let i = 0; i < 4; i++) {
@@ -2437,14 +2436,11 @@ async function checkT() {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     document.getElementById('self-actions').innerHTML = '';
 
-    // 🌟 修正1：海底牌の選択ボタンが「引き終わった後」にも残り続けるバグを修正
     const btnHaitei = document.getElementById('btn-haitei-tsumo');
     const btnRyukyoku = document.getElementById('btn-ryukyoku');
     if (btnHaitei) btnHaitei.style.display = "none";
     if (btnRyukyoku) btnRyukyoku.style.display = "none";
 
-    // 🌟 修正2：誰かが最後の1枚を引き終わって山が0枚になった後、
-    // 引けないはずのツモ番（ゴーストターン）が発生してしまうバグをブロック！
     if (wallCount === 0 && ((turn === 0 && isPlayerDrawPhase) || turn !== 0)) {
         console.log(`[処理順確認] 🛑 山札が0枚のため、これ以上ターンを回さずに流局（または終了）処理へ移行します`);
         handleRoundEnd();
@@ -2494,7 +2490,7 @@ async function checkT() {
                 else {
                     if (drawnTile !== "") {
                         isProc = true;
-                        setTimeout(() => { isProc = false; discard(drawnTile, true); }, 600 / speedMult);
+                        setTimeout(() => { isProc = false; discard(drawnTile, true, 'drawn'); }, 600 / speedMult); // 🌟 修正
                         autoActed = true;
                     }
                 }
@@ -2503,16 +2499,15 @@ async function checkT() {
             if (!autoActed) {
                 startTimer(timeDiscard, () => {
                     if (drawnTile !== "") {
-                        discard(drawnTile, true);
+                        discard(drawnTile, true, 'drawn'); // 🌟 修正
                     } else {
                         let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
-                        discard(displayHand[displayHand.length - 1], false);
+                        discard(displayHand[displayHand.length - 1], false, displayHand.length - 1); // 🌟 修正
                     }
                 });
             }
 
         } else {
-            // 🌟 山が残り1枚の時に、引くか引かないかの選択を出す
             if (wallCount === 1) {
                 document.getElementById('msg').className = "";
                 document.getElementById('msg').innerText = "海底牌";
@@ -2724,21 +2719,35 @@ function removeLastDiscard() {
 }
 
 // 🖐️ 指定した牌を捨てる通信を行い、CPUの反応待ちへ進む関数
-async function discard(t, isTsumogiri = false) {
+async function discard(t, isTsumogiri = false, domIdx = null) {
     stopTimer();
-    if (isProc) return; // 🌟 変更：複雑な条件を削除してシンプルに
+    if (isProc) return;
     isProc = true;
 
-    // 🌟 修正：牌を捨てた瞬間に、暗槓などの「自分用アクションボタン」を完全に消去する！
     document.getElementById('self-actions').innerHTML = '';
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
+    // 🌟 1. 手牌の中の牌を消す（幅を保ったまま透明にして隙間を作る）
+    if (domIdx !== null) {
+        let el = (domIdx === 'drawn') ? document.getElementById('my-tile-drawn') : document.getElementById(`my-tile-${domIdx}`);
+        if (el) el.style.visibility = "hidden";
+    }
+
+    // 🌟 2. 捨て牌を先に河に表示する（通信前に即座に反映させる）
+    addR(0, t, isTsumogiri);
+
+    // 🌟 3. 余韻（隙間が見える時間）を作る
+    await sleep(250);
+
+    // 🌟 4. サーバーに通信してデータを確定させる
     await apiCall('/discard', { player_idx: 0, tile: t });
     drawnTile = ""; lastDiscardPlayer = 0; justPonged = false;
 
-    addR(0, t, isTsumogiri);
+    // 🌟 5. 理牌して再描画（ここでツモ牌も手牌に吸収され、隙間が詰まる）
     render(); renderCPU();
-    await sleep(500);
+
+    // 🌟 6. 少し待ってからCPUの反応判定へ
+    await sleep(250);
     checkCpuReactions(0, t);
 }
 
@@ -5024,36 +5033,28 @@ function copyRoomUrl() {
 
 // 🖱️ 右クリックでツモ切り（引いてきた牌をそのまま捨てる）機能
 document.addEventListener('contextmenu', (e) => {
-    // ブラウザ標準の右クリックメニューが出るのを防ぐ
     e.preventDefault();
 
-    if (isProc) return; // 処理中はブロック
+    if (isProc) return;
 
-    // 🌟 追加：スキップボタンが表示されている場合は、右クリックで「スルー」を実行！
     const btnSkip = document.getElementById('btn-skip');
     if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
-        btnSkip.click(); // スキップボタンを押したことにする
-        return;          // ツモ切りの処理には進まない
+        btnSkip.click();
+        return;
     }
 
-    // 自分のターンで、ツモ牌が存在し、チャールストン（交換）フェーズではない場合
     if (turn === 0 && drawnTile !== "" && !charlestonPhase) {
-        // 特殊な選択待ち状態ではツモ切りを誤爆しないように防ぐ
         const msgText = document.getElementById('msg').innerText;
         if (msgText === "鳴き" || msgText === "ロン！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
-        // ツモ切りを実行（true を渡すことでエフェクトが青白い光になる）
-        discard(drawnTile, true);
+        discard(drawnTile, true, 'drawn'); // 🌟 修正
     }
 });
 
 // 🖱️ ダブルクリックでツモ切り機能（新規追加）
-// 🌟 修正: 画面全体(document)ではなく、卓全体(.table)にだけイベントを設定する
 const gameTable = document.querySelector('.table');
 if (gameTable) {
     gameTable.addEventListener('dblclick', (e) => {
-        // 🌟 究極の安全装置: クリックした要素が「卓そのもの」または「河(river)」の場合のみ作動
-        // （ボタン、名前、持ち点、牌など、卓の上に乗っているUIはすべて e.target !== gameTable になるため自動的に弾かれます）
         if (e.target !== gameTable && !e.target.classList.contains('river')) {
             return;
         }
@@ -5062,7 +5063,7 @@ if (gameTable) {
             const msgText = document.getElementById('msg').innerText;
             if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
-            discard(drawnTile, true);
+            discard(drawnTile, true, 'drawn'); // 🌟 修正
             window.getSelection().removeAllRanges();
         }
     });
