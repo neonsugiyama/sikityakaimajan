@@ -2501,7 +2501,7 @@ async function checkT() {
     if (activeNameEl) activeNameEl.classList.add('active-turn');
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    resetActionBtnPool(); // 🌟 修正：ここでプールも完全リセット
+    resetActionBtnPool();
 
     const btnHaitei = document.getElementById('btn-haitei-tsumo');
     const btnRyukyoku = document.getElementById('btn-ryukyoku');
@@ -2520,19 +2520,44 @@ async function checkT() {
             msgEl.innerText = "↓打牌↓";
             msgEl.className = "blink-text";
 
-            // 🌟🌟 修正：直列（順番）に待っていた通信を、並列（同時）に走らせて待機時間を半減させる！
+            // 🌟🌟 修正：サーバーへの確認通信を完全に並列化し、結果のデータだけを待つ
             let canWin = false;
-            const meldTask = checkSelfMelds();
-            const winTask = (!justPonged) ? checkWinPossible() : Promise.resolve(false);
+            let canMeld = false;
 
-            await Promise.all([meldTask, winTask]).then(results => {
-                canWin = results[1]; // winTask の結果（true/false）を受け取る
-            });
+            await Promise.all([
+                checkSelfMelds().then(res => canMeld = res),
+                (!justPonged) ? checkWinPossible().then(res => canWin = res) : Promise.resolve(false)
+            ]);
 
+            // 🌟🌟 修正：通信が「両方とも」終わってから、一斉にボタンを描画する！（ズレ消滅）
+            resetActionBtnPool(); // プールをリセット
+
+            // 先にカンなどの副露ボタンを生成（ここで activeSelfActionsCount が確定する）
+            if (canMeld) {
+                renderSelfMeldsMenu();
+            }
+
+            // 次にツモボタンを生成
             const btnWin = document.getElementById('btn-win');
+            if (canWin) {
+                let winTile = drawnTile !== "" ? drawnTile : myHand[myHand.length - 1];
+                const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+
+                btnWin.className = 'btn-act btn-red';
+                btnWin.innerHTML = `自摸 ${getImg(winTile)}`;
+                btnWin.onclick = () => execTsumo();
+
+                // 副露ボタン等が一つもない場合はオート進行に任せて隠す
+                if (isAutoPlay && myWinTiles.length > 0 && activeSelfActionsCount === 0) {
+                    btnWin.style.display = "none";
+                } else {
+                    btnWin.style.display = "flex";
+                }
+            } else {
+                btnWin.style.display = "none";
+            }
 
             let shouldAlert = false;
-            // 🌟 修正：カウント変数で判定
             if (btnWin.style.display === "block" || btnWin.style.display === "flex" || activeSelfActionsCount > 0) {
                 shouldAlert = true;
                 if (isAutoPlay && isPlayerTenpai() && activeSelfActionsCount === 0) {
@@ -2547,7 +2572,6 @@ async function checkT() {
 
             let autoActed = false;
             if (isAutoPlay && isPlayerTenpai()) {
-                // 🌟 修正：カウント変数で判定
                 if (activeSelfActionsCount > 0) {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
                     setTimeout(hideCenterMessage, 2500);
@@ -2662,21 +2686,20 @@ function setupActionBtn(html, cls, onClick) {
 
 let currentValidMelds = [];
 
-// 🔍 自分のツモ番で可能な鳴き（暗槓・加槓など）があるかサーバーに確認する関数
+// 🔍 自分のツモ番で可能な鳴き（暗槓・加槓など）があるかサーバーにデータだけ確認する関数
 async function checkSelfMelds() {
-    resetActionBtnPool();
-    if (wallCount === 0) return;
-
+    if (wallCount === 0) return false;
     try {
         const data = await apiCall('/get_valid_self_melds', { player_idx: 0 });
-
-        if (data.valid_melds) {
+        if (data.valid_melds && data.valid_melds.length > 0) {
             currentValidMelds = data.valid_melds;
-            renderSelfMeldsMenu();
+            return true; // 鳴きが可能なら true を返す
         }
     } catch (e) {
         console.error("Self meld validation failed:", e);
     }
+    currentValidMelds = [];
+    return false;
 }
 
 // 🎛️ 可能な暗槓や加槓をグループ化して、アクションボタンとして並べる関数
@@ -2753,34 +2776,15 @@ function renderAnkanSubMenu(tile) {
     setupActionBtn(`通常通り ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
 }
 
-// 🏆 現在の手牌でアガれるか（役があるか）をサーバーに確認し、ツモボタンを出す関数
+// 🏆 現在の手牌でアガれるか（役があるか）をサーバーにデータだけ確認する関数
 async function checkWinPossible() {
     const isHaitei = (wallCount === 0);
-    const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
-    if (wd.can_win) {
-        const btn = document.getElementById('btn-win');
-
-        // 🌟 修正：過去の「ロン」の表示を上書きして、「ツモ」と引いた牌の画像にする！
-        let winTile = drawnTile !== "" ? drawnTile : myHand[myHand.length - 1];
-        const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
-
-        btn.className = 'btn-act btn-red';
-        btn.innerHTML = `自摸 ${getImg(winTile)}`;
-        btn.style.display = "flex";
-        btn.style.alignItems = "center";
-        btn.style.gap = "5px";
-
-        btn.onclick = () => execTsumo();
-
-        // 🌟 修正：変数のカウントで判定する
-        if (isAutoPlay && myWinTiles.length > 0 && activeSelfActionsCount === 0) {
-            btn.style.display = "none";
-        } else {
-            btn.style.display = "flex";
-        }
-        return true;
+    try {
+        const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
+        return wd.can_win; // アガれるなら true を返す
+    } catch (e) {
+        return false;
     }
-    return false;
 }
 
 // 🎴 山から牌を1枚引く（ツモる）通信を行う関数
