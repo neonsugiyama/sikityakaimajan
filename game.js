@@ -606,21 +606,490 @@ function closeAllModals() {
     });
 }
 
+// ==========================================
+// 🎮 雀魂風：インゲーム・チュートリアル制御
+// ==========================================
+let isIngameTutorial = false;
+
 // 📖 遊び方モーダルを開く関数
 function openHowTo() {
-    console.log("[LOG] ▶ openHowTo が呼ばれました");
     closeAllModals();
     document.getElementById('howto-modal').style.display = 'flex';
     playSE('click');
-    dumpModalStatus('openHowTo');
 }
 
 // 📖 遊び方モーダルを閉じる関数
 function closeHowTo() {
-    console.log("[LOG] ▶ closeHowTo が呼ばれました");
     document.getElementById('howto-modal').style.display = 'none';
     playSE('click');
-    dumpModalStatus('closeHowTo');
+}
+
+// 🎮 実戦形式のチュートリアルを開始する関数
+async function startTutorial() {
+    closeAllModals();
+    playSE('start');
+
+    // 🌟 実際のゲーム画面（雀卓）へ遷移
+    document.getElementById('title-screen').style.display = 'none';
+    document.getElementById('mode-select-screen').style.display = 'none';
+    document.querySelector('.table').style.opacity = 1;
+    document.getElementById('game-container').style.opacity = 1;
+    document.getElementById('overlay').style.display = 'none';
+
+    isIngameTutorial = true;
+    currentGameMode = 'tutorial';
+
+    // 盤面をクリアして初期化
+    for (let i = 0; i < 4; i++) {
+        document.getElementById(`river-${i}`).innerHTML = "";
+        document.getElementById(`meld-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).style.display = "none";
+    }
+    clearCharlestonStatus();
+    resetActionBtnPool();
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    document.getElementById('msg').innerText = "";
+
+    // 情報UIの初期化
+    wallCount = 80;
+    currentRound = 1;
+    scores = [150, 200, 100, 0];
+    totalScores = [150, 200, 100, 0];
+    dealer = 1; // 南家スタートに見せかける
+    turn = 1;
+    updateInfoUI();
+    updateWall(wallCount);
+
+    // ナビゲーションUIの準備
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    const navText = document.getElementById('ingame-tutorial-text');
+
+    navPanel.style.setProperty('z-index', '95000', 'important');
+    // 🚨 確実な解決策：3D空間の計算に負けないよう、メッセージパネルを「Z軸方向に300px手前」へ引っ張り出す！
+    navPanel.style.setProperty('transform', 'translateX(-50%) translateZ(300px)', 'important');
+
+    navPanel.style.display = 'block';
+
+    // 🌟 修正：進行不能バグ防止のため、毎回確実にボタンを探してイベントを付ける
+    const waitNext = () => new Promise(res => {
+        const btn = document.getElementById('ingame-tutorial-next-btn');
+        if (btn) {
+            btn.style.display = 'block';
+            btn.onclick = () => {
+                playSE('click');
+                btn.style.display = 'none';
+                res();
+            };
+        } else {
+            res(); // 万が一ボタンが無ければフリーズを避けるため強制進行
+        }
+    });
+
+    const showMsg = (msg) => { navText.innerHTML = msg; };
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; vertical-align: middle;">`;
+
+    // 🌟 チュートリアル専用：暗転＆ハイライト管理システム
+    let overlay = document.getElementById('tut-dark-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'tut-dark-overlay';
+        document.querySelector('.table').appendChild(overlay);
+    }
+    // 🚨 巨大化の原因だった translateZ を完全に削除！
+    overlay.style.cssText = 'display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 85000; pointer-events: none; transition: opacity 0.3s ease; border-radius: inherit;';
+
+    const setOverlay = (enable) => {
+        if (overlay) overlay.style.display = enable ? 'block' : 'none';
+
+        // 🚨 貫通してくる名前パネル等のUIを「直接暗くする」安全な方法
+        const backgroundUI = [
+            'center-info',
+            'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
+            'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
+            'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
+        ];
+
+        setTimeout(() => {
+            backgroundUI.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    // ハイライト対象以外の要素を直接暗くする(20%の明るさ)
+                    if (enable && !el.classList.contains('tut-highlight')) {
+                        el.style.transition = 'filter 0.3s ease';
+                        el.style.filter = 'brightness(0.2)';
+                    } else {
+                        el.style.transition = 'filter 0.3s ease';
+                        el.style.filter = 'none';
+                    }
+                }
+            });
+        }, 10);
+    };
+
+    const hlIds = (ids, enable, useGlow = true) => {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (enable) {
+                    el.classList.add('tut-highlight');
+                    el.style.setProperty('z-index', '90000', 'important');
+                    if (useGlow) {
+                        el.style.setProperty('box-shadow', '0 0 20px rgba(241, 196, 15, 1)', 'important');
+                        el.style.setProperty('border-radius', '8px', 'important');
+                    }
+                    if (window.getComputedStyle(el).position === 'static') {
+                        el.style.setProperty('position', 'relative', 'important');
+                        el.dataset.tutPosModified = 'true';
+                    }
+                    // もし暗くされていたら明るさを元に戻す
+                    el.style.filter = 'none';
+                } else {
+                    el.classList.remove('tut-highlight');
+                    el.style.removeProperty('z-index');
+                    el.style.removeProperty('box-shadow');
+                    el.style.removeProperty('border-radius');
+                    if (el.dataset.tutPosModified) {
+                        el.style.removeProperty('position');
+                        delete el.dataset.tutPosModified;
+                    }
+                }
+            }
+        });
+    };
+
+    const hlTiles = (selector, enable) => {
+        document.querySelectorAll(selector).forEach(el => {
+            if (enable) {
+                el.classList.add('tut-highlight');
+                el.style.setProperty('position', 'relative', 'important');
+            } else {
+                el.classList.remove('tut-highlight');
+                el.style.removeProperty('position');
+            }
+        });
+    };
+
+    // 🌟 指差し矢印を消すヘルパー
+    const clearArrows = () => {
+        document.querySelectorAll('.tut-dynamic-arrow').forEach(e => {
+            clearInterval(e.dataset.animInterval);
+            e.remove();
+        });
+    };
+
+    // 🌟 牌の上に「👇」を出す安全なヘルパー
+    const pointArrow = (selector) => {
+        clearArrows();
+        if (!selector) return;
+
+        setTimeout(() => {
+            const target = document.querySelector(selector);
+            if (target && target.parentElement) {
+                const arrow = document.createElement('div');
+                arrow.className = 'tut-dynamic-arrow';
+                arrow.innerHTML = '👇';
+                arrow.style.position = 'absolute';
+                arrow.style.fontSize = '40px';
+                arrow.style.zIndex = '90000'; // 確実に一番手前
+                arrow.style.pointerEvents = 'none';
+                arrow.style.filter = 'drop-shadow(0px 2px 4px rgba(0,0,0,0.8))';
+
+                target.parentElement.appendChild(arrow);
+
+                let up = true;
+                const baseTop = target.offsetTop - 55; // 牌の少し上
+                arrow.style.left = (target.offsetLeft + (target.offsetWidth / 2) - 30) + 'px';
+                arrow.style.top = baseTop + 'px';
+
+                // ピコピコ動かす
+                arrow.dataset.animInterval = setInterval(() => {
+                    up = !up;
+                    arrow.style.top = (baseTop + (up ? 0 : -10)) + 'px';
+                }, 500);
+            }
+        }, 50);
+    };
+
+    // ==========================================
+    // 🎬 チュートリアル・シナリオ進行
+    // ==========================================
+
+    setOverlay(false); // 最初は明るい画面
+
+    showMsg("ようこそ<span style='color:#f1c40f;'>『四季茶会麻雀』</span>へ！<br>ここでは実際の対局画面を使って、独自の特殊ルールを体験します。");
+    await waitNext();
+
+    // ------------------------------------------
+    // --- STEP 1: チャールストン ---
+    // ------------------------------------------
+    showMsg("<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 1: 交換フェーズ】</span><br>対局開始時、不要な牌を他家と交換して手牌を整えます。");
+
+    myHand = ["1p", "2p", "3p", "4p", "5p", "6p", "7p", "8s", "9s", "1s", "2s", "中", "發"];
+    myAllHands = [[], new Array(13).fill("ura"), new Array(13).fill("ura"), new Array(13).fill("ura")];
+    myMelds = []; myAllMelds = [[], [], [], []];
+    myWinTiles = []; myAllWinTiles = [[], [], [], []];
+    hideCpuTiles = [0, 0, 0, 0];
+    render(); renderCPU();
+    await waitNext();
+
+    charlestonPhase = true;
+    exchangeSelection = [];
+
+    // 👇この2行を追加して、ボタンと回数の状態を確実にリセットします！
+    charlestonCount = 1;
+    document.getElementById('btn-exchange').style.display = "none";
+
+    document.getElementById('charleston-ui').style.display = "block";
+    document.getElementById('c-title').innerText = "第1交換（換三張）";
+
+    // 🌟 [暗転ON] 交換パネルと自分の手牌
+    setOverlay(true);
+    hlIds(['charleston-ui', 'hand-0'], true);
+
+    showMsg("手牌の中からいらない牌を <span style='color:#f1c40f;'>3枚クリック</span> して選び、<br>画面中央に出現する「📤 決定」ボタンを押してください！");
+
+    // 本編の関数を一時的にハイジャックしてユーザーの操作を待つ
+    await new Promise(res => {
+        const originalExecExchange = window.execExchange;
+        window.execExchange = async () => {
+            // 🌟 [暗転OFF] ハイライト解除
+            hlIds(['charleston-ui', 'hand-0'], false);
+            setOverlay(false);
+
+            playSE('exchange');
+            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
+            myHand = displayHand;
+            exchangeSelection = [];
+            document.getElementById('charleston-ui').style.display = "none";
+
+            showCharlestonStatus(0, true);
+            hideCpuTiles = [0, 3, 3, 3];
+            for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+            render(); renderCPU();
+
+            await playExchangeAnimation("対面(正面)へ", [true, true, true, true]);
+            clearCharlestonStatus();
+            hideCpuTiles = [0, 0, 0, 0];
+
+            myHand.push("東", "1m", "春");
+            render(); renderCPU();
+
+            window.execExchange = originalExecExchange;
+            res();
+        };
+    });
+
+    charlestonPhase = false;
+    showMsg("素晴らしい！新しい牌が手元に届きました。<br>次は<span style='color:#2ecc71;'>「花槓」</span>を体験しましょう。");
+    await waitNext();
+
+    // ------------------------------------------
+    // --- STEP 2: 花槓 ---
+    // ------------------------------------------
+    myHand = ["2p", "3p", "4p", "5p", "6p", "7p", "東", "東", "2p", "1s", "5s", "5s", "5s", "春"];
+    render();
+
+    // 🌟 [暗転ON] 手牌と「春」の牌を強調
+    setOverlay(true);
+    hlIds(['hand-0'], true);
+    pointArrow('#hand-0 img[src*="春"]'); // 👈 ここを変更
+
+    showMsg("<span style='color:#2ecc71; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 2: 花槓（ホァガン）】</span><br>「春」などの四季牌は、<span style='color:#f1c40f;'>万能牌（Joker）</span>として使えます。<br>万能なので槓の素材にも使えます。");
+    await waitNext();
+
+    // 「春」のハイライトを解いて、花槓ボタンのハイライトを追加
+    clearArrows(); // 👈 ここを変更
+    hlIds(['btn-self-0'], true);
+
+    showMsg("手牌に「5s」の暗刻と「春」があります。<br>四季牌をくっつけて明槓扱いにできるのが<span style='color:#2ecc71;'>「花槓」</span>です。<br>出現したアクションボタン「花槓」を押してください。");
+
+    resetActionBtnPool();
+    setupActionBtn(`花槓 ${getImg('5s')}${getImg('春')}`, 'btn-blue', async () => {
+        // 🌟 [暗転OFF] ハイライト解除
+        hlIds(['hand-0', 'btn-self-0'], false);
+        setOverlay(false);
+
+        playSE('kan_0');
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+        showCallout(0, "槓");
+
+        myHand = ["2p", "3p", "4p", "5p", "6p", "7p", "東", "東", "2p", "1s"];
+        myMelds = [{ type: "hanakan", tiles: ["5s", "春", "5s", "5s"] }];
+        render();
+
+        showMsg("見事<span style='color:#2ecc71;'>「花槓」</span>が決まりました！点数も上がり、進行も有利になります。<br>もちろん花槓せずに万能牌として使っても大丈夫です。<br>次は<span style='color:#9b59b6;'>「Joker Swap」</span>です！");
+        await waitNext();
+        resumeTutorialStep3();
+    });
+
+    // ------------------------------------------
+    // --- STEP 3: Joker Swap ---
+    // ------------------------------------------
+    function resumeTutorialStep3() {
+        showMsg("<span style='color:#9b59b6; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 3: Joker Swap】</span><br>他家が晒している花槓に使われている牌と<span style='color:#f1c40f;'>同じ牌</span>を持っていれば、<br>四季牌との交換が可能です。");
+        myAllMelds[1] = [{ type: "hanakan", tiles: ["1s", "秋", "1s", "1s"], is_hidden: false }];
+        renderCPU();
+
+        waitNext().then(() => {
+            // 🌟 [暗転ON] 下家の鳴きと、自分の手牌の「1s」
+            setOverlay(true);
+            hlIds(['hand-0', 'meld-1'], true);
+            pointArrow('#hand-0 img[src*="1s"]'); // 👈 ここを変更
+
+            showMsg("下家(右)が「1s」と「秋」を使って花槓していますね。<br>あなたの手牌には「1s」があります。");
+
+            waitNext().then(() => {
+                clearArrows(); // 👈 ここを変更
+                showMsg("「<span style='color:#9b59b6;'>Joker Swap</span>」ボタンを押して、1sを押し付ける代わりに<br>「秋」を強奪しましょう！");
+
+                resetActionBtnPool();
+                setupActionBtn(`Joker Swap ${getImg('1s')}`, 'btn-purple', async () => {
+                    // 🌟 [暗転OFF] ハイライト解除
+                    hlIds(['hand-0', 'meld-1', 'btn-self-0'], false);
+                    setOverlay(false);
+
+                    playSE('jokerswap_0');
+                    playSE('jokerswap_se');
+                    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+                    showCallout(0, "JokerSwap");
+
+                    let idx = myHand.indexOf("1s");
+                    if (idx !== -1) myHand.splice(idx, 1);
+                    myHand.push("秋");
+
+                    myAllMelds[1][0].tiles = ["1s", "1s", "1s", "1s"];
+                    myAllMelds[1][0].type = "minkan";
+
+                    render(); renderCPU();
+
+                    showMsg("見事、「秋」を奪い取りました！<br>これで一気に和了（アガリ）に近づきました。");
+                    await waitNext();
+                    resumeTutorialStep4();
+                });
+
+                hlIds(['btn-self-0'], true); // 生成されたSwapボタンを光らせる
+            });
+        });
+    }
+
+    // ------------------------------------------
+    // --- STEP 4: 和了後の継続プレイ ---
+    // ------------------------------------------
+    function resumeTutorialStep4() {
+        currentWaits = ["1p", "2p", "3p", "4p", "5p", "8p", "東"];
+        isAlreadyTenpai = true;
+
+        if (navPanel) {
+            navPanel.style.top = "40%";
+            navPanel.style.transition = "top 0.3s ease";
+        }
+
+        // 🌟 [暗転ON] 手牌と待ち牌確認ボタンと胡ボタン
+        setOverlay(true);
+        hlIds(['hand-0', 'btn-show-waits', 'btn-self-0'], true);
+
+        const waitsBtn = document.getElementById('btn-show-waits');
+        if (waitsBtn) {
+            waitsBtn.style.display = 'block';
+            waitsBtn.disabled = false;
+            waitsBtn.innerText = "待ち牌確認";
+
+            waitsBtn.onclick = () => {
+                showWaitsPanel();
+                const wp = document.getElementById('waits-panel');
+                if (navPanel && wp) {
+                    if (wp.style.display === 'block') {
+                        navPanel.style.top = "10%";
+                        hlIds(['waits-panel'], true); // パネルもハイライト
+                    } else {
+                        navPanel.style.top = "40%";
+                        hlIds(['waits-panel'], false);
+                    }
+                }
+            };
+        }
+
+        showMsg("<span style='color:#e74c3c; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 4: 和了後の無限継続】</span><br>聴牌(テンパイ)しました！万能牌のおかげで<span style='color:#f1c40f;'>超多面待ち</span>です！<br>左下の<span style='color:#e67e22;'>「待ち牌確認」</span>で待ち牌と残り枚数もチェック出来ちゃいます！<br><span style='color:#e74c3c;'>確認出来たら「胡(フー)」</span>を押してください。");
+
+        lastT = "1p";
+        lastDiscardPlayer = 2;
+        addR(2, lastT);
+
+        resetActionBtnPool();
+        setupActionBtn(`胡 ${getImg('1p')}`, 'btn-red', async () => {
+            // 🌟 [暗転OFF] ハイライト一括解除
+            hlIds(['hand-0', 'btn-show-waits', 'btn-self-0', 'waits-panel'], false);
+            setOverlay(false);
+
+            document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+            hideWaitsPanel();
+            if (navPanel) navPanel.style.top = "40%";
+
+            showCallout(0, "胡");
+            removeLastDiscard();
+            myWinTiles = ["1p"];
+            render();
+
+            showMsg("<span style='color:#e74c3c; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 4: 和了後の無限継続】</span><br>和了おめでとうございます！<br>通常の麻雀ならここで終了ですが…<br><span style='color:#e74c3c;'>四季茶会麻雀は山札が尽きるまで局が継続します！</span>");
+            await waitNext();
+
+            showMsg("<span style='color:#e74c3c; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 4: 和了後の無限継続】</span><br>和了ったら和了った分だけ<span style='color:#f1c40f;'>成立した役の点数がどんどん加算</span>されていきます。<br>最高打点を目指して、いざ本編へ！……とその前に、<br>いくつか<span style='color:#3498db;'>便利なUIや機能</span>をご紹介します。");
+            await waitNext();
+
+            // ------------------------------------------
+            // --- おまけ: 便利機能の紹介 ---
+            // ------------------------------------------
+
+            // 🌟 [暗転ON] オートボタン
+            setOverlay(true);
+            hlIds(['btn-auto-play'], true);
+
+            showMsg("<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右下の<span style='color:#2ecc71;'>「オート(和了後)」</span>をONにすると、<br>和了できる時は自動で和了り、それ以外の時はツモ切りするようになります。");
+            await waitNext();
+
+            // 🌟 [暗転OFF] 盤面全体の話なので明るくする
+            hlIds(['btn-auto-play'], false);
+            setOverlay(false);
+
+            showMsg("<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>PCでは<span style='color:#f1c40f;'>右クリック</span>や盤面の<span style='color:#f1c40f;'>ダブルクリック</span>、<br>スマホでは盤面を<span style='color:#f1c40f;'>ダブルタップ</span>することで、<br>引いてきた牌をそのまま捨てる（ツモ切り）ことや、<br>碰(ポン)・槓(ガン)等の鳴き、和了をスルーすることができます！");
+            await waitNext();
+
+            // 🌟 [暗転ON] 中央パネルと持ち点
+            if (navPanel) navPanel.style.top = "10%";
+            setOverlay(true);
+
+            const targetIDs = ['center-info', 'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3'];
+            hlIds(targetIDs, true);
+
+            showMsg("<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>画面中央には現在の「局」や「山の残り枚数」が表示されています。<br>さらに、各プレイヤーの<span style='color:#3498db;'>「持ち点」部分をクリック</span>すると……");
+            await waitNext();
+
+            // 🌟 実際に点差パネルを表示し、それもハイライト
+            showScoreDiff(0);
+            hlIds(['score-diff-panel'], true);
+
+            showMsg("<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>このように、<span style='color:#f1c40f;'>他プレイヤーとの点差</span>をサッと確認できます！<br>（画面をクリックするか、数秒で自然に消えます）");
+            await waitNext();
+
+            // 🌟 [暗転OFF] 全ハイライト解除と最後のご挨拶
+            hlIds(targetIDs, false);
+            hlIds(['score-diff-panel'], false);
+            setOverlay(false);
+            if (navPanel) navPanel.style.top = "40%";
+
+            showMsg("<span style='color:#f1c40f; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【チュートリアル完了】</span><br>説明は以上です！お疲れ様でした。<br>それでは、<span style='color:#f1c40f;'>『四季茶会麻雀』</span>の世界をお楽しみください！");
+            await waitNext();
+
+            // チュートリアル終了処理
+            isIngameTutorial = false;
+            if (navPanel) navPanel.style.display = "none";
+            returnToHomeGracefully();
+        });
+
+        hlIds(['btn-self-0'], true); // 生成された「胡」ボタンを光らせる
+    }
 }
 
 // 📜 役一覧モーダルを開く関数
@@ -2752,7 +3221,7 @@ function renderSelfMeldsMenu() {
             setupActionBtn(`槓 ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile));
         } else if (g.type === "加槓" || g.type === "JokerSwap") {
             let btnClass = g.type.includes("槓") ? 'btn-blue' : 'btn-purple';
-            let label = g.type === "JokerSwap" ? "Swap" : "槓";
+            let label = g.type === "JokerSwap" ? "Joker Swap" : "槓";
             setupActionBtn(`${label} ${getImg(g.tile)}`, btnClass, () => {
                 if (g.type === "JokerSwap") execJokerSwap(g.tile, g.original.season, g.original.target_idx);
                 else execSelfMeld(g.type, g.tile, '');
