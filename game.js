@@ -3338,11 +3338,23 @@ async function draw() {
 }
 
 // 🗑️ 誰かが鳴いた時に、河（捨て牌置き場）から最新の捨て牌を拾い上げる関数
-function removeLastDiscard() {
-    if (lastDiscardPlayer !== -1) {
-        const r = document.getElementById(`river-${lastDiscardPlayer}`);
-        if (r && r.lastChild) r.removeChild(r.lastChild);
-        lastDiscardPlayer = -1;
+function removeLastDiscard(overrideIdx = null, targetTile = null) {
+    let target = overrideIdx !== null ? overrideIdx : lastDiscardPlayer;
+    let tileName = targetTile !== null ? targetTile : lastT;
+
+    if (target !== -1) {
+        const r = document.getElementById(`river-${target}`);
+        if (r && r.lastChild) {
+            // 🌟 修正：最後に捨てられた牌が、実際に拾うべき牌と一致しているか確認してから安全に消す
+            const src = decodeURIComponent(r.lastChild.src || "");
+            if (!tileName || src.includes(`/${tileName}.png`)) {
+                r.removeChild(r.lastChild);
+            }
+        }
+        // グローバル変数を使用した時だけリセットする
+        if (target === lastDiscardPlayer) {
+            lastDiscardPlayer = -1;
+        }
     }
 }
 
@@ -3683,7 +3695,6 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                     showCallout(data.player, "槍槓");
                     await sleep(1500);
 
-                    // 奪われるCPUの副露から1枚減らす
                     let targetMelds = myAllMelds[discarderIdx];
                     if (targetMelds && targetMelds.length > 0) {
                         let m = targetMelds.find(m => m.tiles.length === 4 && m.tiles.includes(tile));
@@ -3693,7 +3704,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                         }
                     }
                 } else {
-                    removeLastDiscard();
+                    removeLastDiscard(discarderIdx, tile); // 🌟 ターゲットを直接指定
                 }
 
                 render(); renderCPU();
@@ -3709,7 +3720,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                     }
                 }
 
-                if (!isKakan) removeLastDiscard();
+                if (!isKakan) removeLastDiscard(discarderIdx, tile); // 🌟 ターゲットを直接指定
                 render(); renderCPU();
 
                 checkT();
@@ -3719,13 +3730,12 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 let callText = isKan ? "槓" : "碰";
 
                 showCallout(data.player, callText);
-                removeLastDiscard();
+                removeLastDiscard(discarderIdx, tile); // 🌟 ターゲットを直接指定
 
-                // 🌟 追加：カンの場合は、嶺上牌を引くアニメーションと音を再現！
                 if (isKan) {
                     wallCount = Math.max(0, wallCount - 1);
                     updateWall(wallCount);
-                    render(); renderCPU(); // 先にカンした後の手牌にする
+                    render(); renderCPU();
 
                     playSE('tsumo');
                     const c = document.getElementById(`hand-${data.player}`);
@@ -3745,7 +3755,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
                 lastT = data.discard;
                 lastDiscardPlayer = data.player;
                 addR(data.player, lastT);
-                render(); renderCPU(); // ここでダミーの嶺上牌が消える
+                render(); renderCPU();
 
                 await checkHumanReaction(data.player, lastT);
                 return;
@@ -3803,9 +3813,12 @@ async function execRon(isChankan = false) {
     isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
-    const data = await apiCall('/win_ron', { player_idx: 0, tile: lastT, is_chankan: isChankan, discarder: lastDiscardPlayer });
+    // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
+    let targetDiscarder = lastDiscardPlayer;
+    let targetTile = lastT;
 
-    // 🌟 追加：もし自分より優先順位の高いCPUのロンが成立して割り込まれた場合
+    const data = await apiCall('/win_ron', { player_idx: 0, tile: targetTile, is_chankan: isChankan, discarder: targetDiscarder });
+
     if (data.intercepted && data.type === "ron") {
         showCallout(data.player, "胡");
         await sleep(1500);
@@ -3813,42 +3826,37 @@ async function execRon(isChankan = false) {
         for (let y of (data.yaku || [])) {
             if (y === "花天月地") { showCallout(data.player, y); await sleep(1500); }
         }
-        removeLastDiscard();
+        removeLastDiscard(targetDiscarder, targetTile); // 🌟 退避したターゲットを消去
         render(); renderCPU();
         isProc = false; checkT();
         return;
     }
 
-    // 1. まず「胡」を出す
     showCallout(0, "胡");
     await sleep(1500);
 
-    // 🌟 2. 槍槓（チャンカン）の場合、牌を動かす前に演出を入れる！
     if (isChankan) {
         showCallout(0, "槍槓");
-        await sleep(1500); // 「槍槓」の文字をじっくり見せる
+        await sleep(1500);
 
-        // 演出が終わったので、相手の副露を減らす（奪う準備）
-        let cpuMelds = myAllMelds[lastDiscardPlayer];
+        let cpuMelds = myAllMelds[targetDiscarder];
         if (cpuMelds && cpuMelds.length > 0) {
-            let targetMeld = cpuMelds.find(m => m.tiles.length === 4 && m.tiles.includes(lastT));
+            let targetMeld = cpuMelds.find(m => m.tiles.length === 4 && m.tiles.includes(targetTile));
             if (targetMeld) {
                 targetMeld.tiles.pop();
                 targetMeld.type = "pong";
             }
         }
     } else {
-        removeLastDiscard();
+        removeLastDiscard(targetDiscarder, targetTile); // 🌟 退避したターゲットを消去
     }
 
-    // 🌟 3. ここで描画！これで「槍槓」の文字が出たあとに牌が動く
     render(); renderCPU();
 
     if (data.yaku) {
         if (data.yaku.includes("地胡")) { showCallout(0, "地胡"); await sleep(4000); }
 
         for (let y of data.yaku) {
-            // 🌟🌟🌟 ここを修正！ 「槍槓」は既に上で出しているので除外し、「花天月地」だけを残す！
             if (y === "花天月地") {
                 showCallout(0, y);
                 await sleep(1500);
@@ -3865,9 +3873,12 @@ async function execMeld(type) {
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
-    const data = await apiCall('/meld', { player_idx: 0, type: type, tile: lastT, discarder: lastDiscardPlayer });
+    // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
+    let targetDiscarder = lastDiscardPlayer;
+    let targetTile = lastT;
 
-    // 🌟 追加：もしCPUのロンが優先された場合、そちらの演出を流して鳴きをキャンセル
+    const data = await apiCall('/meld', { player_idx: 0, type: type, tile: targetTile, discarder: targetDiscarder });
+
     if (data.intercepted && data.type === "ron") {
         showCallout(data.player, "胡");
         await sleep(1500);
@@ -3875,13 +3886,13 @@ async function execMeld(type) {
         for (let y of (data.yaku || [])) {
             if (y === "花天月地") { showCallout(data.player, y); await sleep(1500); }
         }
-        removeLastDiscard();
+        removeLastDiscard(targetDiscarder, targetTile); // 🌟 退避したターゲットを消去
         render(); renderCPU();
         isProc = false; checkT();
         return;
     }
 
-    removeLastDiscard();
+    removeLastDiscard(targetDiscarder, targetTile); // 🌟 退避したターゲットを消去
     render(); renderCPU();
 
     let callText = (type.includes("槓") || type.includes("カン")) ? "槓" : "碰";
@@ -3890,7 +3901,6 @@ async function execMeld(type) {
 
     if (type === 'カン' || type === '花槓') {
         if (type === '花槓') {
-            // 🏆 ここを変更！【花槓マスター】（明槓）
             let oldHanakan = playerStats.hanakanCount;
             playerStats.hanakanCount++;
             checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
