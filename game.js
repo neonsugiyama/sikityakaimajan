@@ -38,41 +38,101 @@ function skipResultWait() {
 
 // 📸 リザルト画面を高画質でスクリーンショット撮影・保存する関数
 async function takeResultScreenshot() {
-    const overlay = document.getElementById('overlay');
+    const resultWrapper = document.getElementById('result-wrapper');
     const btn = document.querySelector('#result-controls .btn-blue');
+
+    if (!resultWrapper) return;
+
     const originalText = btn.innerText;
     btn.innerText = "📸 撮影中...";
     btn.disabled = true;
 
-    // スクロールで隠れている下部も綺麗に撮るための一時的なCSS変更
-    const origOverflow = overlay.style.overflowY;
-    const origHeight = overlay.style.height;
-    const origPos = overlay.style.position;
-
-    overlay.style.overflowY = "visible";
-    overlay.style.height = "auto";
-    overlay.style.position = "absolute";
-
     try {
-        const canvas = await html2canvas(overlay, {
-            backgroundColor: "#0a0a0a",
-            scale: 2, // 高画質化
-            useCORS: true // 画像のセキュリティ制限を突破して描画を許可する
+        // 1. オリジナルの完全な複製（クローン）を作成
+        const clone = resultWrapper.cloneNode(true);
+
+        // 2. クローンをbody直下に配置し、親要素(game-container等)のoverflow:hiddenの呪縛を完全に断ち切る
+        document.body.appendChild(clone);
+
+        // 3. クローンに対する絶対的なスタイル設定
+        // 幅は元のサイズを維持し、高さは中身に合わせて無限に伸びるようにする
+        // z-indexをマイナスにして裏側に隠すことで、撮影中もプレイヤーの画面をチラつかせない
+        const origWidth = resultWrapper.offsetWidth || 1000;
+        clone.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: ${origWidth}px;
+            height: auto;
+            transform: none;
+            overflow: visible;
+            background-color: #0a0a0a; /* 背景を黒で塗りつぶす */
+            padding: 40px; /* 見切れないように余白を設ける */
+            box-sizing: border-box;
+            z-index: -99999;
+        `;
+
+        // 4. スクショに不要な「次へ」「撮影」ボタン自体を、クローンから物理的に削除する
+        const cloneControls = clone.querySelector('#result-controls');
+        if (cloneControls) cloneControls.remove();
+
+        // 5. アニメーション無効化 ＆ 静的エフェクトの確実な塗装
+        // html2canvasは <span>(inline) のbox-shadowを正しく描画できない仕様があるため、inline-blockに強制変更
+        const yakuTags = clone.querySelectorAll('.yaku-tag');
+        yakuTags.forEach(tag => {
+            tag.style.animation = "none";
+            tag.style.display = "inline-block";
+
+            if (tag.classList.contains('yaku-tier-64')) {
+                tag.style.boxShadow = "0 0 15px #f1c40f, inset 0 0 10px #f1c40f";
+                tag.style.border = "2px solid #f1c40f";
+            } else if (tag.classList.contains('yaku-tier-32')) {
+                tag.style.boxShadow = "0 0 15px #e67e22, inset 0 0 10px #e67e22";
+                tag.style.border = "2px solid #e67e22";
+            } else if (tag.classList.contains('yaku-tier-16')) {
+                tag.style.boxShadow = "0 0 15px #e74c3c, inset 0 0 10px #e74c3c";
+                tag.style.border = "2px solid #e74c3c";
+            } else if (tag.classList.contains('yaku-tier-multi')) {
+                tag.style.boxShadow = "0 0 15px #00d2d3, inset 0 0 10px #00d2d3";
+                tag.style.border = "2px solid #00d2d3";
+            }
         });
 
+        // 6. DOMの描画更新（CSSの適用）を確実に待機
+        await new Promise(r => setTimeout(r, 200));
+
+        // 7. クローンをターゲットに撮影を実行
+        const canvas = await html2canvas(clone, {
+            backgroundColor: "#0a0a0a",
+            scale: 2, // 高画質化
+            useCORS: true,
+            logging: false,
+            // 高さをクローンの実際のscrollHeightに強制指定し、途切れを許さない
+            width: clone.scrollWidth,
+            height: clone.scrollHeight,
+            windowWidth: clone.scrollWidth,
+            windowHeight: clone.scrollHeight
+        });
+
+        // 8. 撮影完了後、即座にクローンをDOMから消去
+        clone.remove();
+
+        // 9. Blob化して安全にダウンロード
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error("画像データの生成に失敗しました");
+
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = `mahjong_result_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.href = url;
         link.click();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
     } catch (e) {
         console.error("Screenshot Error:", e);
-        alert("スクリーンショットの保存に失敗しました。");
+        alert("スクリーンショットの保存に失敗しました。\n" + e.message);
     } finally {
-        // CSSを元に戻す
-        overlay.style.overflowY = origOverflow;
-        overlay.style.height = origHeight;
-        overlay.style.position = origPos;
-
         btn.innerText = originalText;
         btn.disabled = false;
     }
@@ -147,6 +207,18 @@ function returnToHomeGracefully() {
     stopTimer();
     isProc = false;
     charlestonPhase = false;
+
+    // 🌟 修正：チャールストン関連の変数を完全に初期化する！
+    charlestonPhase = false;
+    charlestonCount = 1;
+    exchangeSelection = [];
+    askedCount = 0;
+    secondCharlestonParticipating = [false, false, false, false];
+    charlestonAskResults = [];
+    humanSecondCharlestonTiles = [];
+    hideCpuTiles = [0, 0, 0, 0];
+    charlestonDoneServer = false;
+    secondCharlestonDoneServer = false;
 
     // 🌟 追加：サーバーに「この卓はお掃除して！」と伝え、ブラウザの記憶も消す
     if (currentSessionRoomId) {
@@ -614,6 +686,20 @@ let isIngameTutorial = false;
 // 📖 遊び方モーダルを開く関数
 function openHowTo() {
     closeAllModals();
+    // 🌟 修正：対局中（CPU戦など）はチュートリアル開始ボタンを隠す
+    const btnTutorial = document.getElementById('btn-start-tutorial');
+    const titleScreen = document.getElementById('title-screen');
+    const modeScreen = document.getElementById('mode-select-screen');
+
+    if (btnTutorial) {
+        // タイトル画面もモード選択画面も隠れている＝現在対局中
+        if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none') {
+            btnTutorial.style.display = 'none';
+        } else {
+            btnTutorial.style.display = 'block';
+        }
+    }
+
     document.getElementById('howto-modal').style.display = 'flex';
     playSE('click');
 }
@@ -641,14 +727,58 @@ async function startTutorial() {
         document.head.appendChild(style);
     }
 
+    // 🚨 修正：退出時にチュートリアルパネルや暗転設定が残らないよう、完全にお掃除する
     if (!window.tutExitHooked) {
+        // 🚨 追加：本編の正常な「交換関数」をバックアップしておく
+        window.originalExecExchange = window.execExchange;
+
         const originalReturn = window.returnToHomeGracefully;
         window.returnToHomeGracefully = () => {
             if (originalReturn) originalReturn();
+
+            // 1. パネルと暗転膜を隠す
             const navPanel = document.getElementById('ingame-tutorial-nav');
             if (navPanel) navPanel.style.display = 'none';
             const overlay = document.getElementById('tut-dark-overlay');
             if (overlay) overlay.style.display = 'none';
+
+            // 2. 指差し矢印を全削除
+            document.querySelectorAll('.tut-dynamic-arrow').forEach(e => {
+                clearInterval(e.dataset.animInterval);
+                e.remove();
+            });
+
+            // 3. ハイライト用のインラインスタイル（Z-indexや光など）を完全消去
+            document.querySelectorAll('.tut-highlight').forEach(el => {
+                el.classList.remove('tut-highlight');
+                el.style.removeProperty('z-index');
+                el.style.removeProperty('box-shadow');
+                el.style.removeProperty('border-radius');
+                if (el.dataset.tutPosModified) {
+                    el.style.removeProperty('position');
+                    delete el.dataset.tutPosModified;
+                }
+            });
+
+            // 4. brightness(0.2) で物理的に暗くされていたUIの明るさを元に戻す
+            const backgroundUI = [
+                'center-info', 'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
+                'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
+                'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
+            ];
+            backgroundUI.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.filter = 'none';
+                    el.style.transition = 'none';
+                }
+            });
+
+            // 🚨 追加：チュートリアル用に書き換えた「交換関数」を本編の正常な処理に戻す！
+            if (window.originalExecExchange) {
+                window.execExchange = window.originalExecExchange;
+            }
+
             isIngameTutorial = false;
         };
         window.tutExitHooked = true;

@@ -3596,3 +3596,22 @@ body.lang-en .en {
         transform: translateX(-50%) scale(calc(var(--game-scale) * 0.8)) !important;
     }
 }
+
+/* 🌟 チュートリアル用ナビゲーションパネルのレスポンシブ設定 */
+@media (max-width: 900px) {
+    #ingame-tutorial-nav {
+        width: 90% !important;
+        padding: 15px !important;
+        top: 50% !important; /* スマホでは中央寄りに */
+    }
+
+    #ingame-tutorial-text {
+        font-size: 18px !important;
+        margin-bottom: 15px !important;
+    }
+
+    #ingame-tutorial-nav .btn-act {
+        padding: 8px 20px !important;
+        font-size: 16px !important;
+    }
+}
