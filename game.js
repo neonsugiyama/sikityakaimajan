@@ -389,7 +389,15 @@ let playerStats = {
     comebackCount: 0,       // 逆転の劇薬（オーラス4位から1位）
     masterOfSeasonsCount: 0,// 四季常春（春夏秋冬を揃えて和了）
     pacifistCount: 0,       // 漁夫の利（和了0回で局内1位）
-    wideWaitCount: 0        // 無限の選択肢（27面待ち達成）
+    wideWaitCount: 0,       // 無限の選択肢（27面待ち達成）
+    sacrilegeCount: 0,        // 罰当たり（1局で四季牌2枚切り）
+    suankoTrollCount: 0,      // 四暗刻！（面前碰碰胡）
+    chantaTrollCount: 0,      // チャンタってある？（無番和チャンタ形）
+    evilRationalismCount: 0,  // 悪の合理主義（1ゲーム4局全て全単和了）
+    kyukaSanfukuCount: 0,     // 九夏三伏（数牌合計30以下 or 90以上）
+    senshuBandaiCount: 0,     // 千秋万代（1局で最初と最後のアガリ）
+    tougetsuSekisokuCount: 0, // 冬月赤足（1,9萬と1,6,7筒）
+    tousenKaroCount: 0,       // 冬扇夏炉（無花で春自摸）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -1679,6 +1687,7 @@ let myHand = [], myMelds = [], myWinTiles = [], turn = 0, isProc = false, lastT 
 let drawnTile = "", autoResumeTimer = null, lastDiscardPlayer = -1;
 let wallCount = 0;
 let currentRound = 1, dealer = 0, scores = [0, 0, 0, 0], totalScores = [0, 0, 0, 0];
+let currentRoundSeasonDiscardCount = 0;
 let charlestonCount = 1, charlestonPhase = false, exchangeSelection = [];
 let secondCharlestonParticipating = [false, false, false, false];
 let charlestonAskResults = [];
@@ -3625,6 +3634,16 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
     if (isProc) return;
     isProc = true;
 
+    // 🌟 追加：「罰当たり」実績の判定
+    if (["春", "夏", "秋", "冬"].includes(t)) {
+        currentRoundSeasonDiscardCount++;
+        if (currentRoundSeasonDiscardCount === 2 && playerStats.sacrilegeCount === 0) {
+            playerStats.sacrilegeCount = 1;
+            showAchievementUnlock("罰当たり", "🚮");
+            saveGameData();
+        }
+    }
+
     resetActionBtnPool(); // 🌟 修正
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
@@ -4317,6 +4336,69 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             // 🌟 修正：初回実行時のみ実績と戦績を加算する
             if (!isReplayingResult) {
+                // 🌟 追加：千秋万代（最初と最後のアガリ）の判定用記録
+                if (calcData.results.length > 0) {
+                    if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
+                    if (calcData.results[calcData.results.length - 1].player === 0) playerStats._tempLastWin = true;
+                }
+
+                // 🌟 追加：特殊な和了系の実績判定
+                let hasMenzen = myMelds.filter(m => m.type !== "ankan").length === 0; // 暗槓以外の鳴きがない（面前）
+                let combinedYaku = res.details.flatMap(d => d.yaku);
+                let allMyTiles = [...myHand]; // ★ ここで1回だけ宣言する
+                myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
+
+                // 「四暗刻！」（面前で碰碰胡）
+                if (hasMenzen && combinedYaku.includes("碰碰胡") && playerStats.suankoTrollCount === 0) {
+                    playerStats.suankoTrollCount = 1;
+                    showAchievementUnlock("四暗刻！", "😎");
+                }
+
+                // 「チャンタってある？」（無番和かつ1,9,字牌を含む面子のみ）
+                if (combinedYaku.includes("無番和") && playerStats.chantaTrollCount === 0) {
+                    let yaochuCount = allMyTiles.filter(t => t.includes("1") || t.includes("9") || ["東", "南", "西", "北", "白", "發", "中"].includes(t)).length;
+                    if (yaochuCount >= 10) {
+                        playerStats.chantaTrollCount = 1;
+                        showAchievementUnlock("チャンタってある？", "🤪");
+                    }
+                }
+
+                // 「悪の合理主義」（全単和了の記録）
+                if (combinedYaku.includes("全単")) {
+                    playerStats._tempZentanRounds = (playerStats._tempZentanRounds || 0) + 1;
+                }
+
+                // 「九夏三伏」（数牌の合計が30以下 or 90以上）
+                if (playerStats.kyukaSanfukuCount === 0) {
+                    let sum = 0;
+                    allMyTiles.forEach(t => {
+                        if (t.includes("m") || t.includes("p") || t.includes("s")) sum += parseInt(t[0]);
+                    });
+                    if (sum <= 30 || sum >= 90) {
+                        playerStats.kyukaSanfukuCount = 1;
+                        showAchievementUnlock("九夏三伏", "☀️");
+                    }
+                }
+
+                // 「冬月赤足」（1,9萬と1,6,7筒）
+                if (playerStats.tougetsuSekisokuCount === 0) {
+                    if (allMyTiles.includes("1m") && allMyTiles.includes("9m") &&
+                        allMyTiles.includes("1p") && allMyTiles.includes("6p") && allMyTiles.includes("7p")) {
+                        playerStats.tougetsuSekisokuCount = 1;
+                        showAchievementUnlock("冬月赤足", "👣");
+                    }
+                }
+
+                // 「冬扇夏炉」（無花で春自摸）
+                if (playerStats.tousenKaroCount === 0) {
+                    let hasFlower = allMyTiles.some(t => ["春", "夏", "秋", "冬"].includes(t));
+                    // 和了の形に花がない（引いた春以外に花がない）、かつツモった牌が春だった場合
+                    if (!hasFlower && res.details.some(d => d.tile === "春" && d.yaku.includes("自摸"))) {
+                        playerStats.tousenKaroCount = 1;
+                        showAchievementUnlock("冬扇夏炉", "⛄");
+                    }
+                }
+
                 playerStats.totalWins++;
                 let oldTotalScore = playerStats.totalScoreSum || 0;
                 playerStats.totalScoreSum = oldTotalScore + res.total_score;
@@ -4341,8 +4423,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                     }
                 }
 
-                let allMyTiles = [...myHand];
-                myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
+                // 🌟 ここ！ 2回目の `let allMyTiles = ...` の部分を削除し、「四季常春」の判定だけ残す
                 if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
                     if (playerStats.masterOfSeasonsCount === 0) {
                         playerStats.masterOfSeasonsCount = 1;
@@ -4631,6 +4712,28 @@ async function handleRoundEnd(isReplayingResult = false) {
         let myRank = sortedIndices.indexOf(0) + 1;
 
         if (!isReplayingResult) {
+            // 🌟 追加：1ゲーム通しての特殊実績判定
+
+            // 「悪の合理主義」（4局すべてで全単和了）
+            if (playerStats._tempZentanRounds >= 4 && playerStats.evilRationalismCount === 0) {
+                playerStats.evilRationalismCount = 1;
+                showAchievementUnlock("悪の合理主義", "😈");
+            }
+            playerStats._tempZentanRounds = 0; // リセット
+
+            // 「千秋万代」（1局の中で最初と最後のアガリを自分が取ったか）
+            // ※厳密には「毎局」判定する必要がありますが、ここで「最後の局(オーラス)での結果」として判定します。
+            // もし「1〜4局のどこか1局でも達成すればOK」にする場合は、上の 修正2 の中に混ぜることも可能です。今回は一番劇的なオーラスでの達成とします。
+            if (playerStats._tempFirstWin && playerStats._tempLastWin && playerStats.senshuBandaiCount === 0) {
+                // 自分以外にアガった人がいる（2回以上アガリが発生している）ことが前提
+                if (calcData.results.length >= 2) {
+                    playerStats.senshuBandaiCount = 1;
+                    showAchievementUnlock("千秋万代", "⏳");
+                }
+            }
+            playerStats._tempFirstWin = false;
+            playerStats._tempLastWin = false;
+
             playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
             if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
 
@@ -4709,6 +4812,8 @@ async function handleRoundEnd(isReplayingResult = false) {
         returnToHomeGracefully();
         return;
     }
+
+    currentRoundSeasonDiscardCount = 0;
 
     await apiCall('/next_round');
 
@@ -4978,6 +5083,35 @@ function renderAchievements() {
         { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "自分が和了していないのに局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "comeback", icon: "💊", title: "逆転の劇薬", desc: "4局開始時4位から1位で終了する", val: playerStats.comebackCount, tiers: [1, 1, 1, 1], unit: "回" },
+
+        // 🀄 手役系（yakuCollected から回数を取得）
+        { id: "fastest_strongest", icon: "⚡", title: "最速最強", desc: "天胡を和了する", val: playerStats.yakuCollected["天胡"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "earthly_surprise", icon: "😲", title: "あっ！(胡！)", desc: "地胡を和了する", val: playerStats.yakuCollected["地胡"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "meteor_shower", icon: "🌠", title: "流星群", desc: "七星攬月を和了する", val: playerStats.yakuCollected["七星攬月"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "mature_wisdom", icon: "👴", title: "老成円熟", desc: "清幺九を和了する", val: playerStats.yakuCollected["清幺九"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "ryanpeiko", icon: "👯", title: "二盃口！", desc: "連七対を和了する", val: playerStats.yakuCollected["連七対"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "namu_amida_butsu", icon: "🙏", title: "南無阿弥陀仏", desc: "九連宝燈を和了する", val: playerStats.yakuCollected["九連宝燈"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "buddha_face", icon: "💢", title: "仏の顔も三度まで", desc: "十八羅漢を和了する", val: playerStats.yakuCollected["十八羅漢"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "wind_god", icon: "🌪️", title: "風神降臨", desc: "大四風会を和了する", val: playerStats.yakuCollected["大四風会"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "golden_gate", icon: "🌉", title: "金門橋", desc: "一色四節高を和了する", val: playerStats.yakuCollected["一色四節高"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "tiger_glare", icon: "🐅", title: "虎視眈々", desc: "一色四歩高を和了する", val: playerStats.yakuCollected["一色四歩高"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "peacock_joy", icon: "🦚", title: "孔雀報喜", desc: "紅孔雀を和了する", val: playerStats.yakuCollected["紅孔雀"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "is_this_agari", icon: "🤔", title: "これ和了なの？", desc: "七星不靠を和了する", val: playerStats.yakuCollected["七星不靠"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "black_monochrome", icon: "⬛", title: "黒一色", desc: "陰陽両儀を和了する", val: playerStats.yakuCollected["陰陽両儀"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "trinity", icon: "🐉", title: "三位一体", desc: "大三元を和了する", val: playerStats.yakuCollected["大三元"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "dizzy", icon: "🌀", title: "目が回る", desc: "推不倒を累計8回和了する", val: playerStats.yakuCollected["推不倒"] || 0, tiers: [8, 8, 8, 8], unit: "回" },
+        { id: "now_is_the_time", icon: "🎯", title: "今だ！(仮)", desc: "槍槓を和了する", val: playerStats.yakuCollected["槍槓"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "falling_flowers", icon: "🥀", title: "花落知多少", desc: "花天月地を和了する", val: playerStats.yakuCollected["花天月地"] || 0, tiers: [1, 1, 1, 1], unit: "回" },
+
+        // 🃏 特殊行動・からかい・旧四季役系（🌟 隠し実績テスト）
+        { id: "sacrilege", icon: "🚮", title: "罰当たり", desc: "1局で四季牌を2枚切る", val: playerStats.sacrilegeCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "suanko_troll", icon: "😎", title: "四暗刻！", desc: "碰碰胡を面前で和了する", val: playerStats.suankoTrollCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "chanta_troll", icon: "🤪", title: "チャンタってある？", desc: "無番和かつチャンタの形で和了する", val: playerStats.chantaTrollCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "evil_rationalism", icon: "😈", title: "悪の合理主義", desc: "4局全て全単で和了する", val: playerStats.evilRationalismCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "kyuka_sanfuku", icon: "☀️", title: "九夏三伏", desc: "手牌の数牌の数の合計が30以下もしくは90以上", val: playerStats.kyukaSanfukuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "senshu_bandai", icon: "⏳", title: "千秋万代", desc: "1局の中で最初の和了と最後の和了をする", val: playerStats.senshuBandaiCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "tougetsu_sekisoku", icon: "👣", title: "冬月赤足", desc: "1,9萬と1,6,7筒を手牌に含めて和了", val: playerStats.tougetsuSekisokuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
     ];
 
     let gridHtml = ``;
@@ -4997,19 +5131,31 @@ function renderAchievements() {
         let isOneShot = (a.tiers[0] === 1 && a.tiers[3] === 1);
         let progressPercent = (rank >= 4 || (isOneShot && rank >= 1)) ? 100 : Math.min(100, (a.val / nextTarget) * 100);
 
+        // 🌟 ここを追加！：隠し実績の未達成時はテキストを黒塗りにする
+        let displayTitle = a.title;
+        let displayDesc = a.desc;
+        let displayIcon = a.icon;
+
+        if (a.secret && rank === 0) {
+            displayTitle = "？？？";
+            displayDesc = "秘密の条件を達成して実績を解除しよう";
+            displayIcon = "🔒";
+            medalClass += " secret-achievement"; // 必要なら専用の暗いCSSクラスを当てる
+        }
+
         gridHtml += `
             <div class="achieve-card ${medalClass}">
-                <div class="achieve-icon">${a.icon}</div>
-                <div class="achieve-title">${a.title}</div>
-                <div class="achieve-desc">${a.desc}</div>
+                <div class="achieve-icon">${displayIcon}</div>
+                <div class="achieve-title">${displayTitle}</div>
+                <div class="achieve-desc">${displayDesc}</div>
                 
                 <div class="achieve-progress-bg">
                     <div class="achieve-progress-bar" style="width: ${progressPercent}%; background: ${statusColor};"></div>
                 </div>
                 
                 <div style="width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 5px;">
-                    <span>現在: ${a.val} ${a.unit === "R" ? "" : a.unit}</span>
-                    <span>${(rank >= 4 || (isOneShot && rank >= 1)) ? "MAX" : "次: " + nextTarget + (a.unit === "R" ? "" : " " + a.unit)}</span>
+                    <span>現在: ${a.secret && rank === 0 ? "?" : a.val} ${a.unit === "R" ? "" : a.unit}</span>
+                    <span>${(rank >= 4 || (isOneShot && rank >= 1)) ? "MAX" : "次: " + (a.secret && rank === 0 ? "?" : nextTarget) + (a.unit === "R" ? "" : " " + a.unit)}</span>
                 </div>
                 
                 <div class="achieve-status" style="color: ${statusColor};">${statusText}</div>
