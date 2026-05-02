@@ -1391,19 +1391,11 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 1
         game.turn = 1
         game.is_first_turn = [True, True, True, True]
-        
-        # 🌟 あなたのアイデアを採用！完成メンツ×3 ＋ 四季牌4枚の「純正34面待ち」
         game.hands[0] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
-        
-        # CPUの手牌（絶対にポン・カンできないバラバラの構成）
         base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
-        
-        # もう何を捨てられても100%アガれるので、適当に字牌を持たせておく
         game.hands[1] = base_hand + ["東"]
         game.hands[2] = base_hand + ["南"]
         game.hands[3] = base_hand + ["西"]
-        
-        # ツモ山
         game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
 
     elif scenario == "jokerswap":
@@ -1413,8 +1405,8 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.discards_count = 1
         game.melds[0] = [{"type": "hanakan", "tiles": ["東", "春", "東", "東"]}]
         game.hands[0] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s"]
-        game.hands[1] = ["東","南","南","西","西","白","白","發","發","中","中","1m","2m"]
-        game.wall.append("3m")
+        game.hands[1] = ["東","南","南","西","西","白","白","發","發","中","中","1p","2p"]
+        game.wall.append("3p")
         
     elif scenario == "chankan":
         game.dealer = 0
@@ -1458,9 +1450,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.wall.append("8s") 
 
     elif scenario == 'max_buttons':
-        game.hands[0] = ["1m", "1m", "1m", "2m", "2m", "2m", "3m", "3m", "3m", "春", "夏", "秋", "冬"]
-        drawn_tile = "1m" 
-        turn_player_idx = 0
+        game.hands[0] = ["1p", "1p", "1p", "2p", "2p", "2p", "3p", "3p", "3p", "春", "夏", "秋", "冬"]
 
     elif scenario == "kokushi_13":
         game.dealer = 0
@@ -1528,7 +1518,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.turn = 0
         game.is_first_turn = [False]*4
         game.hands[0] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s","2s","3s","中"] 
-        game.hands[1] = ["中","中","1m","2m","3m","4m","5m","6m","7m","8m","9m","1p","2p"] 
+        game.hands[1] = ["中","中","1p","2p","3p","4p","5p","6p","7p","8p","9p","1s","2s"] 
         game.hands[2] = ["中","1s","9s","1p","9p","1m","9m","東","南","西","北","白","發"] 
         game.wall.append("1m") 
 
@@ -1616,9 +1606,8 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.turn = 1
         game.is_first_turn = [False]*4
         game.melds[1] = [{"type": "pong", "tiles": ["5p", "5p", "5p"]}]
-        game.hands[1] = ["1m","2m","3m","4m","5m","6m","7m","8m","9m","1s"]
+        game.hands[1] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s"]
         game.wall = ["1p", "5p"] 
-        
         game.hands[0] = ["1s","1s","1s","2s","2s","2s","3s","3s","3s","9p","9p","4p","6p"]
 
     elif scenario == "ankan_tenhou":
@@ -1632,13 +1621,10 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 1
         game.turn = 1 
         game.is_first_turn = [True] * 4
-        
         game.hands[0] = ["1p","1p","1p","2p","2p","2p","4p","4p","4p","5p","5p","5p","春"]
-        
         game.hands[1] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
         game.hands[2] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
         game.hands[3] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
-        
         game.wall.append("北")
 
     elif scenario == "cpu_tenhou":
@@ -1653,46 +1639,24 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 3
         game.turn = 3
         game.is_first_turn = [True, True, True, True]
-        
-        # 🌟 CPU(2)も「純正34面待ち」に変更
         game.hands[2] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
-        
         base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
-        
-        # 親(CPU3) -> あなた(0) -> CPU1 の順にターンが回る
         game.hands[3] = base_hand + ["東"]
-        game.hands[0] = base_hand + ["南"] # ★あなたの番が来たら適当に何か捨ててください！絶対ロンされます
+        game.hands[0] = base_hand + ["南"]
         game.hands[1] = base_hand + ["西"]
-        
         game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
 
     elif scenario == "block_chiihou_by_meld":
-        # 【副露による地胡無効化テスト】
-        # 親(CPU3)が打牌 -> CPU1がポン(明槓) -> CPU1が打牌 -> あなた(0)がロン
-        # この流れで「誰かが鳴いたから地胡が消滅する」ことを確認するテスト
-        
         game.dealer = 3
         game.turn = 3
         game.is_first_turn = [True, True, True, True]
-        
-        # 🌟 あなた(0)の手牌：「南」の単騎待ち
-        # ※「東」で誤爆ロンしないように、南だけを待つ形にする
         game.hands[0] = ["1p","2p","3p","4p","5p","6p","1s","2s","3s","7s","8s","9s","南"]
-        
-        # 🌟 CPU1の手牌：「東」を3枚持たせて確実に鳴かせる。そして「南」を捨てさせる。
-        # ※字牌嫌いな性格にしておくことで、鳴いた直後に不要な南を吐き出させる
         game.cpu_personalities[1] = 3
-        game.hands[1] = ["東","東","東","南","1m","1m","1m","9m","9m","9m","中","中","中"]
-        
-        # CPU2は無関係なので適当（絶対に鳴けない手牌）
+        game.hands[1] = ["東","東","東","南","1p","1p","1p","9p","9p","9p","中","中","中"]
         game.hands[2] = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","發","白"]
-        
-        # 🌟 親(CPU3)の手牌：第一打牌で確実に「東」を捨てさせる
         game.cpu_personalities[3] = 3
         game.hands[3] = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","白","東"]
-        
-        # ツモ山 (CPU1がカンした直後に引く牌)
-        game.wall = ["4m", "4m", "4m"]
+        game.wall = ["4p", "4p", "4p"]
 
     elif scenario == "test_zentan_flower":
         game.dealer = 0
@@ -1706,18 +1670,14 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 0
         game.turn = 1 
         game.is_first_turn = [False, False, False, False]
-        
         game.cpu_personalities[1] = 1 
-        
         game.hands[1] = ["1m","2p","5p","8p","3s","6s","9s","東","南","西","北","白","春"]
-        
         game.wall.append("中")
 
     elif scenario == "test_kokushi_pass":
         game.dealer = 0
         game.turn = 1 
         game.hands[1] = ["1m","1m","9m","1p","9p","1s","9s","東","南","西","北","白","春"]
-        game.wall = ["1m"] * 30 
         game.wall = ["1m","1m","9m","1p","9p","1s","9s","1m","1m","9m","1p","9p","1s","9s","1m","1m","9m","1p","9p","1s","9s","1m","1m","9m","1p","9p","1s","9s","發", "白", "東", "白", "1p"] 
 
     elif scenario == "test_kokushi_win":
@@ -1731,12 +1691,9 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.dealer = 1
         game.turn = 1 
         game.is_first_turn = [False, False, False, False]
-        
         game.hands[0] = ["1s","1s","2s","2s","3s","3s","4s","4s","6s","6s","8s","8s","春"]
-        
         game.melds[1] = [{"type": "pong", "tiles": ["5p", "5p", "5p"]}]
-        game.hands[1] = ["1m","2m","3m","4m","5m","6m","7m","8m","9m","1p"]
-        
+        game.hands[1] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s"]
         game.wall = ["1p", "5p"]
 
     elif scenario == "test_kankou_dokuchou":
@@ -1773,7 +1730,6 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.wall = ["發"]
 
     elif scenario == "test_headbump":
-        # 頭ハネテスト：自分がポンできる牌をCPU3が捨てるが、CPU1のロンが優先される
         game.dealer = 0
         game.turn = 2 
         game.is_first_turn = [False]*4
@@ -1784,35 +1740,26 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.wall = ["1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p", "1p"]
 
     elif scenario == "test_cpu_keep_joker":
-        # CPU四季牌キープテスト：和了済みのCPU1が四季牌を引いた時、手持ちの「東」と入れ替えて捨てるか
         game.dealer = 1
         game.turn = 0
         game.is_first_turn = [False]*4
         game.win_tiles[1] = ["1p"] 
         game.hands[1] = ["1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","4p","東"] 
-        game.hands[0] = ["南","西","北","白","發","中","1m","9m","1s","9s","1p","9p","2m"]
+        game.hands[0] = ["南","西","北","白","發","中","1m","9m","1s","9s","1p","9p","2p"]
         game.wall = ["春", "西"]
 
     elif scenario == "syabomachi":
         game.dealer = 0
-        game.turn = 3  # CPU3に捨てさせる
+        game.turn = 3 
         game.is_first_turn = [False]*4
-        
-        # 0番（あなた）の副露をセット
         game.melds[0] = [
             {"type": "ankan", "tiles": ["1m","1m","1m","1m"]},
             {"type": "minkan", "tiles": ["2p","2p","2p","2p"]},
             {"type": "minkan", "tiles": ["3s","3s","3s","3s"]}
         ]
-        
-        # 0番の手牌をセット
         game.hands[0] = ["4s","4s","5s","5s"]
-        
-        # 山札のセット
         game.wall = ["4s", "5s"] + ["1p"] * 20
-        
-        # CPU3の手牌をセット
-        game.hands[3] = ["4s", "1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p", "2p", "3p"]
+        game.hands[3] = ["4s", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1s", "2s", "3s"]
 
     elif scenario == "test_chow_patern":
         game.dealer = 0
@@ -1830,66 +1777,106 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
                      "2s","2s","5s","5s","5s","5s","6s","6s","6s","6s","8s","8s","8s","8s",
                      "1s","1s","1s","1s","9s","9s","9s","9s"]
 
-    #実績解除テストケース
+    # --- 実績解除テストケース ---
     elif scenario == "achieve_wide_wait":
         game.dealer = 0
         game.turn = 0
-        # 3つの順子 + 四季牌4枚。
-        # 四季牌4枚は「どんな形にもなれる」ため、実質的に全種待ち(34面待ち)状態になります。
-        game.hands[0] = ["1m","2m","3m","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
-        game.wall = ["東"] * 20 # ツモ用に適当に積む
+        game.hands[0] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        game.wall = ["東"] * 20 
         
     elif scenario == "achieve_seasons":
         game.dealer = 0
         game.turn = 0
-        # 四季牌4枚を抱えた状態でテンパイ。引くだけで「四季常春」達成。
         game.hands[0] = ["東","東","東","南","南","南","西","西","西","春","夏","秋","冬"]
         game.wall.append("北")
         
     elif scenario == "achieve_fullhouse":
         game.dealer = 0
         game.turn = 0
-        # 大三元(16) + 字一色(16) などが確定する超絶配牌。ツモるだけで7役以上複合！
         game.hands[0] = ["白","白","白","發","發","發","中","中","中","東","東","東","南"]
         game.wall.append("南")
         
     elif scenario == "pacifist":
-        # 最終局(オーラス)で、自分だけ0点、他家が全員マイナスの状態を作る
         game.current_round = 4
         game.total_scores = [0, -10000, -10000, -10000]
         game.dealer = 1
         game.turn = 1
-        # CPU1にすぐにアガらせてゲームを終了させる
         game.hands[1] = ["東","東","東","南","南","南","西","西","西","北","北","北","白"]
         game.wall.append("白")
         
     elif scenario == "comeback":
-        # オーラスで自分がダントツの最下位(-3万点)
         game.current_round = 4
         game.total_scores = [-30000, 40000, 30000, 20000]
         game.dealer = 0
         game.turn = 0
-        # 逆転トップになれる超特大役満（天胡＋大三元など）の配牌をプレゼント
         game.hands[0] = ["白","白","白","發","發","發","中","中","中","東","東","東","南"]
         game.wall.append("南")
         
     elif scenario == "clutch":
-        # オーラス、3位(10001点)と1点差の4位(10000点)
         game.current_round = 4
         game.total_scores = [10000, 10001, 30000, 20000]
         game.dealer = 0
         game.turn = 0
-        # 無役（無番和）＝1点でアガって逆転できる手牌
-        game.hands[0] = ["1m","2m","3m","5p","6p","7p","2s","3s","4s","6s","7s","8s","北"]
+        game.hands[0] = ["1p","2p","3p","5p","6p","7p","2s","3s","4s","6s","7s","8s","北"]
         game.wall.append("北")
         
     elif scenario == "achieve_welcomehome":
-        # ※「おかえりなさい」のテスト用に、サーバー側のフラグを立てておく
         game.debug_welcome_home = True
         game.dealer = 0
         game.turn = 0
         game.hands[0] = ["1p","2p","3p","4p","5p","6p","7p","8p","9p","1s","2s","3s","4s"]
 
+    # --- 新規追加した隠し実績のテストケース ---
+    elif scenario == "achieve_sacrilege":
+        # 【罰当たり】ツモ切り -> 春を捨てる -> 他家スルー -> 安全牌ツモる -> 夏捨てる で達成
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["春", "夏", "1m", "1m", "1p", "1p", "2p", "2p", "3p", "3p", "4p", "4p", "5p"]
+        game.wall = ["6p", "7p"] 
+
+    elif scenario == "achieve_suanko_troll":
+        # 【四暗刻！】面前で碰碰胡（四暗刻単騎待ち）
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1p", "1p", "1p", "2p", "2p", "2p", "3s", "3s", "3s", "4s", "4s", "4s", "西"]
+        game.wall.append("西")
+
+    elif scenario == "achieve_chanta_troll":
+        # 【チャンタってある？】無番和（無役）かつヤオチュウ牌(1,9,字牌)を多く含む
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1p", "2p", "3p", "7p", "8p", "9p", "1s", "2s", "3s", "7s", "8s", "9s", "西"]
+        game.wall.append("西")
+
+    elif scenario == "achieve_kyuka_sanfuku":
+        # 【九夏三伏】数牌の合計が30以下
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1m", "1m", "1p", "1p", "1s", "1s", "2p", "2p", "2p", "2s", "2s", "2s", "西"]
+        game.wall.append("西")
+
+    elif scenario == "achieve_tougetsu_sekisoku":
+        # 【冬月赤足】1,9萬と1,6,7筒を含む和了
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1m", "1m", "1m", "9m", "9m", "9m", "1p", "2p", "3p", "6p", "7p", "8p", "西"]
+        game.wall.append("西")
+
+    elif scenario == "achieve_tousen_karo":
+        # 【冬扇夏炉】無花の状態で春を自摸
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1p", "1p", "1p", "2p", "2p", "2p", "3p", "3p", "3p", "4p", "4p", "4p", "東"]
+        game.wall.append("春")
+
+    elif scenario == "achieve_evil_rationalism":
+        # 【悪の合理主義】JS側でフラグを立てた後、この全単配牌で和了してテストする
+        game.dealer = 0
+        game.turn = 0
+        game.hands[0] = ["1p", "1p", "1p", "3p", "3p", "3p", "5s", "5s", "5s", "7s", "7s", "7s", "9m"]
+        game.wall.append("9m")
+
+    # 全員の手牌をソート
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
         

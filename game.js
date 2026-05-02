@@ -991,7 +991,7 @@ async function startTutorial() {
     const setupDummyRivers = () => {
         const dummyDiscards = [
             ["白", "發", "中", "8p", "9s"],     // 自分(0)
-            ["2m", "3m", "4m", "5p", "6p"],     // 下家(1)
+            ["1m", "1p", "4p", "5p", "6p"],     // 下家(1)
             ["7s", "8s", "9m", "2p", "3s"],     // 対面(2)
             ["3p", "4p", "5s", "6s", "西"]      // 上家(3)
         ];
@@ -5893,23 +5893,25 @@ function setupAchieveScenarioJS(type) {
     if (typeof totalScores === 'undefined') return;
 
     if (type === 'comeback') {
-        // オーラス（第4局）で、自分が圧倒的最下位の状況を作る
         currentRound = 4;
-        totalScores = [0, 1, 1, 1]; // 自分(0)が-3万点
+        totalScores = [0, 1, 1, 1];
         updateInfoUI();
         alert("【逆転の劇薬テスト】\nオーラスで自分が4位（-30000点）の状況をセットしました！ここで大物手をアガって1位になってください！");
 
-    } else if (type === 'clutch') {
-        // 自分が最下位だが、1点アガれば3位に滑り込める超僅差の状況を作る
-        totalScores = [0, 1, 5000, 2000]; // 1点差
-        updateInfoUI();
-        alert("【1点の重みテスト】\n現在4位ですが、3位とわずか「1点差」の状況をセットしました！無役（1点）でアガって逆転してください！");
-
     } else if (type === 'pacifist') {
-        // 自分以外が全員マイナスの状況を作る
         totalScores = [0, -10000, -10000, -10000];
         updateInfoUI();
-        alert("【漁夫の利テスト】\n他家が全員ハコ下の状況をセットしました！自分は一切アガらずに、流局や他家の和了で局を終えてください！");
+        alert("【漁夫の利テスト】\n他家が全員ハコ下の状況をセットしました！\n（自分は一切アガらずに、流局や他家の和了で局を終えてください）");
+
+    } else if (type === 'evil_rationalism') {
+        currentRound = 4;
+        playerStats._tempZentanRounds = 3;
+        updateInfoUI();
+        alert("【悪の合理主義テスト】\nすでに3局「全単」でアガった状態（現在第4局）のフラグをセットしました！\n（この後、サーバー側のテストボタンで「全単配牌」を呼び出して和了し、ゲームを終了させてください）");
+
+    } else if (type === 'senshu_bandai') {
+        playerStats._tempFirstWin = true;
+        alert("【千秋万代テスト】\nすでに「この局の最初のアガリを取った」というフラグをセットしました！\n（この後、わざとCPUに一度アガらせるかスルーさせてから、自分がもう一度和了し、局を終わらせてみてください）");
     }
 }
 

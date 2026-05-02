@@ -985,13 +985,30 @@
     <div id="achieve-debug-panel" class="achievement-debug-panel" style="display: none;">
         <div style="color: #f1c40f; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 5px;">🏆 実績テストシナリオ</div>
 
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_rating')">📈 レート上昇 (R1999状態)</button>
+        <!-- 既存のテストケース -->
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_wide_wait')">🌀 無限の選択肢 (27面待ち配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季を統べる者 (四季牌配牌)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_seasons')">🌍 四季常春 (四季牌配牌)</button>
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_fullhouse')">🌈 インフレの体現者 (7役配牌)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
-        <button class="achieve-debug-btn" onclick="loadDebugScenario('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
         <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_welcomehome')">🎲 おかえりなさい</button>
+
+        <!-- 追加した隠し実績（Python側で配牌セット） -->
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_sacrilege')">🚮 罰当たり (四季2枚切り)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_suanko_troll')">😎 四暗刻！ (面前碰碰胡)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_chanta_troll')">🤪 チャンタってある？</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_kyuka_sanfuku')">☀️ 九夏三伏 (数牌合計30以下)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_tougetsu_sekisoku')">👣 冬月赤足 (1,9mと1,6,7p)</button>
+        <button class="achieve-debug-btn" onclick="loadDebugScenario('achieve_tousen_karo')">⛄ 冬扇夏炉 (無花で春ツモ)</button>
+
+        <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
+
+        <div style="color: #3498db; font-weight: bold; font-size: 12px; text-align: center; margin-bottom: 5px;">【JSフラグ操作系】</div>
+
+        <!-- JS側でスコアや進行状態を操作する系 -->
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('pacifist')">🕊️ 漁夫の利 (スコア操作)</button>
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('comeback')">💊 逆転の劇薬 (オーラス4位)</button>
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('evil_rationalism')">😈 悪の合理主義 (4局全単)</button>
+        <button class="achieve-debug-btn" onclick="setupAchieveScenarioJS('senshu_bandai')">⏳ 千秋万代 (最初と最後)</button>
+
         <hr style="border: 0; border-top: 1px solid #555; width: 100%; margin: 5px 0;">
 
         <button class="achieve-debug-btn" style="background: #8e44ad; margin-top: 5px;" onclick="resetTestAchievements()">🔄 獲得実績リセット</button>
