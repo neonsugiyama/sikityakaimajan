@@ -820,6 +820,13 @@ async function startTutorial() {
     const navText = document.getElementById('ingame-tutorial-text');
     const nextBtnOld = document.getElementById('ingame-tutorial-next-btn');
 
+    // 🚨 パネルをゲーム全体のコンテナ（#game-container）の直下に移動させます。
+    // 卓(.table)の中だと3Dの傾きでバグるため、2Dのまま拡大縮小される親箱に入れます。
+    const gameContainer = document.getElementById('game-container');
+    if (navPanel.parentNode !== gameContainer) {
+        gameContainer.appendChild(navPanel);
+    }
+
     let btnContainer = document.getElementById('tut-btn-container');
     if (!btnContainer) {
         btnContainer = document.createElement('div');
@@ -842,8 +849,19 @@ async function startTutorial() {
     const prevBtn = document.getElementById('ingame-tutorial-prev-btn');
     const nextBtn = document.getElementById('ingame-tutorial-next-btn');
 
+    // 🚨 修正：他のパネルと同じロジックで「卓の傾き」を相殺し、サイズを最適化する
+    navPanel.style.setProperty('width', '800px', 'important'); // 1000pxは大きすぎたため縮小
+    navPanel.style.setProperty('padding', '20px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
-    navPanel.style.setProperty('transform', 'translateX(-50%)', 'important');
+
+    // 🌟 修正：important を外す！これがあるとシナリオ進行中の上下移動や変更が一切効かなくなります。
+    navPanel.style.top = '50%';
+    navPanel.style.left = '52%';
+
+    // 🚨 余計な3D回転を完全削除し、ただの中央揃えにする
+    navPanel.style.transform = 'translate(-50%, -50%)';
+
+    navText.style.setProperty('font-size', '22px', 'important');
     navPanel.style.display = 'block';
 
     const showMsg = (msg) => { navText.innerHTML = msg; };
@@ -911,7 +929,7 @@ async function startTutorial() {
         });
     };
 
-    const pointArrow = (selector) => {
+    const pointArrow = (selector, isOpposite = false) => {
         clearArrows();
         if (!selector) return;
         setTimeout(() => {
@@ -925,16 +943,24 @@ async function startTutorial() {
                 arrow.style.zIndex = '90000';
                 arrow.style.pointerEvents = 'none';
                 arrow.style.filter = 'drop-shadow(0px 2px 4px rgba(0,0,0,0.8))';
+
+                // 🌟 追加：対面(river-2)の場合は親が180度回転しているので、矢印も180度回転させて向きを相殺する！
+                if (isOpposite) {
+                    arrow.style.transform = 'rotate(180deg)';
+                }
+
                 target.parentElement.appendChild(arrow);
 
                 let up = true;
-                const baseTop = target.offsetTop - 55;
+                // 🌟 修正：対面の場合は、ローカル座標における「下(+方向)」が、画面上での「上」になる
+                const baseTop = target.offsetTop + (isOpposite ? target.offsetHeight + 10 : -55);
                 arrow.style.left = (target.offsetLeft + (target.offsetWidth / 2) - 30) + 'px';
                 arrow.style.top = baseTop + 'px';
 
                 arrow.dataset.animInterval = setInterval(() => {
                     up = !up;
-                    arrow.style.top = (baseTop + (up ? 0 : -10)) + 'px';
+                    // 🌟 修正：アニメーションのピョコピョコ動く方向も逆にする
+                    arrow.style.top = (baseTop + (up ? 0 : (isOpposite ? 10 : -10))) + 'px';
                 }, 500);
             }
         }, 50);
@@ -952,6 +978,26 @@ async function startTutorial() {
     const hand_hanakanPre = ["2p", "3p", "4p", "5p", "6p", "7p", "東", "東", "2p", "1s", "5s", "5s", "5s", "春"];
     const hand_hanakanPost = ["2p", "3p", "4p", "5p", "6p", "7p", "東", "東", "2p", "1s"];
     const hand_swapPost = ["2p", "3p", "4p", "5p", "6p", "7p", "東", "東", "2p", "秋"];
+
+    // 🌟 追加：中盤以降のリアリティを出すための「ダミーの捨て牌」配置関数
+    const setupDummyRivers = () => {
+        const dummyDiscards = [
+            ["白", "發", "中", "8p", "9s"],     // 自分(0)
+            ["2m", "3m", "4m", "5p", "6p"],     // 下家(1)
+            ["7s", "8s", "9m", "2p", "3s"],     // 対面(2)
+            ["3p", "4p", "5s", "6s", "西"]      // 上家(3)
+        ];
+        for (let i = 0; i < 4; i++) {
+            const r = document.getElementById(`river-${i}`);
+            if (r) {
+                let html = "";
+                dummyDiscards[i].forEach(t => {
+                    html += `<img class="tile" src="images/${t}.png" style="box-shadow: none; border: none;">`;
+                });
+                r.innerHTML = html;
+            }
+        }
+    };
 
     const steps = [
         { // 0: 挨拶
@@ -979,6 +1025,7 @@ async function startTutorial() {
 
                 window.execExchange = async () => {
                     tutLock = true;
+                    if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false);
                     let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
                     exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
@@ -1017,6 +1064,7 @@ async function startTutorial() {
                 setOverlay(true);
                 setupActionBtn(`花槓 ${getImg('5s')}${getImg('春')}`, 'btn-blue', async () => {
                     tutLock = true;
+                    if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false); clearArrows(); playSE('kan_0');
                     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
                     showCallout(0, "槓");
@@ -1058,6 +1106,7 @@ async function startTutorial() {
 
                 setupActionBtn(`Joker Swap ${getImg('1s')}`, 'btn-purple', async () => {
                     tutLock = true;
+                    if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false); clearArrows();
                     playSE('jokerswap_0'); playSE('jokerswap_se');
                     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
@@ -1088,29 +1137,44 @@ async function startTutorial() {
                 myHand = [...hand_swapPost];
                 myMelds = [{ type: "hanakan", tiles: ["5s", "春", "5s", "5s"] }];
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
-
+                setupDummyRivers(); // 🌟 ダミー牌配置
                 currentWaits = ["1p", "2p", "3p", "4p", "5p", "8p", "東"]; isAlreadyTenpai = true;
                 lastT = "1p"; lastDiscardPlayer = 2; addR(2, lastT);
 
-                setOverlay(true);
-                const waitsBtn = document.getElementById('btn-show-waits');
-                if (waitsBtn) {
-                    waitsBtn.style.display = 'block'; waitsBtn.disabled = false; waitsBtn.innerText = "待ち牌確認";
-                    waitsBtn.onclick = () => {
-                        showWaitsPanel();
-                        const wp = document.getElementById('waits-panel');
-                        if (navPanel && wp) {
-                            if (wp.style.display === 'block') { navPanel.style.top = "10%"; hlIds(['waits-panel'], true, false); }
-                            else { navPanel.style.top = "40%"; hlIds(['waits-panel'], false); }
-                        }
-                    };
+                // 対面(2)の河の最後の牌(1p)にIDをつけて、光らせる準備をする
+                const river2 = document.getElementById('river-2');
+                if (river2 && river2.lastChild) {
+                    river2.lastChild.id = 'tut-target-discard';
                 }
+
+                // パネルの位置調整
+                if (navPanel) {
+                    navPanel.style.top = "60%"; // ← ★ 先ほどの数値をそのまま使ってください！
+                }
+
+                setOverlay(true);
 
                 setupActionBtn(`胡 ${getImg('1p')}`, 'btn-red', async () => {
                     tutLock = true;
+                    if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false);
+                    clearArrows();
+
+                    // 🌟 ボタンを押した瞬間に、すべての光や枠線（ハイライト）を強制お掃除する！
+                    document.querySelectorAll('.tut-highlight').forEach(el => {
+                        el.classList.remove('tut-highlight');
+                        el.style.removeProperty('z-index');
+                        el.style.removeProperty('box-shadow');
+                        el.style.removeProperty('border-radius');
+                        if (el.dataset.tutPosModified) {
+                            el.style.removeProperty('position');
+                            delete el.dataset.tutPosModified;
+                        }
+                    });
+
                     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-                    hideWaitsPanel(); if (navPanel) navPanel.style.top = "40%";
+                    hideWaitsPanel();
+
                     showCallout(0, "胡");
                     removeLastDiscard();
                     myWinTiles = ["1p"];
@@ -1122,7 +1186,20 @@ async function startTutorial() {
                     tutLock = false;
                     goToStep(12);
                 });
-                setTimeout(() => hlIds(['btn-show-waits', 'btn-self-0'], true, true), 50);
+
+                setTimeout(() => {
+                    // ボタン類を光らせて手前に出す
+                    hlIds(['btn-show-waits', 'btn-self-0'], true, true);
+
+                    // 親要素（河）自体も手前に引き上げないと暗幕の下敷きになってしまうCSSの仕様を回避！
+                    if (river2) {
+                        river2.style.setProperty('z-index', '90000', 'important');
+                        river2.classList.add('tut-highlight'); // お掃除リストに登録
+                    }
+
+                    // 🌟 修正：指差し関数に「対面モード(true)」を指定して呼び出す！
+                    pointArrow('#tut-target-discard', true);
+                }, 50);
             }
         },
         { // 12: 和了後1
@@ -1130,6 +1207,7 @@ async function startTutorial() {
             setup: () => {
                 myWinTiles = ["1p"]; removeLastDiscard();
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
+                setupDummyRivers(); // 🌟 ダミー牌配置
             }
         },
         { // 13: 和了後2
@@ -1137,11 +1215,13 @@ async function startTutorial() {
             setup: () => {
                 myWinTiles = ["1p"];
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
+                setupDummyRivers(); // 🌟 ダミー牌配置
             }
         },
         { // 14: オート機能
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右下の<span style='color:#2ecc71;'>「オート(和了後)」</span>をONにすると、<br>和了できる時は自動で和了り、それ以外の時はツモ切りするようになります。",
             setup: () => {
+                setupDummyRivers(); // 🌟 ダミー牌配置
                 setOverlay(true); hlIds(['btn-auto-play'], true, true); myWinTiles = ["1p"];
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
@@ -1149,6 +1229,7 @@ async function startTutorial() {
         { // 15: 操作ショートカット
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>PCでは<span style='color:#f1c40f;'>右クリック</span>や盤面の<span style='color:#f1c40f;'>ダブルクリック</span>、<br>スマホでは盤面を<span style='color:#f1c40f;'>ダブルタップ</span>することで、<br>引いてきた牌をそのまま捨てる（ツモ切り）ことや、<br>碰(ポン)・槓(ガン)等の鳴き、和了をスルーすることができます！",
             setup: () => {
+                setupDummyRivers(); // 🌟 ダミー牌配置
                 setOverlay(false); myWinTiles = ["1p"];
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
@@ -1156,7 +1237,8 @@ async function startTutorial() {
         { // 16: 点差パネル1
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>画面中央には現在の「局」や「山の残り枚数」が表示されています。<br>さらに、各プレイヤーの<span style='color:#3498db;'>「持ち点」部分をクリック</span>すると……",
             setup: () => {
-                if (navPanel) navPanel.style.top = "10%";
+                setupDummyRivers(); // 🌟 ダミー牌配置
+                if (navPanel) navPanel.style.top = "22%";
                 setOverlay(true);
                 hlIds(['center-info', 'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3'], true, false);
                 const panel = document.getElementById('score-diff-panel');
@@ -1167,7 +1249,8 @@ async function startTutorial() {
         { // 17: 点差パネル2
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>このように、<span style='color:#f1c40f;'>他プレイヤーとの点差</span>をサッと確認できます！<br>（画面をクリックするか、数秒で自然に消えます）",
             setup: () => {
-                if (navPanel) navPanel.style.top = "10%";
+                setupDummyRivers(); // 🌟 ダミー牌配置
+                if (navPanel) navPanel.style.top = "22%";
                 setOverlay(true);
                 hlIds(['center-info', 'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3'], true, false);
                 showScoreDiff(0);
@@ -1178,8 +1261,9 @@ async function startTutorial() {
         { // 18: 終了
             msg: "<span style='color:#f1c40f; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【チュートリアル完了】</span><br>説明は以上です！お疲れ様でした。<br>それでは、<span style='color:#f1c40f;'>『四季茶会麻雀』</span>の世界をお楽しみください！",
             setup: () => {
+                setupDummyRivers(); // 🌟 ダミー牌配置
                 setOverlay(false);
-                if (navPanel) navPanel.style.top = "40%";
+                if (navPanel) navPanel.style.top = "52%";
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
         }
@@ -1194,6 +1278,7 @@ async function startTutorial() {
         // 1. 画面の強制リセット（前の状態を完全に白紙にする）
         clearArrows();
         setOverlay(false);
+        if (navPanel) navPanel.style.display = 'block';
         document.querySelectorAll('.tut-highlight').forEach(el => {
             el.classList.remove('tut-highlight');
             el.style.removeProperty('z-index');
@@ -1215,17 +1300,50 @@ async function startTutorial() {
         document.getElementById('charleston-ui').style.display = "none";
         hideWaitsPanel();
 
-        // 🚨 修正2：待ち牌確認ボタンをSTEP開始時に確実にグレーアウト仕様でリセット
+        // 🚨 修正2：待ち牌確認ボタンの制御
         const waitsBtn = document.getElementById('btn-show-waits');
         if (waitsBtn) {
             waitsBtn.style.display = 'block';
-            waitsBtn.disabled = true;
-            waitsBtn.innerText = 'ノーテン';
+
+            // STEP 11（胡アクション）以降はずっとテンパイ状態なのでボタンを有効にする
+            if (stepIndex >= 11) {
+                currentWaits = ["1p", "2p", "3p", "4p", "5p", "8p", "東"];
+                isAlreadyTenpai = true;
+                waitsBtn.disabled = false;
+                waitsBtn.innerText = "待ち牌確認";
+
+                waitsBtn.onclick = () => {
+                    const wp = document.getElementById('waits-panel');
+                    if (wp && wp.style.display === 'block') {
+                        // 🌟 すでに開いている状態でボタンを押した場合は「閉じる」
+                        hideWaitsPanel();
+                    } else {
+                        // 🌟 閉じている場合は「開く」
+                        showWaitsPanel();
+                        if (navPanel && wp) {
+                            // 開く直前の「現在のパネル位置(60%など)」を記憶しておく！
+                            navPanel.dataset.returnTop = navPanel.style.top;
+
+                            // 待ち牌パネルが出た時に上に避ける（先ほど調整した数値）
+                            navPanel.style.top = "25%";
+
+                            // 待ち牌パネル自体を光らせて手前に出す
+                            wp.classList.add('tut-highlight');
+                            wp.style.setProperty('z-index', '90000', 'important');
+                        }
+                    }
+                };
+            } else {
+                // それより前は無効化
+                waitsBtn.disabled = true;
+                waitsBtn.innerText = 'ノーテン';
+                waitsBtn.onclick = null;
+            }
         }
 
         const scorePanel = document.getElementById('score-diff-panel');
         if (scorePanel) scorePanel.style.display = 'none';
-        if (navPanel) navPanel.style.top = "40%";
+        if (navPanel) navPanel.style.top = "52%";
         charlestonPhase = false;
         myWinTiles = [];
 
@@ -2564,7 +2682,20 @@ function showWaitsPanel() {
 
 // 👁️ 「待ち牌確認」パネルを隠す関数
 function hideWaitsPanel() {
-    document.getElementById('waits-panel').style.display = 'none';
+    const wp = document.getElementById('waits-panel');
+    if (wp) wp.style.display = 'none';
+
+    // 🌟 チュートリアル中の場合、避難させていたメッセージパネルを「記憶した元の位置」に戻す
+    if (typeof isIngameTutorial !== 'undefined' && isIngameTutorial) {
+        const navPanel = document.getElementById('ingame-tutorial-nav');
+        if (navPanel && navPanel.dataset.returnTop) {
+            navPanel.style.top = navPanel.dataset.returnTop; // 記憶から復元
+        }
+        if (wp) {
+            wp.classList.remove('tut-highlight');
+            wp.style.removeProperty('z-index');
+        }
+    }
 }
 
 // 🛠️ サーバーにデバッグ用の特定の盤面（天和など）をセットさせる関数
