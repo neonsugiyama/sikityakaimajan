@@ -583,6 +583,15 @@ function updateMasterBGM(val) {
     const v = parseFloat(val);
     sounds.bgm.volume = v;
     document.getElementById('settings-bgm-label').innerText = `${Math.round(v * 100)}%`;
+
+    // 🌟 追加：BGMが0%になったら一時停止してOSのオーディオ権限を返す
+    if (v <= 0) {
+        sounds.bgm.pause();
+    } else if (audioState.bgmOn && audioState.initialized && sounds.bgm.paused) {
+        // 0%より大きくなったら再生を再開する
+        sounds.bgm.play().catch(e => console.log(e));
+    }
+
     saveSettings();
 }
 
@@ -1538,12 +1547,13 @@ const soundVolumes = {
 
 sounds.bgm.loop = true;
 sounds.bgm.volume = 0.3;
-
 // 🔈 ユーザーの初回クリック時にBGMの再生を開始する関数（ブラウザの自動再生ブロック対策）
 function initAudio() {
     if (audioState.initialized) return;
     audioState.initialized = true;
-    if (audioState.bgmOn) {
+
+    // 🌟 修正：BGM機能がONであっても、音量が0%なら再生命令を出さない！
+    if (audioState.bgmOn && sounds.bgm.volume > 0) {
         sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
     }
 }
@@ -1552,7 +1562,7 @@ window.addEventListener('click', initAudio, { once: true });
 // 🔊 指定された名前の効果音（ボイス含む）を適切な音量で再生する関数
 function playSE(soundName) {
     if (!audioState.seOn || !sounds[soundName]) return;
-    let clone = sounds[soundName].cloneNode();
+
     let vol = 0.6;
     if (soundVolumes[soundName] !== undefined) {
         vol = soundVolumes[soundName];
@@ -1563,7 +1573,13 @@ function playSE(soundName) {
         }
     }
 
-    clone.volume = Math.min(1.0, vol * masterSEVolume);
+    let finalVol = Math.min(1.0, vol * masterSEVolume);
+
+    // 🌟 追加：最終的な音量が0の場合は、ダッキングさせないために再生処理自体を完全に放棄する！
+    if (finalVol <= 0) return null;
+
+    let clone = sounds[soundName].cloneNode();
+    clone.volume = finalVol;
     clone.play().catch(e => console.log("SE再生エラー:", e));
     return clone;
 }
