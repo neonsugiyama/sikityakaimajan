@@ -381,9 +381,7 @@ let playerStats = {
     totalWins: 0,             // アガった局数
     totalTsumoWins: 0,        // ツモでアガった局数
     totalCalls: 0,            // 鳴き（副露）をした局数
-    totalScoreSum: 0,         // 累計獲得点数（平均打点計算用）
-
-    heavenlyCount: 0,       // 神の領域（天胡・地胡）
+    totalScoreSum: 0,         // 累計獲得点数（平均打点計算用））
     maxComboCount: 0,       // インフレの体現者（最高同時複合役数）
     welcomeHomeCount: 0,    // おかえりなさい（交換で出した牌が戻る）
     comebackCount: 0,       // 逆転の劇薬（オーラス4位から1位）
@@ -399,6 +397,7 @@ let playerStats = {
     tougetsuSekisokuCount: 0, // 冬月赤足（1,9萬と1,6,7筒）
     tousenKaroCount: 0,       // 冬扇夏炉（無花で春自摸）
     noWinGameCount: 0,        // 暖かい紅茶でもいかが？（0和了で終了）
+    muhanaAddictionCount: 0,  // 無花果依存症（4局全てで無花果和了）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -4401,6 +4400,11 @@ async function handleRoundEnd(isReplayingResult = false) {
                     playerStats._tempZentanRounds = (playerStats._tempZentanRounds || 0) + 1;
                 }
 
+                // 🌟 追加：「無花果依存症」（無花果和了の記録）
+                if (combinedYaku.includes("無花果")) {
+                    playerStats._tempMuhanaRounds = (playerStats._tempMuhanaRounds || 0) + 1;
+                }
+
                 // 「九夏三伏」（数牌の合計が30以下 or 90以上）
                 if (playerStats.kyukaSanfukuCount === 0) {
                     let sum = 0;
@@ -4443,12 +4447,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
 
                 for (let detail of res.details) {
-                    if (detail.yaku.includes("天胡") || detail.yaku.includes("地胡")) {
-                        if (playerStats.heavenlyCount === 0) {
-                            playerStats.heavenlyCount = 1;
-                            showAchievementUnlock("神の領域", "⚡");
-                        }
-                    }
                     if (detail.yaku.length > playerStats.maxComboCount) {
                         let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
                         playerStats.maxComboCount = detail.yaku.length;
@@ -4482,12 +4480,39 @@ async function handleRoundEnd(isReplayingResult = false) {
                     playerStats.yakuCollected = migrated;
                 }
 
+                // 🌟 追加：手役系実績のタイトルとアイコンの紐付けリスト
+                const yakuAchieveMap = {
+                    "天胡": { title: "最速最強", icon: "⚡", req: 1 },
+                    "地胡": { title: "あっ！(胡！)", icon: "😲", req: 1 },
+                    "七星攬月": { title: "流星群", icon: "🌠", req: 1 },
+                    "清幺九": { title: "老成円熟", icon: "👴", req: 1 },
+                    "連七対": { title: "二盃口！", icon: "👯", req: 1 },
+                    "九連宝燈": { title: "南無阿弥陀仏", icon: "🙏", req: 1 },
+                    "十八羅漢": { title: "仏の顔も三度まで", icon: "💢", req: 1 },
+                    "大四風会": { title: "風神降臨", icon: "🌪️", req: 1 },
+                    "一色四節高": { title: "金門橋", icon: "🌉", req: 1 },
+                    "一色四歩高": { title: "虎視眈々", icon: "🐅", req: 1 },
+                    "紅孔雀": { title: "孔雀報喜", icon: "🦚", req: 1 },
+                    "七星不靠": { title: "これ和了なの？", icon: "🤔", req: 1 },
+                    "陰陽両儀": { title: "黒一色", icon: "⬛", req: 1 },
+                    "大三元": { title: "三位一体", icon: "🐉", req: 1 },
+                    "推不倒": { title: "目が回る", icon: "🌀", req: 8 },
+                    "槍槓": { title: "今だ！(仮)", icon: "🎯", req: 1 },
+                    "花天月地": { title: "花落知多少", icon: "🥀", req: 1 }
+                };
+
                 for (let detail of res.details) {
                     for (let y of detail.yaku) {
                         if (!playerStats.yakuCollected[y]) {
                             playerStats.yakuCollected[y] = 0;
                         }
                         playerStats.yakuCollected[y]++;
+
+                        // 🌟 追加：初めて和了（または規定回数到達）した時にポップアップを出す
+                        let ach = yakuAchieveMap[y];
+                        if (ach && playerStats.yakuCollected[y] === ach.req) {
+                            showAchievementUnlock(ach.title, ach.icon);
+                        }
                     }
                 }
             }
@@ -4666,6 +4691,13 @@ async function handleRoundEnd(isReplayingResult = false) {
     // 🌟 追加：レート変動の保存配列
     let rateChanges = [0, 0, 0, 0];
 
+    // 🌟 追加：逆転の劇薬判定のため、第4局のスコア加算前の順位を記憶
+    let rankBeforeFinalRound = -1;
+    if (currentRound >= 4 && !isReplayingResult) {
+        let sortedBefore = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
+        rankBeforeFinalRound = sortedBefore.indexOf(0) + 1; // 1〜4位
+    }
+
     if (!isReplayingResult) {
         let myNetScore = scores[0] + rankingPoints[0];
         let isPacifistTop = true;
@@ -4761,6 +4793,13 @@ async function handleRoundEnd(isReplayingResult = false) {
             }
             playerStats._tempZentanRounds = 0; // リセット
 
+            // 🌟 追加：「無花果依存症」（4局すべてで無花果和了）
+            if (playerStats._tempMuhanaRounds >= 4 && playerStats.muhanaAddictionCount === 0) {
+                playerStats.muhanaAddictionCount = 1;
+                showAchievementUnlock("無花果依存症", "🍂");
+            }
+            playerStats._tempMuhanaRounds = 0; // リセット
+
             // 「千秋万代」（1局の中で最初と最後のアガリを自分が取ったか）
             // ※厳密には「毎局」判定する必要がありますが、ここで「最後の局(オーラス)での結果」として判定します。
             // もし「1〜4局のどこか1局でも達成すればOK」にする場合は、上の 修正2 の中に混ぜることも可能です。今回は一番劇的なオーラスでの達成とします。
@@ -4773,6 +4812,12 @@ async function handleRoundEnd(isReplayingResult = false) {
             }
             playerStats._tempFirstWin = false;
             playerStats._tempLastWin = false;
+
+            // 🌟 追加：「逆転の劇薬」（オーラス開始時4位から1位で終了）
+            if (rankBeforeFinalRound === 4 && myRank === 1 && playerStats.comebackCount === 0) {
+                playerStats.comebackCount = 1;
+                showAchievementUnlock("逆転の劇薬", "💊");
+            }
 
             playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
             if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
@@ -4796,6 +4841,8 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             if (currentGameMode === 'online' || currentGameMode === 'cpu') {
                 let placementPoints = [15, 5, -5, -15];
+                let oldMyRate = playerRatings[0]; // 🌟 変動前の自分のレートを記憶
+
                 for (let rank = 0; rank < 4; rank++) {
                     let pIdx = sortedIndices[rank];
                     let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
@@ -4806,9 +4853,15 @@ async function handleRoundEnd(isReplayingResult = false) {
                     if (rank === 0 && change <= 0) change = 1;
                     if (rank === 3 && change >= 0) change = -1;
 
-                    rateChanges[pIdx] = change; // 🌟 追加：変動値を保存
+                    rateChanges[pIdx] = change;
                     playerRatings[pIdx] += change;
                     if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
+                }
+
+                // 🌟 追加：レート関連の実績判定
+                checkTieredAchievement("rating", "レートの階段", "📈", oldMyRate, playerRatings[0], [1600, 1700, 1800, 1900]);
+                if (oldMyRate < 2000 && playerRatings[0] >= 2000) {
+                    showAchievementUnlock("頂に立つ者", "👑");
                 }
             }
             saveGameData();
@@ -5119,7 +5172,6 @@ function renderAchievements() {
         { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「27種類」ある状態で和了", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "master_of_seasons", icon: "🌍", title: "四季常春", desc: "1局の手牌に四季牌4種すべてを揃えて和了", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "一局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "heavenly", icon: "⚡", title: "神の領域", desc: "天胡または地胡を達成する", val: playerStats.heavenlyCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "自分が和了していないのに局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "comeback", icon: "💊", title: "逆転の劇薬", desc: "4局開始時4位から1位で終了する", val: playerStats.comebackCount, tiers: [1, 1, 1, 1], unit: "回" },
@@ -5152,7 +5204,8 @@ function renderAchievements() {
         { id: "senshu_bandai", icon: "⏳", title: "千秋万代", desc: "1局の中で最初の和了と最後の和了をする", val: playerStats.senshuBandaiCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "tougetsu_sekisoku", icon: "👣", title: "冬月赤足", desc: "1,9萬と1,6,7筒を手牌に含めて和了", val: playerStats.tougetsuSekisokuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: true },
+        { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "muhana_addiction", icon: "🍂", title: "無花果依存症", desc: "4局全てで一回以上無花果で和了する", val: playerStats.muhanaAddictionCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
     ];
 
     let gridHtml = ``;
@@ -5826,7 +5879,6 @@ function resetToInitialData() {
         totalTsumoWins: 0,
         totalCalls: 0,
         totalScoreSum: 0,
-        heavenlyCount: 0,
         maxComboCount: 0,
         welcomeHomeCount: 0,
         comebackCount: 0,
@@ -5881,7 +5933,6 @@ function injectBeginnerData() {
     };
 
     // 🌟 一発系実績はすべて未達成(0)にリセット
-    playerStats.heavenlyCount = 0;
     playerStats.maxComboCount = 2;
     playerStats.welcomeHomeCount = 0;
     playerStats.comebackCount = 0;
@@ -5910,8 +5961,6 @@ function testUnlockAchievement(id) {
         playerStats.masterOfSeasonsCount = 1;
     } else if (id === 'full_house') {
         playerStats.maxComboCount = 7;
-    } else if (id === 'heavenly') {
-        playerStats.heavenlyCount = 1;
     } else if (id === 'welcomehome') {
         playerStats.welcomeHomeCount = 1;
     } else if (id === 'pacifist') {
@@ -5929,33 +5978,6 @@ function testUnlockAchievement(id) {
     alert(`実績を解除状態にしました！\n実績画面を開いて「プラチナ」になっているか確認してください。`);
 }
 
-// 🏆 テスト用：JS側でスコアや局の状況を強制セットアップする
-function setupAchieveScenarioJS(type) {
-    if (typeof totalScores === 'undefined') return;
-
-    if (type === 'comeback') {
-        currentRound = 4;
-        totalScores = [0, 1, 1, 1];
-        updateInfoUI();
-        alert("【逆転の劇薬テスト】\nオーラスで自分が4位（-30000点）の状況をセットしました！ここで大物手をアガって1位になってください！");
-
-    } else if (type === 'pacifist') {
-        totalScores = [0, -10000, -10000, -10000];
-        updateInfoUI();
-        alert("【漁夫の利テスト】\n他家が全員ハコ下の状況をセットしました！\n（自分は一切アガらずに、流局や他家の和了で局を終えてください）");
-
-    } else if (type === 'evil_rationalism') {
-        currentRound = 4;
-        playerStats._tempZentanRounds = 3;
-        updateInfoUI();
-        alert("【悪の合理主義テスト】\nすでに3局「全単」でアガった状態（現在第4局）のフラグをセットしました！\n（この後、サーバー側のテストボタンで「全単配牌」を呼び出して和了し、ゲームを終了させてください）");
-
-    } else if (type === 'senshu_bandai') {
-        playerStats._tempFirstWin = true;
-        alert("【千秋万代テスト】\nすでに「この局の最初のアガリを取った」というフラグをセットしました！\n（この後、わざとCPUに一度アガらせるかスルーさせてから、自分がもう一度和了し、局を終わらせてみてください）");
-    }
-}
-
 // 🔄 テスト用：一発達成型の実績をすべて未達成に戻す関数
 function resetTestAchievements() {
     if (typeof playerStats === 'undefined') return;
@@ -5964,7 +5986,6 @@ function resetTestAchievements() {
     playerStats.wideWaitCount = 0;
     playerStats.masterOfSeasonsCount = 0;
     playerStats.maxComboCount = 0;
-    playerStats.heavenlyCount = 0;
     playerStats.welcomeHomeCount = 0;
     playerStats.pacifistCount = 0;
     playerStats.comebackCount = 0;
