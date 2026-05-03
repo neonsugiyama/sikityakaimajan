@@ -398,6 +398,7 @@ let playerStats = {
     senshuBandaiCount: 0,     // 千秋万代（1局で最初と最後のアガリ）
     tougetsuSekisokuCount: 0, // 冬月赤足（1,9萬と1,6,7筒）
     tousenKaroCount: 0,       // 冬扇夏炉（無花で春自摸）
+    noWinGameCount: 0,        // 暖かい紅茶でもいかが？（0和了で終了）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -4367,6 +4368,7 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             // 🌟 修正：初回実行時のみ実績と戦績を加算する
             if (!isReplayingResult) {
+                playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1; // 🌟 1ゲーム内の和了回数を記憶
                 // 🌟 追加：千秋万代（最初と最後のアガリ）の判定用記録
                 if (calcData.results.length > 0) {
                     if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
@@ -4744,6 +4746,13 @@ async function handleRoundEnd(isReplayingResult = false) {
 
         if (!isReplayingResult) {
             // 🌟 追加：1ゲーム通しての特殊実績判定
+
+            // 「暖かい紅茶でもいかが？」（和了回数0回でゲーム終了）
+            if ((playerStats._tempGameWins || 0) === 0 && playerStats.noWinGameCount === 0) {
+                playerStats.noWinGameCount = 1;
+                showAchievementUnlock("暖かい紅茶でもいかが？", "☕");
+            }
+            playerStats._tempGameWins = 0; // ゲーム終了時にカウンターをリセット
 
             // 「悪の合理主義」（4局すべてで全単和了）
             if (playerStats._tempZentanRounds >= 4 && playerStats.evilRationalismCount === 0) {
@@ -5143,6 +5152,7 @@ function renderAchievements() {
         { id: "senshu_bandai", icon: "⏳", title: "千秋万代", desc: "1局の中で最初の和了と最後の和了をする", val: playerStats.senshuBandaiCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "tougetsu_sekisoku", icon: "👣", title: "冬月赤足", desc: "1,9萬と1,6,7筒を手牌に含めて和了", val: playerStats.tougetsuSekisokuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: true },
     ];
 
     let gridHtml = ``;
