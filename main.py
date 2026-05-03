@@ -1934,3 +1934,44 @@ def exit_room(room_id: str = ""):
         del active_rooms[room_id]
         print(f"🧹 ルーム {room_id} を削除・お掃除しました！ (現在稼働中: {len(active_rooms)}卓)")
     return {"status": "success"}
+
+@app.get("/should_cpu_participate_second_charleston")
+def should_cpu_participate_second_charleston(cpu_idx: int, game: GameState = Depends(get_current_game)):
+    try:
+        hand = list(game.hands[cpu_idx])
+        # 四季牌以外の牌を評価対象にする
+        valid_candidates = [t for t in hand if t not in SEASON_TILES]
+        
+        # 手牌の各牌の評価値を計算
+        scored = [(t, evaluate_tile_dynamically(t, hand, game, cpu_idx, game.cpu_personalities[cpu_idx])) for t in valid_candidates]
+        # 評価値が低い順（いらない順）に並べ替える
+        scored.sort(key=lambda x: x[1])
+        
+        cpu_level = getattr(game, 'cpu_level', 1)
+        will_do = True
+        
+        # 候補が3枚以上ある場合のみ判定
+        if len(scored) >= 3:
+            # 「ワースト3番目」の牌の評価値を見る
+            # （この牌の点数が高ければ、3枚も捨てるゴミ牌がない＝手が整っているということ）
+            worst_3rd_score = scored[2][1] 
+            
+            if cpu_level == 0:
+                # 🌟 よわい: 手牌の価値が分からず、手が壊れてもとりあえず70%で交換しちゃう
+                if random.random() < 0.3:
+                    will_do = False
+            elif cpu_level == 1:
+                # 🌟 ふつう: ワースト3位が「50点(対子など)」以上なら、形を崩したくないのでスルー
+                if worst_3rd_score >= 50:
+                    will_do = False
+            else:
+                # 🌟 つよい: ワースト3位が「30点(くっつき待ちの孤立牌など)」以上ならシビアにスルー
+                if worst_3rd_score >= 30:
+                    will_do = False
+        else:
+            will_do = False # 四季牌だらけで出せる牌が3枚ない場合は物理的に不可
+            
+        return {"participate": will_do}
+    except Exception as e:
+        traceback.print_exc()
+        return {"error": str(e), "participate": False}

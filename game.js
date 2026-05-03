@@ -3013,8 +3013,23 @@ async function askNextSecondCharleston() {
     } else {
         // 🌟 CPUの番：悩む演出の後に決断
         document.getElementById('msg').innerText = `CPU ${currentAsker} ...`;
+
+        let willDo = false;
+        try {
+            // サーバーの「AIの脳みそ」に、今の自分の手牌なら参加すべきか質問する
+            const res = await fetch(`/should_cpu_participate_second_charleston?cpu_idx=${currentAsker}&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`);
+            const data = await res.json();
+            if (data.participate !== undefined) {
+                willDo = data.participate;
+            } else {
+                willDo = Math.random() < 0.5; // 万が一のエラー時は半々
+            }
+        } catch (e) {
+            console.error("第2交換のCPU思考エラー:", e);
+            willDo = Math.random() < 0.5;
+        }
+
         await sleep(800 / speedMult); // 演出のタメ
-        let willDo = Math.random() < 0.7; // TODO: CPUの性格に合わせる
         processAskSecondCharleston(currentAsker, willDo);
     }
 }
