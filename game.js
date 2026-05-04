@@ -2804,7 +2804,7 @@ function switchDebugTab(evt, tabId) {
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
 async function init() {
     logMsg("=== ゲーム起動 ===");
-    await apiCall('/start');
+    await apiCall('/start', { cpu_level: confCpuLevel });
     sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
     charlestonCount = 1;
     startCharlestonSelection();

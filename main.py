@@ -463,15 +463,16 @@ def get_room_state(game: GameState = Depends(get_current_game)):
     return get_safe_state(game, 0, {"discards": game.discards})
 
 @app.get("/start")
-def start_game():
+def start_game(cpu_level: int = 1): # 🌟 修正：URLパラメータから cpu_level を受け取る（デフォルト1）
     global ROOM_COUNTER
     # 0000〜9999 のルームIDを発行して、10000を超えたら0に戻る
     room_id = f"{ROOM_COUNTER:04d}"
     ROOM_COUNTER = (ROOM_COUNTER + 1) % 10000
     
     new_game = GameState()
+    new_game.cpu_level = cpu_level # 🌟 追加：作成した卓のCPUの強さを設定する
     active_rooms[room_id] = new_game
-    print(f"🎮 新規ルーム作成: {room_id} (現在稼働中: {len(active_rooms)}卓)")
+    print(f"🎮 新規ルーム作成: {room_id} (CPUレベル: {cpu_level} / 現在稼働中: {len(active_rooms)}卓)")
     
     return get_safe_state(new_game, 0, {"room_id": room_id})
 
@@ -708,7 +709,20 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
 
         while game.wall:
             seasons = [t for t in game.hands[cpu_idx] if t in SEASON_TILES]
-            hanakan_seasons = seasons if game.cpu_personalities[cpu_idx] in [2, 4] else []
+            
+            # 🌟 修正：「よわい」「ふつう」の花槓判断ミス（性格に関わらず発生）
+            cpu_level = getattr(game, 'cpu_level', 1)
+            hanakan_seasons = []
+            if cpu_level == 0:
+                # よわい: 70%の確率で、何も考えずに即座に花槓してしまう（Jokerを温存できない）
+                if random.random() < 0.7: hanakan_seasons = seasons
+            elif cpu_level == 1:
+                # ふつう: 30%の確率で、迷った末に花槓してしまう
+                if random.random() < 0.3: hanakan_seasons = seasons
+            else:
+                # つよい: 自分の性格（戦術）に従って冷静に判断する
+                hanakan_seasons = seasons if game.cpu_personalities[cpu_idx] in [2, 4] else []
+
             counts = {t: game.hands[cpu_idx].count(t) for t in set(game.hands[cpu_idx])}
             did_meld = False
             has_won = len(game.win_tiles[cpu_idx]) > 0
@@ -755,6 +769,11 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                                 base_t = m["tiles"][0]
                                 season_t = m["tiles"][1]
                                 if base_t in game.hands[cpu_idx]:
+                                    # 🌟 追加：「よわい」「ふつう」の Joker Swap 見落とし
+                                    cpu_level = getattr(game, 'cpu_level', 1)
+                                    if cpu_level == 0 and random.random() < 0.6: continue # 60%で見落とす
+                                    if cpu_level == 1 and random.random() < 0.3: continue # 30%で見落とす
+
                                     game.hands[cpu_idx].remove(base_t)
                                     m["type"] = "minkan"
                                     m["tiles"] = [base_t]*4
@@ -895,6 +914,15 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
 
                 count = game.hands[i].count(tile)
                 if count >= 2:
+                    # 🌟 追加：「よわい」「ふつう」の鳴き見逃し（スルー）確率判定
+                    cpu_level = getattr(game, 'cpu_level', 1)
+                    if cpu_level == 0:
+                        # よわい: 50%で鳴きを見逃す（ポンのボタンに気づかない初心者）
+                        if random.random() < 0.5: continue
+                    elif cpu_level == 1:
+                        # ふつう: 20%で鳴きを見逃す（ちょっと迷ってスルーしてしまう中級者）
+                        if random.random() < 0.2: continue
+
                     temp_hand_with_meld = list(game.hands[i])
                     temp_hand_with_meld.extend([tile, tile]) 
                     score_if_meld = evaluate_tile_dynamically(tile, temp_hand_with_meld, game, i, game.cpu_personalities[i])

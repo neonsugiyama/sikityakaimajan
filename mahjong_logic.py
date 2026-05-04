@@ -64,6 +64,13 @@ def get_tile_num(t):
 
 # 🎯 CPUの性格と現在の手牌から、狙うべき役（目標）を決定する関数
 def determine_target(cpu_idx, hand_list, game_state):
+    # 🌟 1. CPUレベルの取得（未設定なら1:ふつう）
+    cpu_level = getattr(game_state, 'cpu_level', 1)
+
+    # 🌟 2. 「よわい」「ふつう」は、一度決めた目標を一生変えない（毎ターンの再考をサボる）
+    if cpu_level <= 1 and hasattr(game_state, 'cpu_initial_targets') and game_state.cpu_initial_targets[cpu_idx]:
+        return game_state.cpu_initial_targets[cpu_idx]
+
     personality = game_state.cpu_personalities[cpu_idx]
     jokers = sum(1 for t in hand_list if t in SEASON_TILES)
     terminals_honors = set(t for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in TERMINALS.union(HONORS))
@@ -73,46 +80,58 @@ def determine_target(cpu_idx, hand_list, game_state):
         if t not in SEASON_TILES: counts[t] = counts.get(t, 0) + 1
     pairs = [t for t, c in counts.items() if c >= 2]
     
-    max_qixing_count = 0
-    for pattern in KNITTED_PATTERNS:
-        c = sum(1 for i in pattern + list(HONORS) if TILE_NAMES[i] in hand_list)
-        if c > max_qixing_count: max_qixing_count = c
-        
-    if max_qixing_count + jokers >= 10: 
-        return "七星不靠"
-        
-    yaojiu_count = len(terminals_honors) + jokers
-    if yaojiu_count >= 9: return "十三幺九"
-        
-    if sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in ODDS) >= 10: return "全単"
-        
-    term_pairs = [t for t in pairs if "1" in t or "9" in t]
-    if len(term_pairs) >= 1: return "双同刻/三同刻"
-        
-    num_pairs = sorted([get_tile_num(t) for t in pairs if get_tile_num(t) != -1])
-    if any(num_pairs[i+1] - num_pairs[i] == 1 for i in range(len(num_pairs)-1)): return "三節高/四節高"
-        
-    if sum(1 for t in pairs if t in ["白", "發", "中"]) >= 2: return "小三元/大三元"
-    if sum(1 for t in pairs if t in ["東", "南", "西", "北"]) >= 2: return "小四喜/大四喜"
-        
-    suits = {'p': sum(1 for x in set(hand_list) if 'p' in x), 's': sum(1 for x in set(hand_list) if 's' in x), 'm': sum(1 for x in set(hand_list) if 'm' in x)}
-    if len(pairs) == 0 and max(suits.values()) >= 6: return "一通/混一色"
+    target = "混一色/清一色" # デフォルト
 
-    if sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in NON_RED_TILES) >= 8 and len(pairs) >= 2: return "断紅胡"
-    if sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in TERMINALS.union(HONORS)) >= 8 and len(pairs) >= 2: return "混老頭"
-        
-    nums = [get_tile_num(t) for t in hand_list if get_tile_num(t) != -1]
-    if sum(1 for n in nums if n >= 6) >= 8: return "大于五"
-    if sum(1 for n in nums if n <= 4) >= 8: return "小于五"
-        
-    if any("m" in t for t in pairs) and any(t in ["東","南","西","北","白","發","中"] for t in pairs): return "五門斉"
-    if sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in REVERSIBLE_TILES) >= 8 and len(pairs) >= 2: return "推不倒"
-    if len(pairs) >= 3: return "対々和"
-        
-    return "混一色/清一色"
+    # 🌟 3. 「よわい(0)」は難しい役を最初から狙わない
+    if cpu_level == 0:
+        if len(pairs) >= 3: 
+            target = "対々和"
+    else:
+        # ▼ 「ふつう(1)」「つよい(2)」用の既存ロジック
+        max_qixing_count = 0
+        for pattern in KNITTED_PATTERNS:
+            c = sum(1 for i in pattern + list(HONORS) if TILE_NAMES[i] in hand_list)
+            if c > max_qixing_count: max_qixing_count = c
+            
+        if max_qixing_count + jokers >= 10: target = "七星不靠"
+        elif len(terminals_honors) + jokers >= 9: target = "十三幺九"
+        elif sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in ODDS) >= 10: target = "全単"
+        else:
+            term_pairs = [t for t in pairs if "1" in t or "9" in t]
+            if len(term_pairs) >= 1: target = "双同刻/三同刻"
+            else:
+                num_pairs = sorted([get_tile_num(t) for t in pairs if get_tile_num(t) != -1])
+                if any(num_pairs[i+1] - num_pairs[i] == 1 for i in range(len(num_pairs)-1)): target = "三節高/四節高"
+                elif sum(1 for t in pairs if t in ["白", "發", "中"]) >= 2: target = "小三元/大三元"
+                elif sum(1 for t in pairs if t in ["東", "南", "西", "北"]) >= 2: target = "小四喜/大四喜"
+                else:
+                    suits = {'p': sum(1 for x in set(hand_list) if 'p' in x), 's': sum(1 for x in set(hand_list) if 's' in x), 'm': sum(1 for x in set(hand_list) if 'm' in x)}
+                    if len(pairs) == 0 and max(suits.values()) >= 6: target = "一通/混一色"
+                    elif sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in NON_RED_TILES) >= 8 and len(pairs) >= 2: target = "断紅胡"
+                    elif sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in TERMINALS.union(HONORS)) >= 8 and len(pairs) >= 2: target = "混老頭"
+                    else:
+                        nums = [get_tile_num(t) for t in hand_list if get_tile_num(t) != -1]
+                        if sum(1 for n in nums if n >= 6) >= 8: target = "大于五"
+                        elif sum(1 for n in nums if n <= 4) >= 8: target = "小于五"
+                        elif any("m" in t for t in pairs) and any(t in ["東","南","西","北","白","發","中"] for t in pairs): target = "五門斉"
+                        elif sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in REVERSIBLE_TILES) >= 8 and len(pairs) >= 2: target = "推不倒"
+                        elif len(pairs) >= 3: target = "対々和"
+
+    # 🌟 4. 決めた目標を記憶する
+    if hasattr(game_state, 'cpu_initial_targets'):
+        game_state.cpu_initial_targets[cpu_idx] = target
+
+    return target
 
 # ⚖️ 目標（Target）と盤面状況から、特定の牌の「重要度（残す価値）」を点数化する関数
 def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
+    cpu_level = getattr(game_state, 'cpu_level', 1)
+
+    # 🌟 1. 「よわい」「ふつう」の場合、既に計算済みの牌があればその価値を返す（思考の固定化）
+    if cpu_level <= 1 and hasattr(game_state, 'cpu_fixed_scores'):
+        if t in game_state.cpu_fixed_scores[cpu_idx]:
+            return game_state.cpu_fixed_scores[cpu_idx][t]
+
     target = determine_target(cpu_idx, hand_list, game_state)
     
     if t in SEASON_TILES: 
@@ -134,7 +153,13 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     idx = TILE_NAMES.index(t)
     score = 0
     count = hand_list.count(t)
-    visible = get_visible_count(t, game_state)
+
+    # 🌟 2. 「よわい」「ふつう」は他家の捨て牌や見え牌を一切確認しない（常に0枚と錯覚する）
+    if cpu_level <= 1:
+        visible = 0
+    else:
+        visible = get_visible_count(t, game_state)
+        
     t_num = get_tile_num(t)
     
     if count == 2: score += 50
@@ -150,8 +175,6 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     if count == 1 and visible >= 3 and idx in HONORS: score -= 80 
         
     if t == "發": score += 15
-
-    target = determine_target(cpu_idx, hand_list, game_state)
 
     if target == "七星不靠":
         if count >= 2: score -= 100 
@@ -227,6 +250,11 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
         if f"{t_num + 2}{suit}" in hand_list: score += 20
 
     score += random.randint(0, 5) 
+
+    # 🌟 3. 計算結果を記憶してから返す
+    if cpu_level <= 1 and hasattr(game_state, 'cpu_fixed_scores'):
+        game_state.cpu_fixed_scores[cpu_idx][t] = score
+        
     return score
 
 # 🧩 手牌の構成（面子と雀頭の組み合わせパターン）を再帰的にすべて洗い出す関数
@@ -635,7 +663,9 @@ class GameState:
         self.scores = [0, 0, 0, 0] 
         self.total_scores = [0, 0, 0, 0] 
         self.cpu_targets = ["", "", "", ""]
+        self.cpu_initial_targets = ["", "", "", ""] # 🌟 ここを追加！（最初に決めた役を一生記憶）
         self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
+        self.cpu_fixed_scores = [{}, {}, {}, {}] # 🌟 追加：最初に決めた各牌の点数（評価値）を固定で記憶する辞書
         print(f"【CPU起動】 CPU1:タイプ{self.cpu_personalities[1]}, CPU2:タイプ{self.cpu_personalities[2]}, CPU3:タイプ{self.cpu_personalities[3]}")
         self.just_drawn = -1 
         self.reset_round()
@@ -651,6 +681,8 @@ class GameState:
         self.turn = self.dealer 
         self.scores = [0, 0, 0, 0]
         self.cpu_targets = ["", "", "", ""]
+        self.cpu_fixed_scores = [{}, {}, {}, {}] # 🌟 追加：局ごとにリセット
+        self.cpu_initial_targets = ["", "", "", ""] # 🌟 ここを追加！
         self.just_drawn = -1 
         self.win_records = [[] for _ in range(4)]
         self.is_first_turn = [True, True, True, True]
