@@ -699,16 +699,55 @@ def evaluate_hand(data):
     data_str = json.dumps(data, sort_keys=True)
     return _evaluate_hand_cached(data_str)
 
-# 🔎 現在の手牌から「アガリ牌（テンパイ待ち牌）」のリストをすべて取得する関数
+# 🔎 杉山式・全待ち看破アルゴリズム搭載：現在の手牌から「待ち牌」をすべて取得する関数
 def get_waits_for_hand(hand_list, melds):
     waits = []
     closed_str = " ".join(hand_list)
+    
+    # 🌟 1. 手牌に存在する色を把握する
+    suits_present = set()
+    for t in hand_list:
+        if 'p' in t: suits_present.add('p')
+        elif 's' in t: suits_present.add('s')
+        elif 'm' in t: suits_present.add('m')
+
+    # 手牌に無い色を特定
+    missing_suits = {'p', 's', 'm'} - suits_present
+
+    # 🌟 2. 杉山式「無い色」を利用したリトマス試験紙
+    for suit in missing_suits:
+        test_tile = f"5{suit}" # その色の真ん中（孤立牌）をテスト
+        win_ctx = {"winning_tile": test_tile, "is_tsumo": False, "is_haitei": False}
+        data = {"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx}
+        
+        if is_agari(data):
+            # 孤立しているはずの無い色でアガれた ＝ 杉山さんの言う「全待ちの条件」を完全に満たしている証明！
+            # これ以上計算する必要なし！即座に全38種類を返す！
+            return TILE_NAMES + list(SEASON_TILES)
+        else:
+            # 代表牌でアガれない ＝ この色はどんな牌を引いても無駄（枝刈り確定）
+            pass
+
+    # 🌟 3. 候補の絞り込み（枝刈り後のリスト）
+    candidates = []
     for t in TILE_NAMES + list(SEASON_TILES):
+        if t in SEASON_TILES or TILE_NAMES.index(t) in TERMINALS.union(HONORS):
+            # 字牌、四季牌、1・9牌は国士無双などの特殊役があるため無条件で残す
+            candidates.append(t)
+        else:
+            suit = t[-1]
+            if suit in suits_present:
+                # 手牌に存在する色の牌だけをチェック対象にする
+                candidates.append(t)
+
+    # 🌟 4. 残った本当に必要な候補だけをチェック
+    for t in candidates:
         win_ctx = {"winning_tile": t, "is_tsumo": False, "is_haitei": False}
         data = {"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx}
         
-        # 🌟 修正：重い evaluate_hand ではなく、爆速の is_agari を使う！
-        if is_agari(data): waits.append(t)
+        if is_agari(data):
+            waits.append(t)
+
     return waits
 
 # 🚫 アガリ放棄防止用：カンをしても既存のアガリ待ち牌が崩れないか（フリテンにならないか）を判定する関数
