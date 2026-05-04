@@ -439,10 +439,11 @@ def get_cpu_ron_interceptor(game: GameState, discarder_idx: int, tile: str, targ
                         if len(game.wall) >= 24 and remaining >= 3: 
                             continue 
 
-                if len(game.wall) > 20:
+                # 🌟 修正：「つよい」CPU以外は、欲張らずにテンパイ即リー（即和了）する！
+                if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20:
                     waits = get_waits_for_hand(game.hands[i], game.melds[i])
                     if len(waits) < 27: 
-                        continue 
+                        continue
 
             return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
     return None
@@ -688,10 +689,11 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                         if len(game.wall) >= 24 and remaining >= 3:
                             is_pass = True
 
-                if len(game.wall) > 20: 
+                # 🌟 修正：「つよい」CPU以外は、欲張らずに即和了する！
+                if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
                     waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
                     if len(waits) < 27:
-                        is_pass = True 
+                        is_pass = True
 
             if not is_pass:
                 game.win_tiles[cpu_idx].append(drawn)
@@ -889,9 +891,10 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                                 remaining += max(0, 4 - visible - game.hands[i].count(w))
                             if len(game.wall) >= 24 and remaining >= 3: is_pass = True
 
-                    if len(game.wall) > 20: 
+                    # 🌟 修正：「つよい」CPU以外は、欲張らずに即和了する！
+                    if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
                         waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                        if len(waits) < 27: is_pass = True 
+                        if len(waits) < 27: is_pass = True
 
                 if is_pass: continue
 
