@@ -55,22 +55,29 @@ async function takeResultScreenshot() {
         document.body.appendChild(clone);
 
         // 3. クローンに対する絶対的なスタイル設定
-        // 幅は元のサイズを維持し、高さは中身に合わせて無限に伸びるようにする
-        // z-indexをマイナスにして裏側に隠すことで、撮影中もプレイヤーの画面をチラつかせない
         const origWidth = resultWrapper.offsetWidth || 1000;
         clone.style.cssText = `
             position: absolute;
             top: 0;
             left: 0;
             width: ${origWidth}px;
-            height: auto;
+            height: auto !important; /* 🌟 高さを強制的に自動化 */
+            max-height: none !important; /* 🌟 上限を撤廃 */
             transform: none;
-            overflow: visible;
-            background-color: #0a0a0a; /* 背景を黒で塗りつぶす */
-            padding: 40px; /* 見切れないように余白を設ける */
+            overflow: visible !important; /* 🌟 はみ出しを許容 */
+            background-color: #0a0a0a;
+            padding: 40px;
             box-sizing: border-box;
             z-index: -99999;
         `;
+
+        // 🌟 追加：内部のスクロール領域（役リスト）のリミッターを解除し、レシートのように全展開させる
+        const winYaku = clone.querySelector('#win-yaku');
+        if (winYaku) {
+            winYaku.style.setProperty('overflow', 'visible', 'important');
+            winYaku.style.setProperty('max-height', 'none', 'important');
+            winYaku.style.setProperty('height', 'auto', 'important');
+        }
 
         // 4. スクショに不要な「次へ」「撮影」ボタン自体を、クローンから物理的に削除する
         const cloneControls = clone.querySelector('#result-controls');
@@ -80,21 +87,23 @@ async function takeResultScreenshot() {
         // html2canvasは <span>(inline) のbox-shadowを正しく描画できない仕様があるため、inline-blockに強制変更
         const yakuTags = clone.querySelectorAll('.yaku-tag');
         yakuTags.forEach(tag => {
-            tag.style.animation = "none";
-            tag.style.display = "inline-block";
+            // 🌟 修正：CSSの優先度（!important）を使って強制的に上書きする
+            tag.style.setProperty('animation', 'none', 'important');
+            tag.style.setProperty('display', 'inline-block', 'important');
 
+            // 🌟 修正：html2canvasが苦手なinset(内側の影)を外し、確実に描画されるシンプルな外発光にする
             if (tag.classList.contains('yaku-tier-64')) {
-                tag.style.boxShadow = "0 0 15px #f1c40f, inset 0 0 10px #f1c40f";
-                tag.style.border = "2px solid #f1c40f";
+                tag.style.setProperty('box-shadow', '0 0 12px 2px #f1c40f', 'important');
+                tag.style.setProperty('border', '2px solid #f1c40f', 'important');
             } else if (tag.classList.contains('yaku-tier-32')) {
-                tag.style.boxShadow = "0 0 15px #e67e22, inset 0 0 10px #e67e22";
-                tag.style.border = "2px solid #e67e22";
+                tag.style.setProperty('box-shadow', '0 0 12px 2px #e67e22', 'important');
+                tag.style.setProperty('border', '2px solid #e67e22', 'important');
             } else if (tag.classList.contains('yaku-tier-16')) {
-                tag.style.boxShadow = "0 0 15px #e74c3c, inset 0 0 10px #e74c3c";
-                tag.style.border = "2px solid #e74c3c";
+                tag.style.setProperty('box-shadow', '0 0 12px 2px #e74c3c', 'important');
+                tag.style.setProperty('border', '2px solid #e74c3c', 'important');
             } else if (tag.classList.contains('yaku-tier-multi')) {
-                tag.style.boxShadow = "0 0 15px #00d2d3, inset 0 0 10px #00d2d3";
-                tag.style.border = "2px solid #00d2d3";
+                tag.style.setProperty('box-shadow', '0 0 12px 2px #00d2d3', 'important');
+                tag.style.setProperty('border', '2px solid #00d2d3', 'important');
             }
         });
 
@@ -107,11 +116,11 @@ async function takeResultScreenshot() {
             scale: 2, // 高画質化
             useCORS: true,
             logging: false,
-            // 高さをクローンの実際のscrollHeightに強制指定し、途切れを許さない
-            width: clone.scrollWidth,
-            height: clone.scrollHeight,
-            windowWidth: clone.scrollWidth,
-            windowHeight: clone.scrollHeight
+            // 🌟 修正：中身が全展開されたクローンの「物理的な高さ(offsetHeight)」を基準にする
+            width: clone.offsetWidth,
+            height: clone.offsetHeight,
+            windowWidth: clone.offsetWidth,
+            windowHeight: clone.offsetHeight
         });
 
         // 8. 撮影完了後、即座にクローンをDOMから消去
