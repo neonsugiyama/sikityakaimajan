@@ -261,12 +261,19 @@ def evaluate_tile_dynamically(t, hand_list, game_state, cpu_idx, personality):
     return score
 
 # 🧩 手牌の構成（面子と雀頭の組み合わせパターン）を再帰的にすべて洗い出す関数
-def parse_hand(tiles, jokers):
+def parse_hand(tiles, jokers, early_return=False): # 🌟 引数に early_return を追加！
     valid_parses = []
     def find_melds(t, j, pongs, chows, pair_idx, start_idx=0):
+        # 🚨 爆速ストッパー！(待ち探索時、1個でもアガリの形が見つかったら残りの数百万パターンは無視して即終了！)
+        if early_return and valid_parses: return
+        
+        # 🚨 メモリ崩壊防止ストッパー！(本気の点数計算時でも、5000パターンを超えたら強制終了してクラッシュを防ぐ)
+        if len(valid_parses) > 5000: return
+
         if sum(t) == 0:
             valid_parses.append({'pair': pair_idx, 'pongs': list(pongs), 'chows': list(chows), 'rem_j': j})
             return
+            
         for i in range(start_idx, 27):
             if t[i] > 0:
                 needed_p = max(0, 3 - t[i])
@@ -275,6 +282,9 @@ def parse_hand(tiles, jokers):
                     t[i] -= actual_p
                     find_melds(t, j - needed_p, pongs + [i], chows, pair_idx, i)
                     t[i] += actual_p
+                    
+                if early_return and valid_parses: return # 🚨 早期リターン
+                
                 # 順子の最小値から順子を探索
                 if (0 <= i <= 6) or (9 <= i <= 15):
                     needed_c = 0
@@ -287,6 +297,8 @@ def parse_hand(tiles, jokers):
                     if j >= needed_c:
                         find_melds(t, j - needed_c, pongs, chows + [i], pair_idx, i)
                     for ut in used: t[ut] += 1
+                    
+                if early_return and valid_parses: return # 🚨 早期リターン
 
                 # 順子の中間から順子を探索
                 if (1 <= i <= 7) or (10 <= i <= 16):
@@ -301,6 +313,8 @@ def parse_hand(tiles, jokers):
                     if j >= needed_c:
                        find_melds(t, j - needed_c, pongs, chows + [i - 1], pair_idx, i)
                     for ut in used: t[ut] += 1
+                    
+                if early_return and valid_parses: return # 🚨 早期リターン
 
                  # 順子の最大値から順子を探索
                 if (2 <= i <= 8) or (11 <= i <= 17):
@@ -315,14 +329,18 @@ def parse_hand(tiles, jokers):
                     if j >= needed_c:
                        find_melds(t, j - needed_c, pongs, chows + [i - 2], pair_idx, i)
                     for ut in used: t[ut] += 1
+                    
                 return
+                
     for i in range(27):
+        if early_return and valid_parses: break # 🚨 早期リターン
         needed_pair = max(0, 2 - tiles[i])
         if jokers >= needed_pair:
             actual_pair = 2 - needed_pair
             tiles[i] -= actual_pair
             find_melds(tiles, jokers - needed_pair, [], [], i, 0)
             tiles[i] += actual_pair
+            
     return valid_parses
 
 # 🃏 オールマイティ（Joker）として使われた鳴きパターンを、すべての可能な牌の組み合わせに展開する関数
@@ -635,35 +653,25 @@ def check_win_fast(data):
                 
     used_indices = set(all_used_tiles)
 
-   # 1. 一般手（4面子1雀頭）の判定
-    # 🌟 ここが最大のポイント！激重の expand_wild_melds を呼ばずに parse_hand だけで済ませる
-    if len(parse_hand(list(tiles), jokers)) > 0:
+    # 1. 一般手（4面子1雀頭）の判定
+    # 🌟 修正：引数に「early_return=True」を追加して、ブレーキを作動させる！
+    if len(parse_hand(list(tiles), jokers, early_return=True)) > 0:
         return True
 
     # 2. 特殊形の判定（鳴きがない場合のみ）
-    # 🌟 修正：特殊役は「合計14枚」ある時しか判定しない（誤判定防止）
     total_tiles_count = sum(tiles) + jokers
     if len(melds) == 0 and total_tiles_count == 14:
-        # 七対 / 七星攬月
         needed_pairs = sum(1 for count in tiles if count % 2 != 0)
         if jokers >= needed_pairs: return True
-        
-        # 十三幺九
         if used_indices.issubset(TERMINALS.union(HONORS)) and sum(1 for i in TERMINALS.union(HONORS) if tiles[i] > 0) + jokers >= 13: return True
-        
-        # 七星不靠
         if not any(count > 1 for count in tiles):
             for pattern in KNITTED_PATTERNS:
                 if sum(1 for i in pattern + list(HONORS) if tiles[i] == 1) + jokers >= 14: return True
-                
-        # 九連宝燈
         for suit_start in [0, 9]:
             suit_tiles = tiles[suit_start:suit_start+9]
             if sum(tiles) - sum(suit_tiles) == 0:
                 target = [3,1,1,1,1,1,1,1,3]
                 if jokers >= sum(max(0, target[i] - suit_tiles[i]) for i in range(9)): return True
-                
-        # 全単
         if used_indices.issubset(ODDS): return True
 
     return False

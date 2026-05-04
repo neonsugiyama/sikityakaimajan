@@ -1407,6 +1407,8 @@ def check_cpu_ron_interceptor_api(discarder_idx: int = 0, tile: str = "", game: 
 # 🛠️ デバッグ・テスト用に、特定の盤面（天和、国士無双など）を強制的に作り出すAPI
 @app.get("/debug_setup")
 def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
+    print(f"\n[DEBUG LOG] 🛠️ デバッグセットアップAPIが呼ばれました！ 要求されたシナリオ: {scenario}")
+    
     game.reset_round()
     game.discards_count = 0
     game.any_meld_occurred = False
@@ -1909,9 +1911,37 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["1p", "1p", "1p", "3p", "3p", "3p", "5s", "5s", "5s", "7s", "7s", "7s", "9m"]
         game.wall.append("9m")
 
+    elif scenario == "random_4jokers":
+        print("[DEBUG LOG] 🃏 random_4jokers の分岐に突入しました！") 
+        
+        game.dealer = 0
+        game.turn = 0
+        game.is_first_turn = [False]*4
+        
+        # 1. 108枚の通常牌（数牌＋字牌）だけをシャッフル
+        deck = TILE_NAMES * 4
+        random.shuffle(deck)
+        
+        # 2. プレイヤーには四季牌4枚と、シャッフルした山から9枚を配る
+        game.hands[0] = ["春", "夏", "秋", "冬"] + deck[:9]
+        
+        print(f"[DEBUG LOG] 🀄 プレイヤー0の手牌セット直後: {game.hands[0]}")
+        
+        # 3. CPUたちにも「ダブらないように」残りの山から13枚ずつ配る
+        game.hands[1] = deck[9:22]
+        game.hands[2] = deck[22:35]
+        game.hands[3] = deck[35:48]
+        
+        # 4. 残りの60枚を山札にする
+        game.wall = deck[48:]
+
+        print(f"[DEBUG LOG] 🧱 山札の残り枚数: {len(game.wall)}")
+
     # 全員の手牌をソート
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
+        
+    print(f"[DEBUG LOG] 🏁 最終的なプレイヤー0の手牌(ソート後): {game.hands[0]}")
         
     return get_safe_state(game)
 
