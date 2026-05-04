@@ -12,7 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from mahjong_logic import (
     GameState, get_safe_state, evaluate_hand, get_waits_for_hand,
     determine_target, evaluate_tile_dynamically, is_kan_valid_for_player,
-    get_visible_count, SEASON_TILES, TILE_NAMES, ODDS,SORT_ORDER
+    get_visible_count, SEASON_TILES, TILE_NAMES, ODDS, SORT_ORDER,
+    is_agari # 🌟 これを追加！
 )
 
 app = FastAPI()
@@ -414,38 +415,39 @@ def get_cpu_ron_interceptor(game: GameState, discarder_idx: int, tile: str, targ
             "is_first_turn": game.is_first_turn[i], "any_meld_occurred": game.any_meld_occurred,
             "is_dealer": game.dealer == i, "discards_count": game.discards_count
         }
-        res = evaluate_hand({"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx})
-        if "error" not in res:
-            # 🌟 修正箇所2：すでに和了しているかどうかを判定する変数を追加
+        # 🌟 修正：is_agari と determine_target を使って超軽量化
+        data = {"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx}
+        if is_agari(data):
             has_won_already = len(game.win_tiles[i]) > 0
             has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
             
-            # 🌟 修正箇所3：見逃し判定は「まだ和了っていない、かつ四季牌を持っている時」のみ行うように条件を追加！
+            target = determine_target(i, game.hands[i], game) # 🌟 役の代わりに目標を取得
+            
             if not has_won_already and has_season_in_hand:
-                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                is_hanari_zentan = (target == "全単")
                 jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
-                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+                is_hanari_qixing = (target == "七星不靠" and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
                 
                 if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: 
                     continue 
 
-                if "十三幺九" in res.get("yaku", []):
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 13:
-                        remaining = 0
-                        for w in waits:
-                            visible = get_visible_count(w, game)
-                            remaining += max(0, 4 - visible - game.hands[i].count(w))
-                        if len(game.wall) >= 24 and remaining >= 3: 
-                            continue 
+            if target == "十三幺九": # 🌟 ここも target で判定
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 13:
+                    remaining = 0
+                    for w in waits:
+                        visible = get_visible_count(w, game)
+                        remaining += max(0, 4 - visible - game.hands[i].count(w))
+                    if len(game.wall) >= 24 and remaining >= 3: 
+                        continue 
 
-                # 🌟 修正：「つよい」CPU以外は、欲張らずにテンパイ即リー（即和了）する！
-                if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20:
-                    waits = get_waits_for_hand(game.hands[i], game.melds[i])
-                    if len(waits) < 27: 
-                        continue
+            # 🌟 修正：「つよい」CPU以外は、欲張らずにテンパイ即リー（即和了）する！
+            if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20:
+                waits = get_waits_for_hand(game.hands[i], game.melds[i])
+                if len(waits) < 27: 
+                    continue
 
-            return {"player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0), "ctx": ctx}
+            return {"player": i, "yaku":[], "score":0, "ctx": ctx}
     return None
 
 # ==========================================
@@ -665,35 +667,38 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
             "melds": game.melds[cpu_idx],
             "win_context": ctx
         }
-        res = evaluate_hand(win_data)
-        if "error" not in res:
+        
+        # 🌟 修正：is_agari と determine_target を使う！
+        if is_agari(win_data):
             has_won_already = len(game.win_tiles[cpu_idx]) > 0
             has_season_in_hand = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"])
             is_pass = False
             
+            target = determine_target(cpu_idx, game.hands[cpu_idx], game) # 🌟 追加
+            
             if not has_won_already and has_season_in_hand:
-                is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                is_hanari_zentan = (target == "全単")
                 jokers_count = sum(1 for t in game.hands[cpu_idx] + [drawn] if t in SEASON_TILES)
-                is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[cpu_idx] in [1, 2])
+                is_hanari_qixing = (target == "七星不靠" and jokers_count == 1 and game.cpu_personalities[cpu_idx] in [1, 2])
                 
                 if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
                     is_pass = True
 
-                if "十三幺九" in res.get("yaku", []):
-                    waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
-                    if len(waits) < 13:
-                        remaining = 0
-                        for w in waits:
-                            visible = get_visible_count(w, game)
-                            remaining += max(0, 4 - visible - game.hands[cpu_idx].count(w))
-                        if len(game.wall) >= 24 and remaining >= 3:
-                            is_pass = True
-
-                # 🌟 修正：「つよい」CPU以外は、欲張らずに即和了する！
-                if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
-                    waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
-                    if len(waits) < 27:
+            if target == "十三幺九":
+                waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                if len(waits) < 13:
+                    remaining = 0
+                    for w in waits:
+                        visible = get_visible_count(w, game)
+                        remaining += max(0, 4 - visible - game.hands[cpu_idx].count(w))
+                    if len(game.wall) >= 24 and remaining >= 3:
                         is_pass = True
+
+            # 🌟 修正：「つよい」CPU以外は、欲張らずに即和了する！
+            if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
+                waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                if len(waits) < 27:
+                    is_pass = True
 
             if not is_pass:
                 game.win_tiles[cpu_idx].append(drawn)
@@ -701,7 +706,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 game.turn = (cpu_idx + 1) % 4 
                 game.last_discard_info = {"player": -1, "tile": ""}
                 game.is_first_turn[cpu_idx] = False
-                return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
+                return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": [], "score": 0})
 
         game.hands[cpu_idx].append(drawn)
         
@@ -870,20 +875,23 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
             }
 
             data = {"closed_tiles": " ".join(game.hands[i]), "melds": game.melds[i], "win_context": ctx}
-            res = evaluate_hand(data)
-            if "error" not in res:
+            
+            # 🌟 修正：ここも is_agari と target に差し替え！
+            if is_agari(data):
                 has_won_already = len(game.win_tiles[i]) > 0
                 has_season_in_hand = any(t in SEASON_TILES for t in game.hands[i]) or any(t in SEASON_TILES for m in game.melds[i] for t in m["tiles"])
                 is_pass = False
                 
+                target = determine_target(i, game.hands[i], game) # 🌟 追加
+                
                 if not has_won_already and has_season_in_hand:
-                    is_hanari_zentan = ("全単" in res.get("yaku", []) and "無花果" not in res.get("yaku", []))
+                    is_hanari_zentan = (target == "全単")
                     jokers_count = sum(1 for t in game.hands[i] + [tile] if t in SEASON_TILES)
-                    is_hanari_qixing = ("七星不靠" in res.get("yaku", []) and "無花果" not in res.get("yaku", []) and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
+                    is_hanari_qixing = (target == "七星不靠" and jokers_count == 1 and game.cpu_personalities[i] in [1, 2])
                     
                     if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20: is_pass = True
 
-                    if "十三幺九" in res.get("yaku", []):
+                    if target == "十三幺九":
                         waits = get_waits_for_hand(game.hands[i], game.melds[i])
                         if len(waits) < 13:
                             remaining = 0
@@ -904,7 +912,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
                 # 🌟 削除：和了時の強制ストッパーを解除
-                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": res.get("yaku", []), "score": res.get("score", 0)})
+                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": [], "score": 0})
 
         if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
 
@@ -1157,20 +1165,13 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
             "discards_count": game.discards_count
         }
         
-        win_data = {
-            "closed_tiles": " ".join(game.hands[player_idx]),
-            "melds": game.melds[player_idx],
-            "win_context": ctx
-        }
-        res = evaluate_hand(win_data) 
-        
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
         game.turn = (player_idx + 1) % 4 
         game.last_discard_info = {"player": -1, "tile": ""}
         game.is_first_turn[player_idx] = False
         
-        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku":[], "score":0})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -1241,18 +1242,17 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
             "melds": game.melds[player_idx],
             "win_context": ctx
         }
-        res = evaluate_hand(win_data)
+        # 🌟 修正：evaluate_hand を削除し、最後の return もダミーにする！
 
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
-        # 🌟 削除：和了時の強制ストッパーを解除
 
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
 
         game.last_discard_info = {"player": -1, "tile": ""}
 
-        return get_safe_state(game, player_idx, {"yaku": res.get("yaku", []), "score": res.get("score", 0)})
+        return get_safe_state(game, player_idx, {"yaku": [], "score": 0})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -1301,9 +1301,9 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
     total_tiles = len(closed_str.split()) + 1 + len(game.melds[player_idx]) * 3
     if total_tiles != 14: return {"can_win": False}
         
-    res = evaluate_hand(data)
-    if "error" in res: return {"can_win": False, "reason": res["error"]}
-    return {"can_win": True, "score": res["score"], "yaku": res["yaku"]}
+    # 🌟 修正：重い evaluate_hand をやめて is_agari だけでサクッと判定
+    if not is_agari(data): return {"can_win": False, "reason": "役がありません"}
+    return {"can_win": True, "score": 0, "yaku": []}
 
 @app.get("/calculate_round_scores")
 def calculate_round_scores(game: GameState = Depends(get_current_game)):
@@ -1923,16 +1923,18 @@ def get_waits(player_idx: int = 0, game: GameState = Depends(get_current_game)):
     has_won = len(game.win_tiles[player_idx]) > 0
     last_drawn = game.last_drawn[player_idx] 
     
+    # 【パターン1】手牌が13枚（ツモる前、または他家のターン中）の待ち牌検索
     if len(hand) % 3 == 1:
         waits = []
         closed_str = " ".join(hand)
         for t in TILE_NAMES + list(SEASON_TILES):
             win_ctx = {"winning_tile": t, "is_tsumo": False, "is_haitei": False}
-            res = evaluate_hand({"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx})
-            if "error" not in res:
+            data = {"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx}
+            if is_agari(data):
                 waits.append(t)
         return {"waits": waits}
     
+    # 【パターン2】手牌が14枚（自分のツモ番）の「何切る（どれを切ればテンパイか）」検索
     elif len(hand) % 3 == 2:
         nanikiru_results = {}
         
@@ -1947,10 +1949,11 @@ def get_waits(player_idx: int = 0, game: GameState = Depends(get_current_game)):
             
             waits = []
             closed_str = " ".join(temp_hand)
+            
             for t in TILE_NAMES + list(SEASON_TILES):
                 win_ctx = {"winning_tile": t, "is_tsumo": False, "is_haitei": False}
-                res = evaluate_hand({"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx})
-                if "error" not in res:
+                data = {"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx}
+                if is_agari(data):
                     waits.append(t)
             
             if waits:
