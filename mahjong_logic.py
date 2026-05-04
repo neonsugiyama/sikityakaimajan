@@ -95,7 +95,8 @@ def determine_target(cpu_idx, hand_list, game_state):
             
         if max_qixing_count + jokers >= 10: target = "七星不靠"
         elif len(terminals_honors) + jokers >= 9: target = "十三幺九"
-        elif sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in ODDS) >= 10: target = "全単"
+        # 🌟 修正：一切鳴いていない（len(melds) == 0）時のみ全単を狙う
+        elif len(game_state.melds[cpu_idx]) == 0 and sum(1 for t in hand_list if t in TILE_NAMES and TILE_NAMES.index(t) in ODDS) >= 10: target = "全単"
         else:
             term_pairs = [t for t in pairs if "1" in t or "9" in t]
             if len(term_pairs) >= 1: target = "双同刻/三同刻"
@@ -581,7 +582,8 @@ def evaluate_hand(data):
                 if jokers >= sum(max(0, target[i] - suit_tiles[i]) for i in range(9)):
                     candidates.append(base_attr + ["九連宝燈"])
                     
-        if used_indices.issubset(ODDS):
+        # 🌟 修正：全単は暗槓・花槓なども含めて「一切の副露がない（len(melds) == 0）」場合のみ成立
+        if used_indices.issubset(ODDS) and len(melds) == 0:
             candidates.append(base_attr + ["全単"])
 
     if not candidates:

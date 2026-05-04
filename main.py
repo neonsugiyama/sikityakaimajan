@@ -732,7 +732,8 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
             if has_won and len(seasons) > 0: break
                 
             current_target = determine_target(cpu_idx, game.hands[cpu_idx], game)
-            if current_target in ["十三幺九", "七星不靠"]: break
+            # 🌟 修正：全単を狙っている時は、自分のツモ番でも「暗槓・花槓・加槓を一切しない」
+            if current_target in ["十三幺九", "七星不靠", "全単"]: break
                 
             for t, c in counts.items():
                 if c == 4 and t not in SEASON_TILES:
@@ -913,7 +914,8 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                 if len(game.win_tiles[i]) > 0: continue
                 
                 current_target = determine_target(i, game.hands[i], game)
-                if current_target in ["十三幺九", "七星不靠"]: continue
+                # 🌟 修正：全単を狙っている時は、国士無双などと同じく「絶対にポン・明槓しない」
+                if current_target in ["十三幺九", "七星不靠", "全単"]: continue
 
                 count = game.hands[i].count(tile)
                 if count >= 2:
