@@ -1,5 +1,7 @@
 ﻿import random
 import traceback
+import json                       # 🌟 これを追加
+from functools import lru_cache   # 🌟 これを追加
 
 # ==========================================
 # 1. 辞書と定義
@@ -371,8 +373,12 @@ def calc_yaku_score(yaku_list):
         
     return b_score * mult, b_score, mult, filtered
 
-# 💰 【超重要コア】手牌と状況（ツモ/ロン等）を受け取り、アガリ判定・役・点数計算をすべて行う関数
-def evaluate_hand(data):
+# 🌟 追加：メモ帳（キャッシュ）を用意！過去50000パターンの計算結果を暗記する
+@lru_cache(maxsize=50000)
+def _evaluate_hand_cached(data_str):
+    # 文字列のメモから、元の辞書データに戻す
+    data = json.loads(data_str)
+    
     closed_str = data.get("closed_tiles", "")
     melds = data.get("melds", [])
     ctx = data.get("win_context", {})
@@ -600,6 +606,91 @@ def evaluate_hand(data):
     final_score, base_score, multiplier, display_names = best_result
     return {"score": final_score, "base_score": base_score, "multiplier": multiplier, "yaku": display_names}
 
+# 🚀 【新規追加】役や点数を計算せず、「アガリの形になっているか」だけを爆速で判定する関数
+def check_win_fast(data):
+    closed_str = data.get("closed_tiles", "")
+    melds = data.get("melds", [])
+    ctx = data.get("win_context", {})
+    winning_tile = ctx.get("winning_tile", "")
+    
+    if winning_tile: closed_str += " " + winning_tile
+    closed_list = closed_str.split()
+    
+    tiles = [0] * 27
+    jokers = 0
+    all_used_tiles = [] 
+    
+    for t in closed_list:
+        if t in TILE_NAMES:
+            idx = TILE_NAMES.index(t)
+            tiles[idx] += 1
+            all_used_tiles.append(idx)
+        elif t in SEASON_TILES: 
+            jokers += 1
+
+    for m in melds:
+        for tn in m.get("tiles", []):
+            if tn in TILE_NAMES:
+                all_used_tiles.append(TILE_NAMES.index(tn))
+                
+    used_indices = set(all_used_tiles)
+
+   # 1. 一般手（4面子1雀頭）の判定
+    # 🌟 ここが最大のポイント！激重の expand_wild_melds を呼ばずに parse_hand だけで済ませる
+    if len(parse_hand(list(tiles), jokers)) > 0:
+        return True
+
+    # 2. 特殊形の判定（鳴きがない場合のみ）
+    # 🌟 修正：特殊役は「合計14枚」ある時しか判定しない（誤判定防止）
+    total_tiles_count = sum(tiles) + jokers
+    if len(melds) == 0 and total_tiles_count == 14:
+        # 七対 / 七星攬月
+        needed_pairs = sum(1 for count in tiles if count % 2 != 0)
+        if jokers >= needed_pairs: return True
+        
+        # 十三幺九
+        if used_indices.issubset(TERMINALS.union(HONORS)) and sum(1 for i in TERMINALS.union(HONORS) if tiles[i] > 0) + jokers >= 13: return True
+        
+        # 七星不靠
+        if not any(count > 1 for count in tiles):
+            for pattern in KNITTED_PATTERNS:
+                if sum(1 for i in pattern + list(HONORS) if tiles[i] == 1) + jokers >= 14: return True
+                
+        # 九連宝燈
+        for suit_start in [0, 9]:
+            suit_tiles = tiles[suit_start:suit_start+9]
+            if sum(tiles) - sum(suit_tiles) == 0:
+                target = [3,1,1,1,1,1,1,1,3]
+                if jokers >= sum(max(0, target[i] - suit_tiles[i]) for i in range(9)): return True
+                
+        # 全単
+        if used_indices.issubset(ODDS): return True
+
+    return False
+
+# 🌟 追加：メモ帳機能（四季牌がある時だけ使用する）
+@lru_cache(maxsize=50000)
+def _check_win_fast_cached(data_str):
+    return check_win_fast(json.loads(data_str))
+
+# 🌟 追加：杉山さんの提案通り、四季牌がある時だけキャッシュに頼る窓口
+def is_agari(data):
+    closed_str = data.get("closed_tiles", "")
+    winning_tile = data.get("win_context", {}).get("winning_tile", "")
+    
+    # 四季牌（Joker）が含まれているか、引いた牌が四季牌の時だけキャッシュを通す
+    if any(s in closed_str for s in SEASON_TILES) or winning_tile in SEASON_TILES:
+        return _check_win_fast_cached(json.dumps(data, sort_keys=True))
+    else:
+        return check_win_fast(data)
+
+# 💰 【超重要コア】の窓口（元の evaluate_hand の代わりになる関数）
+def evaluate_hand(data):
+    # 辞書データはそのまま暗記できないので、文字列（JSON）に変換してメモ帳関数に投げる
+    # sort_keys=True を入れることで、辞書の順番が違っても「同じデータ」として正しくキャッシュされる
+    data_str = json.dumps(data, sort_keys=True)
+    return _evaluate_hand_cached(data_str)
+
 # 🔎 現在の手牌から「アガリ牌（テンパイ待ち牌）」のリストをすべて取得する関数
 def get_waits_for_hand(hand_list, melds):
     waits = []
@@ -607,8 +698,9 @@ def get_waits_for_hand(hand_list, melds):
     for t in TILE_NAMES + list(SEASON_TILES):
         win_ctx = {"winning_tile": t, "is_tsumo": False, "is_haitei": False}
         data = {"closed_tiles": closed_str, "melds": melds, "win_context": win_ctx}
-        res = evaluate_hand(data)
-        if "error" not in res: waits.append(t)
+        
+        # 🌟 修正：重い evaluate_hand ではなく、爆速の is_agari を使う！
+        if is_agari(data): waits.append(t)
     return waits
 
 # 🚫 アガリ放棄防止用：カンをしても既存のアガリ待ち牌が崩れないか（フリテンにならないか）を判定する関数
