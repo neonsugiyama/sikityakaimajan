@@ -401,6 +401,32 @@ def get_safe_state(game: GameState, player_idx=0, extra_data=None):
     if extra_data: res.update(extra_data)
     return res
 
+# 🌟 演出用の特殊役（天胡など）だけをアガリ時に即座に判定する関数
+def get_special_effects(game: GameState, player_idx: int, ctx: dict):
+    effects = []
+    is_tsumo = ctx.get("is_tsumo", False)
+    is_first = ctx.get("is_first_turn", False)
+    any_meld = ctx.get("any_meld_occurred", False)
+    d_count = ctx.get("discards_count", 999)
+    winning_tile = ctx.get("winning_tile", "")
+    
+    melds = game.melds[player_idx]
+    
+    # 面前かつ1巡目（鳴きなし）の判定
+    if len(melds) == 0 and is_first and not any_meld:
+        if ctx.get("is_dealer", False) and is_tsumo and d_count == 0:
+            effects.append("天胡")
+        elif not ctx.get("is_dealer", False) and d_count < 4:
+            effects.append("地胡")
+            
+    if is_tsumo and winning_tile == "春": effects.append("妙手回春")
+    if ctx.get("is_rinshan", False): effects.append("槓上開花")
+    if ctx.get("is_haitei", False): effects.append("花天月地")
+    
+    # ※「槍槓」はフロントエンド側で独自に判定してエフェクトを出しているため除外
+    
+    return effects
+
 # 🌟 第一引数に必ず game を受け取るように変更！
 def get_cpu_ron_interceptor(game: GameState, discarder_idx: int, tile: str, target_players: list):
     is_haitei = (len(game.wall) == 0)
@@ -447,7 +473,9 @@ def get_cpu_ron_interceptor(game: GameState, discarder_idx: int, tile: str, targ
                 if len(waits) < 27: 
                     continue
 
-            return {"player": i, "yaku":[], "score":0, "ctx": ctx}
+            # 🌟 追加：演出用の役を即席判定してフロントに渡す
+            effects = get_special_effects(game, i, ctx)
+            return {"player": i, "yaku": effects, "score": 0, "ctx": ctx}
     return None
 
 # ==========================================
@@ -706,7 +734,10 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 game.turn = (cpu_idx + 1) % 4 
                 game.last_discard_info = {"player": -1, "tile": ""}
                 game.is_first_turn[cpu_idx] = False
-                return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": [], "score": 0})
+                
+                # 🌟 追加：演出用の役を即席判定してフロントに渡す
+                effects = get_special_effects(game, cpu_idx, ctx)
+                return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": effects, "score": 0})
 
         game.hands[cpu_idx].append(drawn)
         
@@ -911,8 +942,10 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                     game.discards[discarder_idx].pop()
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(ctx)
-                # 🌟 削除：和了時の強制ストッパーを解除
-                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": [], "score": 0})
+                
+                # 🌟 追加：演出用の役を即席判定してフロントに渡す
+                effects = get_special_effects(game, i, ctx)
+                return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": effects, "score": 0})
 
         if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
 
@@ -1171,7 +1204,9 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         game.last_discard_info = {"player": -1, "tile": ""}
         game.is_first_turn[player_idx] = False
         
-        return get_safe_state(game, player_idx, {"yaku":[], "score":0})
+        # 🌟 追加：演出用の役を即席判定してフロントに渡す
+        effects = get_special_effects(game, player_idx, ctx)
+        return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -1252,7 +1287,9 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
 
         game.last_discard_info = {"player": -1, "tile": ""}
 
-        return get_safe_state(game, player_idx, {"yaku": [], "score": 0})
+        # 🌟 追加：演出用の役を即席判定してフロントに渡す
+        effects = get_special_effects(game, player_idx, ctx)
+        return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
