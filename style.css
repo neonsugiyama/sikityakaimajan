@@ -3596,3 +3596,14 @@ body.lang-en .en {
         transform: translateX(-50%) scale(calc(var(--game-scale) * 0.8)) !important;
     }
 }
+
+/* デバッグパネルをパソコン版と同じ比率のまま画面に合わせて縮小する */
+#dev-mode-container {
+    transform: scale(var(--game-scale, 1)) !important;
+    transform-origin: top right !important;
+}
+
+#achieve-debug-panel {
+    transform: scale(var(--game-scale, 1)) !important;
+    transform-origin: top left !important;
+}

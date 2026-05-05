@@ -1684,6 +1684,17 @@ function resizeGame() {
         bigYaku.style.fontSize = `${180 * scale}px`;
         bigYaku.style.webkitTextStrokeWidth = `${4 * scale}px`;
     }
+
+    // 🌟 6. デバッグパネル（テストツール等）の縮小
+    const debugPanels = ['#dev-mode-container', '#achieve-debug-panel'];
+    debugPanels.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) {
+            // テストツール(右)は右上基準、実績テスト(左)は左上基準で一緒に縮小する
+            el.style.transformOrigin = selector.includes('dev-mode') ? "top right" : "top left";
+            el.style.transform = `scale(${scale})`;
+        }
+    });
 }
 
 window.addEventListener('resize', resizeGame);
