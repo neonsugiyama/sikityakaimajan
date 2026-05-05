@@ -1686,16 +1686,15 @@ function resizeGame() {
     }
 
     // 🌟 6. デバッグパネル（テストツール等）の縮小
-    const devModePanel = document.getElementById('dev-mode-container');
-    if (devModePanel) {
-        devModePanel.style.transformOrigin = 'top right';
-        devModePanel.style.transform = `scale(${scale})`;
-    }
-    const achievePanel = document.getElementById('achieve-debug-panel');
-    if (achievePanel) {
-        achievePanel.style.transformOrigin = 'top left';
-        achievePanel.style.transform = `scale(${scale})`;
-    }
+    const debugPanels = ['#dev-mode-container', '#achieve-debug-panel'];
+    debugPanels.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) {
+            // テストツール(右)は右上基準、実績テスト(左)は左上基準で一緒に縮小する
+            el.style.transformOrigin = selector.includes('dev-mode') ? "top right" : "top left";
+            el.style.transform = `scale(${scale})`;
+        }
+    });
 }
 
 window.addEventListener('resize', resizeGame);
