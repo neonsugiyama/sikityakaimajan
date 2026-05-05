@@ -407,6 +407,7 @@ let playerStats = {
     tousenKaroCount: 0,       // 冬扇夏炉（無花で春自摸）
     noWinGameCount: 0,        // 暖かい紅茶でもいかが？（0和了で終了）
     muhanaAddictionCount: 0,  // 無花果依存症（4局全てで無花果和了）
+    hezuezhangCount: 0,       // 🌟 追加：和絶張（3枚見えの牌で和了）
 };
 
 // 🏆 レート数値に応じたプレイヤーの「称号」文字列を返す関数
@@ -4458,6 +4459,40 @@ async function handleRoundEnd(isReplayingResult = false) {
                     }
                 }
 
+                // 「和絶張」（既に3枚見えている牌の最後の1枚で和了）
+                let winTile = res.details.length > 0 ? res.details[0].tile : null;
+                // 四季牌（Joker）は対象外とする
+                if (winTile && !["春", "夏", "秋", "冬"].includes(winTile)) {
+                    let visibleCount = 0;
+
+                    // 1. 全員の副露（ポン・明槓など）から和了牌の数をカウント
+                    myAllMelds.forEach(playerMelds => {
+                        if (playerMelds) {
+                            playerMelds.forEach(m => {
+                                m.tiles.forEach(t => { if (t === winTile) visibleCount++; });
+                            });
+                        }
+                    });
+
+                    // 2. 全員の河（捨て牌）から和了牌の数をカウント
+                    for (let riverIdx = 0; riverIdx < 4; riverIdx++) {
+                        const r = document.getElementById(`river-${riverIdx}`);
+                        if (r) {
+                            Array.from(r.children).forEach(img => {
+                                const srcPath = decodeURIComponent(img.src);
+                                if (srcPath.includes(`/${winTile}.png`)) visibleCount++;
+                            });
+                        }
+                    }
+
+                    // 和了牌自身はすでに河から回収されている、または手牌から分離されているため、
+                    // この時点で「3枚」見えていれば、今アガった牌が正真正銘「最後の4枚目」となる。
+                    if (visibleCount === 3 && (playerStats.hezuezhangCount || 0) === 0) {
+                        playerStats.hezuezhangCount = 1;
+                        showAchievementUnlock("和絶張", "🀄");
+                    }
+                }
+
                 playerStats.totalWins++;
                 let oldTotalScore = playerStats.totalScoreSum || 0;
                 playerStats.totalScoreSum = oldTotalScore + res.total_score;
@@ -5228,6 +5263,7 @@ function renderAchievements() {
         { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "muhana_addiction", icon: "🍂", title: "無花果依存症", desc: "4局全てで一回以上無花果で和了する", val: playerStats.muhanaAddictionCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "he_jue_zhang", icon: "🀄", title: "和絶張", desc: "場に3枚見えている牌の最後の1枚で和了する(四季牌除く)", val: playerStats.hezuezhangCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false },
     ];
 
     let gridHtml = ``;
@@ -5906,7 +5942,8 @@ function resetToInitialData() {
         comebackCount: 0,
         masterOfSeasonsCount: 0,
         pacifistCount: 0,
-        wideWaitCount: 0
+        wideWaitCount: 0,
+        hezuezhangCount: 0 // 🌟 ここを追加
     };
 
     saveGameData();
