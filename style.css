@@ -3598,7 +3598,7 @@ body.lang-en .en {
 }
 
 /* デバッグパネルをパソコン版と同じ比率のまま画面に合わせて縮小する */
-#dev-mode-container {
+.debug-panel {
     transform: scale(var(--game-scale, 1)) !important;
     transform-origin: top right !important;
 }
