@@ -1803,6 +1803,21 @@ let confEffective = false;  // 有効牌表示ON/OFF
 // 🌟 追加：連打防止用のロックフラグ
 let isStartingGame = false;
 
+// 🛡️ セキュリティ対策：入力された文字列のHTMLタグを無害化する関数
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/[&<>'"]/g, function (match) {
+        const escape = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        };
+        return escape[match];
+    });
+}
+
 // ⚙️ 設定を適用してゲームを開始する関数
 async function applySettingsAndStart() {
     // 🌟 追加：すでに開始処理中なら、何度ボタンを押されても無視して弾く！
@@ -2419,7 +2434,7 @@ function updateInfoUI() {
         let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
 
         let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${playerStats.playerName}` :
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${escapeHTML(playerStats.playerName)}` :
             `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
@@ -5417,11 +5432,25 @@ let lineChart = null;
 // ==========================================
 
 // 📊 タイトル画面用のプロフィール描画（折れ線グラフ化）
-// 🌟 修正：async を追加して、中で「待機」できるようにする
 async function updateProfileUI() {
-    document.getElementById('prof-name').innerText = playerStats.playerName;
-    let rate = playerRatings[0];
-    document.getElementById('prof-rank').innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
+    // 🌟 修正：名前部分に✏️アイコンを追加し、クリックでマイページ（名前変更）を開くようにする
+    const profNameEl = document.getElementById('prof-name');
+    if (profNameEl) {
+        // innerHTMLを使ってアイコンを描画するため、前回作った escapeHTML で必ず無害化する！
+        profNameEl.innerHTML = `${escapeHTML(playerStats.playerName)} <span style="font-size: 16px; margin-left: 8px; opacity: 0.7;">✏️</span>`;
+        profNameEl.style.cursor = "pointer";
+        profNameEl.title = "名前と詳細戦績を確認・変更";
+        profNameEl.onclick = () => openMyPage();
+    }
+
+    // 🌟 追加：ついでに下の「段位・レート」部分を押しても開くようにしておくと操作しやすい
+    const profRankEl = document.getElementById('prof-rank');
+    if (profRankEl) {
+        let rate = playerRatings[0];
+        profRankEl.innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
+        profRankEl.style.cursor = "pointer";
+        profRankEl.onclick = () => openMyPage();
+    }
 
     // 🌟 追加：Chart.jsの読み込みが完了するまで最大2秒間（0.2秒×10回）待機する
     let retryCount = 0;
@@ -5791,6 +5820,16 @@ function saveNewName() {
         document.getElementById('input-player-name').value = newName;
     }
 
+    // 🛡️ バリデーション：使える文字を制限（漢字、ひらがな、全角カタカナ、英数字、アンダーバー、長音符）
+    // ※半角カナや記号はここで弾く
+    const safeNameRegex = /^[ぁ-んァ-ヶ一-龠々a-zA-Z0-9_ー]+$/;
+
+    if (newName !== "名無し" && !safeNameRegex.test(newName)) {
+        playSE('alert');
+        alert("【エラー】名前には「ひらがな・カタカナ・漢字・英数字・アンダーバー」のみ使用できます。\n（記号や半角カナ、空白は使用できません）");
+        return; // 保存せずに処理を中断する
+    }
+
     playerStats.playerName = newName;
     saveGameData();
     updateProfileUI(); // タイトル画面の表示も更新
@@ -5798,6 +5837,7 @@ function saveNewName() {
     updateInfoUI();
 
     alert(`名前を「${newName}」に変更しました！`);
+    closeMyPage(); // 🌟 追加：保存が完了したら自動でマイページを閉じる
 }
 
 // ✏️ 名前入力欄を一括で消去する関数（×ボタン用）
