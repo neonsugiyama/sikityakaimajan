@@ -272,6 +272,12 @@ function returnToHomeGracefully() {
     document.getElementById('msg').innerText = "";
     document.getElementById('msg').className = "";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
     hideWaitsPanel();
 
     isAutoPlay = false;
@@ -831,6 +837,12 @@ async function startTutorial() {
     clearCharlestonStatus();
     resetActionBtnPool();
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
     document.getElementById('msg').innerText = "";
 
     wallCount = 80;
@@ -2769,6 +2781,11 @@ async function loadDebugScenario(scenario) {
     document.getElementById('charleston-ui').style.display = "none";
     document.getElementById('charleston-confirm-ui').style.display = "none";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
 
     drawnTile = "";
     lastDiscardPlayer = -1;
@@ -5228,9 +5245,9 @@ function renderAchievements() {
         { id: "rating_god", icon: "👑", title: "頂に立つ者", desc: "レート2000(称号「あたまおかしい」)到達", val: currentRate >= 2000 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "wide_wait", icon: "🌀", title: "無限の選択肢", desc: "聴牌時の待ち牌が「27種類」ある状態で和了", val: playerStats.wideWaitCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "master_of_seasons", icon: "🌍", title: "四季常春", desc: "1局の手牌に四季牌4種すべてを揃えて和了", val: playerStats.masterOfSeasonsCount, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "一局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "full_house", icon: "🌈", title: "インフレの体現者", desc: "1局で7種類以上の役を複合させる", val: playerStats.maxComboCount >= 7 ? 1 : 0, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "welcomehome", icon: "🎲", title: "おかえりなさい", desc: "交換で出した3枚と同じ3枚を受け取る", val: playerStats.welcomeHomeCount, tiers: [1, 1, 1, 1], unit: "回" },
-        { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "自分が和了していないのに局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
+        { id: "pacifist", icon: "🕊️", title: "漁夫の利", desc: "和了0回でその局の順位が1位になる", val: playerStats.pacifistCount, tiers: [1, 1, 1, 1], unit: "回" },
         { id: "comeback", icon: "💊", title: "逆転の劇薬", desc: "4局開始時4位から1位で終了する", val: playerStats.comebackCount, tiers: [1, 1, 1, 1], unit: "回" },
 
         // 🀄 手役系（yakuCollected から回数を取得）

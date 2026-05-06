@@ -1974,6 +1974,23 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
         print(f"[DEBUG LOG] 🧱 山札の残り枚数: {len(game.wall)}")
 
+    elif scenario == "haitei_pon_test":
+        # 1. 自分(0)の手牌に「白」を2枚仕込み、残りは適当なバラバラの牌にする
+        game.hands[0] = ["白", "白", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "東", "南"]
+        game.melds[0] = []
+            
+        # 2. 山札を残り2枚にし、先頭（次に引かれる牌）を「白」にする
+        game.wall = ["白", "白"]
+            
+        # 3. いきなり上家(3)のターンからゲームを再開させる
+        game.turn = 3
+            
+        # 4. CPU3(上家)が引いた「白」を確実に切るように、手牌をパンパンの数牌で埋めておく
+        game.hands[3] = ["1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1p", "1p", "9p", "9p"]
+            
+        # 巡目フラグをリセット（天胡などの誤爆を防ぐため）
+        game.is_first_turn = [False, False, False, False]
+
     # 全員の手牌をソート
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
