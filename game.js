@@ -1479,9 +1479,9 @@ async function startLesson(lessonId) {
     }
 
     // 🌟 追加：まずはサーバーに「新しいゲームを始める」と伝えて卓を作る！
-    currentGameMode = 'lesson';         // 👈 追加：現在のモードをレッスンに指定
-    window.currentLessonId = lessonId;  // 👈 追加：選んだレッスンの番号を記憶
-    await apiCall('/start', { cpu_level: 1 });
+    currentGameMode = 'lesson';         
+    window.currentLessonId = lessonId;  
+    await apiCall('/start', { cpu_level: -1 }); // 👈 ここを変更！
 
     // 🌟 サーバーに積み込みを要求
     await apiCall('/debug_setup', { scenario: apiScenario });
@@ -2025,6 +2025,18 @@ function startTimer(seconds, timeoutCallback) {
     timerAction = timeoutCallback;
 
     console.log(`[タイマー処理] ⏱️ タイマーセット要求: ${seconds}秒`);
+
+    // 🎓 レッスンモード中はタイマーを無効化し、「∞」を表示して待ち続ける
+    if (currentGameMode === 'lesson') {
+        const display = document.getElementById('timer-display');
+        const secSpan = document.getElementById('timer-sec');
+        display.style.display = "block";
+        display.style.color = "#2ecc71";
+        display.style.borderColor = "#2ecc71";
+        display.style.boxShadow = "none";
+        secSpan.innerText = "∞";
+        return; // ここで処理を終了し、カウントダウン（setInterval）を起動させない！
+    }
 
     if (isResuming) {
         const endTime = sessionStorage.getItem(`timer_end_time_${currentSessionRoomId}`);
@@ -4168,6 +4180,13 @@ async function checkHumanReaction(discarderIdx, tile) {
 
 // 🤖 自分や他家の捨て牌（または加槓）に対し、他のCPUが鳴くかロンするか判定させる関数
 async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
+    // 🎓 レッスン中は、CPUに「鳴き」や「ロン」を絶対にさせない！
+    if (currentGameMode === 'lesson') {
+        isProc = false;
+        checkT(); // 何もせずに次の人のターンへ回す
+        return;
+    }
+
     try {
         isProc = true;
         const data = await apiCall('/check_cpu_reaction', { discarder_idx: discarderIdx, tile: tile, is_kakan: isKakan });

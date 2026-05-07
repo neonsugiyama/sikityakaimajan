@@ -678,6 +678,23 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         drawn = game.wall.pop()
         game.last_drawn[cpu_idx] = drawn
         
+        # 🌟 レッスンモード（cpu_level == -1）なら、アガリ判定や鳴き判定を全てスキップして即ツモ切り！
+        if getattr(game, 'cpu_level', 1) == -1:
+            discard = drawn
+            game.discards[cpu_idx].append(discard) 
+            game.discards_count += 1
+            game.is_first_turn[cpu_idx] = False 
+            game.turn = (cpu_idx + 1) % 4
+            game.just_drawn = -1 
+            game.last_discard_info = {"player": cpu_idx, "tile": discard}
+            return get_safe_state(game, 0, {
+                "tsumo": False,
+                "discard": discard, 
+                "did_joker_swap": False, 
+                "did_kakan": False, 
+                "kakan_tile": ""
+            })
+
         ctx = {
             "winning_tile": drawn, 
             "is_tsumo": True, 
