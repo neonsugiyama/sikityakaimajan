@@ -6705,7 +6705,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // 🖱️ マウスが箱に乗った時
         hideArea.addEventListener('mouseenter', () => {
-            actionWrapper.style.setProperty('opacity', '0.1', 'important');
+            actionWrapper.style.setProperty('opacity', '0', 'important');
 
             // 中のボタンも強制的に押せなくする
             document.querySelectorAll('.action-layer .btn-act').forEach(btn => {
