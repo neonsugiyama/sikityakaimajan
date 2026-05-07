@@ -310,68 +310,208 @@ function quitGame() {
     returnToHomeGracefully(); // 🌟 リロードの代わりにこれを使う！
 }
 
-// 💾 現在の音量やスピードなどの設定をローカルストレージに保存する関数
+// 💾 現在の設定をローカルストレージに保存する関数
 function saveSettings() {
     const config = {
         speed: speedMult,
-        bgmVolume: sounds.bgm.volume,
-        seVolume: masterSEVolume,
-        tableColor1: document.getElementById('table-color-1').value,
-        tableColor2: document.getElementById('table-color-2').value,
+        masterVolume: globalMasterVolume,
+        bgmVolume: globalBgmVolume,
+        seVolume: globalSeVolume,
+        voiceVolume: globalVoiceVolume,
+        tableColor1: document.getElementById('table-color-1')?.value || "#1a5e3a",
+        tableColor2: document.getElementById('table-color-2')?.value || "#0d3b22",
         devMode: isDevMode,
         langMode: currentLangMode,
-        bgmOn: audioState.bgmOn
+        bgmOn: audioState.bgmOn,
+        rightClick: confRightClick,
+        doubleClick: confDoubleClick,
+        waitsHint: confWaitsHint,
+        tsumogiriDark: confTsumogiri,
+        showStamps: confShowStamps
     };
     localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config));
-    console.log("Settings saved.");
 }
 
 // 📂 ブラウザから設定を読み込み、スライダーや画面状態に反映する関数
 function loadSettings() {
     const saved = localStorage.getItem('shiki_mahjong_settings');
     if (!saved) return;
-
     const config = JSON.parse(saved);
 
-    // スピード反映
     changeSpeed(config.speed || 1.0);
-    document.getElementById('settings-speed-slider').value = config.speed || 1.0;
-    document.getElementById('settings-speed-label').innerText = 'x' + parseFloat(config.speed).toFixed(1);
+    if (document.getElementById('settings-speed-slider')) document.getElementById('settings-speed-slider').value = config.speed || 1.0;
+    if (document.getElementById('settings-speed-label')) document.getElementById('settings-speed-label').innerText = 'x' + parseFloat(config.speed || 1.0).toFixed(1);
 
-    // 音量反映
-    updateMasterBGM(config.bgmVolume ?? 0.3);
-    document.getElementById('settings-bgm-slider').value = config.bgmVolume ?? 0.3;
-
-    updateMasterSE(config.seVolume ?? 1.0);
-    document.getElementById('settings-se-slider').value = config.seVolume ?? 1.0;
-
-    // 卓の色反映
-    document.getElementById('table-color-1').value = config.tableColor1 || "#1a5e3a";
-    document.getElementById('table-color-2').value = config.tableColor2 || "#0d3b22";
-    updateTableGradient();
-
-    // 開発者モード
-    if (config.devMode) {
-        document.getElementById('dev-mode-container').style.display = "block";
-        toggleDevMode(true);
+    // 音量の反映
+    if (config.masterVolume !== undefined) {
+        updateMasterVolume(config.masterVolume);
+        if (document.getElementById('settings-master-slider')) document.getElementById('settings-master-slider').value = config.masterVolume;
+    }
+    if (config.bgmVolume !== undefined) {
+        updateBGMVolume(config.bgmVolume);
+        if (document.getElementById('settings-bgm-slider')) document.getElementById('settings-bgm-slider').value = config.bgmVolume;
+    }
+    if (config.seVolume !== undefined) {
+        updateSEVolume(config.seVolume);
+        if (document.getElementById('settings-se-slider')) document.getElementById('settings-se-slider').value = config.seVolume;
+    }
+    if (config.voiceVolume !== undefined) {
+        updateVoiceVolume(config.voiceVolume);
+        if (document.getElementById('settings-voice-slider')) document.getElementById('settings-voice-slider').value = config.voiceVolume;
+    } else if (config.seVolume !== undefined) {
+        // 旧仕様のセーブデータ用（元々のSE音量をボイス音量にも引き継ぐ）
+        updateVoiceVolume(config.seVolume);
+        if (document.getElementById('settings-voice-slider')) document.getElementById('settings-voice-slider').value = config.seVolume;
     }
 
-    // 言語設定
+    if (document.getElementById('table-color-1')) document.getElementById('table-color-1').value = config.tableColor1 || "#1a5e3a";
+    if (document.getElementById('table-color-2')) document.getElementById('table-color-2').value = config.tableColor2 || "#0d3b22";
+    updateTableGradient();
+
+    if (config.devMode) {
+        if (document.getElementById('dev-mode-container')) document.getElementById('dev-mode-container').style.display = "block";
+        toggleDevMode(true);
+    }
     if (config.langMode !== undefined) {
         currentLangMode = config.langMode;
         applyLangMode();
     }
-
     if (config.bgmOn !== undefined) {
         audioState.bgmOn = config.bgmOn;
         const btn = document.getElementById('btn-toggle-bgm');
         if (!audioState.bgmOn && btn) {
-            btn.innerText = "🔇";
-            btn.title = "BGM切替: OFF";
-            btn.style.color = "#e74c3c";
-            btn.style.borderColor = "rgba(231, 76, 60, 0.4)";
+            btn.innerText = "🔇"; btn.title = "BGM切替: OFF";
+            btn.style.color = "#e74c3c"; btn.style.borderColor = "rgba(231, 76, 60, 0.4)";
         }
     }
+
+    if (config.rightClick !== undefined) {
+        confRightClick = config.rightClick;
+        if (document.getElementById('set-right-click')) document.getElementById('set-right-click').checked = confRightClick;
+    }
+    if (config.doubleClick !== undefined) {
+        confDoubleClick = config.doubleClick;
+        if (document.getElementById('set-double-click')) document.getElementById('set-double-click').checked = confDoubleClick;
+    }
+    if (config.waitsHint !== undefined) {
+        confWaitsHint = config.waitsHint;
+        if (document.getElementById('set-waits-hint')) document.getElementById('set-waits-hint').checked = confWaitsHint;
+    }
+    if (config.tsumogiriDark !== undefined) {
+        confTsumogiri = config.tsumogiriDark;
+        if (document.getElementById('set-tsumogiri-dark')) document.getElementById('set-tsumogiri-dark').checked = confTsumogiri;
+    }
+    if (config.showStamps !== undefined) {
+        confShowStamps = config.showStamps;
+        if (document.getElementById('set-show-stamps')) document.getElementById('set-show-stamps').checked = confShowStamps;
+    }
+}
+
+// 🔄 設定をすべて初期状態に戻す関数
+function resetSettings() {
+    changeSpeed(1.0);
+    if (document.getElementById('settings-speed-slider')) document.getElementById('settings-speed-slider').value = 1.0;
+    if (document.getElementById('settings-speed-label')) document.getElementById('settings-speed-label').innerText = 'x1.0';
+
+    updateMasterVolume(1.0);
+    if (document.getElementById('settings-master-slider')) document.getElementById('settings-master-slider').value = 1.0;
+
+    updateBGMVolume(0.3);
+    if (document.getElementById('settings-bgm-slider')) document.getElementById('settings-bgm-slider').value = 0.3;
+
+    updateSEVolume(1.0);
+    if (document.getElementById('settings-se-slider')) document.getElementById('settings-se-slider').value = 1.0;
+
+    updateVoiceVolume(1.0);
+    if (document.getElementById('settings-voice-slider')) document.getElementById('settings-voice-slider').value = 1.0;
+
+    if (document.getElementById('table-color-1')) document.getElementById('table-color-1').value = "#1a5e3a";
+    if (document.getElementById('table-color-2')) document.getElementById('table-color-2').value = "#0d3b22";
+    updateTableGradient();
+
+    toggleDevMode(false);
+    if (document.getElementById('dev-mode-container')) document.getElementById('dev-mode-container').style.display = "none";
+
+    confRightClick = true;
+    if (document.getElementById('set-right-click')) document.getElementById('set-right-click').checked = true;
+
+    confDoubleClick = true;
+    if (document.getElementById('set-double-click')) document.getElementById('set-double-click').checked = true;
+
+    confWaitsHint = true;
+    if (document.getElementById('set-waits-hint')) document.getElementById('set-waits-hint').checked = true;
+
+    confTsumogiri = true;
+    if (document.getElementById('set-tsumogiri-dark')) document.getElementById('set-tsumogiri-dark').checked = true;
+
+    confShowStamps = true;
+    if (document.getElementById('set-show-stamps')) document.getElementById('set-show-stamps').checked = true;
+
+    saveSettings();
+    playSE('click');
+}
+
+// 🕹️ 【操作・進行】タブのみ初期化する関数
+function resetControlSettings() {
+    changeSpeed(1.0);
+    if (document.getElementById('settings-speed-slider')) document.getElementById('settings-speed-slider').value = 1.0;
+    if (document.getElementById('settings-speed-label')) document.getElementById('settings-speed-label').innerText = 'x1.0';
+
+    confRightClick = true;
+    if (document.getElementById('set-right-click')) document.getElementById('set-right-click').checked = true;
+
+    confDoubleClick = true;
+    if (document.getElementById('set-double-click')) document.getElementById('set-double-click').checked = true;
+
+    confWaitsHint = true;
+    if (document.getElementById('set-waits-hint')) document.getElementById('set-waits-hint').checked = true;
+    if (typeof updateWaitsButton === 'function') updateWaitsButton();
+
+    confTsumogiri = true;
+    if (document.getElementById('set-tsumogiri-dark')) document.getElementById('set-tsumogiri-dark').checked = true;
+
+    saveSettings();
+    playSE('click');
+}
+
+// 🔊 【音声】タブのみ初期化する関数
+function resetAudioSettings() {
+    updateMasterVolume(1.0);
+    if (document.getElementById('settings-master-slider')) document.getElementById('settings-master-slider').value = 1.0;
+
+    updateBGMVolume(0.3);
+    if (document.getElementById('settings-bgm-slider')) document.getElementById('settings-bgm-slider').value = 0.3;
+
+    updateSEVolume(1.0);
+    if (document.getElementById('settings-se-slider')) document.getElementById('settings-se-slider').value = 1.0;
+
+    updateVoiceVolume(1.0);
+    if (document.getElementById('settings-voice-slider')) document.getElementById('settings-voice-slider').value = 1.0;
+
+    saveSettings();
+    playSE('click');
+}
+
+// 🎨 【表示・デザイン】タブのみ初期化する関数
+function resetDisplaySettings() {
+    if (document.getElementById('table-color-1')) document.getElementById('table-color-1').value = "#1a5e3a";
+    if (document.getElementById('table-color-2')) document.getElementById('table-color-2').value = "#0d3b22";
+    updateTableGradient(); // 内部で色が更新される
+
+    confShowStamps = true;
+    if (document.getElementById('set-show-stamps')) document.getElementById('set-show-stamps').checked = true;
+
+    saveSettings();
+    playSE('click');
+}
+
+// 🔧 【システム】タブのみ初期化する関数
+function resetSystemSettings() {
+    toggleDevMode(false);
+    if (document.getElementById('dev-mode-container')) document.getElementById('dev-mode-container').style.display = "none";
+
+    saveSettings();
+    playSE('click');
 }
 
 // ==========================================
@@ -547,45 +687,6 @@ function toggleDevMode(isChecked) {
     renderCPU();
 
     saveSettings();
-}
-
-// 🔄 設定（スピード・音量・色・開発者モード）をすべて初期状態に戻す関数
-function resetSettings() {
-    // 1. スピードをリセット (x1.0)
-    const speedSlider = document.getElementById('settings-speed-slider');
-    const speedLabel = document.getElementById('settings-speed-label');
-    if (speedSlider) speedSlider.value = 1.0;
-    if (speedLabel) speedLabel.innerText = 'x1.0';
-    changeSpeed(1.0);
-
-    // 2. BGM音量をリセット (30%)
-    const bgmSlider = document.getElementById('settings-bgm-slider');
-    const bgmLabel = document.getElementById('settings-bgm-label');
-    if (bgmSlider) bgmSlider.value = 0.3;
-    if (bgmLabel) bgmLabel.innerText = '30%';
-    updateMasterBGM(0.3);
-
-    // 3. SE音量をリセット (100%)
-    const seSlider = document.getElementById('settings-se-slider');
-    const seLabel = document.getElementById('settings-se-label');
-    if (seSlider) seSlider.value = 1.0;
-    if (seLabel) seLabel.innerText = '100%';
-    updateMasterSE(1.0);
-
-    // 4. 卓の色をリセット (王道の緑グラデーション)
-    const c1 = document.getElementById('table-color-1');
-    const c2 = document.getElementById('table-color-2');
-    if (c1) c1.value = "#1a5e3a";
-    if (c2) c2.value = "#0d3b22";
-    updateTableGradient();
-
-    // 5. 開発者モードを完全にリセット（OFFにして隠す）
-    toggleDevMode(false);
-    const devContainer = document.getElementById('dev-mode-container');
-    if (devContainer) devContainer.style.display = "none";
-
-    playSE('click');
-    console.log("Settings reset to default.");
 }
 
 // ページ読み込み時の処理（セーブがあれば読み込み、なければデフォルト色を塗る）
@@ -1601,12 +1702,12 @@ function getYakuTierClass(yakuName) {
 }
 
 // ==========================================
-// ★ 隠しコマンド（開発者モード解放・封印）
+// ★ 隠しコマンドと設定タブの制御
 // ==========================================
 let secretClickCount = 0;
 let secretClickTimer = null;
 
-// 🤫 画面の特定箇所を7回連続タップで開発者モードを隠し解放する関数
+// 🤫 画面の特定箇所を7回連続タップで「システムタブ」を隠し解放する関数
 function secretClick() {
     secretClickCount++;
 
@@ -1618,20 +1719,45 @@ function secretClick() {
 
     // 7回連続でクリックされたら状態を切り替え！
     if (secretClickCount >= 7) {
-        const devContainer = document.getElementById('dev-mode-container');
+        const btnTabSystem = document.getElementById('btn-tab-system');
 
-        if (devContainer.style.display === "none") {
-            devContainer.style.display = "block";
+        if (btnTabSystem.style.display === "none") {
+            btnTabSystem.style.display = "block";
             playSE('jokerswap_se');
-            alert("【システム解放】\n開発者モードが利用可能になりました。");
+            alert("【システム解放】\n設定メニューに「🔧 システム」タブが出現しました。");
         } else {
-            devContainer.style.display = "none";
-            toggleDevMode(false); // スイッチも強制OFFにする
-            alert("【システム封印】\n開発者モードを隠しました。");
-        }
+            btnTabSystem.style.display = "none";
+            toggleDevMode(false); // 開発者モードのスイッチも強制OFFにする
 
+            // もしシステムタブを開いた状態なら、一番上の「操作」タブに強制的に戻す
+            if (document.getElementById('set-tab-system').style.display === "block") {
+                document.querySelector('.settings-tab-btn').click();
+            }
+            alert("【システム封印】\n「🔧 システム」タブを隠しました。");
+        }
         secretClickCount = 0;
     }
+}
+
+// 📑 設定画面の左側タブを切り替える関数
+function switchSettingsTab(evt, tabId) {
+    // すべてのタブの中身を隠す
+    const tabContents = document.getElementsByClassName("settings-tab-pane");
+    for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = "none";
+    }
+
+    // すべてのタブボタンの色を元に戻す
+    const tabLinks = document.getElementsByClassName("settings-tab-btn");
+    for (let i = 0; i < tabLinks.length; i++) {
+        tabLinks[i].classList.remove("active");
+    }
+
+    // クリックされたタブの中身を表示し、ボタンをアクティブ（青色）にする
+    document.getElementById(tabId).style.display = "block";
+    evt.currentTarget.classList.add("active");
+
+    playSE('click');
 }
 
 // ==========================================
@@ -1688,35 +1814,125 @@ const soundVolumes = {
 
 sounds.bgm.loop = true;
 sounds.bgm.volume = 0.3;
+
+// ==========================================
+// 🌟 音量管理のグローバル変数
+// ==========================================
+let globalMasterVolume = 1.0;
+let globalBgmVolume = 0.3;
+let globalSeVolume = 1.0;
+let globalVoiceVolume = 1.0;
+
 // 🔈 ユーザーの初回クリック時にBGMの再生を開始する関数（ブラウザの自動再生ブロック対策）
 function initAudio() {
     if (audioState.initialized) return;
     audioState.initialized = true;
 
-    // 🌟 修正：BGM機能がONであっても、音量が0%なら再生命令を出さない！
-    if (audioState.bgmOn && sounds.bgm.volume > 0) {
+    if (audioState.bgmOn && (globalBgmVolume * globalMasterVolume) > 0) {
         sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
     }
 }
 window.addEventListener('click', initAudio, { once: true });
 
+// 🌟 追加：スライダー連続再生防止用のタイマー
+let testSoundTimer = null;
+
+// 🔊 マスター音量（全体）の変更
+function updateMasterVolume(val, playTest = false) {
+    globalMasterVolume = parseFloat(val);
+    if (document.getElementById('settings-master-label')) {
+        document.getElementById('settings-master-label').innerText = `${Math.round(globalMasterVolume * 100)}%`;
+    }
+    applyBGMVolume();
+
+    // 🌟 修正：ドラッグ中はタイマーをキャンセルし、指を止めて0.1秒後に1回だけ鳴らす
+    if (playTest) {
+        if (testSoundTimer) clearTimeout(testSoundTimer);
+        testSoundTimer = setTimeout(() => {
+            playSE('dahai');
+        }, 100);
+    }
+    saveSettings();
+}
+
+// 🎵 BGM音量の変更
+function updateBGMVolume(val) {
+    globalBgmVolume = parseFloat(val);
+    if (document.getElementById('settings-bgm-label')) {
+        document.getElementById('settings-bgm-label').innerText = `${Math.round(globalBgmVolume * 100)}%`;
+    }
+    applyBGMVolume();
+    saveSettings();
+}
+
+// 内部でBGMの最終的な音量を計算して反映する関数
+function applyBGMVolume() {
+    let finalV = globalBgmVolume * globalMasterVolume;
+    sounds.bgm.volume = Math.min(1.0, finalV);
+
+    if (finalV <= 0) {
+        sounds.bgm.pause();
+    } else if (audioState.bgmOn && audioState.initialized && sounds.bgm.paused) {
+        sounds.bgm.play().catch(e => console.log(e));
+    }
+}
+
+// 🔊 効果音（SE）音量の変更
+function updateSEVolume(val, playTest = false) {
+    globalSeVolume = parseFloat(val);
+    if (document.getElementById('settings-se-label')) {
+        document.getElementById('settings-se-label').innerText = `${Math.round(globalSeVolume * 100)}%`;
+    }
+
+    // 🌟 修正：多重再生防止
+    if (playTest) {
+        if (testSoundTimer) clearTimeout(testSoundTimer);
+        testSoundTimer = setTimeout(() => {
+            playSE('dahai');
+        }, 100);
+    }
+    saveSettings();
+}
+
+// 🗣️ ボイス（発声）音量の変更
+function updateVoiceVolume(val, playTest = false) {
+    globalVoiceVolume = parseFloat(val);
+    if (document.getElementById('settings-voice-label')) {
+        document.getElementById('settings-voice-label').innerText = `${Math.round(globalVoiceVolume * 100)}%`;
+    }
+
+    // 🌟 修正：多重再生防止
+    if (playTest) {
+        if (testSoundTimer) clearTimeout(testSoundTimer);
+        testSoundTimer = setTimeout(() => {
+            playSE('pon_0');
+        }, 100);
+    }
+    saveSettings();
+}
+
 // 🔊 指定された名前の効果音（ボイス含む）を適切な音量で再生する関数
 function playSE(soundName) {
     if (!audioState.seOn || !sounds[soundName]) return;
 
-    let vol = 0.6;
+    // 1. 各ファイルごとの基本音量（微調整用）を取得
+    let baseVol = 0.6;
     if (soundVolumes[soundName] !== undefined) {
-        vol = soundVolumes[soundName];
+        baseVol = soundVolumes[soundName];
     } else {
         let baseName = soundName.split('_')[0];
         if (soundVolumes[baseName] !== undefined) {
-            vol = soundVolumes[baseName];
+            baseVol = soundVolumes[baseName];
         }
     }
 
-    let finalVol = Math.min(1.0, vol * masterSEVolume);
+    // 2. 鳴らす音が「ボイス」か「SE」かを判定する
+    let isVoice = voiceTypes.some(v => soundName.startsWith(v));
+    let typeVol = isVoice ? globalVoiceVolume : globalSeVolume;
 
-    // 🌟 追加：最終的な音量が0の場合は、ダッキングさせないために再生処理自体を完全に放棄する！
+    // 3. 最終的な音量を計算 (基本音量 × 種類別音量 × マスター音量)
+    let finalVol = Math.min(1.0, baseVol * typeVol * globalMasterVolume);
+
     if (finalVol <= 0) return null;
 
     let clone = sounds[soundName].cloneNode();
@@ -1920,6 +2136,12 @@ let confCpuLevel = 1;       // 0:よわい, 1:ふつう, 2:つよい
 let confTsumogiri = true;   // ツモ切り表示ON/OFF
 let confWaitsHint = true;   // 待ち牌ヒントON/OFF
 let confEffective = false;  // 有効牌表示ON/OFF
+
+// 🌟 新規追加：操作・スタンプ用の設定
+let confRightClick = true;  // 右クリック操作ON/OFF
+let confDoubleClick = true; // ダブルクリック操作ON/OFF
+let confShowStamps = true;  // 他家のスタンプ表示ON/OFF
+
 // 🌟 追加：連打防止用のロックフラグ
 let isStartingGame = false;
 
@@ -1954,10 +2176,8 @@ async function applySettingsAndStart() {
     if (elExchange) timeExchange = parseInt(elExchange.value);
     let elCpu = document.getElementById('set-cpu');
     if (elCpu) confCpuLevel = parseInt(elCpu.value);
-    let elTsumogiri = document.getElementById('set-tsumogiri');
-    if (elTsumogiri) confTsumogiri = elTsumogiri.checked;
-    let elWaits = document.getElementById('set-waits');
-    if (elWaits) confWaitsHint = elWaits.checked;
+
+    // （※チェックボックスの取得処理は新しいタブ設定側に移管されたので削除）
 
     // 🌟 卓の親箱も透明化をやめる（3D崩壊防止）
     const gameContainer = document.getElementById('game-container');
@@ -1985,7 +2205,7 @@ async function applySettingsAndStart() {
         isStartingGame = false;
     }, 400);
 
-    console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel, confTsumogiri, confWaitsHint });
+    console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel });
 }
 
 // ⚙️ 対局前設定画面の入力値を「初期値」にリセットする関数
@@ -2006,15 +2226,7 @@ function resetMatchSettingsUI() {
     const elExchange = document.getElementById('set-exchange');
     if (elExchange) { elExchange.value = 30; document.getElementById('val-exchange').innerText = "30"; }
 
-    // チェックボックスを初期状態に戻す
-    const elTsumogiri = document.getElementById('set-tsumogiri');
-    if (elTsumogiri) elTsumogiri.checked = true;
-
-    const elWaits = document.getElementById('set-waits');
-    if (elWaits) elWaits.checked = true;
-
-    const elEffective = document.getElementById('set-effective');
-    if (elEffective) elEffective.checked = false;
+    // （※チェックボックスの初期化処理は削除）
 }
 
 // ⏳ 持ち時間タイマーを開始し、0秒になったら指定のコールバック処理を実行する関数
@@ -6464,6 +6676,8 @@ function copyRoomUrl() {
 document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 
+    if (!confRightClick) return; // 🌟 追加：設定がOFFなら何もしない
+
     if (isProc) return;
 
     const btnSkip = document.getElementById('btn-skip');
@@ -6484,6 +6698,8 @@ document.addEventListener('contextmenu', (e) => {
 const gameTable = document.querySelector('.table');
 if (gameTable) {
     gameTable.addEventListener('dblclick', (e) => {
+        if (!confDoubleClick) return; // 🌟 追加：設定がOFFなら何もしない
+
         if (e.target !== gameTable && !e.target.classList.contains('river')) {
             return;
         }
@@ -6540,44 +6756,46 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarOverlay.classList.add('show');
     }
 
-    // メニューを閉じる
-    function closeSidebar() {
-        playSE('click'); // 🌟 音を鳴らす
+    // メニューを閉じる（🌟修正：ここでは音を鳴らさない！）
+    function closeSidebar(playClickSound = false) {
+        if (playClickSound) playSE('click');
         sidebarMenu.classList.remove('open');
         sidebarOverlay.classList.remove('show');
     }
 
     // 開閉イベントの登録
     if (hamburgerBtn) hamburgerBtn.addEventListener('click', openSidebar);
-    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
-    if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+    // 右上の×ボタンと黒い背景を押して閉じる時だけは音を鳴らす
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', () => closeSidebar(true));
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', () => closeSidebar(true));
 
     // ▼ 各ボタンを押した時の処理 ▼
 
-    // ⚙️ 設定（既存の openSettings() を直接呼ぶ）
+    // ⚙️ 設定
     document.getElementById('sidebar-settings')?.addEventListener('click', () => {
-        closeSidebar();
-        openSettings(); // 🌟 モーダルを開く関数
+        closeSidebar(false); // 音は鳴らさず閉じる
+        openSettings();      // 🌟 モーダル側で音が鳴る
     });
 
-    // 📖 ルール（遊び方）（既存の openHowTo() を直接呼ぶ）
+    // 📖 ルール（遊び方）
     document.getElementById('sidebar-rules')?.addEventListener('click', () => {
-        closeSidebar();
-        openHowTo(); // 🌟 モーダルを開く関数
+        closeSidebar(false);
+        openHowTo();
     });
 
-    // 🀄 役一覧（既存の openYakuList() を直接呼ぶ）
+    // 🀄 役一覧
     document.getElementById('sidebar-yaku')?.addEventListener('click', () => {
-        closeSidebar();
-        openYakuList(); // 🌟 モーダルを開く関数
+        closeSidebar(false);
+        openYakuList();
     });
 
     // 🚪 退出
     document.getElementById('sidebar-exit')?.addEventListener('click', () => {
-        closeSidebar();
+        closeSidebar(false);
+        // 🌟 修正：確認ダイアログの「OK」を押した時だけカチッと鳴らす
         if (confirm("本当に対局を中断してホーム画面に戻りますか？\n（進行中のスコアや戦績は保存されません）")) {
             playSE('click');
-            returnToHomeGracefully(); // 🌟 リロードの代わりにこれを使う！
+            returnToHomeGracefully();
         }
     });
 });
@@ -6602,6 +6820,9 @@ function sendStamp(stampContent) {
 
 // 💬 画面にスタンプを表示する共通処理
 function showStamp(playerIdx, content) {
+    // 🌟 追加：他プレイヤーのスタンプ非表示設定がONならブロック（自分=0のスタンプは表示する）
+    if (!confShowStamps && playerIdx !== 0) return;
+
     const el = document.getElementById(`stamp-display-${playerIdx}`);
     if (!el) return;
 
@@ -6753,4 +6974,33 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }, 200);
     }
+});
+
+// ==========================================
+// 🌟 設定タブのチェックボックスイベントを紐付け
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    // 右クリック操作
+    const chkRight = document.getElementById('set-right-click');
+    if (chkRight) chkRight.addEventListener('change', (e) => { confRightClick = e.target.checked; saveSettings(); });
+
+    // ダブルクリック操作
+    const chkDouble = document.getElementById('set-double-click');
+    if (chkDouble) chkDouble.addEventListener('change', (e) => { confDoubleClick = e.target.checked; saveSettings(); });
+
+    // 他家のスタンプ表示
+    const chkStamps = document.getElementById('set-show-stamps');
+    if (chkStamps) chkStamps.addEventListener('change', (e) => { confShowStamps = e.target.checked; saveSettings(); });
+
+    // 🌟 追加：ツモ切り牌を暗く表示する
+    const chkTsumogiri = document.getElementById('set-tsumogiri-dark');
+    if (chkTsumogiri) chkTsumogiri.addEventListener('change', (e) => { confTsumogiri = e.target.checked; saveSettings(); });
+
+    // 🌟 追加：待ち牌・有効牌のヒント表示
+    const chkWaits = document.getElementById('set-waits-hint');
+    if (chkWaits) chkWaits.addEventListener('change', (e) => {
+        confWaitsHint = e.target.checked;
+        if (typeof updateWaitsButton === 'function') updateWaitsButton(); // 即座にボタンの表示/非表示を更新
+        saveSettings();
+    });
 });

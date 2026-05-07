@@ -3514,6 +3514,139 @@ body.lang-en .en {
     z-index: 79999 !important;
 }
 
+/* =====================================================================
+        ⚙️ 新設定画面（タブUI）
+   ===================================================================== */
+.settings-container {
+    display: flex;
+    width: 850px;
+    height: 600px;
+    background: #2c3e50;
+    border: 3px solid #34495e;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.9);
+}
+
+/* 左側のサイドバー */
+.settings-sidebar {
+    width: 220px;
+    background: #1a252f;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-right: 2px solid #34495e;
+    box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.settings-tab-btn {
+    background: transparent;
+    color: #bdc3c7;
+    border: none;
+    padding: 15px 15px;
+    text-align: left;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .settings-tab-btn:hover {
+        background: rgba(52, 152, 219, 0.2);
+        color: #fff;
+        padding-left: 20px; /* ホバーで少し右にずれる演出 */
+    }
+
+    .settings-tab-btn.active {
+        background: #3498db;
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(52, 152, 219, 0.5);
+    }
+
+/* 右側のコンテンツエリア */
+.settings-content {
+    flex-grow: 1;
+    padding: 30px 40px 90px 40px; /* フッター用に下部余白を大きく確保 */
+    overflow-y: auto;
+    position: relative;
+    background: #2c3e50;
+}
+
+/* タブ切り替え時のフワッとするアニメーション */
+.settings-tab-pane {
+    animation: fadeInTab 0.2s ease-out;
+}
+
+@keyframes fadeInTab {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 設定の各見出し */
+.settings-section-title {
+    color: #3498db;
+    border-bottom: 2px solid #34495e;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+/* 設定の1行 */
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.3);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+    .settings-row label {
+        font-size: 16px;
+        font-weight: bold;
+        color: #ecf0f1;
+    }
+
+    .settings-row input[type="range"] {
+        width: 250px;
+        cursor: pointer;
+    }
+
+    .settings-row input[type="checkbox"] {
+        transform: scale(1.6);
+        cursor: pointer;
+        margin-right: 10px;
+    }
+
+/* 下部のフッター（閉じるボタンなど） */
+.settings-footer {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: calc(100% - 250px); /* サイドバーの幅を引いた分 */
+    background: #1a252f;
+    padding: 15px 40px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    box-sizing: border-box;
+    border-top: 2px solid #34495e;
+    z-index: 10;
+}
 
 /* ==========================================================
    📱 スマホ用レスポンシブ設定（画面が小さい時だけ発動する魔法）
@@ -3523,7 +3656,7 @@ body.lang-en .en {
 /* 画面の横幅が1000px以下、または高さが600px以下の「スマホサイズ」の時だけ、以下の設定で上書きする */
 @media screen and (max-width: 1000px), screen and (max-height: 600px) {
 
-    /* 🌟 新規追加：スマホの時だけ、上に上がりすぎた卓を少し下に下げる！ */
+    /* 🌟 スマホの時だけ、上に上がりすぎた卓を少し下に下げる！ */
     #game-container {
         /* PCは -440px ですが、スマホは -380px くらいにすると中央に落ち着きます */
         margin-top: -420px !important;
@@ -3566,7 +3699,7 @@ body.lang-en .en {
     .sidebar-header {
         padding: 10px 15px !important;
     }
-    
+
         .sidebar-header h2 {
             font-size: 20px !important;
         }
