@@ -3378,7 +3378,7 @@ function render() {
                     toggleExchange(idx);
                 } else if (!isProc && turn === 0) {
                     let msgText = document.getElementById('msg').innerText;
-                    if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+                    if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
                     if (myWinTiles.length > 0) {
                         logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
@@ -3400,7 +3400,7 @@ function render() {
             i.onclick = () => {
                 if (!isProc && turn === 0 && !charlestonPhase) {
                     let msgText = document.getElementById('msg').innerText;
-                    if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+                    if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
                     discard(dTile, true, 'drawn'); // 🌟 修正：ツモ牌であることを渡す
                 }
@@ -4159,7 +4159,7 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     document.getElementById('btn-skip').onclick = skipAction;
     isProc = false;
-    document.getElementById('msg').innerText = canHumanRon ? "ロン！" : "鳴き"; // ロン優先表示
+    document.getElementById('msg').innerText = canHumanRon ? "胡！" : "鳴き"; // 胡優先表示
 
     if (isAutoDigest) {
         isProc = true;
@@ -6474,13 +6474,13 @@ document.addEventListener('contextmenu', (e) => {
 
     if (turn === 0 && drawnTile !== "" && !charlestonPhase) {
         const msgText = document.getElementById('msg').innerText;
-        if (msgText === "鳴き" || msgText === "ロン！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+        if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
 
         discard(drawnTile, true, 'drawn'); // 🌟 修正
     }
 });
 
-// 🖱️ ダブルクリックでツモ切り機能（新規追加）
+// 🖱️ ダブルクリックでツモ切り・スルー機能
 const gameTable = document.querySelector('.table');
 if (gameTable) {
     gameTable.addEventListener('dblclick', (e) => {
@@ -6488,11 +6488,22 @@ if (gameTable) {
             return;
         }
 
-        if (!isProc && turn === 0 && drawnTile !== "" && !charlestonPhase) {
-            const msgText = document.getElementById('msg').innerText;
-            if (msgText === "鳴き" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+        if (isProc) return;
 
-            discard(drawnTile, true, 'drawn'); // 🌟 修正
+        // 🌟 追加：右クリックと同じ「スキップ（スルー）」の処理！
+        const btnSkip = document.getElementById('btn-skip');
+        if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+            btnSkip.click();
+            window.getSelection().removeAllRanges(); // ダブルクリックで青く選択されるのを防ぐ
+            return;
+        }
+
+        // ツモ切りの処理
+        if (turn === 0 && drawnTile !== "" && !charlestonPhase) {
+            const msgText = document.getElementById('msg').innerText;
+            if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
+            discard(drawnTile, true, 'drawn');
             window.getSelection().removeAllRanges();
         }
     });
