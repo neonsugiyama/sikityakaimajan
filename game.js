@@ -6673,3 +6673,73 @@ async function lockScreen() {
         console.log("フルスクリーン/画面ロックがブロックされました:", e);
     }
 }
+
+// ==========================================
+// 👁️ アクションボタン透過（3Dバグ回避・究極安定版）
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    const hideArea = document.getElementById('action-hide-area');
+    const actionWrapper = document.querySelector('.action-wrapper');
+    const gameContainer = document.getElementById('game-container');
+
+    if (hideArea && actionWrapper && gameContainer) {
+        // 🌟 魔法の解決策：3D空間（.table）特有のマウスすり抜けバグを回避するため、
+        // ホバー箱を2D空間（#game-container）に強制移動させる！
+        if (hideArea.parentNode !== gameContainer) {
+            gameContainer.appendChild(hideArea);
+        }
+
+        // スムーズなアニメーション設定
+        actionWrapper.style.transition = 'opacity 0.2s ease';
+
+        // 🖱️ マウスが箱に乗った時
+        hideArea.addEventListener('mouseenter', () => {
+            actionWrapper.style.setProperty('opacity', '0.1', 'important');
+
+            // 中のボタンも強制的に押せなくする
+            document.querySelectorAll('.action-layer .btn-act').forEach(btn => {
+                btn.style.setProperty('pointer-events', 'none', 'important');
+            });
+
+            hideArea.style.background = 'rgba(0, 0, 0, 0.7)';
+            hideArea.style.color = '#f1c40f';
+            hideArea.style.borderColor = '#f1c40f';
+        });
+
+        // 🖱️ マウスが箱から離れた時
+        hideArea.addEventListener('mouseleave', () => {
+            actionWrapper.style.removeProperty('opacity');
+
+            document.querySelectorAll('.action-layer .btn-act').forEach(btn => {
+                btn.style.removeProperty('pointer-events');
+            });
+
+            hideArea.style.background = 'rgba(0, 0, 0, 0.4)';
+            hideArea.style.color = '#bdc3c7';
+            hideArea.style.borderColor = '#7f8c8d';
+        });
+
+        // ボタンが出ている時だけ箱を表示する自動監視システム
+        setInterval(() => {
+            const visibleBtns = Array.from(document.querySelectorAll('.action-layer .btn-act'))
+                .filter(b => b.style.display === 'block' || b.style.display === 'flex');
+
+            if (visibleBtns.length > 0) {
+                if (hideArea.style.display === 'none') hideArea.style.display = 'flex';
+            } else {
+                if (hideArea.style.display !== 'none') {
+                    hideArea.style.display = 'none';
+
+                    // 消える時は安全のために透過状態もリセット
+                    actionWrapper.style.removeProperty('opacity');
+                    document.querySelectorAll('.action-layer .btn-act').forEach(btn => {
+                        btn.style.removeProperty('pointer-events');
+                    });
+                    hideArea.style.background = 'rgba(0, 0, 0, 0.4)';
+                    hideArea.style.color = '#bdc3c7';
+                    hideArea.style.borderColor = '#7f8c8d';
+                }
+            }
+        }, 200);
+    }
+});

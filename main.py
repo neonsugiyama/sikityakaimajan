@@ -1470,6 +1470,9 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
     game.win_records = [[] for _ in range(4)]
     game.win_tiles = [[] for _ in range(4)]
     
+    # 🌟 追加：各シナリオで純粋な「仕込み牌」だけを .append() 等で指定できるように、一旦山札を完全に空にする
+    game.wall = []
+    
     if scenario == "tenhou":
         game.dealer = 0
         game.turn = 0
@@ -1774,7 +1777,6 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.turn = 0 
         game.hands[1] = ["1m","1m","9m","1p","9p","1s","9s","東","南","西","北","白","春"]
         game.wall = ["1m"] * 10
-        lastT = "發"
 
     elif scenario == "test_chankan_all_waits":
         game.dealer = 1
@@ -2030,38 +2032,74 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "2p", "6s", "東", "北", "春"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
+        # プレイヤーが奇数牌をツモりやすいように山札の上に仕込んでおく
+        # ※ pop() で末尾から引かれるため、右側から順に引かれます
+        game.wall = ["3m", "5m", "1p", "9p", "1s"]
 
     elif scenario == "lesson_2":
         # レッスン2: 寒江独釣（トイツ・暗刻だらけ）
         game.hands[0] = ["1m", "1m", "1m", "5p", "5p", "9s", "9s", "東", "東", "白", "白", "發", "春"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
-        # ※CPUがすぐに鳴ける牌を出してくれるように、CPUの配牌も操作しておくと親切です
-        game.hands[1] = ["5p", "9s", "白", "發", "東", "1m"] + ["2s"] * 7
-        game.hands[2] = ["發", "東", "1m", "5p", "9s", "白"] + ["3s"] * 7
-        game.hands[3] = ["白", "發", "東", "1m", "5p", "9s"] + ["4p"] * 7
+        # プレイヤーが「打牌」した直後に、CPUが順番にポンできる牌を引き当ててツモ切りするように山札を積み込む！
+        # プレイヤー打牌 -> CPU1引く(5p) -> ポン -> プレイヤー打牌 -> CPU2引く(9s) -> ポン...
+        # 最後に誰かが春を引いてツモ切りし、それをロンしてフィニッシュ！
+        game.wall = ["春", "白", "東", "9s", "5p"]
 
     elif scenario == "lesson_3":
         # レッスン3: 七星不靠（一向聴）
-        # 東南西北白發中 + 147s 25p 36s (8p待ち) などの形
-        game.hands[0] = ["東", "南", "西", "北", "白", "發", "中", "1s", "4s", "7s", "2p", "5p", "3s"]
-        # ここから「3s」などを切って待つ
+        # 萬子(147) 筒子(25) 索子(36) などの形に修正（色被りをなくす）
+        game.hands[0] = ["東", "南", "西", "北", "白", "發", "中", "1m", "4m", "7m", "2p", "5p", "3s"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
+        # プレイヤーが「3s」などを切った後、CPU3人が適当な牌をツモ切りし、次の自分のツモで「8p」を引いてアガる
+        game.wall = ["8p", "2s", "3m", "8s"]
 
     elif scenario == "lesson_4":
         # レッスン4: 一色四歩高 / 連七対（圧倒的偏り）
-        # 連七対の一向聴の形など
+        # 1〜7s の連七対の一向聴（5s単騎待ち）
         game.hands[0] = ["1s", "1s", "2s", "2s", "3s", "3s", "4s", "4s", "5s", "6s", "6s", "7s", "7s"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
+        # 開始直後の自分のツモ番で、一発で「5s」をツモる！
+        game.wall = ["5s"]
 
+    # 🌟 追加：全テストケース共通！場に出た牌をカウントして、残りの牌で山札（game.wall）を自動生成する処理
+    if scenario != "random_4jokers":
+        # 1. 完全な112枚のデッキを用意する
+        full_deck = TILE_NAMES * 4 + ["春", "夏", "秋", "冬"]
+        
+        # 2. 既に配置された牌をリストアップする
+        used_tiles = []
+        for i in range(4):
+            used_tiles.extend(game.hands[i])
+            for m in game.melds[i]:
+                used_tiles.extend(m["tiles"])
+            used_tiles.extend(game.win_tiles[i])
+        
+        # シナリオ内で明示的に「次に引かせるための山札」として設定された牌も使用済みとする
+        preset_wall = list(game.wall)
+        used_tiles.extend(preset_wall)
+        
+        # 3. 完全なデッキから配置済みの牌を引いていく
+        for t in used_tiles:
+            if t in full_deck:
+                full_deck.remove(t)
+            else:
+                # ユーザーの指定ミスで本来の枚数（4枚または1枚）をオーバーしてしまった場合の警告
+                print(f"[WARNING] 牌 '{t}' がゲームの規定枚数をオーバーして配置されています！")
+        
+        # 4. 余った牌をランダムにシャッフルして、シナリオで指定した山札の下（リストの先頭）に敷き詰める
+        import random
+        random.shuffle(full_deck)
+        game.wall = full_deck + preset_wall
 
     # 全員の手牌をソート
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
         
     print(f"[DEBUG LOG] 🏁 最終的なプレイヤー0の手牌(ソート後): {game.hands[0]}")
+    print(f"[DEBUG LOG] 🧱 自動生成・調整後の山札の総枚数: {len(game.wall)}")
         
     return get_safe_state(game)
 
