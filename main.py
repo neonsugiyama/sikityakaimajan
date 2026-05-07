@@ -2034,7 +2034,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.is_first_turn = [False, False, False, False]
         # プレイヤーが奇数牌をツモりやすいように山札の上に仕込んでおく
         # ※ pop() で末尾から引かれるため、右側から順に引かれます
-        game.wall = ["3m", "5m", "1p", "9p", "1s"]
+        game.wall = ["3s", "5s", "1p", "9p", "1s"]
 
     elif scenario == "lesson_2":
         # レッスン2: 寒江独釣（トイツ・暗刻だらけ）

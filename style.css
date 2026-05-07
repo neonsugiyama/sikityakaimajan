@@ -10,14 +10,12 @@ html, body {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    /* ガタつき防止 */
     overflow: hidden !important;
     position: fixed;
     background-color: #050505;
     color: white;
     font-family: sans-serif;
     background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
-    /* ❌ Flexboxは悪さをするので完全に削除します！ */
 }
 
 /* 🌟 お節介な自動縮小を完全に防ぐ「鋼鉄の親箱」 */
@@ -30,7 +28,6 @@ html, body {
     margin-top: -440px;
     margin-left: -650px;
     transform-origin: center center;
-    /* 🚨 超重要：ここにあった perspective: 1200px; を削除して親箱の3Dを解除！ */
 }
 
 /* 🌟 雀卓本体の設定 */
@@ -47,7 +44,6 @@ html, body {
     border-right: 25px solid #1a1a1a;
     border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
-    /* 🌟 ここで「卓だけ」に3D遠近感(perspective)を持たせる！ */
     transform: perspective(1200px) rotateX(20deg);
     transform-style: preserve-3d;
 }
@@ -61,9 +57,7 @@ html, body {
     height: 56px;
     border-radius: 4px;
     box-sizing: border-box;
-    /* 画像の斜め下方向に、グレーの影（側面）と黒い影（落とし影）を重ねて立体ブロック化！ */
     box-shadow: -2px 4px 0px #b0b0b0, -4px 8px 8px rgba(0,0,0,0.6);
-    /* 卓が斜めに傾いているので、牌が寝そべりすぎないように少しだけ起き上がらせる */
     transform: rotateX(-15deg);
 }
 
@@ -280,7 +274,7 @@ html, body {
     max-width: 260px;
     flex-direction: row-reverse;
     flex-wrap: wrap-reverse;
-    padding-bottom: 23px; /* はみ出し防止のクッション */
+    padding-bottom: 23px;
 }
 
 /* ⬇️ CPU 2（上側）の全体枠 */
@@ -288,29 +282,29 @@ html, body {
     top: 10px;
     left: calc(50% - 630px);
     max-width: 260px;
-    padding-bottom: 23px; /* はみ出し防止のクッション */
+    padding-bottom: 23px;
 }
 
 /* ⬇️ CPU 1（右側）の全体枠 */
 .win-zone-1 {
     right: 10px;
     top: 10px;
-    max-height: 115px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
+    max-height: 115px;
     flex-direction: column;
     flex-wrap: wrap-reverse;
     padding-right: 15px;
-    padding-top: 20px; /* 🛡️ 上の牌が枠外に突き抜けないためのクッション */
+    padding-top: 20px;
 }
 
 /* ⬇️ CPU 3（左側）の全体枠 */
 .win-zone-3 {
     left: 10px;
     bottom: 10px;
-    max-height: 115px; /* 💡 1列の最大高さ。これを超えると新しい列に改行される */
+    max-height: 115px;
     flex-direction: column-reverse;
     flex-wrap: wrap;
     padding-left: 15px;
-    padding-bottom: 20px; /* 🛡️ 下の牌が枠外に突き抜けないためのクッション */
+    padding-bottom: 20px;
 }
 
 /* 📐 アガリ牌の重なり調整（上下） */
@@ -322,15 +316,15 @@ html, body {
 /* 📐 CPU 1（右側）の牌１つ１つの重なり具合 */
 .win-zone-1 .tile {
     transform: rotate(-90deg);
-    margin-top: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
-    margin-left: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
+    margin-top: -15px;
+    margin-left: 2px;
 }
 
 /* 📐 CPU 3（左側）の牌１つ１つの重なり具合 */
 .win-zone-3 .tile {
     transform: rotate(90deg);
-    margin-bottom: -15px; /* 💡 縦の重なり（マイナスが大きいほど深く重なる） */
-    margin-right: 2px; /* 💡 横のスキマ（改行して列が増えた時の間隔） */
+    margin-bottom: -15px;
+    margin-right: 2px;
     margin-top: 0;
 }
 
@@ -793,10 +787,9 @@ html, body {
     justify-content: center;
     flex-wrap: wrap;
     max-width: 580px;
-    /* 🌟ここから下を追加・変更しています */
-    max-height: 350px; /* 縦の長さを最大350pxに固定 */
-    overflow-y: auto; /* はみ出た分を縦スクロールにする */
-    padding-right: 5px; /* スクロールバーがかぶらないように隙間をあける */
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 5px;
     margin: 0 auto;
 }
 
@@ -811,7 +804,7 @@ html, body {
     }
 
     .waits-list::-webkit-scrollbar-thumb {
-        background: #e67e22; /* パネルの枠線と同じオレンジ色 */
+        background: #e67e22;
         border-radius: 3px;
     }
 
@@ -926,13 +919,12 @@ html, body {
     background: rgba(0,0,0,0.95);
     display: none;
     z-index: 1000;
-    /* flexやpadding、overflowなどの設定は不要なので消します */
+
 }
 
 /* 🌟 リザルトの中身を守る箱 */
 #result-wrapper {
     width: 1200px;
-    /* 🌟 追加：高さを絶対に固定！ 800pxなら縮小時に確実に全画面に収まります */
     height: 940px;
     display: flex;
     flex-direction: column;
@@ -943,10 +935,10 @@ html, body {
 
 /* 🌟 追加：役が多すぎる時は、この部分だけをスクロールさせて高さを吸収する */
 #win-yaku {
-    max-height: 450px !important; /* これ以上は縦に伸ばさない */
-    overflow-y: auto !important; /* あふれたらスクロールバーを出す */
-    padding-right: 10px; /* スクロールバーがかぶらないように隙間をあける */
-    margin-bottom: 10px !important; /* ボタンとくっつきすぎないように、下の余白を少し取る */
+    max-height: 450px !important;
+    overflow-y: auto !important;
+    padding-right: 10px;
+    margin-bottom: 10px !important;
 }
 
     /* 📜 おまけ：リザルト画面専用のカッコいいスクロールバー装飾 */
@@ -1031,7 +1023,7 @@ html, body {
     background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
     background-size: 300% 300%;
     animation: shine-gold 2.5s infinite ease-in-out;
-    color: #fff !important; /* 🤍 文字色を白に強制 */
+    color: #fff !important;
     border: 1px solid #ffeaa7;
     text-shadow: 1px 1px 0 #5c2c06, -1px -1px 0 #5c2c06, 1px -1px 0 #5c2c06, -1px 1px 0 #5c2c06, 2px 2px 4px #000;
     font-weight: 900;
@@ -1216,9 +1208,9 @@ body.lang-en .yaku-tag .en {
     padding: 10px;
     border: 2px solid #e74c3c;
     border-radius: 8px;
-    display: none; /* 初期状態は非表示（隠しコマンドでON） */
+    display: none;
     flex-direction: column;
-    width: 220px !important; /* 🌟 横幅を280pxから220pxに狭くしました！ */
+    width: 220px !important;
     box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
 }
 
@@ -1264,9 +1256,9 @@ body.lang-en .yaku-tag .en {
 
     /* テスト用ボタンの装飾 */
     .debug-tab-content .debug-btn {
-        display: block; /* 🌟 代わりにここでブロック要素にして縦に積む */
+        display: block;
         width: 100%;
-        margin: 0 0 5px 0; /* 🌟 下に5pxの隙間を空ける */
+        margin: 0 0 5px 0;
         box-sizing: border-box;
         background: #34495e;
         color: white;
@@ -1274,7 +1266,7 @@ body.lang-en .yaku-tag .en {
         padding: 6px;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 11px; /* 🌟 横幅を狭くした分、文字サイズも微調整 */
+        font-size: 11px;
         font-weight: bold;
         transition: 0.2s;
     }
@@ -1301,7 +1293,7 @@ body.lang-en .yaku-tag .en {
     z-index: 1000;
     background: rgba(0, 0, 0, 0.85);
     padding: 10px;
-    border: 2px solid #f39c12; /* 実績っぽくゴールドの枠 */
+    border: 2px solid #f39c12;
     border-radius: 5px;
     display: flex;
     flex-direction: column;
@@ -1510,7 +1502,6 @@ body.lang-en .yaku-tag .en {
 }
 
 .title-content {
-    /* 🛑 クリックしやすくするためフワフワ移動を停止 */
     animation: none !important;
     width: 1280px;
     height: 800px;
@@ -1520,7 +1511,7 @@ body.lang-en .yaku-tag .en {
     justify-content: center;
     position: absolute;
     top: 50%;
-    left: 50%; /* 🎯 画面のど真ん中に配置 */
+    left: 50%;
 }
 
 .game-title {
@@ -1629,10 +1620,8 @@ body.lang-en .yaku-tag .en {
     border: 3px solid #f39c12;
     border-radius: 15px;
     padding: 20px 30px;
-    /* ❌ もし width: 90%; や max-width: 600px; があったら絶対に消してください！ */
-    /* 🌟 ここが超重要！ 画面に合わせて縮む設定を「完全排除」して強制固定する */
-    width: 950px !important; /* 800pxから広げる */
-    height: 700px !important; /* 650pxから広げる */
+    width: 950px !important;
+    height: 700px !important;
     max-width: none !important;
     max-height: none !important;
     min-width: 950px !important;
@@ -1641,7 +1630,7 @@ body.lang-en .yaku-tag .en {
     box-shadow: 0 0 30px rgba(0,0,0,0.9);
     display: flex;
     flex-direction: column;
-    flex-shrink: 0 !important; /* ブラウザのお節介圧縮を無効化 */
+    flex-shrink: 0 !important;
 }
 
 .modal-title {
@@ -1798,7 +1787,6 @@ body.lang-en .en {
     .yaku-category h3 {
         color: #e67e22;
         border-bottom: 2px solid #e67e22;
-        /* 詰 余白を極限まで削る */
         margin-top: 0 !important;
         margin-bottom: 8px !important;
     }
@@ -1909,7 +1897,7 @@ body.lang-en .en {
     flex-direction: row;
     position: absolute;
     top: 50%;
-    left: 50%; /* 🎯 画面のど真ん中に配置 */
+    left: 50%;
 }
 
 /* 👤 左半分：プロフィールエリア */
@@ -2015,7 +2003,6 @@ body.lang-en .en {
 
 /* 🖱️ モード選択ボタン群 */
 .mode-btn {
-    /* 📏 幅調整 */
     width: 420px;
     padding: 16px;
     margin: 8px 12px;
@@ -2209,7 +2196,6 @@ body.lang-en .en {
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid #555;
     border-radius: 10px;
-    /* 🌟 全体的にギュッと詰める */
     padding: 8px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
     display: flex;
@@ -2218,7 +2204,6 @@ body.lang-en .en {
 
 .stats-card-title {
     color: #3498db;
-    /* 🌟 超重要：遊び方用の余白(25px)を強制的に打ち消す！ */
     margin-top: 0 !important;
     margin-bottom: 10px;
     border-bottom: 1px solid #555;
@@ -2228,8 +2213,8 @@ body.lang-en .en {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2列均等 */
-    gap: 8px; /* 項目間の隙間 */
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
 .stats-item {
@@ -2239,19 +2224,19 @@ body.lang-en .en {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center; /* 中央揃え */
-    height: 60px;       /* 🌟 箱の高さを完全に固定 */
+    align-items: center;
+    height: 60px;
     box-sizing: border-box;
 }
 
     .stats-item .label {
-        font-size: 15px; /* 🌟 ラベルの文字サイズを統一 */
+        font-size: 15px;
         color: #aaa;
         margin-bottom: 3px;
     }
 
     .stats-item .val {
-        font-size: 22px !important; /* 🌟 数値の文字サイズを強制統一 */
+        font-size: 22px !important;
         font-weight: bold;
         color: #ffffff !important;
         line-height: 1;
@@ -2262,8 +2247,8 @@ body.lang-en .en {
    ========================================== */
 #yaku-dex-container {
     display: flex;
-    flex-direction: column; /* Tierごとに縦に並べる */
-    gap: 30px; /* グループ間の隙間 */
+    flex-direction: column;
+    gap: 30px;
 }
 
 /* Tierごとの見出し */
@@ -2289,8 +2274,8 @@ body.lang-en .en {
    🃏 役カード（個別の枠）の基本設定
    ========================================== */
 .yaku-dex-card {
-    width: 270px; /* 横幅 */
-    min-height: 40px; /* 最小の高さ */
+    width: 270px;
+    min-height: 40px;
     padding: 15px;
     background: rgba(0, 0, 0, 0.6);
     border: 2px solid #555;
@@ -2306,7 +2291,7 @@ body.lang-en .en {
 /* 役名と回数を左右に分ける親の箱 */
 .dex-title-area {
     display: flex;
-    justify-content: space-between; /* 左右に限界まで引き離す */
+    justify-content: space-between;
     align-items: center;
     width: 100%;
 }
@@ -2411,16 +2396,16 @@ body.lang-en .en {
    🔧 左パネルのレイアウト崩れ（押し広げ）防止
    ========================================== */
 .profile-panel {
-    min-width: 0; /* 🌟 Flexboxの無限伸びを封じる魔法の1行 */
+    min-width: 0;
 }
 
 #prof-name {
     max-width: 100%;
-    line-height: 1.2; /* 行の高さを少し広げて文字全体を収める */
-    padding-bottom: 5px; /* 下部に見切れ防止の余白を作る */
+    line-height: 1.2;
+    padding-bottom: 5px;
     overflow: visible;
     white-space: nowrap;
-    text-overflow: ellipsis; /* 🌟 はみ出た分を「...」に省略する */
+    text-overflow: ellipsis;
 }
 
 /* 🌟 BGMボタン専用：ひっそり佇む設定 */
@@ -2438,9 +2423,9 @@ body.lang-en .en {
     transition: 0.2s;
     padding: 0;
     background: transparent;
-    position: absolute; /* 親(round-info-center)を基準に浮く */
+    position: absolute;
     top: 50%;
-    right: 0px; /* 右側に10pxはみ出して配置 */
+    right: 0px;
     transform: translateY(-50%);
 }
 
@@ -2453,7 +2438,7 @@ body.lang-en .en {
 /* 親要素の設定：ボタンの absolute 配置の基準点にします */
 #round-info-center {
     position: relative;
-    display: block; /* 中央揃えを維持 */
+    display: block;
     font-size: 22px;
     font-weight: bold;
     color: #f1c40f;
@@ -2465,11 +2450,9 @@ body.lang-en .en {
 ===================================================================== */
 .achievement-toast {
     position: fixed;
-    top: -200px; /* 余裕を持って画面外に隠す */
+    top: -200px;
     left: 50%;
-    /* 🌟 修正：translateX（中央寄せ）に scale（拡大縮小）を合体させる */
     transform: translateX(-50%) scale(var(--game-scale, 1));
-    /* 🌟 重要：上端中央を基準に縮小させることで、降りてくる位置を安定させる */
     transform-origin: top center;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(44, 62, 80, 0.95));
     border: 2px solid #f1c40f;
@@ -2478,11 +2461,11 @@ body.lang-en .en {
     display: flex;
     align-items: center;
     gap: 15px;
-    z-index: 100000; /* サイドバー(99999)よりもさらに手前へ */
+    z-index: 100000;
     box-shadow: 0 5px 20px rgba(241, 196, 15, 0.6);
     transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     pointer-events: none;
-    white-space: nowrap; /* 文字の折り返しを防止 */
+    white-space: nowrap;
 }
 
 .toast-icon {
@@ -2579,9 +2562,7 @@ body.lang-en .en {
     bottom: -10px !important;
     z-index: 99999 !important;
     transform-origin: bottom center !important;
-    /* 箱ごと手前に引き上げ、奥に傾ける */
     transform: translateX(-50%) translateZ(40px) rotateX(-15deg) scale(1.1) !important;
-    /* 🌟 超重要：中身の牌どうしが3D空間で干渉するのを防止（フラット化） */
     transform-style: flat !important;
     padding-bottom: 20px !important;
 }
@@ -2589,15 +2570,13 @@ body.lang-en .en {
     /* 2. 中身の牌は、個別の3D回転を一切やめる（箱の傾きにそのまま従う） */
     #hand-0 .tile {
         pointer-events: auto !important;
-        transform: none !important; /* 個別の傾きを解除して隣との干渉を消滅させる */
+        transform: none !important;
         transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
     }
 
         /* 3. ホバー時もZ軸（手前）ではなく、Y軸（斜めの板の上を滑らせる）で表現する */
         #hand-0 .tile:hover {
-            /* Z軸で飛び出させると判定がバグるので、Y軸（上方向）と拡大(scale)で表現！ */
             transform: translateY(-15px) scale(1.05) !important;
-            /* 浮かんだように見える影を落とす */
             box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(241, 196, 15, 0.4) !important;
             cursor: pointer !important;
         }
@@ -2737,7 +2716,7 @@ body.lang-en .en {
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    z-index: 40000; /* 卓より手前に */
+    z-index: 40000;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
     transition: 0.2s;
 }
@@ -2759,7 +2738,6 @@ body.lang-en .en {
 #sidebar-menu {
     position: fixed;
     top: 0;
-    /* 🌟 ここがポイント：最初は画面の左外(-300px)に隠しておく */
     left: -300px;
     width: 280px;
     height: 100vh;
@@ -2769,7 +2747,6 @@ body.lang-en .en {
     box-shadow: 5px 0 25px rgba(0,0,0,0.8);
     display: flex;
     flex-direction: column;
-    /* スムーズにスライドさせるアニメーション */
     transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -2832,12 +2809,11 @@ body.lang-en .en {
     .sidebar-item:hover {
         background: #3498db;
         border-color: #2980b9;
-        /* ホバーで少し右にピクッと動くカッコいい演出 */
         transform: translateX(8px);
     }
 
 .sidebar-spacer {
-    flex-grow: 1; /* 退出ボタンを一番下に押しやるための空白 */
+    flex-grow: 1;
 }
 
 .sidebar-item.exit-btn {
@@ -2938,10 +2914,9 @@ body.lang-en .en {
     top: 0 !important;
     left: 0 !important;
     width: 280px !important;
-    /* 🌟 ここが重要：退出ボタンのはみ出しを絶対に防ぐ！ */
     height: 100vh !important;
-    height: 100dvh !important; /* スマホやタブレットのバーも考慮した完璧な高さ */
-    box-sizing: border-box !important; /* パディング等による下のはみ出しを防止 */
+    height: 100dvh !important;
+    box-sizing: border-box !important;
 
     background: linear-gradient(180deg, #1a252f 0%, #0d131a 100%) !important;
     border-right: 2px solid #3498db !important;
@@ -2999,9 +2974,9 @@ body.lang-en .en {
    🌟 中央メッセージパネルのサイズ固定化（空っぽ時の縮小防止）
    ========================================================== */
 #msg {
-    min-height: 28px !important; /* 文字が消えても最低50pxの高さを維持 */
-    min-width: 126px !important; /* 文字が消えても最低160pxの横幅を維持 */
-    display: flex !important; /* 箱の大きさが固定されても、中の文字を常にど真ん中に配置する */
+    min-height: 28px !important;
+    min-width: 126px !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
 }
@@ -3017,16 +2992,15 @@ body.lang-en .en {
 
 /* 🌟 修正：左右のプレイヤーも「中心基準」で均等に伸びるように座標を再設定 */
 .pos-name-1 {
-    right: 250px !important; /* 中心座標に再設定 */
+    right: 250px !important;
     top: calc(50% + 160px) !important;
-    /* translate(50%, -50%) を使って右端固定を解除し、中心基準にする */
+
     transform: translate(50%, -50%) translateZ(40px) rotateX(-20deg) !important;
 }
 
 .pos-name-3 {
-    left: 250px !important; /* 中心座標に再設定 */
+    left: 250px !important;
     top: calc(50% - 160px) !important;
-    /* translate(-50%, -50%) を使って左端固定を解除し、中心基準にする */
     transform: translate(-50%, -50%) translateZ(40px) rotateX(-20deg) !important;
 }
 
@@ -3041,15 +3015,12 @@ body.lang-en .en {
 #charleston-confirm-ui,
 #timer-display,
 #score-diff-panel {
-    /* 中央寄せと手前への浮遊(60px)を維持しつつ逆回転 */
     transform: translate(-50%, -50%) translateZ(200px) rotateX(-20deg) !important;
 }
 
 /* 4. 待ち牌確認パネルを高く浮かせ、下を軸に立たせる（埋もれ防止） (なんかキモいので傾かせたままにするかも)*/
 #waits-panel, .waits-panel {
-    /* 🌟 修正：中央寄せを復活させ、高さを120pxに引き上げ！ */
     transform: translateX(-50%) translateZ(120px) rotateX(-20deg) !important;
-    /* 🌟 修正：下側を軸にして起き上がらせることで、卓へのめり込みを完全防止！ */
     transform-origin: bottom center !important;
     z-index: 9999 !important;
 }
@@ -3060,7 +3031,7 @@ body.lang-en .en {
 
 /* 1. 箱の大きさと文字サイズを小さくする */
 .player-score {
-    padding: 3px 10px !important; /* 元は 5px 15px（上下・左右の余白を減らす） */  
+    padding: 3px 10px !important;
 }
 
 /* ==========================================================
@@ -3071,18 +3042,16 @@ body.lang-en .en {
 #center-message,
 #score-diff-panel,
 .center-info {
-    /* 🌟 元の50%から下げて手前へ（数値が大きいほど手前に来ます） */
     top: 51% !important;
 }
 
 #dice-overlay {
-    /* 🌟 元の50%から下げて手前へ（数値が大きいほど手前に来ます） */
     top: 53% !important;
 }
 
 /* 2. あなた（手前）の持ち点・名前パネルを手前に下げる */
 .pos-score-0 {
-    bottom: 295px !important; /* 🌟 河から離して手前へ（元は300px） */
+    bottom: 295px !important;
 }
 
 /* ==========================================================
@@ -3094,17 +3063,17 @@ body.lang-en .en {
    -------------------------------------------------------- */
 /* ▼ 対面（上側：トップからの距離を増やして手前へ引き寄せる） */
 .pos-score-2 {
-    top: 310px !important; /* 元は300px。大きくすると下(手前)へ */
+    top: 310px !important;
 }
 
 /* ▼ 下家（右側：上下の中央基準を少し下へ） */
 .pos-score-1 {
-    top: 51% !important; /* 元は50% */
+    top: 51% !important;
 }
 
 /* ▼ 上家（左側：上下の中央基準を少し下へ） */
 .pos-score-3 {
-    top: 51% !important; /* 元は50% */
+    top: 51% !important;
 }
 
 /* ==========================================================
@@ -3113,14 +3082,13 @@ body.lang-en .en {
 
 /* 1. タイマーの枠から文字がはみ出るバグの修正 */
 #timer-display {
-    padding: 10px 10px !important; /* 枠を少し太くして文字を包み込む */
-    height: auto !important; /* 高さを文字サイズに合わせて自動可変に */
-    min-height: 45px !important; /* 最低限の高さを確保 */
-    line-height: 1.2 !important; /* 行の高さをリセット */
+    padding: 10px 10px !important;
+    height: auto !important;
+    min-height: 45px !important;
+    line-height: 1.2 !important;
     box-sizing: border-box !important;
-    white-space: nowrap !important; /* 文字の改行を禁止 */
+    white-space: nowrap !important;
     bottom: auto !important;
-    /* 位置と傾きの補正 */
     top: 75% !important;
     left: calc(50% + 235px) !important;
     transform: translate(-50%, -50%) translateZ(60px) rotateX(-20deg) !important;
@@ -3135,19 +3103,19 @@ body.lang-en .en {
 
     .flying-pack .tile {
         transform: translateZ(80px) !important;
-        box-shadow: -2px 5px 15px rgba(0,0,0,0.6) !important; /* 浮遊感のある影 */
+        box-shadow: -2px 5px 15px rgba(0,0,0,0.6) !important;
     }
 
 /* 3. 鳴き・和了り文字のレイヤーをZ=80に引き上げ ＆ アニメーション復活 */
 /* 🌟 超重要：文字自体を回転させると拡大アニメーションが死ぬので、親の箱ごと回転させて持ち上げる */
 .call-wrap-0 {
-    bottom: 130px !important; /* 自分の文字を少し手前へ */
+    bottom: 130px !important;
     transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
     transform-style: flat !important;
 }
 
 .call-wrap-2 {
-    top: 150px !important; /* 対面の文字を少し手前へ */
+    top: 150px !important;
     transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
     transform-style: flat !important;
 }
@@ -3168,28 +3136,26 @@ body.lang-en .en {
 
 /* あなた（下側）の点数飛び出し位置 */
 .pos-round-score-0 {
-    bottom: 100px !important; /* 数値を大きくすると奥（上）へ、小さくすると手前（下）へ */
+    bottom: 100px !important;
     left: 50% !important;
-    /* 垂直に起こして、レイヤーを演出文字と同じ高さ(80px)に設定 */
     transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
 }
 
 /* 対面（上側）の点数飛び出し位置 */
 .pos-round-score-2 {
-    top: 250px !important; /* 数値を大きくすると手前（下）へ、小さくすると奥（上）へ */
+    top: 250px !important;
     left: 50% !important;
-    /* 垂直に起こして、レイヤーを演出文字と同じ高さ(80px)に設定 */
     transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
 }
 
 /* ついでに左右の点数も垂直に起こしておく（位置はそのままでOKな場合） */
 .pos-round-score-1 {
-    top: 60% !important; /* 🌟 持ち点に合わせて下（手前）へ。大きくするとさらに下へ */
+    top: 60% !important;
     transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
 }
 
 .pos-round-score-3 {
-    top: 60% !important; /* 🌟 持ち点に合わせて下（手前）へ。大きくするとさらに下へ */
+    top: 60% !important;
     transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
 }
 
@@ -3211,7 +3177,7 @@ body.lang-en .en {
     height: 100vh;
     background: rgba(0, 0, 0, 0.9);
     z-index: 35000;
-    display: none; /* JSでflexに切り替わる */
+    display: none;
     justify-content: center;
     align-items: center;
 }
@@ -3222,7 +3188,6 @@ body.lang-en .en {
         left: 50%;
         top: 50%;
         transform-origin: center center;
-        /* 🌟 ここでJSが計算した倍率を適用（game.jsの処理と二重保険） */
         transform: translate(-50%, -50%) scale(var(--game-scale, 1));
     }
 
@@ -3233,7 +3198,6 @@ body.lang-en .en {
 /* 🌟 親玉となる名前パネルを「相対配置の基準」にする */
 .pos-name-0, .pos-name-1, .pos-name-2, .pos-name-3 {
     position: absolute;
-    /* (既存のtop, left, transformなどの設定はそのまま維持されます) */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -3250,9 +3214,8 @@ body.lang-en .en {
    ========================================== */
 #btn-open-stamp {
     position: absolute !important;
-    left: 100% !important; /* 名前の右端 */
+    left: 100% !important;
     top: 50% !important;
-    /* 🌟 transform: none を消して、縦方向のド真ん中配置を有効化 */
     transform: translateY(-50%) translateZ(10px) !important;
     margin-left: 10px;
     background: rgba(0,0,0,0.6) !important;
@@ -3264,12 +3227,11 @@ body.lang-en .en {
     cursor: pointer !important;
     display: none;
     z-index: 10001 !important;
-    /* 🌟 超重要：親パネルのクリック無効を上書きして、ボタンを押せるようにする！ */
     pointer-events: auto !important;
     transition: all 0.2s !important;
     padding: 0 !important;
     text-align: center !important;
-    line-height: 32px !important; /* 高さ36px から 上下の枠線4px分 を引いた数値 */
+    line-height: 32px !important;
     padding-left: 4px !important;
 }
 
@@ -3294,7 +3256,6 @@ body.lang-en .en {
     flex-wrap: wrap !important;
     gap: 5px !important;
     z-index: 10002 !important;
-    /* 🌟 ここもメニュー枠をクリックできるようにする！ */
     pointer-events: auto !important;
 }
 
@@ -3307,7 +3268,6 @@ body.lang-en .en {
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap !important;
-    /* 🌟 念のためボタン単体もクリック可能に */
     pointer-events: auto !important;
 }
 
@@ -3365,9 +3325,8 @@ body.lang-en .en {
 /* 🌟 名前パネルの中での相対位置（共通） */
 .pos-stamp-inner {
     position: absolute !important;
-    bottom: 120% !important; /* 名前のすぐ上 */
-    left: 50% !important; /* 名前のど真ん中 */
-    /* 🌟 ここが重要：中心を維持したまま、初期状態は透明＆縮小しておく */
+    bottom: 120% !important;
+    left: 50% !important;
     transform: translateX(-50%) scale(0.5) !important;
     opacity: 0 !important;
     white-space: nowrap !important;
@@ -3378,7 +3337,6 @@ body.lang-en .en {
     /* 表示された時 */
     .pos-stamp-inner.show {
         opacity: 1 !important;
-        /* 中心を維持したまま、元の大きさに戻る！ */
         transform: translateX(-50%) scale(1) !important;
     }
 
@@ -3387,9 +3345,7 @@ body.lang-en .en {
    ========================================================== */
 
 .yaku-dex-card {
-    /* ① 横幅を3等分（隙間の10pxを引く） */
     width: calc(33.333% - 10px) !important;
-    /* 🚨 ② 超重要：枠線や余白を「横幅(width)の中に含める」という魔法！ */
     box-sizing: border-box !important;
 }
 
@@ -3399,19 +3355,19 @@ body.lang-en .en {
 
 /* 🌟 追加：親玉の箱の無駄な余白を極限まで削る！ */
 .profile-panel {
-    gap: 8px !important; /* 項目間の強制的な隙間(元20px)を縮小 */
-    padding: 25px 50px !important; /* 箱の上下の分厚いクッション(元40px)を薄くする */
+    gap: 8px !important;
+    padding: 25px 50px !important;
 }
 
 .profile-name-large {
     font-size: 53px !important;
     margin-bottom: 0 !important;
-    line-height: 1 !important; /* 行の高さをさらに詰める */
+    line-height: 1 !important;
 }
 
 .profile-rank-badge {
     font-size: 26px !important;
-    margin-bottom: 0 !important; /* ここにあった20pxの余白を消去 */
+    margin-bottom: 0 !important;
 }
 
 /* 「直近20戦の順位推移」ラベル */
@@ -3422,7 +3378,7 @@ body.lang-en .en {
 
 /* 折れ線グラフの箱 */
 .profile-panel > div:nth-child(4) {
-    height: 200px !important; /* 安全のためさらに20pxだけダイエット */
+    height: 200px !important;
     margin-bottom: 5px !important;
     width: 100% !important;
     flex-shrink: 0 !important;
@@ -3455,7 +3411,7 @@ body.lang-en .en {
 }
 
 #best-hand-tiles div[style*="width:2px"] {
-    height: 32px !important; /* 境界線の縦線 */
+    height: 32px !important;
 }
 
 /* ▼ 右パネル（メニュー）のサイズ調整 ▼ */
@@ -3490,11 +3446,9 @@ body.lang-en .en {
     left: 0;
     width: 100vw;
     height: 100vh;
-    /* 🌟 修正：rgba(0, 0, 0, 0.9) を #0a0a0a にして、絶対に後ろが透けないようにする！ */
     background: #0a0a0a;
-    /* ※ 以下、先ほど修正した z-index: 35000 !important; などは残したままでOKです */
     z-index: 35000 !important;
-    display: none; /* JSでflexに切り替わる */
+    display: none;
     justify-content: center;
     align-items: center;
 }
@@ -3558,7 +3512,7 @@ body.lang-en .en {
     .settings-tab-btn:hover {
         background: rgba(52, 152, 219, 0.2);
         color: #fff;
-        padding-left: 20px; /* ホバーで少し右にずれる演出 */
+        padding-left: 20px;
     }
 
     .settings-tab-btn.active {
@@ -3570,7 +3524,7 @@ body.lang-en .en {
 /* 右側のコンテンツエリア */
 .settings-content {
     flex-grow: 1;
-    padding: 30px 40px 90px 40px; /* フッター用に下部余白を大きく確保 */
+    padding: 30px 40px 90px 40px;
     overflow-y: auto;
     position: relative;
     background: #2c3e50;
@@ -3637,7 +3591,7 @@ body.lang-en .en {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: calc(100% - 250px); /* サイドバーの幅を引いた分 */
+    width: calc(100% - 250px);
     background: #1a252f;
     padding: 15px 40px;
     display: flex;
@@ -3658,7 +3612,6 @@ body.lang-en .en {
 
     /* 🌟 スマホの時だけ、上に上がりすぎた卓を少し下に下げる！ */
     #game-container {
-        /* PCは -440px ですが、スマホは -380px くらいにすると中央に落ち着きます */
         margin-top: -420px !important;
     }
 
@@ -3673,7 +3626,6 @@ body.lang-en .en {
         position: absolute !important;
         left: 50% !important;
         top: 50% !important;
-        /* 🌟 魔法のコード：JSの縮小率を少しだけ和らげて(1.15倍)、スマホ画面にピタッと収める！ */
         transform: translate(-50%, -50%) scale(calc(var(--game-scale) * 1.15)) !important;
     }
 
@@ -3725,7 +3677,6 @@ body.lang-en .en {
 
     /* 🌟 追加：スマホ時は通知をさらにコンパクトにする */
     .achievement-toast {
-        /* game-scaleに対してさらに0.8倍をかけて、控えめなサイズにします */
         transform: translateX(-50%) scale(calc(var(--game-scale) * 0.8)) !important;
     }
 }
