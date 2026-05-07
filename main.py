@@ -2010,7 +2010,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
     elif scenario == "lesson_1":
         # レッスン1: 全単アタック（偶数牌がゴミとして混ざる）
-        game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "", "6s", "東", "北", "春"]
+        game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "2p", "6s", "東", "北", "春"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
 
