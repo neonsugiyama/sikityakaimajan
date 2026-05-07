@@ -1991,6 +1991,55 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         # 巡目フラグをリセット（天胡などの誤爆を防ぐため）
         game.is_first_turn = [False, False, False, False]
 
+    elif scenario == "haitei_pon_test2":
+        # 1. 自分(0)の手牌に「白」を2枚仕込み、残りは適当なバラバラの牌にする
+        game.hands[0] = ["白", "白", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "東", "夏"]
+        game.melds[0] = []
+            
+        # 2. 山札を残り2枚にし、先頭（次に引かれる牌）を「白」にする
+        game.wall = ["東", "東"]
+            
+        # 3. いきなり上家(3)のターンからゲームを再開させる
+        game.turn = 3
+            
+        # 4. CPU3(上家)が引いた「白」を確実に切るように、手牌をパンパンの数牌で埋めておく
+        game.hands[3] = ["1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "1p", "1p", "9p", "9p"]
+            
+        # 巡目フラグをリセット（天胡などの誤爆を防ぐため）
+        game.is_first_turn = [False, False, False, False]
+
+    elif scenario == "lesson_1":
+        # レッスン1: 全単アタック（偶数牌がゴミとして混ざる）
+        game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "", "6s", "東", "北", "春"]
+        game.melds[0] = []
+        game.is_first_turn = [False, False, False, False]
+
+    elif scenario == "lesson_2":
+        # レッスン2: 寒江独釣（トイツ・暗刻だらけ）
+        game.hands[0] = ["1m", "1m", "1m", "5p", "5p", "9s", "9s", "東", "東", "白", "白", "發", "春"]
+        game.melds[0] = []
+        game.is_first_turn = [False, False, False, False]
+        # ※CPUがすぐに鳴ける牌を出してくれるように、CPUの配牌も操作しておくと親切です
+        game.hands[1] = ["5p", "9s", "白", "發", "東", "1m"] + ["2m"] * 7
+        game.hands[2] = ["發", "東", "1m", "5p", "9s", "白"] + ["3s"] * 7
+        game.hands[3] = ["白", "發", "東", "1m", "5p", "9s"] + ["4p"] * 7
+
+    elif scenario == "lesson_3":
+        # レッスン3: 七星不靠（一向聴）
+        # 東南西北白發中 + 147m 25p 36s (8p待ち) などの形
+        game.hands[0] = ["東", "南", "西", "北", "白", "發", "中", "1m", "4m", "7m", "2p", "5p", "3s"]
+        # ここから「3s」などを切って待つ
+        game.melds[0] = []
+        game.is_first_turn = [False, False, False, False]
+
+    elif scenario == "lesson_4":
+        # レッスン4: 一色四歩高 / 連七対（圧倒的偏り）
+        # 連七対の一向聴の形など
+        game.hands[0] = ["1m", "1m", "2m", "2m", "3m", "3m", "4m", "4m", "5m", "6m", "6m", "7m", "7m"]
+        game.melds[0] = []
+        game.is_first_turn = [False, False, False, False]
+
+
     # 全員の手牌をソート
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])

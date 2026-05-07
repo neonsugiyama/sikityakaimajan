@@ -244,6 +244,10 @@ function returnToHomeGracefully() {
     document.getElementById('center-message').style.display = 'none';
     document.getElementById('dice-overlay').style.display = 'none';
 
+    // 🌟 追加：レッスンやチュートリアルのパネルも確実にお掃除する
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    if (navPanel) navPanel.style.display = 'none';
+
     const settingsScreen = document.getElementById('settings-screen');
     if (settingsScreen) {
         settingsScreen.style.display = 'none';
@@ -704,7 +708,7 @@ function getEnYakuName(zhName) { return yakuEnMap[zhName] || zhName; }
 // 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
 function closeAllModals() {
     console.log("[LOG] ▶ closeAllModals が呼ばれました");
-    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal'];
+    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal', 'learning-modal']; // 🌟 learning-modal を追加
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -1423,6 +1427,121 @@ async function startTutorial() {
     goToStep(0);
 }
 
+// ==========================================
+// 🎓 英才教育（レッスン）モード制御
+// ==========================================
+async function startLesson(lessonId) {
+    closeAllModals();
+    playSE('start');
+
+    // 🌟 追加：先に画面をゲーム卓に完全に切り替える！
+    document.getElementById('title-screen').style.display = 'none';
+    document.getElementById('mode-select-screen').style.display = 'none';
+    document.querySelector('.table').style.opacity = 1;
+    document.getElementById('game-container').style.opacity = 1;
+    document.getElementById('overlay').style.display = 'none';
+
+    isProc = true;
+
+    // 盤面のお掃除
+    for (let i = 0; i < 4; i++) {
+        document.getElementById(`river-${i}`).innerHTML = "";
+        document.getElementById(`meld-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`win-zone-${i}`).style.display = "none";
+    }
+    clearCharlestonStatus();
+    resetActionBtnPool();
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    let title, msg, apiScenario;
+    switch (lessonId) {
+        case 1:
+            title = "レッスン①：脱・平和主義【脳死の全単アタック】";
+            msg = "日麻では使いやすい「4」や「6」ですが、四季茶会においてはただのゴミです。<br>すべて他家に押し付けて、脳みそを空っぽにして奇数だけを集めましょう！<br><br><span style='color:#f1c40f;'>🏆クリア条件：「全単」で和了する</span>";
+            apiScenario = "lesson_1";
+            break;
+        case 2:
+            title = "レッスン②：面前信仰の破壊【寒江独釣で裸になれ】";
+            msg = "日麻の「鳴いたら安くなる」という常識は捨ててください。<br>全部鳴いて手牌を1枚にすれば、強力な役『寒江独釣』が付きます。<br>四季牌で待てば、他家が何を捨てても和了り放題です！<br><br><span style='color:#f1c40f;'>🏆ミッション：4回すべてポン・カンをして、手牌を1枚（裸単騎）にせよ！</span>";
+            apiScenario = "lesson_2";
+            break;
+        case 3:
+            title = "レッスン③：未知の幾何学【七星不靠ってなんだ？】";
+            msg = "バラバラのクズ配牌に見えますか？<br>いいえ、これは四季茶会における黄金の形です。<br>「東南西北白發中」の7枚に、「147」「258」「369」の3色の筋。<br>面子を作らなくてもアガれる美しい星の並びを覚えましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：正しい有効牌を見極めて和了せよ！</span>";
+            apiScenario = "lesson_3";
+            break;
+        case 4:
+            title = "レッスン④：最後のロマン【一色四歩高 / 連七対】";
+            msg = "基本は鳴きが強いゲームですが、『一色四歩高』や『連七対』だけは別格です。<br>日麻ではお目にかかれない芸術的な手役を完成させましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：鳴かずに門前で超高打点を作れ！</span>";
+            apiScenario = "lesson_4";
+            break;
+    }
+
+    // 🌟 追加：まずはサーバーに「新しいゲームを始める」と伝えて卓を作る！
+    currentGameMode = 'lesson';         // 👈 追加：現在のモードをレッスンに指定
+    window.currentLessonId = lessonId;  // 👈 追加：選んだレッスンの番号を記憶
+    await apiCall('/start', { cpu_level: 1 });
+
+    // 🌟 サーバーに積み込みを要求
+    await apiCall('/debug_setup', { scenario: apiScenario });
+
+    // 交換フェーズをスキップして実戦へ！
+    charlestonPhase = false;
+    document.getElementById('charleston-ui').style.display = "none";
+    document.getElementById('charleston-confirm-ui').style.display = "none";
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
+    drawnTile = "";
+    lastDiscardPlayer = -1;
+    justPonged = false;
+    pendingIsRinshan = false;
+    pendingIsMiaoshou = false;
+
+    hideCpuTiles = [0, 0, 0, 0];
+    clearCharlestonStatus();
+
+    // 🌟 ここで配牌を描画！ユーザーは積み込まれた手牌を見ながらミッションを確認できる
+    render(); renderCPU();
+
+    // 🌟 チュートリアル用のUIパネルを再利用してミッション内容を表示する
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    const navText = document.getElementById('ingame-tutorial-text');
+    const nextBtn = document.getElementById('ingame-tutorial-next-btn');
+    const prevBtn = document.getElementById('ingame-tutorial-prev-btn');
+    if (prevBtn) prevBtn.style.display = 'none';
+
+    const gameContainer = document.getElementById('game-container');
+    if (navPanel.parentNode !== gameContainer) {
+        gameContainer.appendChild(navPanel);
+    }
+
+    navPanel.style.setProperty('width', '800px', 'important');
+    navPanel.style.setProperty('padding', '25px', 'important');
+    navPanel.style.setProperty('z-index', '95000', 'important');
+    navPanel.style.top = '50%';
+    navPanel.style.left = '50%'; // 中央に配置
+    navPanel.style.transform = 'translate(-50%, -50%)';
+
+    navText.innerHTML = `<span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${title}</span><br><br><span style='font-size: 22px; line-height: 1.6;'>${msg}</span>`;
+
+    nextBtn.style.display = "inline-block";
+    nextBtn.innerHTML = "挑戦する！ ⚔️";
+    navPanel.style.display = 'block';
+
+    nextBtn.onclick = () => {
+        playSE('start');
+        navPanel.style.display = 'none';
+        isProc = false;
+        checkT(); // 自分のターンからスタート！
+    };
+}
+
 // 📜 役一覧モーダルを開く関数
 function openYakuList() {
     console.log("[LOG] ▶ openYakuList が呼ばれました");
@@ -1668,7 +1787,8 @@ function resizeGame() {
         '#achievement-modal > div',
         '#mypage-modal > div',
         '#friend-match-modal > div',
-        '#settings-screen > div'
+        '#settings-screen > div',
+        '#learning-modal > div'
     ];
     modalContents.forEach(selector => {
         const elements = document.querySelectorAll(selector);
@@ -4861,6 +4981,47 @@ async function handleRoundEnd(isReplayingResult = false) {
     sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
     sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`); // 追加：開始時間の記憶も消去
 
+    // ▼▼▼ ここから下を追加 ▼▼▼
+    // 🎓 レッスンモード専用のクリア判定処理
+    if (currentGameMode === 'lesson') {
+        let isCleared = false;
+        let clearMsg = "";
+
+        if (iWon) {
+            // 自分の和了役を取得（1局の中で複数回アガった場合も、すべての役をまとめる）
+            let myResult = calcData.results.find(r => r.player === 0);
+            let myYaku = myResult ? myResult.details.flatMap(d => d.yaku) : [];
+
+            // 選んだレッスンごとの目標役を厳密に判定！
+            if (window.currentLessonId === 1 && myYaku.includes("全単")) isCleared = true;
+            else if (window.currentLessonId === 2 && myYaku.includes("寒江独釣")) isCleared = true;
+            else if (window.currentLessonId === 3 && myYaku.includes("七星不靠")) isCleared = true;
+            else if (window.currentLessonId === 4 && (myYaku.includes("一色四歩高") || myYaku.includes("連七対"))) isCleared = true;
+
+            if (isCleared) {
+                clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
+            } else {
+                clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
+            }
+        } else {
+            clearMsg = "❌ レッスン失敗...\n条件を満たせずに局が終了してしまいました。もう一度挑戦してみましょう！";
+        }
+
+        // ちょっと待ってから結果をアラートで通知
+        await sleep(500);
+        alert(clearMsg);
+
+        // お片付けをして強制的にホーム画面に戻す
+        if (currentSessionRoomId) {
+            await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+            currentSessionRoomId = "";
+            localStorage.removeItem('shiki_mahjong_room_id');
+        }
+        returnToHomeGracefully();
+        return; // 🌟 ここで処理を終了し、次の局には絶対に行かせない！
+    }
+    // ▲▲▲ ここまで ▲▲▲
+
     if (currentRound >= 4) {
         let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
         let myRank = sortedIndices.indexOf(0) + 1;
@@ -5851,6 +6012,19 @@ function clearNameInput() {
 // 👤 マイページ画面を閉じる関数
 function closeMyPage() {
     document.getElementById('mypage-modal').style.display = 'none';
+    playSE('click');
+}
+
+// 🏫 学習メニューモーダルを開く
+function openLearningMenu() {
+    closeAllModals();
+    document.getElementById('learning-modal').style.display = 'flex';
+    playSE('click');
+}
+
+// 🏫 学習メニューモーダルを閉じる
+function closeLearningMenu() {
+    document.getElementById('learning-modal').style.display = 'none';
     playSE('click');
 }
 
