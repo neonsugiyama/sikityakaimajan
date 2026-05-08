@@ -5219,7 +5219,16 @@ async function handleRoundEnd(isReplayingResult = false) {
         }
 
         if (currentRound >= 4) {
-            let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
+            let sortedIndices = [0, 1, 2, 3].sort((a, b) => {
+                // 1. まずはスコアが高い順に比較
+                if (totalScores[b] !== totalScores[a]) {
+                    return totalScores[b] - totalScores[a];
+                }
+                // 2. 同点の場合は、現在の親(dealer)から見て席順が近い方を上位にする
+                let distA = (a - dealer + 4) % 4;
+                let distB = (b - dealer + 4) % 4;
+                return distA - distB;
+            });
             let myRank = sortedIndices.indexOf(0) + 1;
 
             if (!isReplayingResult) {

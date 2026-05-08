@@ -2065,7 +2065,17 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.wall = ["5s"]
 
     # 🌟 追加：全テストケース共通！場に出た牌をカウントして、残りの牌で山札（game.wall）を自動生成する処理
-    if scenario != "random_4jokers":
+    # 🚨 修正：海底テストなど、意図的に山札を極少数にしているシナリオはこの自動補充をスキップする
+    skip_auto_wall = [
+        "haitei_kan", 
+        "test_haitei_stop", 
+        "test_cpu_haitei", 
+        "haitei_pon_test", 
+        "haitei_pon_test2", 
+        "random_4jokers"
+    ]
+    
+    if scenario not in skip_auto_wall:
         # 1. 完全な112枚のデッキを用意する
         full_deck = TILE_NAMES * 4 + ["春", "夏", "秋", "冬"]
         
