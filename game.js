@@ -4876,7 +4876,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                     }
                 }
 
-                playerStats.totalWins++;
+                playerStats.totalWins += res.details.length;
                 let oldTotalScore = playerStats.totalScoreSum || 0;
                 playerStats.totalScoreSum = oldTotalScore + res.total_score;
                 checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
