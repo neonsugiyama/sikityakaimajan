@@ -217,8 +217,6 @@ function returnToHomeGracefully() {
     isProc = false;
     charlestonPhase = false;
 
-    // 🌟 修正：チャールストン関連の変数を完全に初期化する！
-    charlestonPhase = false;
     charlestonCount = 1;
     exchangeSelection = [];
     askedCount = 0;
@@ -228,6 +226,11 @@ function returnToHomeGracefully() {
     hideCpuTiles = [0, 0, 0, 0];
     charlestonDoneServer = false;
     secondCharlestonDoneServer = false;
+
+    // 🌟 追加：リザルト状態の記憶を強制リセット
+    sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
 
     // 🌟 追加：サーバーに「この卓はお掃除して！」と伝え、ブラウザの記憶も消す
     if (currentSessionRoomId) {
@@ -3205,6 +3208,12 @@ async function init() {
     logMsg("=== ゲーム起動 ===");
     await apiCall('/start', { cpu_level: confCpuLevel });
     sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
+
+    // 🌟 追加：以前のゲームのリザルト状態が残っているとスキップされる原因になるため、確実に消去する
+    sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
+    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+
     charlestonCount = 1;
     startCharlestonSelection();
     render(); renderCPU();
@@ -4728,680 +4737,628 @@ function skipAction() {
 }
 
 // 🏁 1局の終了（アガリまたは流局）時に点数計算を行い、リザルト画面を表示する関数
-// 🌟 修正：再開時は isReplayingResult=true となり、実績等の二重加算をスキップする！
 async function handleRoundEnd(isReplayingResult = false) {
-    stopTimer();
+    try {
+        stopTimer();
 
-    // 🌟 追加：リザルトフェーズの開始時刻を記録（未記録の場合のみ）
-    let startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
-    if (!startTime) {
-        startTime = Date.now().toString();
-        sessionStorage.setItem(`result_phase_start_${currentSessionRoomId}`, startTime);
-    }
-    const resultStartTime = parseInt(startTime);
-
-    // 実績等の保存は初回のみ
-    if (!isReplayingResult) {
-        let oldRounds = playerStats.totalRoundsPlayed;
-        playerStats.totalRoundsPlayed++;
-        checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
-        saveGameData();
-    }
-
-    closeAllModals();
-    document.getElementById('waits-panel').style.display = 'none';
-
-    isProc = true;
-    document.getElementById('msg').innerHTML = "点数計算中...";
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
-
-    isAutoPlay = false;
-    const btnAuto = document.getElementById('btn-auto-play');
-    if (btnAuto) {
-        btnAuto.innerText = "オート(和了後): OFF";
-        btnAuto.style.background = "#7f8c8d";
-        btnAuto.style.boxShadow = "0 3px #95a5a6";
-    }
-
-    // Python側でブロックしてあるので、再開時も安全に呼び出せる
-    const calcData = await apiCall('/calculate_round_scores');
-
-    let iWon = false;
-    for (let res of calcData.results) {
-        if (res.player === 0) {
-            iWon = true;
-
-            // 🌟 修正：初回実行時のみ実績と戦績を加算する
-            if (!isReplayingResult) {
-                playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1; // 🌟 1ゲーム内の和了回数を記憶
-                // 🌟 追加：千秋万代（最初と最後のアガリ）の判定用記録
-                if (calcData.results.length > 0) {
-                    if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
-                    if (calcData.results[calcData.results.length - 1].player === 0) playerStats._tempLastWin = true;
-                }
-
-                // 🌟 追加：特殊な和了系の実績判定
-                let hasMenzen = myMelds.filter(m => m.type !== "ankan").length === 0; // 暗槓以外の鳴きがない（面前）
-                let combinedYaku = res.details.flatMap(d => d.yaku);
-                let allMyTiles = [...myHand]; // ★ ここで1回だけ宣言する
-                myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
-
-                // 「四暗刻！」（面前で碰碰胡）
-                if (hasMenzen && combinedYaku.includes("碰碰胡") && playerStats.suankoTrollCount === 0) {
-                    playerStats.suankoTrollCount = 1;
-                    showAchievementUnlock("四暗刻！", "😎");
-                }
-
-                // 「チャンタってある？」（無番和かつ1,9,字牌を含む面子のみ）
-                if (combinedYaku.includes("無番和") && playerStats.chantaTrollCount === 0) {
-                    let yaochuCount = allMyTiles.filter(t => t.includes("1") || t.includes("9") || ["東", "南", "西", "北", "白", "發", "中"].includes(t)).length;
-                    if (yaochuCount >= 10) {
-                        playerStats.chantaTrollCount = 1;
-                        showAchievementUnlock("チャンタってある？", "🤪");
-                    }
-                }
-
-                // 「悪の合理主義」（全単和了の記録）
-                if (combinedYaku.includes("全単")) {
-                    playerStats._tempZentanRounds = (playerStats._tempZentanRounds || 0) + 1;
-                }
-
-                // 🌟 追加：「無花果依存症」（無花果和了の記録）
-                if (combinedYaku.includes("無花果")) {
-                    playerStats._tempMuhanaRounds = (playerStats._tempMuhanaRounds || 0) + 1;
-                }
-
-                // 「九夏三伏」（数牌の合計が30以下 or 90以上）
-                if (playerStats.kyukaSanfukuCount === 0) {
-                    let sum = 0;
-                    allMyTiles.forEach(t => {
-                        if (t.includes("m") || t.includes("p") || t.includes("s")) sum += parseInt(t[0]);
-                    });
-                    if (sum <= 30 || sum >= 90) {
-                        playerStats.kyukaSanfukuCount = 1;
-                        showAchievementUnlock("九夏三伏", "☀️");
-                    }
-                }
-
-                // 「冬月赤足」（1,9萬と1,6,7筒）
-                if (playerStats.tougetsuSekisokuCount === 0) {
-                    if (allMyTiles.includes("1m") && allMyTiles.includes("9m") &&
-                        allMyTiles.includes("1p") && allMyTiles.includes("6p") && allMyTiles.includes("7p")) {
-                        playerStats.tougetsuSekisokuCount = 1;
-                        showAchievementUnlock("冬月赤足", "👣");
-                    }
-                }
-
-                // 「冬扇夏炉」（無花で春自摸）
-                if (playerStats.tousenKaroCount === 0) {
-                    let hasFlower = allMyTiles.some(t => ["春", "夏", "秋", "冬"].includes(t));
-                    // 和了の形に花がない（引いた春以外に花がない）、かつツモった牌が春だった場合
-                    if (!hasFlower && res.details.some(d => d.tile === "春" && d.yaku.includes("自摸"))) {
-                        playerStats.tousenKaroCount = 1;
-                        showAchievementUnlock("冬扇夏炉", "⛄");
-                    }
-                }
-
-                // 「和絶張」（既に3枚見えている牌の最後の1枚で和了）
-                let winTile = res.details.length > 0 ? res.details[0].tile : null;
-                // 四季牌（Joker）は対象外とする
-                if (winTile && !["春", "夏", "秋", "冬"].includes(winTile)) {
-                    let visibleCount = 0;
-
-                    // 1. 全員の副露（ポン・明槓など）から和了牌の数をカウント
-                    myAllMelds.forEach(playerMelds => {
-                        if (playerMelds) {
-                            playerMelds.forEach(m => {
-                                m.tiles.forEach(t => { if (t === winTile) visibleCount++; });
-                            });
-                        }
-                    });
-
-                    // 2. 全員の河（捨て牌）から和了牌の数をカウント
-                    for (let riverIdx = 0; riverIdx < 4; riverIdx++) {
-                        const r = document.getElementById(`river-${riverIdx}`);
-                        if (r) {
-                            Array.from(r.children).forEach(img => {
-                                const srcPath = decodeURIComponent(img.src);
-                                if (srcPath.includes(`/${winTile}.png`)) visibleCount++;
-                            });
-                        }
-                    }
-
-                    // 和了牌自身はすでに河から回収されている、または手牌から分離されているため、
-                    // この時点で「3枚」見えていれば、今アガった牌が正真正銘「最後の4枚目」となる。
-                    if (visibleCount === 3 && (playerStats.hezuezhangCount || 0) === 0) {
-                        playerStats.hezuezhangCount = 1;
-                        showAchievementUnlock("和絶張", "🀄");
-                    }
-                }
-
-                playerStats.totalWins += res.details.length;
-                let oldTotalScore = playerStats.totalScoreSum || 0;
-                playerStats.totalScoreSum = oldTotalScore + res.total_score;
-                checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
-
-                if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
-                    playerStats.wideWaitCount = 1;
-                    showAchievementUnlock("無限の選択肢", "🌀");
-                }
-
-                for (let detail of res.details) {
-                    if (detail.yaku.length > playerStats.maxComboCount) {
-                        let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
-                        playerStats.maxComboCount = detail.yaku.length;
-                        if (isFirstTime) showAchievementUnlock("インフレの体現者", "🌈");
-                    }
-                }
-
-                // 🌟 ここ！ 2回目の `let allMyTiles = ...` の部分を削除し、「四季常春」の判定だけ残す
-                if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
-                    if (playerStats.masterOfSeasonsCount === 0) {
-                        playerStats.masterOfSeasonsCount = 1;
-                        showAchievementUnlock("四季常春", "🌍");
-                    }
-                }
-
-                if (res.total_score > playerStats.maxScore) {
-                    let oldMax = playerStats.maxScore;
-                    playerStats.maxScore = res.total_score;
-                    checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 500, 1000, 2000]);
-
-                    playerStats.maxScoreHand = {
-                        tiles: [...myHand],
-                        melds: JSON.parse(JSON.stringify(myMelds)),
-                        winTile: res.details.length > 0 ? res.details[0].tile : ""
-                    };
-                }
-
-                if (Array.isArray(playerStats.yakuCollected)) {
-                    let migrated = {};
-                    playerStats.yakuCollected.forEach(y => migrated[y] = 1);
-                    playerStats.yakuCollected = migrated;
-                }
-
-                // 🌟 追加：手役系実績のタイトルとアイコンの紐付けリスト
-                const yakuAchieveMap = {
-                    "天胡": { title: "最速最強", icon: "⚡", req: 1 },
-                    "地胡": { title: "あっ！(胡！)", icon: "😲", req: 1 },
-                    "七星攬月": { title: "流星群", icon: "🌠", req: 1 },
-                    "清幺九": { title: "老成円熟", icon: "👴", req: 1 },
-                    "連七対": { title: "二盃口！", icon: "👯", req: 1 },
-                    "九連宝燈": { title: "南無阿弥陀仏", icon: "🙏", req: 1 },
-                    "十八羅漢": { title: "仏の顔も三度まで", icon: "💢", req: 1 },
-                    "大四風会": { title: "風神降臨", icon: "🌪️", req: 1 },
-                    "一色四節高": { title: "金門橋", icon: "🌉", req: 1 },
-                    "一色四歩高": { title: "虎視眈々", icon: "🐅", req: 1 },
-                    "紅孔雀": { title: "孔雀報喜", icon: "🦚", req: 1 },
-                    "七星不靠": { title: "これ和了なの？", icon: "🤔", req: 1 },
-                    "陰陽両儀": { title: "黒一色", icon: "⬛", req: 1 },
-                    "大三元": { title: "三位一体", icon: "🐉", req: 1 },
-                    "推不倒": { title: "目が回る", icon: "🌀", req: 8 },
-                    "槍槓": { title: "今だ！(仮)", icon: "🎯", req: 1 },
-                    "花天月地": { title: "花落知多少", icon: "🥀", req: 1 }
-                };
-
-                for (let detail of res.details) {
-                    for (let y of detail.yaku) {
-                        if (!playerStats.yakuCollected[y]) {
-                            playerStats.yakuCollected[y] = 0;
-                        }
-                        playerStats.yakuCollected[y]++;
-
-                        // 🌟 追加：初めて和了（または規定回数到達）した時にポップアップを出す
-                        let ach = yakuAchieveMap[y];
-                        if (ach && playerStats.yakuCollected[y] === ach.req) {
-                            showAchievementUnlock(ach.title, ach.icon);
-                        }
-                    }
-                }
-            }
+        // 🌟 修正：万が一以前の時間が残っていた場合のバグを防ぐため、再開時以外は現在時刻で強制上書き
+        let startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
+        if (!startTime || !isReplayingResult) {
+            startTime = Date.now().toString();
+            sessionStorage.setItem(`result_phase_start_${currentSessionRoomId}`, startTime);
         }
-    }
-
-    // 📊 詳細戦績の更新
-    if (!isReplayingResult) saveGameData();
-
-    // 🌟 追加：再開時は「前回表示していたプレイヤー」からループを始める！
-    let startDisplayIdx = 0;
-    if (isReplayingResult) {
-        startDisplayIdx = parseInt(sessionStorage.getItem(`result_display_idx_${currentSessionRoomId}`)) || 0;
-        if (startDisplayIdx > 4) startDisplayIdx = 4; // 万が一のオーバーフロー対策
-    } else {
-        sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "0");
-    }
-
-    // 🌟 変更点1: 勝者だけ(calcData.results)のループをやめ、0〜3の4人全員のループにする
-    for (let i = startDisplayIdx; i < 4; i++) {
-        // 今誰を表示しているかを記憶する
-        sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, i.toString());
-
-        // 🌟 追加：今現在の経過時間を計算
-        let elapsed = (Date.now() - resultStartTime) / 1000;
-
-        // 🌟 追加：もしこのプレイヤーの表示時間（i*8秒〜）を既に過ぎていたら、次へ飛ばす
-        if (elapsed >= (i + 1) * 8) continue;
-
-        // 🌟 追加：このプレイヤーの「残り表示時間」を計算
-        let currentWaitTime = 8 - (elapsed - (i * 8));
-        if (currentWaitTime > 8) currentWaitTime = 8;
-        if (currentWaitTime < 0) currentWaitTime = 0;
-
-        let isWinner = false;
-        let winData = null;
-
-        // 今処理している人(i)がアガったかどうかをチェックする
-        for (let res of calcData.results) {
-            if (res.player === i) {
-                isWinner = true;
-                winData = res;
-                break;
-            }
-        }
-
-        let diff = calcData.scores[i]; // この局での点数変動
-
-        let yakuHtml = "";
-        let titleText = "";
-        let scoreText = "";
-        let scoreColor = "";
-
-        // アガった人と、それ以外(0点・失点)で表示内容を分ける
-        if (isWinner) {
-            titleText = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
-            scoreText = `${winData.total_score} 点`;
-            scoreColor = "#2ecc71"; // 緑色
-
-            let groupedDetails = {};
-            for (let detail of winData.details) {
-                let yakuKey = [...detail.yaku].sort().join(",");
-                let groupKey = `${detail.tile}_${yakuKey}`;
-
-                if (!groupedDetails[groupKey]) {
-                    groupedDetails[groupKey] = {
-                        tile: detail.tile, yaku: detail.yaku, score: detail.score, count: 1, total_score: detail.score
-                    };
-                } else {
-                    groupedDetails[groupKey].count++;
-                    groupedDetails[groupKey].total_score += detail.score;
-                }
-            }
-
-            let sortedDetails = Object.values(groupedDetails);
-            sortedDetails.sort((a, b) => {
-                if (b.total_score !== a.total_score) return b.total_score - a.total_score;
-                return SM[a.tile] - SM[b.tile];
-            });
-
-            for (let d of sortedDetails) {
-                let tile = d.tile;
-                const tierOrder = { "yaku-tier-64": 1, "yaku-tier-32": 2, "yaku-tier-16": 3, "yaku-tier-8": 4, "yaku-tier-6": 5, "yaku-tier-4": 6, "yaku-tier-2": 7, "yaku-tier-1": 8, "yaku-tier-multi": 9 };
-                d.yaku.sort((a, b) => {
-                    let orderA = tierOrder[getYakuTierClass(a)] !== undefined ? tierOrder[getYakuTierClass(a)] : 99;
-                    let orderB = tierOrder[getYakuTierClass(b)] !== undefined ? tierOrder[getYakuTierClass(b)] : 99;
-                    return orderA - orderB;
-                });
-
-                let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;">×${d.count}枚</span>` : "";
-                let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa;">(${d.score}点 × ${d.count})</span> <br> ${d.total_score}点` : `${d.score}点`;
-
-                yakuHtml += `
-                    <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
-                        <div style="display: flex; align-items: center; width: 160px;">
-                            <span style="color: #ddd; margin-right: 10px; font-size: 16px;">和了牌</span>
-                            <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
-                            ${countStr}
-                        </div>
-                        <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
-                            ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${getJaYakuName(y)}</span><span class="en">${getEnYakuName(y)}</span></span>`).join("")}
-                        </div>
-                        <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;">
-                            ${scoreDetailStr}
-                        </div>
-                    </div>`;
-            }
-        } else {
-            titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
-            let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
-            scoreText = `${diffStr} 点`;
-            scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
-
-            let resultLabel = diff < 0 ? "失点 (振込み等)" : (calcData.results.length === 0 ? "流局" : "ー");
-            yakuHtml = `
-                <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
-                    ${resultLabel}
-                </div>`;
-        }
-
-        let closedHand = (i === 0) ? myHand : (myAllHands[i] || []);
-        let melds = (i === 0) ? myMelds : (myAllMelds[i] || []);
-        let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
-
-        let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
-
-        handHtml += `<div style="display: flex; gap: 2px;">`;
-        for (let t of sortedHand) {
-            handHtml += `<img src="images/${t}.png" style="width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">`;
-        }
-        handHtml += `</div>`;
-
-        if (melds.length > 0) {
-            handHtml += `<div style="width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;"></div>`;
-
-            for (let m of melds) {
-                handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
-                for (let idx = 0; idx < m.tiles.length; idx++) {
-                    let t = m.tiles[idx];
-                    let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
-                    handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
-                }
-                handHtml += `</div>`;
-            }
-        }
-        handHtml += `</div>`;
-
-        document.getElementById('win-label-text').innerText = titleText;
-        document.getElementById('win-score').innerHTML = scoreText;
-        document.getElementById('win-score').style.color = scoreColor;
-        document.getElementById('win-hand-display').innerHTML = handHtml;
-        document.getElementById('win-yaku').innerHTML = yakuHtml;
-
-        document.getElementById('overlay').scrollTop = 0;
-        document.getElementById('overlay').style.display = "flex";
-
-        updateStampVisibility();
-
-        // 再開時は音を鳴らさず、即座に次の画面へ行けるようにする
-        if (!isReplayingResult) playSE('score');
-
-        // 🌟 修正：8秒固定ではなく、残り時間分だけ待機する
-        await waitWithTimerAndSkip(currentWaitTime);
-
-        document.getElementById('overlay').style.display = "none";
-        updateStampVisibility();
-        await sleep(500);
-    }
-
-    // 🌟 全員の表示が終わったら、コイン（スコア加算）フェーズに進むことを記憶する
-    sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "4");
-
-    scores = calcData.scores;
-    let rankingPoints = calcData.ranking_points || [0, 0, 0, 0];
-
-    // 🌟 追加：レート変動の保存配列
-    let rateChanges = [0, 0, 0, 0];
-
-    // 🌟 追加：逆転の劇薬判定のため、第4局のスコア加算前の順位を記憶
-    let rankBeforeFinalRound = -1;
-    if (currentRound >= 4 && !isReplayingResult) {
-        let sortedBefore = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
-        rankBeforeFinalRound = sortedBefore.indexOf(0) + 1; // 1〜4位
-    }
-
-    if (!isReplayingResult) {
-        let myNetScore = scores[0] + rankingPoints[0];
-        let isPacifistTop = true;
-        for (let i = 1; i < 4; i++) {
-            if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
-        }
-        if (!iWon && isPacifistTop && playerStats.pacifistCount === 0) {
-            playerStats.pacifistCount = 1;
-            showAchievementUnlock("漁夫の利", "🕊️");
-        }
-        saveGameData();
-    }
-
-    // 🌟 追加：コイン演出フェーズのスキップ判定
-    let finalElapsed = (Date.now() - resultStartTime) / 1000;
-    if (finalElapsed < 35) {
-        let startIdx = dealer;
-        for (let step = 0; step < 4; step++) {
-            let targetIdx = (startIdx + step) % 4;
-            let roundScore = scores[targetIdx];
-            let rankPoint = rankingPoints[targetIdx];
-
-            await sleep(1000);
-
-            let rsEl = document.getElementById(`player-round-score-${targetIdx}`);
-            if (!rsEl) continue;
-
-            const posOffsets = [
-                { bottom: "110px", left: "50%" },
-                { right: "120px", top: "50%" },
-                { top: "110px", left: "50%" },
-                { left: "120px", top: "50%" }
-            ];
-
-            const offset = posOffsets[targetIdx];
-            rsEl.style.bottom = offset.bottom || "auto";
-            rsEl.style.top = offset.top || "auto";
-            rsEl.style.left = offset.left || "auto";
-            rsEl.style.right = offset.right || "auto";
-            rsEl.style.zIndex = "10000";
-
-            let sign = roundScore > 0 ? "+" : "";
-            let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
-            let rankCls = rankPoint > 0 ? "score-rank-plus" : "score-rank-zero";
-
-            rsEl.innerHTML = `<div class="${mainCls}">${sign}${roundScore}</div>
-                              <div class="${rankCls}">順位点 +${rankPoint}</div>`;
-            rsEl.className = `player-round-score show-score`;
-
-            if (!isReplayingResult) playSE('coin');
-
-            // 🌟 修正：再開時はすでに変数に加算済みなので足さない！
-            if (!isReplayingResult) {
-                totalScores[targetIdx] += roundScore + rankPoint;
-            }
-
-            let scoreEl = document.getElementById(`player-score-${targetIdx}`);
-            scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
-            scoreEl.style.transform = "scale(1.2)";
-            setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
-        }
-
-        await sleep(3500);
-
-        for (let i = 0; i < 4; i++) {
-            document.getElementById(`player-round-score-${i}`).className = "player-round-score";
-        }
-    }
-
-    // 🌟 局の完全終了：リザルト用の記憶を消去
-    sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
-    sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
-    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`); // 追加：開始時間の記憶も消去
-
-    // ▼▼▼ ここから下を追加 ▼▼▼
-    // 🎓 レッスンモード専用のクリア判定処理
-    if (currentGameMode === 'lesson') {
-        let isCleared = false;
-        let clearMsg = "";
-
-        if (iWon) {
-            // 自分の和了役を取得（1局の中で複数回アガった場合も、すべての役をまとめる）
-            let myResult = calcData.results.find(r => r.player === 0);
-            let myYaku = myResult ? myResult.details.flatMap(d => d.yaku) : [];
-
-            // 選んだレッスンごとの目標役を厳密に判定！
-            if (window.currentLessonId === 1 && myYaku.includes("全単")) isCleared = true;
-            else if (window.currentLessonId === 2 && myYaku.includes("寒江独釣")) isCleared = true;
-            else if (window.currentLessonId === 3 && myYaku.includes("七星不靠")) isCleared = true;
-            else if (window.currentLessonId === 4 && (myYaku.includes("一色四歩高") || myYaku.includes("連七対"))) isCleared = true;
-
-            if (isCleared) {
-                clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
-            } else {
-                clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
-            }
-        } else {
-            clearMsg = "❌ レッスン失敗...\n条件を満たせずに局が終了してしまいました。もう一度挑戦してみましょう！";
-        }
-
-        // ちょっと待ってから結果をアラートで通知
-        await sleep(500);
-        alert(clearMsg);
-
-        // お片付けをして強制的にホーム画面に戻す
-        if (currentSessionRoomId) {
-            await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
-            currentSessionRoomId = "";
-            localStorage.removeItem('shiki_mahjong_room_id');
-        }
-        returnToHomeGracefully();
-        return; // 🌟 ここで処理を終了し、次の局には絶対に行かせない！
-    }
-    // ▲▲▲ ここまで ▲▲▲
-
-    if (currentRound >= 4) {
-        let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
-        let myRank = sortedIndices.indexOf(0) + 1;
+        let resultStartTime = parseInt(startTime);
+        if (isNaN(resultStartTime)) resultStartTime = Date.now();
 
         if (!isReplayingResult) {
-            // 🌟 追加：1ゲーム通しての特殊実績判定
+            let oldRounds = playerStats.totalRoundsPlayed;
+            playerStats.totalRoundsPlayed++;
+            checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
+            saveGameData();
+        }
 
-            // 「暖かい紅茶でもいかが？」（和了回数0回でゲーム終了）
-            if ((playerStats._tempGameWins || 0) === 0 && playerStats.noWinGameCount === 0) {
-                playerStats.noWinGameCount = 1;
-                showAchievementUnlock("暖かい紅茶でもいかが？", "☕");
-            }
-            playerStats._tempGameWins = 0; // ゲーム終了時にカウンターをリセット
+        closeAllModals();
+        document.getElementById('waits-panel').style.display = 'none';
 
-            // 「悪の合理主義」（4局すべてで全単和了）
-            if (playerStats._tempZentanRounds >= 4 && playerStats.evilRationalismCount === 0) {
-                playerStats.evilRationalismCount = 1;
-                showAchievementUnlock("悪の合理主義", "😈");
-            }
-            playerStats._tempZentanRounds = 0; // リセット
+        isProc = true;
+        document.getElementById('msg').innerHTML = "点数計算中...";
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
 
-            // 🌟 追加：「無花果依存症」（4局すべてで無花果和了）
-            if (playerStats._tempMuhanaRounds >= 4 && playerStats.muhanaAddictionCount === 0) {
-                playerStats.muhanaAddictionCount = 1;
-                showAchievementUnlock("無花果依存症", "🍂");
-            }
-            playerStats._tempMuhanaRounds = 0; // リセット
+        isAutoPlay = false;
+        const btnAuto = document.getElementById('btn-auto-play');
+        if (btnAuto) {
+            btnAuto.innerText = "オート(和了後): OFF";
+            btnAuto.style.background = "#7f8c8d";
+            btnAuto.style.boxShadow = "0 3px #95a5a6";
+        }
 
-            // 「千秋万代」（1局の中で最初と最後のアガリを自分が取ったか）
-            // ※厳密には「毎局」判定する必要がありますが、ここで「最後の局(オーラス)での結果」として判定します。
-            // もし「1〜4局のどこか1局でも達成すればOK」にする場合は、上の 修正2 の中に混ぜることも可能です。今回は一番劇的なオーラスでの達成とします。
-            if (playerStats._tempFirstWin && playerStats._tempLastWin && playerStats.senshuBandaiCount === 0) {
-                // 自分以外にアガった人がいる（2回以上アガリが発生している）ことが前提
-                if (calcData.results.length >= 2) {
-                    playerStats.senshuBandaiCount = 1;
-                    showAchievementUnlock("千秋万代", "⏳");
+        const calcData = await apiCall('/calculate_round_scores');
+
+        let iWon = false;
+        for (let res of (calcData.results || [])) {
+            if (res.player === 0) {
+                iWon = true;
+
+                if (!isReplayingResult) {
+                    playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1;
+                    if (calcData.results.length > 0) {
+                        if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
+                        if (calcData.results[calcData.results.length - 1].player === 0) playerStats._tempLastWin = true;
+                    }
+
+                    let hasMenzen = myMelds.filter(m => m.type !== "ankan").length === 0;
+                    let combinedYaku = (res.details || []).flatMap(d => d.yaku || []);
+                    let allMyTiles = [...myHand];
+                    myMelds.forEach(m => m.tiles.forEach(t => allMyTiles.push(t)));
+
+                    if (hasMenzen && combinedYaku.includes("碰碰胡") && playerStats.suankoTrollCount === 0) {
+                        playerStats.suankoTrollCount = 1;
+                        showAchievementUnlock("四暗刻！", "😎");
+                    }
+
+                    if (combinedYaku.includes("無番和") && playerStats.chantaTrollCount === 0) {
+                        let yaochuCount = allMyTiles.filter(t => t.includes("1") || t.includes("9") || ["東", "南", "西", "北", "白", "發", "中"].includes(t)).length;
+                        if (yaochuCount >= 10) {
+                            playerStats.chantaTrollCount = 1;
+                            showAchievementUnlock("チャンタってある？", "🤪");
+                        }
+                    }
+
+                    if (combinedYaku.includes("全単")) {
+                        playerStats._tempZentanRounds = (playerStats._tempZentanRounds || 0) + 1;
+                    }
+
+                    if (combinedYaku.includes("無花果")) {
+                        playerStats._tempMuhanaRounds = (playerStats._tempMuhanaRounds || 0) + 1;
+                    }
+
+                    if (playerStats.kyukaSanfukuCount === 0) {
+                        let sum = 0;
+                        allMyTiles.forEach(t => {
+                            if (t.includes("m") || t.includes("p") || t.includes("s")) sum += parseInt(t[0]);
+                        });
+                        if (sum <= 30 || sum >= 90) {
+                            playerStats.kyukaSanfukuCount = 1;
+                            showAchievementUnlock("九夏三伏", "☀️");
+                        }
+                    }
+
+                    if (playerStats.tougetsuSekisokuCount === 0) {
+                        if (allMyTiles.includes("1m") && allMyTiles.includes("9m") &&
+                            allMyTiles.includes("1p") && allMyTiles.includes("6p") && allMyTiles.includes("7p")) {
+                            playerStats.tougetsuSekisokuCount = 1;
+                            showAchievementUnlock("冬月赤足", "👣");
+                        }
+                    }
+
+                    if (playerStats.tousenKaroCount === 0) {
+                        let hasFlower = allMyTiles.some(t => ["春", "夏", "秋", "冬"].includes(t));
+                        if (!hasFlower && (res.details || []).some(d => d.tile === "春" && (d.yaku || []).includes("自摸"))) {
+                            playerStats.tousenKaroCount = 1;
+                            showAchievementUnlock("冬扇夏炉", "⛄");
+                        }
+                    }
+
+                    let winTile = (res.details && res.details.length > 0) ? res.details[0].tile : null;
+                    if (winTile && !["春", "夏", "秋", "冬"].includes(winTile)) {
+                        let visibleCount = 0;
+                        myAllMelds.forEach(playerMelds => {
+                            if (playerMelds) {
+                                playerMelds.forEach(m => {
+                                    m.tiles.forEach(t => { if (t === winTile) visibleCount++; });
+                                });
+                            }
+                        });
+
+                        for (let riverIdx = 0; riverIdx < 4; riverIdx++) {
+                            const r = document.getElementById(`river-${riverIdx}`);
+                            if (r) {
+                                Array.from(r.children).forEach(img => {
+                                    const srcPath = decodeURIComponent(img.src);
+                                    if (srcPath.includes(`/${winTile}.png`)) visibleCount++;
+                                });
+                            }
+                        }
+
+                        if (visibleCount === 3 && (playerStats.hezuezhangCount || 0) === 0) {
+                            playerStats.hezuezhangCount = 1;
+                            showAchievementUnlock("和絶張", "🀄");
+                        }
+                    }
+
+                    // 🌟 安全に長さを取得してエラーを防止
+                    playerStats.totalWins += (res.details ? res.details.length : 1);
+                    let oldTotalScore = playerStats.totalScoreSum || 0;
+                    playerStats.totalScoreSum = oldTotalScore + res.total_score;
+                    checkTieredAchievement("billionaire", "大富豪", "🏦", oldTotalScore, playerStats.totalScoreSum, [1000, 10000, 50000, 1000000]);
+
+                    if (currentWaits.length >= 27 && playerStats.wideWaitCount === 0) {
+                        playerStats.wideWaitCount = 1;
+                        showAchievementUnlock("無限の選択肢", "🌀");
+                    }
+
+                    for (let detail of (res.details || [])) {
+                        if ((detail.yaku || []).length > playerStats.maxComboCount) {
+                            let isFirstTime = (playerStats.maxComboCount < 7 && detail.yaku.length >= 7);
+                            playerStats.maxComboCount = detail.yaku.length;
+                            if (isFirstTime) showAchievementUnlock("インフレの体現者", "🌈");
+                        }
+                    }
+
+                    if (allMyTiles.includes("春") && allMyTiles.includes("夏") && allMyTiles.includes("秋") && allMyTiles.includes("冬")) {
+                        if (playerStats.masterOfSeasonsCount === 0) {
+                            playerStats.masterOfSeasonsCount = 1;
+                            showAchievementUnlock("四季常春", "🌍");
+                        }
+                    }
+
+                    if (res.total_score > playerStats.maxScore) {
+                        let oldMax = playerStats.maxScore;
+                        playerStats.maxScore = res.total_score;
+                        checkTieredAchievement("score", "最高到達打点", "💰", oldMax, playerStats.maxScore, [100, 500, 1000, 2000]);
+
+                        playerStats.maxScoreHand = {
+                            tiles: [...myHand],
+                            melds: JSON.parse(JSON.stringify(myMelds)),
+                            winTile: (res.details && res.details.length > 0) ? res.details[0].tile : ""
+                        };
+                    }
+
+                    if (Array.isArray(playerStats.yakuCollected)) {
+                        let migrated = {};
+                        playerStats.yakuCollected.forEach(y => migrated[y] = 1);
+                        playerStats.yakuCollected = migrated;
+                    }
+
+                    const yakuAchieveMap = {
+                        "天胡": { title: "最速最強", icon: "⚡", req: 1 },
+                        "地胡": { title: "あっ！(胡！)", icon: "😲", req: 1 },
+                        "七星攬月": { title: "流星群", icon: "🌠", req: 1 },
+                        "清幺九": { title: "老成円熟", icon: "👴", req: 1 },
+                        "連七対": { title: "二盃口！", icon: "👯", req: 1 },
+                        "九連宝燈": { title: "南無阿弥陀仏", icon: "🙏", req: 1 },
+                        "十八羅漢": { title: "仏の顔も三度まで", icon: "💢", req: 1 },
+                        "大四風会": { title: "風神降臨", icon: "🌪️", req: 1 },
+                        "一色四節高": { title: "金門橋", icon: "🌉", req: 1 },
+                        "一色四歩高": { title: "虎視眈々", icon: "🐅", req: 1 },
+                        "紅孔雀": { title: "孔雀報喜", icon: "🦚", req: 1 },
+                        "七星不靠": { title: "これ和了なの？", icon: "🤔", req: 1 },
+                        "陰陽両儀": { title: "黒一色", icon: "⬛", req: 1 },
+                        "大三元": { title: "三位一体", icon: "🐉", req: 1 },
+                        "推不倒": { title: "目が回る", icon: "🌀", req: 8 },
+                        "槍槓": { title: "今だ！(仮)", icon: "🎯", req: 1 },
+                        "花天月地": { title: "花落知多少", icon: "🥀", req: 1 }
+                    };
+
+                    for (let detail of (res.details || [])) {
+                        for (let y of (detail.yaku || [])) {
+                            if (!playerStats.yakuCollected[y]) {
+                                playerStats.yakuCollected[y] = 0;
+                            }
+                            playerStats.yakuCollected[y]++;
+                            let ach = yakuAchieveMap[y];
+                            if (ach && playerStats.yakuCollected[y] === ach.req) {
+                                showAchievementUnlock(ach.title, ach.icon);
+                            }
+                        }
+                    }
                 }
             }
-            playerStats._tempFirstWin = false;
-            playerStats._tempLastWin = false;
+        }
 
-            // 🌟 追加：「逆転の劇薬」（オーラス開始時4位から1位で終了）
-            if (rankBeforeFinalRound === 4 && myRank === 1 && playerStats.comebackCount === 0) {
-                playerStats.comebackCount = 1;
-                showAchievementUnlock("逆転の劇薬", "💊");
+        if (!isReplayingResult) saveGameData();
+
+        let startDisplayIdx = 0;
+        if (isReplayingResult) {
+            startDisplayIdx = parseInt(sessionStorage.getItem(`result_display_idx_${currentSessionRoomId}`)) || 0;
+            if (startDisplayIdx > 4) startDisplayIdx = 4;
+        } else {
+            sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "0");
+        }
+
+        for (let i = startDisplayIdx; i < 4; i++) {
+            sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, i.toString());
+
+            let elapsed = (Date.now() - resultStartTime) / 1000;
+            if (isNaN(elapsed)) elapsed = 0;
+
+            if (elapsed >= (i + 1) * 8) continue;
+
+            let currentWaitTime = 8 - (elapsed - (i * 8));
+            if (currentWaitTime > 8) currentWaitTime = 8;
+            if (currentWaitTime < 0) currentWaitTime = 0;
+
+            let isWinner = false;
+            let winData = null;
+
+            for (let res of (calcData.results || [])) {
+                if (res.player === i) {
+                    isWinner = true;
+                    winData = res;
+                    break;
+                }
             }
 
-            playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
-            if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
+            let diff = (calcData.scores && calcData.scores[i]) !== undefined ? calcData.scores[i] : 0;
+            let yakuHtml = "";
+            let titleText = "";
+            let scoreText = "";
+            let scoreColor = "";
 
-            playerStats.totalGamesPlayed++;
-            playerStats.rankCounts[myRank - 1]++;
+            if (isWinner && winData) {
+                titleText = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
+                scoreText = `${winData.total_score} 点`;
+                scoreColor = "#2ecc71";
 
-            if (myRank === 1) {
-                playerStats.currentWinStreak++;
-                if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
-                    let oldStreak = playerStats.maxWinStreak;
-                    playerStats.maxWinStreak = playerStats.currentWinStreak;
-                    checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
+                let groupedDetails = {};
+                for (let detail of (winData.details || [])) {
+                    let yakuKey = [...(detail.yaku || [])].sort().join(",");
+                    let groupKey = `${detail.tile}_${yakuKey}`;
+
+                    if (!groupedDetails[groupKey]) {
+                        groupedDetails[groupKey] = {
+                            tile: detail.tile, yaku: (detail.yaku || []), score: detail.score || 0, count: 1, total_score: detail.score || 0
+                        };
+                    } else {
+                        groupedDetails[groupKey].count++;
+                        groupedDetails[groupKey].total_score += (detail.score || 0);
+                    }
+                }
+
+                let sortedDetails = Object.values(groupedDetails);
+                sortedDetails.sort((a, b) => {
+                    if (b.total_score !== a.total_score) return b.total_score - a.total_score;
+                    return SM[a.tile] - SM[b.tile];
+                });
+
+                for (let d of sortedDetails) {
+                    let tile = d.tile;
+                    const tierOrder = { "yaku-tier-64": 1, "yaku-tier-32": 2, "yaku-tier-16": 3, "yaku-tier-8": 4, "yaku-tier-6": 5, "yaku-tier-4": 6, "yaku-tier-2": 7, "yaku-tier-1": 8, "yaku-tier-multi": 9 };
+                    d.yaku.sort((a, b) => {
+                        let orderA = tierOrder[getYakuTierClass(a)] !== undefined ? tierOrder[getYakuTierClass(a)] : 99;
+                        let orderB = tierOrder[getYakuTierClass(b)] !== undefined ? tierOrder[getYakuTierClass(b)] : 99;
+                        return orderA - orderB;
+                    });
+
+                    let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;">×${d.count}枚</span>` : "";
+                    let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa;">(${d.score}点 × ${d.count})</span> <br> ${d.total_score}点` : `${d.score}点`;
+
+                    yakuHtml += `
+                        <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
+                            <div style="display: flex; align-items: center; width: 160px;">
+                                <span style="color: #ddd; margin-right: 10px; font-size: 16px;">和了牌</span>
+                                <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
+                                ${countStr}
+                            </div>
+                            <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
+                                ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${getJaYakuName(y)}</span><span class="en">${getEnYakuName(y)}</span></span>`).join("")}
+                            </div>
+                            <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;">
+                                ${scoreDetailStr}
+                            </div>
+                        </div>`;
                 }
             } else {
-                playerStats.currentWinStreak = 0;
+                titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
+                let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+                scoreText = `${diffStr} 点`;
+                scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
+
+                let resultLabel = diff < 0 ? "失点 (振込み等)" : ((calcData.results || []).length === 0 ? "流局" : "ー");
+                yakuHtml = `
+                    <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
+                        ${resultLabel}
+                    </div>`;
             }
 
-            let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-            let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
+            let closedHand = (i === 0) ? myHand : (myAllHands[i] || []);
+            let melds = (i === 0) ? myMelds : (myAllMelds[i] || []);
+            let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
 
-            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+            let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
+
+            handHtml += `<div style="display: flex; gap: 2px;">`;
+            for (let t of sortedHand) {
+                handHtml += `<img src="images/${t}.png" style="width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">`;
+            }
+            handHtml += `</div>`;
+
+            if (melds.length > 0) {
+                handHtml += `<div style="width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;"></div>`;
+
+                for (let m of melds) {
+                    handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
+                    for (let idx = 0; idx < m.tiles.length; idx++) {
+                        let t = m.tiles[idx];
+                        let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
+                        handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
+                    }
+                    handHtml += `</div>`;
+                }
+            }
+            handHtml += `</div>`;
+
+            document.getElementById('win-label-text').innerText = titleText;
+            document.getElementById('win-score').innerHTML = scoreText;
+            document.getElementById('win-score').style.color = scoreColor;
+            document.getElementById('win-hand-display').innerHTML = handHtml;
+            document.getElementById('win-yaku').innerHTML = yakuHtml;
+
+            document.getElementById('overlay').scrollTop = 0;
+            document.getElementById('overlay').style.display = "flex";
+
+            updateStampVisibility();
+
+            if (!isReplayingResult) playSE('score');
+
+            await waitWithTimerAndSkip(currentWaitTime);
+
+            document.getElementById('overlay').style.display = "none";
+            updateStampVisibility();
+            await sleep(500);
+        }
+
+        sessionStorage.setItem(`result_display_idx_${currentSessionRoomId}`, "4");
+
+        scores = calcData.scores || [0, 0, 0, 0];
+        let rankingPoints = calcData.ranking_points || [0, 0, 0, 0];
+        let rateChanges = [0, 0, 0, 0];
+
+        let rankBeforeFinalRound = -1;
+        if (currentRound >= 4 && !isReplayingResult) {
+            let sortedBefore = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
+            rankBeforeFinalRound = sortedBefore.indexOf(0) + 1;
+        }
+
+        if (!isReplayingResult) {
+            let myNetScore = scores[0] + rankingPoints[0];
+            let isPacifistTop = true;
+            for (let i = 1; i < 4; i++) {
+                if (scores[i] + rankingPoints[i] > myNetScore) isPacifistTop = false;
+            }
+            if (!iWon && isPacifistTop && playerStats.pacifistCount === 0) {
+                playerStats.pacifistCount = 1;
+                showAchievementUnlock("漁夫の利", "🕊️");
+            }
+            saveGameData();
+        }
+
+        let finalElapsed = (Date.now() - resultStartTime) / 1000;
+        if (isNaN(finalElapsed)) finalElapsed = 0;
+
+        if (finalElapsed < 35) {
+            let startIdx = dealer;
+            for (let step = 0; step < 4; step++) {
+                let targetIdx = (startIdx + step) % 4;
+                let roundScore = scores[targetIdx];
+                let rankPoint = rankingPoints[targetIdx];
+
+                await sleep(1000);
+
+                let rsEl = document.getElementById(`player-round-score-${targetIdx}`);
+                if (!rsEl) continue;
+
+                const posOffsets = [
+                    { bottom: "110px", left: "50%" },
+                    { right: "120px", top: "50%" },
+                    { top: "110px", left: "50%" },
+                    { left: "120px", top: "50%" }
+                ];
+
+                const offset = posOffsets[targetIdx];
+                rsEl.style.bottom = offset.bottom || "auto";
+                rsEl.style.top = offset.top || "auto";
+                rsEl.style.left = offset.left || "auto";
+                rsEl.style.right = offset.right || "auto";
+                rsEl.style.zIndex = "10000";
+
+                let sign = roundScore > 0 ? "+" : "";
+                let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
+                let rankCls = rankPoint > 0 ? "score-rank-plus" : "score-rank-zero";
+
+                rsEl.innerHTML = `<div class="${mainCls}">${sign}${roundScore}</div>
+                                  <div class="${rankCls}">順位点 +${rankPoint}</div>`;
+                rsEl.className = `player-round-score show-score`;
+
+                if (!isReplayingResult) playSE('coin');
+
+                if (!isReplayingResult) {
+                    totalScores[targetIdx] += roundScore + rankPoint;
+                }
+
+                let scoreEl = document.getElementById(`player-score-${targetIdx}`);
+                scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
+                scoreEl.style.transform = "scale(1.2)";
+                setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
+            }
+
+            await sleep(3500);
+
+            for (let i = 0; i < 4; i++) {
+                let rsEl = document.getElementById(`player-round-score-${i}`);
+                if (rsEl) rsEl.className = "player-round-score";
+            }
+        }
+
+        sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
+        sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
+        sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+
+        if (currentGameMode === 'lesson') {
+            let isCleared = false;
+            let clearMsg = "";
+
+            if (iWon) {
+                let myResult = (calcData.results || []).find(r => r.player === 0);
+                let myYaku = myResult ? (myResult.details || []).flatMap(d => d.yaku || []) : [];
+
+                if (window.currentLessonId === 1 && myYaku.includes("全単")) isCleared = true;
+                else if (window.currentLessonId === 2 && myYaku.includes("寒江独釣")) isCleared = true;
+                else if (window.currentLessonId === 3 && myYaku.includes("七星不靠")) isCleared = true;
+                else if (window.currentLessonId === 4 && (myYaku.includes("一色四歩高") || myYaku.includes("連七対"))) isCleared = true;
+
+                if (isCleared) {
+                    clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
+                } else {
+                    clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
+                }
+            } else {
+                clearMsg = "❌ レッスン失敗...\n条件を満たせずに局が終了してしまいました。もう一度挑戦してみましょう！";
+            }
+
+            await sleep(500);
+            alert(clearMsg);
+
+            if (currentSessionRoomId) {
+                await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+                currentSessionRoomId = "";
+                localStorage.removeItem('shiki_mahjong_room_id');
+            }
+            returnToHomeGracefully();
+            return;
+        }
+
+        if (currentRound >= 4) {
+            let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
+            let myRank = sortedIndices.indexOf(0) + 1;
+
+            if (!isReplayingResult) {
+                if ((playerStats._tempGameWins || 0) === 0 && playerStats.noWinGameCount === 0) {
+                    playerStats.noWinGameCount = 1;
+                    showAchievementUnlock("暖かい紅茶でもいかが？", "☕");
+                }
+                playerStats._tempGameWins = 0;
+
+                if (playerStats._tempZentanRounds >= 4 && playerStats.evilRationalismCount === 0) {
+                    playerStats.evilRationalismCount = 1;
+                    showAchievementUnlock("悪の合理主義", "😈");
+                }
+                playerStats._tempZentanRounds = 0;
+
+                if (playerStats._tempMuhanaRounds >= 4 && playerStats.muhanaAddictionCount === 0) {
+                    playerStats.muhanaAddictionCount = 1;
+                    showAchievementUnlock("無花果依存症", "🍂");
+                }
+                playerStats._tempMuhanaRounds = 0;
+
+                if (playerStats._tempFirstWin && playerStats._tempLastWin && playerStats.senshuBandaiCount === 0) {
+                    if ((calcData.results || []).length >= 2) {
+                        playerStats.senshuBandaiCount = 1;
+                        showAchievementUnlock("千秋万代", "⏳");
+                    }
+                }
+                playerStats._tempFirstWin = false;
+                playerStats._tempLastWin = false;
+
+                if (rankBeforeFinalRound === 4 && myRank === 1 && playerStats.comebackCount === 0) {
+                    playerStats.comebackCount = 1;
+                    showAchievementUnlock("逆転の劇薬", "💊");
+                }
+
+                playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
+                if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
+
+                playerStats.totalGamesPlayed++;
+                playerStats.rankCounts[myRank - 1]++;
+
+                if (myRank === 1) {
+                    playerStats.currentWinStreak++;
+                    if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
+                        let oldStreak = playerStats.maxWinStreak;
+                        playerStats.maxWinStreak = playerStats.currentWinStreak;
+                        checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
+                    }
+                } else {
+                    playerStats.currentWinStreak = 0;
+                }
+
+                let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
+                let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
+
+                if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+                    let placementPoints = [15, 5, -5, -15];
+                    let oldMyRate = playerRatings[0];
+
+                    for (let rank = 0; rank < 4; rank++) {
+                        let pIdx = sortedIndices[rank];
+                        let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
+                        let rateDiff = avgTableRate - playerRatings[pIdx];
+                        let rateCorrection = Math.round(rateDiff / 40);
+
+                        let change = placementPoints[rank] + scoreBonus + rateCorrection;
+                        if (rank === 0 && change <= 0) change = 1;
+                        if (rank === 3 && change >= 0) change = -1;
+
+                        rateChanges[pIdx] = change;
+                        playerRatings[pIdx] += change;
+                        if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
+                    }
+
+                    checkTieredAchievement("rating", "レートの階段", "📈", oldMyRate, playerRatings[0], [1600, 1700, 1800, 1900]);
+                    if (oldMyRate < 2000 && playerRatings[0] >= 2000) {
+                        showAchievementUnlock("頂に立つ者", "👑");
+                    }
+                }
+                saveGameData();
+            } else {
+                let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
+                let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
                 let placementPoints = [15, 5, -5, -15];
-                let oldMyRate = playerRatings[0]; // 🌟 変動前の自分のレートを記憶
-
                 for (let rank = 0; rank < 4; rank++) {
                     let pIdx = sortedIndices[rank];
                     let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
                     let rateDiff = avgTableRate - playerRatings[pIdx];
                     let rateCorrection = Math.round(rateDiff / 40);
-
                     let change = placementPoints[rank] + scoreBonus + rateCorrection;
                     if (rank === 0 && change <= 0) change = 1;
                     if (rank === 3 && change >= 0) change = -1;
-
                     rateChanges[pIdx] = change;
-                    playerRatings[pIdx] += change;
-                    if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
-                }
-
-                // 🌟 追加：レート関連の実績判定
-                checkTieredAchievement("rating", "レートの階段", "📈", oldMyRate, playerRatings[0], [1600, 1700, 1800, 1900]);
-                if (oldMyRate < 2000 && playerRatings[0] >= 2000) {
-                    showAchievementUnlock("頂に立つ者", "👑");
                 }
             }
-            saveGameData();
-        } else {
-            // リロード等で再開した場合でも、表示用にダミー計算をしておく
-            let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-            let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
-            let placementPoints = [15, 5, -5, -15];
+
+            let resultMsg = "【ゲーム終了！最終結果】\n\n";
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
-                let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
-                let rateDiff = avgTableRate - playerRatings[pIdx];
-                let rateCorrection = Math.round(rateDiff / 40);
-                let change = placementPoints[rank] + scoreBonus + rateCorrection;
-                if (rank === 0 && change <= 0) change = 1;
-                if (rank === 3 && change >= 0) change = -1;
-                rateChanges[pIdx] = change;
+                let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
+                resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
+
+                if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+                    let sign = rateChanges[pIdx] >= 0 ? "+" : "";
+                    resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
+                }
             }
-        }
 
-        let resultMsg = "【ゲーム終了！最終結果】\n\n";
-        for (let rank = 0; rank < 4; rank++) {
-            let pIdx = sortedIndices[rank];
-            let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
-            resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
-
-            // 🌟 追加：レート変動のテキストを追加
-            if (currentGameMode === 'online' || currentGameMode === 'cpu') {
-                let sign = rateChanges[pIdx] >= 0 ? "+" : "";
-                resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
+            while (isToastShowing || toastQueue.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
+
+            alert(resultMsg);
+
+            await apiCall('/next_round');
+            returnToHomeGracefully();
+            return;
         }
 
-        while (isToastShowing || toastQueue.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        alert(resultMsg);
-
+        currentRoundSeasonDiscardCount = 0;
         await apiCall('/next_round');
+
+        for (let i = 0; i < 4; i++) {
+            document.getElementById(`river-${i}`).innerHTML = "";
+            document.getElementById(`meld-${i}`).innerHTML = "";
+            document.getElementById(`win-zone-${i}`).innerHTML = "";
+            document.getElementById(`win-zone-${i}`).style.display = "none";
+        }
+
+        charlestonCount = 1;
+        isProc = false;
+        startCharlestonSelection();
+        renderCPU();
+
+    } catch (e) {
+        console.error("リザルト処理中にエラーが発生しました:", e);
+        alert("リザルト処理中に予期せぬエラーが発生しました。\nホーム画面に戻ります。");
         returnToHomeGracefully();
-        return;
     }
-
-    currentRoundSeasonDiscardCount = 0;
-
-    await apiCall('/next_round');
-
-    for (let i = 0; i < 4; i++) {
-        document.getElementById(`river-${i}`).innerHTML = "";
-        document.getElementById(`meld-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).style.display = "none";
-    }
-
-    charlestonCount = 1;
-    isProc = false;
-    startCharlestonSelection();
-    renderCPU();
 }
 
 // 🗑️ 捨てられた牌を河（捨て牌置き場）に描画する関数
