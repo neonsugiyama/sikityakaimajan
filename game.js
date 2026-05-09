@@ -4542,6 +4542,9 @@ async function execTsumo() {
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
+
     let currentDrawnTile = drawnTile;
 
     const data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
@@ -4577,6 +4580,9 @@ async function execRon(isChankan = false) {
 
     isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
     let targetDiscarder = lastDiscardPlayer;
@@ -4638,6 +4644,9 @@ async function execMeld(type) {
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
+
     // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
     let targetDiscarder = lastDiscardPlayer;
     let targetTile = lastT;
@@ -4684,6 +4693,9 @@ async function execSelfMeld(type, t, s, isHidden = false) {
     stopTimer();
     if (isProc) return; isProc = true;
     resetActionBtnPool(); // 🌟 修正
+
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     if (type.includes("花槓")) {
         // 🏆 ここを変更！【花槓マスター】（暗花槓など）
@@ -4747,6 +4759,9 @@ async function execJokerSwap(t, season, targetIdx) {
     stopTimer();
     if (isProc) return; isProc = true;
     resetActionBtnPool(); // 🌟 修正
+
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
     await apiCall('/joker_swap', { player_idx: 0, tile: t, season: season, target_idx: targetIdx });
     render(); renderCPU();
 
@@ -4772,6 +4787,9 @@ function skipAction() {
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     resetActionBtnPool(); // 🌟 修正
+
+    // 🌟 追加：透過箱を即座に消す
+    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
     checkCpuReactions(lastDiscardPlayer, lastT);
 }
 
