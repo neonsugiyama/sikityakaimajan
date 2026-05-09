@@ -2111,7 +2111,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
     elif scenario == "lesson_4":
         # レッスン4: 一色四歩高 / 連七対
-        game.hands[0] = ["1s", "1s", "2s", "2s", "3s", "3s", "4s", "4s", "5s", "6s", "6s", "7s", "7s"]
+        game.hands[0] = ["1s", "1s", "2s", "2s", "3s", "3s", "3s", "4s", "4s", "4s", "5s", "6s", "6s"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
         game.turn = 0
@@ -2120,8 +2120,18 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[2] = ["1m", "1m", "9m", "9m", "東", "東", "南", "南", "西", "西", "北", "北", "白"]
         game.hands[3] = ["5p", "5p", "6p", "6p", "7p", "7p", "8s", "8s", "9s", "9s", "發", "發", "中"]
 
-        # これは一発ツモで綺麗に決まるように短くしています
-        game.wall = ["中", "白", "北", "西", "南", "5s"]
+        game.wall = [
+            "4s", "5s", "6s", # 予備
+            "1s", # P0ツモ5
+            "4p", "4p", "4p", # C3, C2, C1ツモ
+            "6s", # P0ツモ4
+            "3p", "3p", "3p", # C3, C2, C1ツモ
+            "7s", # P0ツモ3
+            "2p", "2p", "2p", # C3, C2, C1ツモ
+            "7s", # P0ツモ2
+            "1p", "1p", "1p", # C3, C2, C1ツモ
+            "5s"  # P0ツモ1
+        ]
 
     # 🌟 追加：全テストケース共通！場に出た牌をカウントして、残りの牌で山札（game.wall）を自動生成する処理
     # 🚨 修正：海底テストなど、意図的に山札を極少数にしているシナリオはこの自動補充をスキップする
