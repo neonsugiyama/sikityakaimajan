@@ -744,7 +744,7 @@ function updateMasterSE(val, playTestSound = false) {
 // ==========================================
 // ★ チュートリアル＆役一覧・ローカライズ制御
 // ==========================================
-let currentLangMode = 0; // 0: 中国語, 1: 日本語, 2: 英語
+let currentLangMode = 0; // 0: オリジナル, 1: 日本役化, 2: 英語
 
 // 🌐 選択中の言語（日・英・中）に合わせて画面のCSSクラスを切り替える関数
 function applyLangMode() {
@@ -755,10 +755,10 @@ function applyLangMode() {
     const label = document.getElementById('current-lang-label');
     if (label) {
         if (currentLangMode === 0) {
-            label.innerText = "中国語";
+            label.innerText = "オリジナル";
             label.style.color = "#f1c40f";
         } else if (currentLangMode === 1) {
-            label.innerText = "日本語";
+            label.innerText = "日本役化";
             label.style.color = "#e74c3c";
         } else {
             label.innerText = "English";
