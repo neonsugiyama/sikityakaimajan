@@ -1588,7 +1588,7 @@ async function startLesson(lessonId) {
             apiScenario = "lesson_3";
             break;
         case 4:
-            title = "レッスン④：最後のロマン【一色四歩高 / 連七対】";
+            title = "レッスン④：面前のロマン【一色四歩高 / 連七対】";
             msg = "基本は鳴きが強いゲームですが、『一色四歩高』や『連七対』だけは別格です。<br>普段お目にかかれない芸術的な手役を完成させましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：鳴かずに門前で『一色四歩高』か『連七対』を和了！</span>";
             apiScenario = "lesson_4";
             break;
