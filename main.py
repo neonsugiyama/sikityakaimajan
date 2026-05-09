@@ -2087,7 +2087,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
     elif scenario == "lesson_3":
         # レッスン3: 七星不靠
-        game.hands[0] = ["東", "南", "西", "北", "白", "發", "中", "1m", "2p", "5p", "8p", "3s", "6s"]
+        game.hands[0] = ["東", "9p", "西", "北", "白", "發", "中", "東", "2p", "5p", "8p", "3s", "6s"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
         game.turn = 0
@@ -2097,8 +2097,14 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[3] = ["1s", "1s", "1s", "東", "南", "西", "北", "白", "發", "中", "1m", "1m", "9m"]
 
         game.wall = [
-            "9m", "9m", "9m", # 予備
-            "9s", # P0ツモ2 (和了)
+            "1m", "1m", "1m", # 予備
+            "1m", # P0ツモ5 (和了)
+            "4p", "4p", "4p", # C3, C2, C1ツモ
+            "南", # P0ツモ4
+            "3p", "3p", "3p", # C3, C2, C1ツモ
+            "中", # P0ツモ3 (ハズレ)
+            "2p", "2p", "2p", # C3, C2, C1ツモ
+            "9s", # P0ツモ2
             "1p", "1p", "1p", # C3, C2, C1ツモ
             "1s"  # P0ツモ1 (ハズレ)
         ]
