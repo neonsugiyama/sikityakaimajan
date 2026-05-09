@@ -584,19 +584,16 @@
                     自分の手番中に花槓されている牌を持っていれば、Joker Swapと宣言して花槓に使われている四季牌と交換できます！
                 </p>
 
-                <h3>🏆 和了後の継続プレイと槓</h3>
+                <h3>🏆 和了とその後に関する規則</h3>
                 <p>
-                    本作は誰かが和了しても局を継続します（和了によって自摸順は変わりません）。<br>
-                    和了の成立後は、自摸牌と手牌を入れ替えることはできません（ツモ切り限定）。<br>
-                    ただし、<strong>副露を含めない手牌に四季牌が含まれていない場合のみ</strong>、和了後でも四季牌以外の自摸牌での加槓・暗槓が認められます。<br>
-                    和了後に槓を行った場合、<strong>槓以前の和了に対しても、槓後に成立した役を追加して計算</strong>します。
-                </p>
-
-                <h3>✨ 特殊な和了と役</h3>
-                <p>
-                    <strong>振聴（フリテン）は一切ありません</strong>が、全ての牌で和了れる状態では槍槓ができません。<br>
-                    また、奇数牌のみを集める「全単」は、暗槓・明槓・花槓・碰を一切していなければ、通常の面子構成を無視して和了することができます。<br>
-                    <strong>和了は上家側が優先（頭ハネ）されます。</strong>
+                    本作は誰かが和了しても<strong>局を継続します</strong>（和了によって自摸順は変わりません）。<br>
+                    和了の成立後は、自摸牌と手牌を入れ替えることはできません（ツモ切りもしくは和了限定）。<br>
+                    ただし、<strong>副露を含めない手牌に四季牌が含まれていない場合のみ</strong>、和了後でも四季牌以外の自摸牌での加槓・暗槓のみ認められます。<br>
+                    和了後に槓を行った場合、<strong>槓以前の和了に対しても、槓後に成立した役を追加して計算</strong>します。<br>
+                    <strong>振聴（フリテン）は一切ありません</strong><br>
+                    全ての牌で和了れる状態では槍槓ができません。<br>
+                    <strong>和了は上家側が優先（頭ハネ）されます。</strong><br>
+                    「全単」は、暗槓・明槓・花槓・碰を一切していなければ、通常の面子構成を無視した和了ができます。
                 </p>
             </div>
             <button id="howto-text-close" class="btn-act btn-red" style="display: block; margin: 20px auto 0;" onclick="closeHowTo()">閉じる</button>
@@ -639,36 +636,60 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">天胡</span><span class="ja">天和</span><span class="en">Heavenly hand</span></span></div>
-                                <div class="yaku-card-desc">親の第1自摸和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">親の第1自摸和了。</span>
+                                    <span class="ja">親の第1自摸和了。</span>
+                                    <span class="en">Dealer’s winning first draw.</span>
+                                </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">地胡</span><span class="ja">地和</span><span class="en">Blessing hand</span></span></div>
-                                <div class="yaku-card-desc">副露が発生していない状況での子の第1自摸和了と、それ以前の和了（人和）。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">副露が発生していない状況での子の第1自摸和了と、それ以前の和了（人和）。</span>
+                                    <span class="ja">副露が発生していない状況での子の第1自摸和了と、それ以前の和了（人和）。</span>
+                                    <span class="en">Non-dealer's winning until first draw without any player’s meld.</span>
+                                </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">七星攬月</span><span class="ja">大七星</span><span class="en">Big seven stars</span></span></div>
-                                <div class="yaku-card-desc">7種の字牌がすべて対子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">7種の字牌がすべて対子。</span>
+                                    <span class="ja">7種の字牌がすべて対子。</span>
+                                    <span class="en">Pairs of all Honors.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">清幺九</span><span class="ja">清老頭</span><span class="en">All terminal</span></span></div>
-                                <div class="yaku-card-desc">1と9の牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1と9の牌のみで構成。</span>
+                                    <span class="ja">1と9の牌のみで構成。</span>
+                                    <span class="en">Using only number of 1 or 9 tiles.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/1p.png"><img src="images/1p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">連七対</span><span class="ja">連七対</span><span class="en">Seven shifted pairs</span></span></div>
-                                <div class="yaku-card-desc">1色で7つの連続した対子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色で7つの連続した対子。</span>
+                                    <span class="ja">1色で7つの連続した対子。</span>
+                                    <span class="en">Consecutive seven pairs of a single suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/8p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-64"><span class="zh">九連宝燈</span><span class="ja">九連宝燈</span><span class="en">Nine gates</span></span></div>
-                                <div class="yaku-card-desc">1色のみを使った1112345678999と、1～9のどれかで和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色のみを使った1112345678999と、1～9のどれかで和了。</span>
+                                    <span class="ja">1色のみを使った1112345678999と、1～9のどれかで和了。</span>
+                                    <span class="en">1112345678999 of a single suit and one tile of them.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><span style="color:#fff; margin:0 3px;">+</span><img src="images/1s.png">
                                 </div>
@@ -683,28 +704,44 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">十八羅漢</span><span class="ja">四槓子</span><span class="en">Four kang</span></span></div>
-                                <div class="yaku-card-desc">4回の槓をして和了。（寒江独釣と複合する）</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">4回の槓をして和了。（寒江独釣と複合する）</span>
+                                    <span class="ja">4回の槓をして和了。（寒江独釣と複合する）</span>
+                                    <span class="en">Four concealed or melded kangs.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/中.png"><img src="images/中.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">大四風会</span><span class="ja">大四喜</span><span class="en">Big four winds</span></span></div>
-                                <div class="yaku-card-desc">風牌4種すべてを刻子(槓子)にする。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">風牌4種すべてを刻子(槓子)にする。</span>
+                                    <span class="ja">風牌4種すべてを刻子(槓子)にする。</span>
+                                    <span class="en">Four pongs or kangs of all different Winds.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/1m.png"><img src="images/1m.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">一色四節高</span><span class="ja">一色四連刻</span><span class="en">Four shifted pong</span></span></div>
-                                <div class="yaku-card-desc">1色で4つ連続した刻子(槓子)。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色で4つ連続した刻子(槓子)。</span>
+                                    <span class="ja">1色で4つ連続した刻子(槓子)。</span>
+                                    <span class="en">Consecutive four pongs or kangs of a single suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/發.png"><img src="images/發.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">一色四歩高</span><span class="ja">一色四連順</span><span class="en">Four shifted chow</span></span></div>
-                                <div class="yaku-card-desc">1色で1又は2ずつずれている4つの順子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色で1又は2ずつずれている4つの順子。</span>
+                                    <span class="ja">1色で1又は2ずつずれている4つの順子。</span>
+                                    <span class="en">Consecutive four chows skipping one or two numbers of a single suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <span style="font-size:12px; color:#aaa; margin-right:5px;">(1つずれ)</span><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/北.png"><img src="images/北.png">
                                 </div>
@@ -714,14 +751,22 @@
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">紅孔雀</span><span class="ja">紅孔雀</span><span class="en">Red peacock</span></span></div>
-                                <div class="yaku-card-desc">1,5,7,9の索子と中で構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,5,7,9の索子と中で構成。</span>
+                                    <span class="ja">1,5,7,9の索子と中で構成。</span>
+                                    <span class="en">Using only tiles of 1,5,7,9 Bam and red dragon.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/7s.png"><img src="images/7s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/中.png"><img src="images/中.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-32"><span class="zh">七星不靠</span><span class="ja">七星不靠</span><span class="en">Knitted & honors</span></span></div>
-                                <div class="yaku-card-desc">字牌7種と各色重複のない筋(147,258,369)の14種。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">字牌7種と各色重複のない筋(147,258,369)の14種。</span>
+                                    <span class="ja">字牌7種と各色重複のない筋(147,258,369)の14種。</span>
+                                    <span class="en">All Honors and skipping three numbers and different number of each suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/南.png"><img src="images/西.png"><img src="images/北.png"><img src="images/白.png"><img src="images/發.png"><img src="images/中.png"><img src="images/1m.png"><img src="images/2p.png"><img src="images/5p.png"><img src="images/8p.png"><img src="images/3s.png"><img src="images/6s.png"><img src="images/9s.png">
                                 </div>
@@ -736,70 +781,110 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">小四風会</span><span class="ja">小四喜</span><span class="en">Little four winds</span></span></div>
-                                <div class="yaku-card-desc">風牌3種が刻子、1種が雀頭。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">風牌3種が刻子、1種が雀頭。</span>
+                                    <span class="ja">風牌3種が刻子、1種が雀頭。</span>
+                                    <span class="en">Three pongs or kangs and one pair of all different Winds.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/北.png"><img src="images/北.png"><img src="images/北.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/南.png"><img src="images/南.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">緑一色</span><span class="ja">緑一色</span><span class="en">All green</span></span></div>
-                                <div class="yaku-card-desc">2,3,4,6,8の索子と發のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">2,3,4,6,8の索子と發のみで構成。</span>
+                                    <span class="ja">2,3,4,6,8の索子と發のみで構成。</span>
+                                    <span class="en">Using only tiles of 2,3,4,6,8 Bam and green dragon.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/8s.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/2s.png"><img src="images/2s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">字一色</span><span class="ja">字一色</span><span class="en">All honor</span></span></div>
-                                <div class="yaku-card-desc">字牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">字牌のみで構成。</span>
+                                    <span class="ja">字牌のみで構成。</span>
+                                    <span class="en">Using only Honors.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">陰陽両儀</span><span class="ja">黒一色</span><span class="en">Monochrome tiles</span></span></div>
-                                <div class="yaku-card-desc">2,4,8の筒子と風牌と白のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">2,4,8の筒子と風牌と白のみで構成。</span>
+                                    <span class="ja">2,4,8の筒子と風牌と白のみで構成。</span>
+                                    <span class="en">Using only tiles of 2,4,8 Dot, Winds and white dragon.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">大三元</span><span class="ja">大三元</span><span class="en">Big dragons</span></span></div>
-                                <div class="yaku-card-desc">三元牌(白發中)すべてを刻子(槓子)にする。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">三元牌(白發中)すべてを刻子(槓子)にする。</span>
+                                    <span class="ja">三元牌(白發中)すべてを刻子(槓子)にする。</span>
+                                    <span class="en">Three pongs or kangs of all different Dragons.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png"><img src="images/中.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/5p.png"><img src="images/5p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全大</span><span class="ja">全大</span><span class="en">Upper tiles</span></span></div>
-                                <div class="yaku-card-desc">7,8,9の数牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">7,8,9の数牌のみで構成。</span>
+                                    <span class="ja">7,8,9の数牌のみで構成。</span>
+                                    <span class="en">Using only number tiles from 7 to 9.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/9m.png"><img src="images/9m.png"><img src="images/9m.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/9s.png"><img src="images/9s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全中</span><span class="ja">全中</span><span class="en">Middle tiles & Red</span></span></div>
-                                <div class="yaku-card-desc">4,5,6の数牌と中のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">4,5,6の数牌と中のみで構成。</span>
+                                    <span class="ja">4,5,6の数牌と中のみで構成。</span>
+                                    <span class="en">Using only number tiles from 4 to 6 and red dragon.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/中.png"><img src="images/中.png"><img src="images/中.png"><img src="images/5s.png"><img src="images/5s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">全小</span><span class="ja">全小</span><span class="en">Lower tiles</span></span></div>
-                                <div class="yaku-card-desc">1,2,3の数牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,2,3の数牌のみで構成。</span>
+                                    <span class="ja">1,2,3の数牌のみで構成。</span>
+                                    <span class="en">Using only number tiles from 1 to 3.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/3p.png"><img src="images/3p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">寒江独釣</span><span class="ja">裸単騎</span><span class="en">All melded hand</span></span></div>
-                                <div class="yaku-card-desc">すべての面子を副露し、最後の1枚で単騎待ち。（碰碰胡とは複合しない）</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">すべての面子を副露し、最後の1枚で単騎待ち。（碰碰胡とは複合しない）</span>
+                                    <span class="ja">すべての面子を副露し、最後の1枚で単騎待ち。（碰碰胡とは複合しない）</span>
+                                    <span class="en">All groups are melded.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <span style="font-size:12px; color:#aaa; margin-right:5px;">(全副露)</span><img src="images/ura.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-16"><span class="zh">十三幺九</span><span class="ja">国士無双</span><span class="en">Thirteen orphans</span></span></div>
-                                <div class="yaku-card-desc">1,9,字牌を1枚ずつと、その中のどれか1枚で和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,9,字牌を1枚ずつと、その中のどれか1枚で和了。</span>
+                                    <span class="ja">1,9,字牌を1枚ずつと、その中のどれか1枚で和了。</span>
+                                    <span class="en">All kinds of Terminals and Honors plus one tile of them.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/9m.png"><img src="images/1p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/南.png"><img src="images/西.png"><img src="images/北.png"><img src="images/白.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png">
                                 </div>
@@ -814,7 +899,9 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">三節高</span><span class="ja">三連刻</span><span class="en">Three shifted pong</span></span></div>
-                                <div class="yaku-card-desc">1色又は3色で3つ連続した刻子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色又は3色で3つ連続した刻子。</span><span class="ja">1色又は3色で3つ連続した刻子。</span><span class="en">Consecutive three pongs or kangs of a single or three suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <span style="font-size:12px; color:#aaa; margin-right:5px;">(1色)</span><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/東.png"><img src="images/東.png">
                                 </div>
@@ -824,28 +911,36 @@
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">三同刻</span><span class="ja">三同刻</span><span class="en">Triple pong</span></span></div>
-                                <div class="yaku-card-desc">3色で同じ数の刻子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">3色で同じ数の刻子。</span><span class="ja">3色で同じ数の刻子。</span><span class="en">Three pongs or kangs in the same number of three suits.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/南.png"><img src="images/南.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">断紅胡</span><span class="ja">断紅胡</span><span class="en">Two toned hand</span></span></div>
-                                <div class="yaku-card-desc">赤色が含まれない牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">赤色が含まれない牌のみで構成。</span><span class="ja">赤色が含まれない牌のみで構成。</span><span class="en">Not using tiles including red color.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/西.png"><img src="images/西.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">一気化三清</span><span class="ja">三風刻</span><span class="en">Big three winds</span></span></div>
-                                <div class="yaku-card-desc">風牌3種が刻子。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">風牌3種が刻子。</span><span class="ja">風牌3種が刻子。</span><span class="en">Three pongs or kangs of different Winds.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png"><img src="images/南.png"><img src="images/西.png"><img src="images/西.png"><img src="images/西.png"><img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">十二金釵</span><span class="ja">三槓子</span><span class="en">Three kang</span></span></div>
-                                <div class="yaku-card-desc">3回の槓をして和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">3回の槓をして和了。</span><span class="ja">3回の槓をして和了。</span><span class="en">Three concealed or melded kangs.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; border-left: 3px solid #3498db;">
                                         <div style="display: flex; gap: 1px;">
@@ -886,7 +981,9 @@
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-8"><span class="zh">混幺九</span><span class="ja">混老頭</span><span class="en">Terminal & Honor</span></span></div>
-                                <div class="yaku-card-desc">1,9,字牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,9,字牌のみで構成。</span><span class="ja">1,9,字牌のみで構成。</span><span class="en">Using only Terminal or Honor tiles.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/1s.png"><img src="images/1s.png">
                                 </div>
@@ -901,42 +998,54 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">大于五</span><span class="ja">大于五</span><span class="en">Upper four</span></span></div>
-                                <div class="yaku-card-desc">6,7,8,9の数牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">6,7,8,9の数牌のみで構成。</span><span class="ja">6,7,8,9の数牌のみで構成。</span><span class="en">Using only number tiles from 6 to 9.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/9s.png"><img src="images/9s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">小于五</span><span class="ja">小于五</span><span class="en">Lower four</span></span></div>
-                                <div class="yaku-card-desc">1,2,3,4の数牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,2,3,4の数牌のみで構成。</span><span class="ja">1,2,3,4の数牌のみで構成。</span><span class="en">Using only number tiles from 1 to 4.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/1s.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4p.png"><img src="images/4p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">清一色</span><span class="ja">清一色</span><span class="en">Full flush</span></span></div>
-                                <div class="yaku-card-desc">1色の数牌のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色の数牌のみで構成。</span><span class="ja">1色の数牌のみで構成。</span><span class="en">Using only a single suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/9p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">清龍</span><span class="ja">一気通貫</span><span class="en">Pure straight</span></span></div>
-                                <div class="yaku-card-desc">1色で123, 456, 789の順子を揃える。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色で123, 456, 789の順子を揃える。</span><span class="ja">1色で123, 456, 789の順子を揃える。</span><span class="en">Three chows 123, 456 and 789 of a single suit.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/北.png"><img src="images/北.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">五門斉</span><span class="ja">五門斉</span><span class="en">All types</span></span></div>
-                                <div class="yaku-card-desc">萬子、筒子、索子、風牌、三元牌の全てを含んで和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">萬子、筒子、索子、風牌、三元牌の全てを含んで和了。</span><span class="ja">萬子、筒子、索子、風牌、三元牌の全てを含んで和了。</span><span class="en">Including Bams, Dots, Craks, Dragons and Winds.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/中.png"><img src="images/中.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-6"><span class="zh">推不倒</span><span class="ja">推不倒</span><span class="en">Reversible tiles</span></span></div>
-                                <div class="yaku-card-desc">上下対称の牌(筒子1234589, 索子245689, 白)のみで構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">上下対称の牌(筒子1234589, 索子245689, 白)のみで構成。</span><span class="ja">上下対称の牌(筒子1234589, 索子245689, 白)のみで構成。</span><span class="en">Using only tiles of 1,2,3,4,5,8,9 Dot, 2,4,5,6,8,9 Bam and white dragon.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/8p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/2s.png"><img src="images/2s.png">
                                 </div>
@@ -951,28 +1060,36 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">七対</span><span class="ja">七対</span><span class="en">Seven pairs</span></span></div>
-                                <div class="yaku-card-desc">7つの対子で構成、4枚使いを認める。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">7つの対子で構成、4枚使いを認める。</span><span class="ja">7つの対子で構成、4枚使いを認める。</span><span class="en">Double pairs of a kind are allowed.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/3p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/1p.png"><img src="images/1p.png"><img src="images/9p.png"><img src="images/9p.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">小三元</span><span class="ja">小三元</span><span class="en">Little dragons</span></span></div>
-                                <div class="yaku-card-desc">三元牌の2種が刻子、1種が雀頭。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">三元牌の2種が刻子、1種が雀頭。</span><span class="ja">三元牌の2種が刻子、1種が雀頭。</span><span class="en">Two pongs or kang and one pair of all different Dragons.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/白.png"><img src="images/白.png"><img src="images/白.png"><img src="images/發.png"><img src="images/發.png"><img src="images/發.png"><img src="images/中.png"><img src="images/中.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">碰碰胡</span><span class="ja">対々和</span><span class="en">All pong</span></span></div>
-                                <div class="yaku-card-desc">面子が全て刻子（槓子）で構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">面子が全て刻子（槓子）で構成。</span><span class="ja">面子が全て刻子（槓子）で構成。</span><span class="en">All groups are composed of pongs.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/9m.png"><img src="images/9m.png"><img src="images/9m.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/6s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/南.png"><img src="images/南.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-4"><span class="zh">下雨</span><span class="ja">暗槓</span><span class="en">Concealed kang</span></span></div>
-                                <div class="yaku-card-desc">暗槓。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">暗槓。</span><span class="ja">暗槓。</span><span class="en">Collecting 4 tiles of a kind and call a kang.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <span style="font-size:12px; color:#aaa; margin-right:5px;">(暗槓)</span><img src="images/ura.png"><img src="images/4p.png"><img src="images/4p.png"><img src="images/ura.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
@@ -987,49 +1104,63 @@
                         <div class="yaku-grid">
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">双同刻</span><span class="ja">二同刻</span><span class="en">Double pong</span></span></div>
-                                <div class="yaku-card-desc">2色で同じ数の刻子（槓子）。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">2色で同じ数の刻子（槓子）。</span><span class="ja">2色で同じ数の刻子（槓子）。</span><span class="en">Two pongs or kangs in the same number of two suits.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/2p.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">混一色</span><span class="ja">混一色</span><span class="en">Half flush</span></span></div>
-                                <div class="yaku-card-desc">1色の数牌と字牌で構成。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1色の数牌と字牌で構成。</span><span class="ja">1色の数牌と字牌で構成。</span><span class="en">Using only tiles of single suit and Honors.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1s.png"><img src="images/2s.png"><img src="images/3s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/8s.png"><img src="images/9s.png"><img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/白.png"><img src="images/白.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">刮風</span><span class="ja">明槓</span><span class="en">Melded kang</span></span></div>
-                                <div class="yaku-card-desc">明槓。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">明槓。</span><span class="ja">明槓。</span><span class="en">Melding kang or adding kang or flower kang.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <span style="font-size:12px; color:#aaa; margin-right:5px;">(明槓)</span><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><img src="images/9s.png"><span style="color:#aaa; margin:0 2px;">/</span><img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/4p.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/9p.png"><img src="images/南.png"><img src="images/南.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">断么</span><span class="ja">断么</span><span class="en">All simples</span></span></div>
-                                <div class="yaku-card-desc">1,9,字牌を含まない。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">1,9,字牌を含まない。</span><span class="ja">1,9,字牌を含まない。</span><span class="en">Using only Simples.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/2s.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/5p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/2s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/8p.png"><img src="images/8p.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">字刻</span><span class="ja">字刻</span><span class="en">Character pong</span></span></div>
-                                <div class="yaku-card-desc">萬子もしくは字牌の刻子（槓子）。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">萬子もしくは字牌の刻子（槓子）。</span><span class="ja">萬子もしくは字牌の刻子（槓子）。</span><span class="en">Pongs of Crak or Honors.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/東.png"><img src="images/東.png"><img src="images/東.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/南.png"><img src="images/南.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-2">2点: <span class="zh">全単</span><span class="ja">全単</span><span class="en">All odds</span></span></div>
-                                <div class="yaku-card-desc">奇数牌のみで構成。副露をしていなければ和了に面子を必要としない。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">奇数牌のみで構成。副露をしていなければ和了に面子を必要としない。</span><span class="ja">奇数牌のみで構成。副露をしていなければ和了に面子を必要としない。</span><span class="en">Using only odd number tiles.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1m.png"><img src="images/1m.png"><img src="images/1p.png"><img src="images/3p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/5p.png"><img src="images/9p.png"><img src="images/1s.png"><img src="images/3s.png"><img src="images/5s.png"><img src="images/7s.png"><img src="images/9s.png"><img src="images/9s.png">
                                 </div>
                             </div>
                             <div class="yaku-card">
                                 <div class="yaku-card-title"><span class="yaku-tag yaku-tier-1">1点: <span class="zh">無番和</span><span class="ja">無役</span><span class="en">Chicken hand</span></span></div>
-                                <div class="yaku-card-desc">他の役が一切ない和了。</div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">他の役が一切ない和了。</span><span class="ja">他の役が一切ない和了。</span><span class="en">No other point winning.</span>
+                                </div>
                                 <div class="yaku-example">
                                     <img src="images/1p.png"><img src="images/2p.png"><img src="images/3p.png"><img src="images/6p.png"><img src="images/7p.png"><img src="images/8p.png"><img src="images/3s.png"><img src="images/4s.png"><img src="images/4s.png"><img src="images/5s.png"><img src="images/5s.png"><img src="images/6s.png"><img src="images/9s.png"><img src="images/9s.png">
                                 </div>
@@ -1042,11 +1173,36 @@
                     <div class="yaku-category">
                         <h3 style="color: #00d2d3;">✨ 特殊効果 (点数乗算)</h3>
                         <div class="yaku-grid">
-                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x3: <span class="zh">無花果</span><span class="ja">無花</span><span class="en">No season tiles</span></span></div><div class="yaku-card-desc">副露を含めない手牌に四季牌がない状態で和了。</div></div>
-                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槓上開花</span><span class="ja">嶺上開花</span><span class="en">Replacement tile</span></span></div><div class="yaku-card-desc">槓後の嶺上牌で自摸和了。</div></div>
-                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槍槓</span><span class="ja">槍槓</span><span class="en">Robbing kang</span></span></div><div class="yaku-card-desc">他家の加槓牌で和了。</div></div>
-                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">妙手回春</span><span class="ja">妙手回春</span><span class="en">Draw the Spring</span></span></div><div class="yaku-card-desc">春で自摸和了。</div></div>
-                            <div class="yaku-card"><div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">花天月地</span><span class="ja">海底河底</span><span class="en">Last tile</span></span></div><div class="yaku-card-desc">海底牌で和了。</div></div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x3: <span class="zh">無花果</span><span class="ja">無花</span><span class="en">No season tiles</span></span></div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">副露を含めない手牌に四季牌がない状態で和了。</span><span class="ja">副露を含めない手牌に四季牌がない状態で和了。</span><span class="en">Not using Season tiles in hand tiles.</span>
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槓上開花</span><span class="ja">嶺上開花</span><span class="en">Replacement tile</span></span></div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">槓後の嶺上牌で自摸和了。</span><span class="ja">槓後の嶺上牌で自摸和了。</span><span class="en">Winning replacement tile.</span>
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">槍槓</span><span class="ja">槍槓</span><span class="en">Robbing kang</span></span></div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">他家の加槓牌で和了。</span><span class="ja">他家の加槓牌で和了。</span><span class="en">Winning adding kang.</span>
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">妙手回春</span><span class="ja">妙手回春</span><span class="en">Draw the Spring</span></span></div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">春で自摸和了。</span><span class="ja">春で自摸和了。</span><span class="en">Winning self-drawn Spring tile.</span>
+                                </div>
+                            </div>
+                            <div class="yaku-card">
+                                <div class="yaku-card-title"><span class="yaku-tag yaku-tier-multi">x2: <span class="zh">花天月地</span><span class="ja">海底河底</span><span class="en">Last tile</span></span></div>
+                                <div class="yaku-card-desc">
+                                    <span class="zh">海底牌で和了。</span><span class="ja">海底牌で和了。</span><span class="en">Winning last tile.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
