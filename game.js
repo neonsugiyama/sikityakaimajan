@@ -1574,22 +1574,22 @@ async function startLesson(lessonId) {
     switch (lessonId) {
         case 1:
             title = "レッスン①：脱・平和主義【脳死の全単アタック】";
-            msg = "日麻では使いやすい「4」や「6」ですが、四季茶会においてはただのゴミです。<br>すべて他家に押し付けて、脳みそを空っぽにして奇数だけを集めましょう！<br><br><span style='color:#f1c40f;'>🏆クリア条件：「全単」で和了する</span>";
+            msg = "通常の麻雀では順子に使いやすい「4」や「6」ですが、『全単』を狙うときはただのゴミです。<br>すべて切り捨てて、脳みそを空っぽにして奇数だけを集めましょう！<br>碰・槓もダメですよ！<br><br><span style='color:#f1c40f;'>🏆クリア条件：「全単」で和了！</span>";
             apiScenario = "lesson_1";
             break;
         case 2:
             title = "レッスン②：面前信仰の破壊【寒江独釣で裸になれ】";
-            msg = "日麻の「鳴いたら安くなる」という常識は捨ててください。<br>全部鳴いて手牌を1枚にすれば、強力な役『寒江独釣』が付きます。<br>四季牌で待てば、他家が何を捨てても和了り放題です！<br><br><span style='color:#f1c40f;'>🏆ミッション：4回すべてポン・カンをして、手牌を1枚（裸単騎）にせよ！</span>";
+            msg = "「鳴いたら安くなる」という常識は捨ててください。<br>全部鳴いて手牌を1枚にすれば、強力な役『寒江独釣』が付きます。<br>四季牌で待てば、他家が何を捨てても和了り放題です！<br><br><span style='color:#f1c40f;'>🏆ミッション：4回碰・槓をして、手牌を1枚（裸単騎）にして和了！</span>";
             apiScenario = "lesson_2";
             break;
         case 3:
             title = "レッスン③：未知の幾何学【七星不靠ってなんだ？】";
-            msg = "バラバラのクズ配牌に見えますか？<br>いいえ、これは四季茶会における黄金の形です。<br>「東南西北白發中」の7枚に、「147」「258」「369」の3色の筋。<br>面子を作らなくてもアガれる美しい星の並びを覚えましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：正しい有効牌を見極めて和了せよ！</span>";
+            msg = "バラバラのクズ配牌に見えますか？<br>いいえ、これは四季茶会麻雀における黄金の形です。<br>「東南西北白發中」の7枚に、「147」「258」「369」の3色の筋。<br>面子を作らなくても和了れる美しい星の並びを覚えましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：正しい有効牌を見極めて「七星不靠」を和了！</span>";
             apiScenario = "lesson_3";
             break;
         case 4:
             title = "レッスン④：最後のロマン【一色四歩高 / 連七対】";
-            msg = "基本は鳴きが強いゲームですが、『一色四歩高』や『連七対』だけは別格です。<br>日麻ではお目にかかれない芸術的な手役を完成させましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：鳴かずに門前で超高打点を作れ！</span>";
+            msg = "基本は鳴きが強いゲームですが、『一色四歩高』や『連七対』だけは別格です。<br>普段お目にかかれない芸術的な手役を完成させましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：鳴かずに門前で『一色四歩高』か『連七対』を和了！</span>";
             apiScenario = "lesson_4";
             break;
     }
@@ -1637,7 +1637,7 @@ async function startLesson(lessonId) {
         gameContainer.appendChild(navPanel);
     }
 
-    navPanel.style.setProperty('width', '800px', 'important');
+    navPanel.style.setProperty('width', '950px', 'important');
     navPanel.style.setProperty('padding', '25px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
     navPanel.style.top = '50%';
