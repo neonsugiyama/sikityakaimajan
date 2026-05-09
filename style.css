@@ -191,7 +191,8 @@ html, body {
 
 .meld-0 {
     bottom: 70px;
-    left: calc(50% - 303px);
+    left: 50%;
+    transform: translateX(-50%);
     flex-direction: row;
 }
 
