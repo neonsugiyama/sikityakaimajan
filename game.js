@@ -217,6 +217,11 @@ function returnToHomeGracefully() {
     isProc = false;
     charlestonPhase = false;
 
+    // 🌟 追加：レッスンやチュートリアルから戻る時、プレイ中に上がってしまった「仮の戦績」を捨てて元の状態に戻す
+    if (currentGameMode === 'lesson' || currentGameMode === 'tutorial') {
+        loadGameData();
+    }
+
     charlestonCount = 1;
     exchangeSelection = [];
     askedCount = 0;
@@ -578,6 +583,9 @@ function getRatingTitle(rate) {
 
 // 💾 プレイヤーのレートと実績（戦績）データをローカルストレージに保存する関数
 function saveGameData() {
+    // 🌟 追加：レッスンやチュートリアル中はセーブをブロック！
+    if (currentGameMode === 'lesson' || currentGameMode === 'tutorial') return;
+
     const data = {
         ratings: playerRatings,
         stats: playerStats
@@ -4810,7 +4818,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (res.player === 0) {
                 iWon = true;
 
-                if (!isReplayingResult) {
+                if (!isReplayingResult && currentGameMode !== 'lesson' && currentGameMode !== 'tutorial') {
                     playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1;
                     if (calcData.results.length > 0) {
                         if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
@@ -5114,6 +5122,12 @@ async function handleRoundEnd(isReplayingResult = false) {
             document.getElementById('win-hand-display').innerHTML = handHtml;
             document.getElementById('win-yaku').innerHTML = yakuHtml;
 
+            // 🌟 修正：リザルト画面が出たタイミングでパネルを隠し、そのまま復元しない！
+            const navPanel = document.getElementById('ingame-tutorial-nav');
+            if (navPanel) {
+                navPanel.style.display = 'none';
+            }
+
             document.getElementById('overlay').scrollTop = 0;
             document.getElementById('overlay').style.display = "flex";
 
@@ -5140,7 +5154,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             rankBeforeFinalRound = sortedBefore.indexOf(0) + 1;
         }
 
-        if (!isReplayingResult) {
+        if (!isReplayingResult && currentGameMode !== 'lesson' && currentGameMode !== 'tutorial') {
             let myNetScore = scores[0] + rankingPoints[0];
             let isPacifistTop = true;
             for (let i = 1; i < 4; i++) {
@@ -5261,7 +5275,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             });
             let myRank = sortedIndices.indexOf(0) + 1;
 
-            if (!isReplayingResult) {
+            if (!isReplayingResult && currentGameMode !== 'lesson' && currentGameMode !== 'tutorial') {
                 if ((playerStats._tempGameWins || 0) === 0 && playerStats.noWinGameCount === 0) {
                     playerStats.noWinGameCount = 1;
                     showAchievementUnlock("暖かい紅茶でもいかが？", "☕");
@@ -6588,6 +6602,9 @@ let isToastShowing = false;
 
 // 🌟 ポップアップを予約リストに追加する関数
 function showAchievementUnlock(name, icon = "🏆") {
+    // 🌟 追加：レッスン・チュートリアル中はポップアップを出さない！
+    if (currentGameMode === 'lesson' || currentGameMode === 'tutorial') return;
+
     toastQueue.push({ name, icon });
     if (!isToastShowing) processToastQueue();
 }
@@ -6624,6 +6641,9 @@ async function processToastQueue() {
 
 // 🌟 積み上げ型実績がランクアップ（銅・銀・金・プラチナ）した瞬間にポップアップを出す関数
 function checkTieredAchievement(id, title, icon, oldVal, newVal, tiers) {
+    // 🌟 追加：レッスン・チュートリアル中は実績を出さない！
+    if (currentGameMode === 'lesson' || currentGameMode === 'tutorial') return;
+
     for (let i = 0; i < tiers.length; i++) {
         // 古い値が目標未満で、新しい値が目標に到達・突破した時だけ通知する！
         if (oldVal < tiers[i] && newVal >= tiers[i]) {
