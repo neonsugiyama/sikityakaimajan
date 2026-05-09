@@ -2649,7 +2649,7 @@ body.lang-en .en {
 }
 
 /* ▼ 待ち牌・オートボタンの親 */
-.pos-waits-btn, .pos-auto-btn {
+.pos-waits-btn, .pos-auto-btn, #tutorial-review-container {
     transform: translateZ(20px) !important;
     transform-style: flat !important;
     pointer-events: none !important;

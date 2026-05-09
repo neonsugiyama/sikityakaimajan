@@ -237,6 +237,7 @@ function returnToHomeGracefully() {
         fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
         currentSessionRoomId = "";
         localStorage.removeItem('shiki_mahjong_room_id'); // 🌟 記憶を消去
+        localStorage.removeItem('shiki_mahjong_game_mode'); // 🌟 モードの記憶も消去
     }
 
     // 1. 麻雀卓やリザルト画面を隠す
@@ -246,6 +247,7 @@ function returnToHomeGracefully() {
     document.getElementById('charleston-confirm-ui').style.display = 'none';
     document.getElementById('center-message').style.display = 'none';
     document.getElementById('dice-overlay').style.display = 'none';
+    document.getElementById('tutorial-review-container').style.display = 'none';
 
     // 🌟 追加：レッスンやチュートリアルのパネルも確実にお掃除する
     const navPanel = document.getElementById('ingame-tutorial-nav');
@@ -1558,6 +1560,7 @@ async function startLesson(lessonId) {
     clearCharlestonStatus();
     resetActionBtnPool();
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    document.getElementById('tutorial-review-container').style.display = 'block';
 
     let title, msg, apiScenario;
     switch (lessonId) {
@@ -1630,7 +1633,7 @@ async function startLesson(lessonId) {
     navPanel.style.setProperty('padding', '25px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
     navPanel.style.top = '50%';
-    navPanel.style.left = '50%'; // 中央に配置
+    navPanel.style.left = '52%'; // 中央に配置
     navPanel.style.transform = 'translate(-50%, -50%)';
 
     navText.innerHTML = `<span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${title}</span><br><br><span style='font-size: 22px; line-height: 1.6;'>${msg}</span>`;
@@ -1645,6 +1648,24 @@ async function startLesson(lessonId) {
         isProc = false;
         checkT(); // 自分のターンからスタート！
     };
+}
+
+// 💡 プレイ中にチュートリアルのメッセージを再表示・非表示する関数
+function reviewTutorial() {
+    playSE('click');
+    const nav = document.getElementById('ingame-tutorial-nav');
+
+    if (nav) {
+        if (nav.style.display === 'block') {
+            nav.style.display = 'none'; // 出ていたら隠す
+        } else {
+            // 🌟 修正：出番の時は、常に「左上」の邪魔にならない位置に固定する
+            nav.style.top = '20%';
+            nav.style.left = '52%';
+            nav.style.transform = 'translateX(-50%)'; // 中央揃え
+            nav.style.display = 'block'; // 隠れていたら出す
+        }
+    }
 }
 
 // 📜 役一覧モーダルを開く関数
@@ -2671,6 +2692,10 @@ async function apiCall(endpoint, params = {}) {
         if (data.room_id) {
             currentSessionRoomId = data.room_id;
             localStorage.setItem('shiki_mahjong_room_id', currentSessionRoomId); // 🌟 永久保存
+
+            // 🌟 追加：現在のゲームモードも一緒に記憶しておく
+            localStorage.setItem('shiki_mahjong_game_mode', currentGameMode);
+
             console.log(`[ROOM] 割り当てられたルームID: ${currentSessionRoomId}`);
         }
 
@@ -5454,119 +5479,137 @@ async function showModeSelect() {
     if (currentSessionRoomId) {
         console.log(`\n========================================`);
         console.log(`[再開ロジック] ルームID: ${currentSessionRoomId} の存在をチェックします...`);
-        try {
-            const res = await fetch(`/check_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`);
-            const data = await res.json();
 
-            if (data.exists) {
-                console.log("[再開ロジック] サーバーにルームが存在しました。");
-                if (confirm("中断された対局データが見つかりました。再開しますか？\n（「キャンセル」でデータを破棄して新規開始します）")) {
-                    console.log("[再開ロジック] ユーザーが再開を選択。盤面データの取得を開始します。");
-                    isResuming = true;
+        // 🌟 追加：保存されたゲームモードを確認
+        const savedMode = localStorage.getItem('shiki_mahjong_game_mode');
 
-                    let stateData = await apiCall('/get_room_state');
-                    console.log("[再開ロジック] サーバーから取得した状態:", stateData);
+        // もし「チュートリアル」や「レッスン」だったら、絶対に再開させず強制破棄する！
+        if (savedMode === 'tutorial' || savedMode === 'lesson') {
+            console.log(`[再開ロジック] 🛑 チュートリアル/レッスンのため、再開せずに破棄します。`);
+            await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+            currentSessionRoomId = "";
+            localStorage.removeItem('shiki_mahjong_room_id');
+            localStorage.removeItem('shiki_mahjong_game_mode');
 
-                    if (stateData.round_calculated) {
-                        console.log("[再開ロジック] 🎯 この局は既にスコア計算済み（リザルト画面中）です。");
-                        const startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
-                        if (startTime) {
-                            const elapsed = (Date.now() - parseInt(startTime)) / 1000;
-                            console.log(`[再開ロジック] リザルト開始からの経過時間: ${elapsed.toFixed(1)}秒`);
-                            if (elapsed > 35) {
-                                console.log("[再開ロジック] ⏩ リザルト時間(35秒)を超過！次の局へ強制進行します。");
+        } else {
+            // 通常の「CPU戦」や「オンライン戦」の時の再開処理
+            try {
+                const res = await fetch(`/check_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`);
+                const data = await res.json();
 
-                                for (let i = 0; i < 4; i++) {
-                                    document.getElementById(`river-${i}`).innerHTML = "";
-                                    document.getElementById(`meld-${i}`).innerHTML = "";
-                                    document.getElementById(`win-zone-${i}`).innerHTML = "";
-                                    document.getElementById(`win-zone-${i}`).style.display = "none";
-                                    let callText = document.getElementById(`call-text-${i}`);
-                                    if (callText) {
-                                        callText.className = "call-text";
-                                        callText.innerText = "";
+                if (data.exists) {
+                    console.log("[再開ロジック] サーバーにルームが存在しました。");
+                    if (confirm("中断された対局データが見つかりました。再開しますか？\n（「キャンセル」でデータを破棄して新規開始します）")) {
+                        console.log("[再開ロジック] ユーザーが再開を選択。盤面データの取得を開始します。");
+                        isResuming = true;
+                        currentGameMode = savedMode || 'cpu'; // モードを復元
+
+                        let stateData = await apiCall('/get_room_state');
+                        console.log("[再開ロジック] サーバーから取得した状態:", stateData);
+
+                        if (stateData.round_calculated) {
+                            console.log("[再開ロジック] 🎯 この局は既にスコア計算済み（リザルト画面中）です。");
+                            const startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
+                            if (startTime) {
+                                const elapsed = (Date.now() - parseInt(startTime)) / 1000;
+                                console.log(`[再開ロジック] リザルト開始からの経過時間: ${elapsed.toFixed(1)}秒`);
+                                if (elapsed > 35) {
+                                    console.log("[再開ロジック] ⏩ リザルト時間(35秒)を超過！次の局へ強制進行します。");
+
+                                    for (let i = 0; i < 4; i++) {
+                                        document.getElementById(`river-${i}`).innerHTML = "";
+                                        document.getElementById(`meld-${i}`).innerHTML = "";
+                                        document.getElementById(`win-zone-${i}`).innerHTML = "";
+                                        document.getElementById(`win-zone-${i}`).style.display = "none";
+                                        let callText = document.getElementById(`call-text-${i}`);
+                                        if (callText) {
+                                            callText.className = "call-text";
+                                            callText.innerText = "";
+                                        }
                                     }
+
+                                    stateData = await apiCall('/next_round');
+                                    console.log("[再開ロジック] ⏩ 次局のデータを取得完了:", stateData);
+
+                                    sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+                                    sessionStorage.removeItem(`timer_end_time_${currentSessionRoomId}`);
+                                    isResuming = false;
+                                } else {
+                                    console.log("[再開ロジック] ⏸️ リザルト画面の途中から演出を再開します。");
+                                    isResumingResult = true;
+
+                                    document.getElementById('title-screen').style.display = 'none';
+                                    document.getElementById('mode-select-screen').style.display = 'none';
+                                    document.querySelector('.table').style.opacity = 1;
+                                    document.getElementById('game-container').style.opacity = 1;
+
+                                    safeUpdate(stateData);
+                                    handleRoundEnd(true);
+                                    return;
                                 }
-
+                            } else {
+                                console.log("[再開ロジック] ⚠️ リザルトの開始時刻記憶が消失しています。強制的に次局へ進めます。");
                                 stateData = await apiCall('/next_round');
-                                console.log("[再開ロジック] ⏩ 次局のデータを取得完了:", stateData);
-
-                                sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
                                 sessionStorage.removeItem(`timer_end_time_${currentSessionRoomId}`);
                                 isResuming = false;
-                            } else {
-                                console.log("[再開ロジック] ⏸️ リザルト画面の途中から演出を再開します。");
-                                isResumingResult = true;
-
-                                document.getElementById('title-screen').style.display = 'none';
-                                document.getElementById('mode-select-screen').style.display = 'none';
-                                document.querySelector('.table').style.opacity = 1;
-                                document.getElementById('game-container').style.opacity = 1;
-
-                                safeUpdate(stateData);
-                                handleRoundEnd(true);
-                                return;
                             }
-                        } else {
-                            console.log("[再開ロジック] ⚠️ リザルトの開始時刻記憶が消失しています。強制的に次局へ進めます。");
-                            stateData = await apiCall('/next_round');
-                            sessionStorage.removeItem(`timer_end_time_${currentSessionRoomId}`);
-                            isResuming = false;
                         }
-                    }
 
-                    document.getElementById('title-screen').style.display = 'none';
-                    document.getElementById('mode-select-screen').style.display = 'none';
-                    document.querySelector('.table').style.opacity = 1;
-                    document.getElementById('game-container').style.opacity = 1;
+                        document.getElementById('title-screen').style.display = 'none';
+                        document.getElementById('mode-select-screen').style.display = 'none';
+                        document.querySelector('.table').style.opacity = 1;
+                        document.getElementById('game-container').style.opacity = 1;
 
-                    safeUpdate(stateData);
-                    render();
-                    renderCPU();
+                        safeUpdate(stateData);
+                        render();
+                        renderCPU();
 
-                    // 🌟 修正：チャールストンのフェーズ判定をサーバー状態(絶対)に委ねる！
-                    if (!charlestonDoneServer && !secondCharlestonDoneServer) {
-                        console.log(`[再開ロジック] 🔄 まだ第1交換が終わっていません。第1交換から再開します。`);
-                        charlestonCount = 1;
-                        startCharlestonSelection();
-                    } else if (charlestonDoneServer && !secondCharlestonDoneServer) {
-                        console.log(`[再開ロジック] 🔄 第1交換完了済み。第2交換から再開します。`);
-                        charlestonCount = 2;
-                        askNextSecondCharleston();
-                    } else {
-                        console.log("[再開ロジック] 🀄 チャールストンは全て完了済み。通常の対局フェーズから再開します。");
-                        charlestonPhase = false;
-                        document.getElementById('charleston-ui').style.display = "none";
+                        // 🌟 修正：チャールストンのフェーズ判定をサーバー状態(絶対)に委ねる！
+                        if (!charlestonDoneServer && !secondCharlestonDoneServer) {
+                            console.log(`[再開ロジック] 🔄 まだ第1交換が終わっていません。第1交換から再開します。`);
+                            charlestonCount = 1;
+                            startCharlestonSelection();
+                        } else if (charlestonDoneServer && !secondCharlestonDoneServer) {
+                            console.log(`[再開ロジック] 🔄 第1交換完了済み。第2交換から再開します。`);
+                            charlestonCount = 2;
+                            askNextSecondCharleston();
+                        } else {
+                            console.log("[再開ロジック] 🀄 チャールストンは全て完了済み。通常の対局フェーズから再開します。");
+                            charlestonPhase = false;
+                            document.getElementById('charleston-ui').style.display = "none";
 
-                        console.log(`[再開ロジック] 直前の打牌記録 -> プレイヤー: ${lastDiscardPlayer}, 牌: ${lastT}`);
-                        if (lastDiscardPlayer !== -1 && lastT !== "") {
-                            if (lastDiscardPlayer !== 0) {
-                                console.log("[再開ロジック] 👁️ 他家の打牌直後のため、鳴き/ロンの判定から再開します。");
-                                checkHumanReaction(lastDiscardPlayer, lastT);
+                            console.log(`[再開ロジック] 直前の打牌記録 -> プレイヤー: ${lastDiscardPlayer}, 牌: ${lastT}`);
+                            if (lastDiscardPlayer !== -1 && lastT !== "") {
+                                if (lastDiscardPlayer !== 0) {
+                                    console.log("[再開ロジック] 👁️ 他家の打牌直後のため、鳴き/ロンの判定から再開します。");
+                                    checkHumanReaction(lastDiscardPlayer, lastT);
+                                } else {
+                                    console.log("[再開ロジック] 自分の打牌直後の状態です。ターンを再開します。");
+                                    checkT();
+                                }
                             } else {
-                                console.log("[再開ロジック] 自分の打牌直後の状態です。ターンを再開します。");
+                                console.log("[再開ロジック] アクション待ちではない通常のターンを再開します。");
                                 checkT();
                             }
-                        } else {
-                            console.log("[再開ロジック] アクション待ちではない通常のターンを再開します。");
-                            checkT();
                         }
+                        console.log(`========================================\n`);
+                        return;
+                    } else {
+                        console.log("[再開ロジック] ユーザーが破棄を選択。卓を削除します。");
+                        await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+                        currentSessionRoomId = "";
+                        localStorage.removeItem('shiki_mahjong_room_id');
+                        localStorage.removeItem('shiki_mahjong_game_mode');
                     }
-                    console.log(`========================================\n`);
-                    return;
                 } else {
-                    console.log("[再開ロジック] ユーザーが破棄を選択。卓を削除します。");
-                    await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
+                    console.log("[再開ロジック] サーバーにルームが存在しませんでした。記憶を消去します。");
                     currentSessionRoomId = "";
                     localStorage.removeItem('shiki_mahjong_room_id');
+                    localStorage.removeItem('shiki_mahjong_game_mode');
                 }
-            } else {
-                console.log("[再開ロジック] サーバーにルームが存在しませんでした。記憶を消去します。");
-                currentSessionRoomId = "";
-                localStorage.removeItem('shiki_mahjong_room_id');
+            } catch (e) {
+                console.log("[再開ロジック] ❌ エラー発生:", e);
             }
-        } catch (e) {
-            console.log("[再開ロジック] ❌ エラー発生:", e);
         }
     } else {
         console.log("[再開ロジック] 保存されたルームIDはありません。通常起動します。");
