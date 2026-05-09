@@ -812,7 +812,8 @@ function getEnYakuName(zhName) { return yakuEnMap[zhName] || zhName; }
 // 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
 function closeAllModals() {
     console.log("[LOG] ▶ closeAllModals が呼ばれました");
-    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal', 'learning-modal']; // 🌟 learning-modal を追加
+    // 🌟 online-match-modal と rate-help-modal を追加！
+    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal', 'learning-modal', 'online-match-modal', 'rate-help-modal'];
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -1583,8 +1584,8 @@ async function startLesson(lessonId) {
     }
 
     // 🌟 追加：まずはサーバーに「新しいゲームを始める」と伝えて卓を作る！
-    currentGameMode = 'lesson';         
-    window.currentLessonId = lessonId;  
+    currentGameMode = 'lesson';
+    window.currentLessonId = lessonId;
     await apiCall('/start', { cpu_level: -1 }); // 👈 ここを変更！
 
     // 🌟 サーバーに積み込みを要求
@@ -2007,16 +2008,21 @@ function resizeGame() {
         '#mypage-modal > div',
         '#friend-match-modal > div',
         '#settings-screen > div',
-        '#learning-modal > div'
+        '#learning-modal > div',
+        '#online-match-modal > div',
+        '#rate-help-modal > div'
     ];
     modalContents.forEach(selector => {
         const elements = document.querySelectorAll(selector);
         elements.forEach(el => {
-            el.style.position = "absolute";
-            el.style.left = "50%";
-            el.style.top = "50%";
-            el.style.transformOrigin = "center center";
-            el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            // 🌟 setPropertyを使って「!important」付きでCSSを強制上書きする！
+            el.style.setProperty('position', 'absolute', 'important');
+            el.style.setProperty('left', '50%', 'important');
+            el.style.setProperty('top', '50%', 'important');
+            el.style.setProperty('transform-origin', 'center center', 'important');
+
+            // スマホ画面の時にひと回り小さくする (0.85倍)
+            el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 0.9})`, 'important');
         });
     });
 
@@ -4866,7 +4872,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                         }
                     }
 
-                    // 🌟 安全に長さを取得してエラーを防止
                     playerStats.totalWins += (res.details ? res.details.length : 1);
                     let oldTotalScore = playerStats.totalScoreSum || 0;
                     playerStats.totalScoreSum = oldTotalScore + res.total_score;
@@ -5281,48 +5286,85 @@ async function handleRoundEnd(isReplayingResult = false) {
                     playerStats.currentWinStreak = 0;
                 }
 
+                // ==========================================
+                // 🌟 ここから下が修正・追加されたレート計算ロジック
+                // ==========================================
                 let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
                 let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
 
                 if (currentGameMode === 'online' || currentGameMode === 'cpu') {
-                    let placementPoints = [15, 5, -5, -15];
                     let oldMyRate = playerRatings[0];
 
                     for (let rank = 0; rank < 4; rank++) {
                         let pIdx = sortedIndices[rank];
-                        let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
-                        let rateDiff = avgTableRate - playerRatings[pIdx];
+                        let myRate = playerRatings[pIdx];
+
+                        // 1. 順位点の決定（案Aを適用）
+                        let placementPoints = [0, 0, 0, 0];
+                        if (myRate < 1600) {
+                            placementPoints = [30, 10, 0, -20]; // 🔰 初心者帯（3位は減らない）
+                        } else if (myRate < 1800) {
+                            placementPoints = [20, 5, -5, -20]; // ⚔️ 一般帯（ゼロサム）
+                        } else {
+                            placementPoints = [15, 0, -10, -30]; // 👹 上級帯（ラスが致命傷）
+                        }
+
+                        // 2. 素点ボーナス（切り上げ ＆ ±20キャップ）
+                        let scoreBonus = Math.ceil((totalScores[pIdx] - avgScore) / 100);
+                        scoreBonus = Math.max(-20, Math.min(20, scoreBonus));
+
+                        // 3. レート差補正
+                        let rateDiff = avgTableRate - myRate;
                         let rateCorrection = Math.round(rateDiff / 40);
 
+                        // 最終変動値の計算
                         let change = placementPoints[rank] + scoreBonus + rateCorrection;
+
+                        // 1位と4位の最低保証
                         if (rank === 0 && change <= 0) change = 1;
                         if (rank === 3 && change >= 0) change = -1;
 
                         rateChanges[pIdx] = change;
                         playerRatings[pIdx] += change;
-                        if (playerRatings[pIdx] < 0) playerRatings[pIdx] = 0;
+
+                        // 🌟 絶対下限1400の適用
+                        if (playerRatings[pIdx] < 1400) playerRatings[pIdx] = 1400;
                     }
 
                     checkTieredAchievement("rating", "レートの階段", "📈", oldMyRate, playerRatings[0], [1600, 1700, 1800, 1900]);
                     if (oldMyRate < 2000 && playerRatings[0] >= 2000) {
                         showAchievementUnlock("頂に立つ者", "👑");
                     }
+                } else {
+                    // フリー卓やリプレイなどの「レート変動なし（ダミー計算）」用
+                    let placementPoints = [0, 0, 0, 0];
+                    for (let rank = 0; rank < 4; rank++) {
+                        let pIdx = sortedIndices[rank];
+                        let myRate = playerRatings[pIdx];
+
+                        if (myRate < 1600) {
+                            placementPoints = [30, 10, 0, -20];
+                        } else if (myRate < 1800) {
+                            placementPoints = [20, 5, -5, -20];
+                        } else {
+                            placementPoints = [15, 0, -10, -30];
+                        }
+
+                        let scoreBonus = Math.ceil((totalScores[pIdx] - avgScore) / 100);
+                        scoreBonus = Math.max(-20, Math.min(20, scoreBonus));
+
+                        let rateDiff = avgTableRate - myRate;
+                        let rateCorrection = Math.round(rateDiff / 40);
+
+                        let change = placementPoints[rank] + scoreBonus + rateCorrection;
+                        if (rank === 0 && change <= 0) change = 1;
+                        if (rank === 3 && change >= 0) change = -1;
+
+                        // 実際のレートは動かさず、表示用の変動値だけセットする
+                        rateChanges[pIdx] = change;
+                    }
                 }
                 saveGameData();
-            } else {
-                let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-                let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
-                let placementPoints = [15, 5, -5, -15];
-                for (let rank = 0; rank < 4; rank++) {
-                    let pIdx = sortedIndices[rank];
-                    let scoreBonus = Math.floor((totalScores[pIdx] - avgScore) / 100);
-                    let rateDiff = avgTableRate - playerRatings[pIdx];
-                    let rateCorrection = Math.round(rateDiff / 40);
-                    let change = placementPoints[rank] + scoreBonus + rateCorrection;
-                    if (rank === 0 && change <= 0) change = 1;
-                    if (rank === 3 && change >= 0) change = -1;
-                    rateChanges[pIdx] = change;
-                }
             }
 
             let resultMsg = "【ゲーム終了！最終結果】\n\n";
@@ -5369,7 +5411,6 @@ async function handleRoundEnd(isReplayingResult = false) {
         returnToHomeGracefully();
     }
 }
-
 // 🗑️ 捨てられた牌を河（捨て牌置き場）に描画する関数
 function addR(idx, t, isTsumogiri = false) {
     playSE('dahai');
@@ -5564,6 +5605,19 @@ function startCpuGame() {
         document.getElementById('settings-screen').style.zIndex = '35000'; // 念のため最前面に
         dumpModalStatus('startCpuGame (Match Settings表示)');
     }, 500);
+}
+
+// 🔙 Match Settings画面（対局前設定）からモード選択画面に戻る関数
+function cancelCpuGame() {
+    playSE('click');
+
+    // 設定画面を隠す
+    document.getElementById('settings-screen').style.display = 'none';
+
+    // モード選択画面を再表示する
+    const modeScreen = document.getElementById('mode-select-screen');
+    modeScreen.style.display = 'flex';
+    modeScreen.style.opacity = '1';
 }
 
 // ==========================================
@@ -6970,3 +7024,68 @@ window.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
 });
+
+// ==========================================
+// ★ オンライン対戦（卓選択）制御
+// ==========================================
+
+// 🌐 オンライン卓選択モーダルを開く
+function openOnlineMatch() {
+    closeAllModals();
+    playSE('click');
+
+    // 現在のレートを取得して表示
+    let rate = playerRatings[0];
+    document.getElementById('online-current-rate').innerText = `R:${rate}`;
+
+    // R1800未満なら上級卓をロック（暗くして押せなくする）
+    const btnAdvanced = document.getElementById('btn-room-advanced');
+    const lockAdvanced = document.getElementById('lock-advanced');
+
+    if (rate >= 1800) {
+        btnAdvanced.style.background = '#8e44ad';
+        btnAdvanced.style.opacity = '1';
+        btnAdvanced.style.cursor = 'pointer';
+        btnAdvanced.disabled = false;
+        lockAdvanced.style.display = 'none';
+    } else {
+        btnAdvanced.style.background = '#2c3e50'; // グレーアウト
+        btnAdvanced.style.opacity = '0.6';
+        btnAdvanced.style.cursor = 'not-allowed';
+        btnAdvanced.disabled = true;
+        lockAdvanced.style.display = 'block';
+    }
+
+    document.getElementById('online-match-modal').style.display = 'flex';
+}
+
+// 🚪 オンライン卓選択モーダルを閉じる
+function closeOnlineMatch() {
+    document.getElementById('online-match-modal').style.display = 'none';
+    playSE('click');
+}
+
+// ⚔️ 選択した卓でオンライン対戦を開始する（※今回はUIテスト用）
+function startOnlineGame(roomType) {
+    playSE('click');
+
+    let roomName = "";
+    if (roomType === "free") roomName = "🎪 フリー乱交卓";
+    if (roomType === "standard") roomName = "⚔️ 一般卓";
+    if (roomType === "advanced") roomName = "👹 上級卓";
+
+    // 一旦アラートを出して、今後のマッチング処理の実装に備える
+    alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
+}
+
+// 📈 レートシステムのヘルプモーダルを開閉する関数
+function openRateHelp() {
+    playSE('click');
+    // ※卓選択モーダルはそのままにして、上に重ねて表示する
+    document.getElementById('rate-help-modal').style.display = 'flex';
+}
+
+function closeRateHelp() {
+    playSE('click');
+    document.getElementById('rate-help-modal').style.display = 'none';
+}
