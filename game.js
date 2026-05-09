@@ -2051,7 +2051,7 @@ function resizeGame() {
             el.style.setProperty('transform-origin', 'center center', 'important');
 
             // スマホ画面の時にひと回り小さくする (0.85倍)
-            el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 0.9})`, 'important');
+            el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 1})`, 'important');
         });
     });
 
