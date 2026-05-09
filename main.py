@@ -2029,7 +2029,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
     elif scenario == "lesson_1":
         # レッスン1: 全単アタック
-        game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "2p", "6s", "東", "北", "春"]
+        game.hands[0] = ["1m", "1m", "3p", "5p", "7p", "7p", "9s", "9s", "2p", "6s", "東", "北", "1p"]
         game.melds[0] = []
         game.is_first_turn = [False, False, False, False]
         game.turn = 0

@@ -5261,6 +5261,12 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                 if (isCleared) {
                     clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
+
+                    // 🌟 追加：レッスンクリア状況を専用の領域にセーブする
+                    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
+                    savedLessons[window.currentLessonId] = true;
+                    localStorage.setItem('shiki_mahjong_lessons', JSON.stringify(savedLessons));
+
                 } else {
                     clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
                 }
@@ -6344,6 +6350,16 @@ function closeMyPage() {
 // 🏫 学習メニューモーダルを開く
 function openLearningMenu() {
     closeAllModals();
+
+    // 🌟 追加：レッスンのクリア状況（済ハンコ）を反映する
+    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
+    for (let i = 1; i <= 4; i++) {
+        let stamp = document.getElementById(`stamp-lesson-${i}`);
+        if (stamp) {
+            stamp.style.display = savedLessons[i] ? 'block' : 'none';
+        }
+    }
+
     document.getElementById('learning-modal').style.display = 'flex';
     playSE('click');
 }

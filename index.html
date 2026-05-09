@@ -538,10 +538,22 @@
                 <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border-left: 5px solid #e74c3c;">
                     <div style="font-size: 14px; color: #e74c3c; margin-bottom: 10px; font-weight: bold;">日麻の常識を破壊する（実践ミッション）</div>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="btn-act" style="display: block; background: #c0392b; width: 100%; padding: 12px; font-size: 16px; text-align: left;" onclick="startLesson(1)">🎓 レッスン①：脳死の全単アタック</button>
-                        <button class="btn-act" style="display: block; background: #d35400; width: 100%; padding: 12px; font-size: 16px; text-align: left;" onclick="startLesson(2)">🎓 レッスン②：寒江独釣で裸になれ</button>
-                        <button class="btn-act" style="display: block; background: #8e44ad; width: 100%; padding: 12px; font-size: 16px; text-align: left;" onclick="startLesson(3)">🎓 レッスン③：七星不靠ってなんだ？</button>
-                        <button class="btn-act" style="display: block; background: #2c3e50; width: 100%; padding: 12px; font-size: 16px; text-align: left;" onclick="startLesson(4)">🎓 レッスン④：一色四歩高 / 連七対</button>
+                        <button class="btn-act" style="display: block; background: #c0392b; width: 100%; padding: 12px; font-size: 16px; text-align: left; position: relative;" onclick="startLesson(1)">
+                            🎓 レッスン①：脳死の全単アタック
+                            <div id="stamp-lesson-1" style="display: none; position: absolute; right: 15px; top: 50%; transform: translateY(-50%) rotate(-15deg); color: #e74c3c; border: 3px solid #e74c3c; border-radius: 50%; width: 35px; height: 35px; line-height: 29px; text-align: center; font-weight: bold; font-size: 16px; font-family: 'Hiragino Mincho ProN', serif; box-sizing: border-box; background: rgba(0,0,0,0.5);">済</div>
+                        </button>
+                        <button class="btn-act" style="display: block; background: #d35400; width: 100%; padding: 12px; font-size: 16px; text-align: left; position: relative;" onclick="startLesson(2)">
+                            🎓 レッスン②：寒江独釣で裸になれ
+                            <div id="stamp-lesson-2" style="display: none; position: absolute; right: 15px; top: 50%; transform: translateY(-50%) rotate(-15deg); color: #e74c3c; border: 3px solid #e74c3c; border-radius: 50%; width: 35px; height: 35px; line-height: 29px; text-align: center; font-weight: bold; font-size: 16px; font-family: 'Hiragino Mincho ProN', serif; box-sizing: border-box; background: rgba(0,0,0,0.5);">済</div>
+                        </button>
+                        <button class="btn-act" style="display: block; background: #8e44ad; width: 100%; padding: 12px; font-size: 16px; text-align: left; position: relative;" onclick="startLesson(3)">
+                            🎓 レッスン③：七星不靠ってなんだ？
+                            <div id="stamp-lesson-3" style="display: none; position: absolute; right: 15px; top: 50%; transform: translateY(-50%) rotate(-15deg); color: #e74c3c; border: 3px solid #e74c3c; border-radius: 50%; width: 35px; height: 35px; line-height: 29px; text-align: center; font-weight: bold; font-size: 16px; font-family: 'Hiragino Mincho ProN', serif; box-sizing: border-box; background: rgba(0,0,0,0.5);">済</div>
+                        </button>
+                        <button class="btn-act" style="display: block; background: #2c3e50; width: 100%; padding: 12px; font-size: 16px; text-align: left; position: relative;" onclick="startLesson(4)">
+                            🎓 レッスン④：一色四歩高 / 連七対
+                            <div id="stamp-lesson-4" style="display: none; position: absolute; right: 15px; top: 50%; transform: translateY(-50%) rotate(-15deg); color: #e74c3c; border: 3px solid #e74c3c; border-radius: 50%; width: 35px; height: 35px; line-height: 29px; text-align: center; font-weight: bold; font-size: 16px; font-family: 'Hiragino Mincho ProN', serif; box-sizing: border-box; background: rgba(0,0,0,0.5);">済</div>
+                        </button>
                     </div>
                 </div>
             </div>
