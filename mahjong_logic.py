@@ -603,8 +603,16 @@ def _evaluate_hand_cached(data_str):
             suit_tiles = tiles[suit_start:suit_start+9]
             if sum(tiles) - sum(suit_tiles) == 0:
                 target = [3,1,1,1,1,1,1,1,3]
-                if jokers >= sum(max(0, target[i] - suit_tiles[i]) for i in range(9)):
+                j_needed = sum(max(0, target[i] - suit_tiles[i]) for i in range(9))
+                if jokers >= j_needed:
                     candidates.append(base_attr + ["九連宝燈"])
+                    
+                    # 🌟 追加：1か9が4枚ある（アガリ牌含めて）場合は清龍を強制付与
+                    if suit_tiles[0] + (jokers - j_needed) >= 4 or suit_tiles[8] + (jokers - j_needed) >= 4:
+                        # cand_with_dragon = base_attr + ["九連宝燈", "清龍"] # (必要なら別パターンとして追加)
+                        for c in candidates:
+                            if "九連宝燈" in c and "清龍" not in c:
+                                c.append("清龍")
                     
         # 🌟 修正：全単は暗槓・花槓なども含めて「一切の副露がない（len(melds) == 0）」場合のみ成立
         if used_indices.issubset(ODDS) and len(melds) == 0:
