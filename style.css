@@ -274,8 +274,8 @@ html, body {
 }
 
 .river .tile {
-    box-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
-    transform: none !important;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    transform: none;
 }
 
 /* --- 和了ゾーン --- */
@@ -738,13 +738,32 @@ html, body {
 
     .btn-act:hover {
         transform: translateY(-3px);
-        filter: brightness(1.15);
     }
 
     .btn-act:active {
         transform: translateY(3px);
         box-shadow: 0 2px rgba(0,0,0,0.5) !important;
     }
+
+.btn-red:hover {
+    background-color: #f15e4e;
+}
+
+.btn-blue:hover {
+    background-color: #4fa0df;
+}
+
+.btn-green:hover {
+    background-color: #40d680;
+}
+
+.btn-purple:hover {
+    background-color: #aa6fc5;
+}
+
+.btn-gray:hover {
+    background-color: #8d9a9b;
+}
 
 /* --- 待ち牌・オート・透過ボタン --- */
 .pos-waits-btn {

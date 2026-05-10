@@ -5522,11 +5522,6 @@ function addR(idx, t, isTsumogiri = false) {
     } else {
         i.classList.add('discard-tedashi');
     }
-
-    // 🌟 追加：河の牌は影とフチを消して「ペタッと平面」で統一する
-    i.style.boxShadow = "none";
-    i.style.border = "none";
-
     r.appendChild(i);
 }
 
@@ -5905,7 +5900,7 @@ function renderAchievements() {
         "8": { ja: "🔮 8点役", zh: "8点", en: "8 Points" },
         "6": { ja: "💎 6点役", zh: "6点", en: "6 Points" },
         "4": { ja: "🛡️ 4点役", zh: "4点", en: "4 Points" },
-        "2": { ja: "🛡️ 2点・1点役", zh: "2点・1点", en: "2/1 Points" },
+        "2": { ja: "🛡️ 2点・1点役", zh: "2点・1点", en: "2 , 1 Points" },
         "multi": { ja: "✨ 特殊役 (乗算)", zh: "特殊", en: "Special" }
     };
 
