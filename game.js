@@ -338,7 +338,11 @@ function saveSettings() {
         doubleClick: confDoubleClick,
         waitsHint: confWaitsHint,
         tsumogiriDark: confTsumogiri,
-        showStamps: confShowStamps
+        showStamps: confShowStamps,
+        timeDiscard: timeDiscard,
+        timeCall: timeCall,
+        timeExchange: timeExchange,
+        cpuLevel: confCpuLevel
     };
     localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config));
 }
@@ -352,6 +356,27 @@ function loadSettings() {
     changeSpeed(config.speed || 1.0);
     if (document.getElementById('settings-speed-slider')) document.getElementById('settings-speed-slider').value = config.speed || 1.0;
     if (document.getElementById('settings-speed-label')) document.getElementById('settings-speed-label').innerText = 'x' + parseFloat(config.speed || 1.0).toFixed(1);
+
+    // 🌟 追加：対局設定の復元
+    if (config.timeDiscard !== undefined) {
+        timeDiscard = config.timeDiscard;
+        if (document.getElementById('set-discard')) document.getElementById('set-discard').value = timeDiscard;
+        if (document.getElementById('val-discard')) document.getElementById('val-discard').innerText = timeDiscard;
+    }
+    if (config.timeCall !== undefined) {
+        timeCall = config.timeCall;
+        if (document.getElementById('set-call')) document.getElementById('set-call').value = timeCall;
+        if (document.getElementById('val-call')) document.getElementById('val-call').innerText = timeCall;
+    }
+    if (config.timeExchange !== undefined) {
+        timeExchange = config.timeExchange;
+        if (document.getElementById('set-exchange')) document.getElementById('set-exchange').value = timeExchange;
+        if (document.getElementById('val-exchange')) document.getElementById('val-exchange').innerText = timeExchange;
+    }
+    if (config.cpuLevel !== undefined) {
+        confCpuLevel = config.cpuLevel;
+        if (document.getElementById('set-cpu')) document.getElementById('set-cpu').value = confCpuLevel;
+    }
 
     // 音量の反映
     if (config.masterVolume !== undefined) {
@@ -2215,6 +2240,8 @@ async function applySettingsAndStart() {
     if (elExchange) timeExchange = parseInt(elExchange.value);
     let elCpu = document.getElementById('set-cpu');
     if (elCpu) confCpuLevel = parseInt(elCpu.value);
+
+    saveSettings();
 
     // 🌟 卓の親箱も透明化をやめる（3D崩壊防止）
     const gameContainer = document.getElementById('game-container');
