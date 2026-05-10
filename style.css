@@ -1800,7 +1800,7 @@ body.lang-en .en {
 
 .yaku-card {
     background: rgba(0,0,0,0.4);
-    padding: 12px;
+    padding: 10px 8px; /* 🌟 修正：上下10px、左右8pxにして横幅を確保 */
     border-radius: 8px;
     border: 1px solid #7f8c8d;
     width: calc(50% - 5px);
@@ -1820,24 +1820,41 @@ body.lang-en .en {
 /* 🀄 役一覧の手牌例（牌姿） */
 .yaku-example {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* 🌟 修正：絶対に改行させない */
+    overflow-x: auto; /* 🌟 追加：はみ出た場合は横スクロールで逃がす */
+    padding-bottom: 5px; /* スクロールバー用の隙間 */
     gap: 1px;
     margin-top: 6px;
     background: rgba(0,0,0,0.3);
-    padding: 3px;
+    padding: 3px 5px;
     border-radius: 4px;
     align-items: center;
     border-left: 3px solid #3498db;
 }
 
-    /* 📏 他のサイズ設定を上書きして強制的に小さくする */
-    .yaku-example img {
-        width: 23px !important;
-        height: 33px !important;
-        border-radius: 2px;
-        box-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+    /* 📜 スクロールバーの装飾（目立たないように細くする） */
+    .yaku-example::-webkit-scrollbar {
+        height: 4px;
     }
 
+    .yaku-example::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 2px;
+    }
+
+    .yaku-example::-webkit-scrollbar-thumb {
+        background: #3498db;
+        border-radius: 2px;
+    }
+
+    /* 📏 他のサイズ設定を上書きして強制的に小さくする */
+    .yaku-example img {
+        width: 20px !important; /* 🌟 修正：23px -> 20px に縮小して1行に収める */
+        height: 29px !important;
+        border-radius: 2px;
+        box-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+        flex-shrink: 0; /* 🌟 追加：画像が潰れるのを防ぐ */
+    }
 /* 📑 役一覧のタブナビゲーション */
 .yaku-tabs {
     display: flex;
