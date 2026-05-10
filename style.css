@@ -731,6 +731,21 @@ html, body {
     box-shadow: 0 5px #636e72;
 }
 
+/* 🌟 アクションボタンのホバー・押し込み時の動きを復元 */
+.btn-act {
+    transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease;
+}
+
+    .btn-act:hover {
+        transform: translateY(-3px);
+        filter: brightness(1.15);
+    }
+
+    .btn-act:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px rgba(0,0,0,0.5) !important;
+    }
+
 /* --- 待ち牌・オート・透過ボタン --- */
 .pos-waits-btn {
     position: absolute;
@@ -3566,6 +3581,12 @@ body.lang-en .en {
 #btn-auto-play.auto-off:hover {
     background: #95a5a6 !important;
     box-shadow: 0 0 10px #7f8c8d !important;
+}
+
+/* 🌟 追加：オートボタンがONのときのホバー色（オレンジになるのを防ぐ） */
+#btn-auto-play:not(.auto-off):hover {
+    background: #2ecc71 !important;
+    box-shadow: 0 0 10px #27ae60 !important;
 }
 
 .test-show {

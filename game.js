@@ -300,6 +300,7 @@ function returnToHomeGracefully() {
         btnAuto.innerText = "オート(和了後): OFF";
         btnAuto.style.background = "#7f8c8d";
         btnAuto.style.boxShadow = "0 3px #95a5a6";
+        btnAuto.classList.add('auto-off');
     }
 
     // 3. モード選択画面をフワッと表示する
@@ -1241,7 +1242,7 @@ async function startTutorial() {
             setup: () => { myHand = [...hand_hanakanPost]; myMelds = [{ type: "hanakan", tiles: ["5s", "春", "5s", "5s"] }]; myAllMelds[1] = []; }
         },
         { // 7: Swap説明2
-            msg: "<span style='color:#9b59b6; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 3: Joker Swap】</span><br>他家が晒している花槓に使われている牌と<span style='color:#f1c40f;'>同じ牌</span>を持っていれば、<br>四季牌との交換が可能です。",
+            msg: "<span style='color:#9b59b6; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 3: Joker Swap】</span><br>花槓に使われている牌と<span style='color:#f1c40f;'>同じ牌</span>を持っていれば、<br>四季牌との交換が可能です。",
             setup: () => {
                 myHand = [...hand_hanakanPost]; myMelds = [{ type: "hanakan", tiles: ["5s", "春", "5s", "5s"] }];
                 myAllMelds[1] = [{ type: "hanakan", tiles: ["1s", "秋", "1s", "1s"], is_hidden: false }];
@@ -1396,7 +1397,7 @@ async function startTutorial() {
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>画面中央には現在の「局」や「山の残り枚数」が表示されています。<br>さらに、各プレイヤーの<span style='color:#3498db;'>「持ち点」部分をクリック</span>すると……",
             setup: () => {
                 setupDummyRivers(); // 🌟 ダミー牌配置
-                if (navPanel) navPanel.style.top = "22%";
+                if (navPanel) navPanel.style.top = "26%";
                 setOverlay(true);
                 hlIds(['center-info', 'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3'], true, false);
                 const panel = document.getElementById('score-diff-panel');
@@ -1408,7 +1409,7 @@ async function startTutorial() {
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>このように、<span style='color:#f1c40f;'>他プレイヤーとの点差</span>をサッと確認できます！<br>（画面をクリックするか、数秒で自然に消えます）",
             setup: () => {
                 setupDummyRivers(); // 🌟 ダミー牌配置
-                if (navPanel) navPanel.style.top = "22%";
+                if (navPanel) navPanel.style.top = "26%";
                 setOverlay(true);
                 hlIds(['center-info', 'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3'], true, false);
                 showScoreDiff(0);
@@ -1421,7 +1422,7 @@ async function startTutorial() {
             setup: () => {
                 setupDummyRivers(); // 🌟 ダミー牌配置
                 setOverlay(false);
-                if (navPanel) navPanel.style.top = "50%";
+                if (navPanel) navPanel.style.top = "55%";
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
         }
@@ -1483,7 +1484,7 @@ async function startTutorial() {
                             navPanel.dataset.returnTop = navPanel.style.top;
 
                             // 待ち牌パネルが出た時に上に避ける（先ほど調整した数値）
-                            navPanel.style.top = "25%";
+                            navPanel.style.top = "35%";
 
                             // 待ち牌パネル自体を光らせて手前に出す
                             wp.classList.add('tut-highlight');
@@ -1501,7 +1502,7 @@ async function startTutorial() {
 
         const scorePanel = document.getElementById('score-diff-panel');
         if (scorePanel) scorePanel.style.display = 'none';
-        if (navPanel) navPanel.style.top = "50%";
+        if (navPanel) navPanel.style.top = "55%";
         charlestonPhase = false;
         myWinTiles = [];
 
@@ -2215,11 +2216,12 @@ async function applySettingsAndStart() {
     let elCpu = document.getElementById('set-cpu');
     if (elCpu) confCpuLevel = parseInt(elCpu.value);
 
-    // （※チェックボックスの取得処理は新しいタブ設定側に移管されたので削除）
-
     // 🌟 卓の親箱も透明化をやめる（3D崩壊防止）
     const gameContainer = document.getElementById('game-container');
     gameContainer.style.opacity = '1';
+
+    // 👇 これを1行追加して、雀卓自体の透明化も解除します
+    document.querySelector('.table').style.opacity = '1';
 
     // 🌟 フタ（設定画面）を閉じたまま、裏側で通信と画面生成を実行
     await init();
@@ -2393,7 +2395,6 @@ function stopTimer() {
     }
 }
 
-// 🤖 オート進行モードのON/OFFを切り替える関数（いつでも予約可能）
 function toggleAutoPlay() {
     isAutoPlay = !isAutoPlay;
     const btn = document.getElementById('btn-auto-play');
@@ -2403,6 +2404,7 @@ function toggleAutoPlay() {
         btn.innerText = "オート(和了後): ON";
         btn.style.background = "#27ae60";
         btn.style.boxShadow = "0 3px #2ecc71";
+        btn.classList.remove('auto-off'); // 🌟 これを追加
 
         // もしONにした瞬間にすでに聴牌・打牌番なら即座に実行を試みる
         triggerAutoPlayIfNeeded();
@@ -2411,6 +2413,7 @@ function toggleAutoPlay() {
         btn.innerText = "オート(和了後): OFF";
         btn.style.background = "#7f8c8d";
         btn.style.boxShadow = "0 3px #95a5a6";
+        btn.classList.add('auto-off'); // 🌟 これを追加
     }
 }
 
@@ -4827,6 +4830,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             btnAuto.innerText = "オート(和了後): OFF";
             btnAuto.style.background = "#7f8c8d";
             btnAuto.style.boxShadow = "0 3px #95a5a6";
+            btnAuto.classList.add('auto-off');
         }
 
         const calcData = await apiCall('/calculate_round_scores');
