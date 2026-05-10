@@ -38,7 +38,7 @@ html, body {
     left: 50%;
     width: 1280px;
     height: 800px;
-    margin-top: -500px;
+    margin-top: -535px;
     margin-left: -640px;
     transform-origin: center center;
 }
@@ -112,7 +112,9 @@ html, body {
 .hand-0 {
     bottom: 10px;
     left: 45%;
-    transform: translateX(-50%) translateZ(30px) rotateX(-10deg);
+    /* 🌟 透過箱と同じ処理：手前に浮かせて逆回転で垂直に立たせ、2D平面化する */
+    transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
+    transform-style: flat !important;
     z-index: 1000;
 }
 
@@ -139,16 +141,20 @@ html, body {
 .hand-0 .tile {
     cursor: pointer;
     transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    /* 🌟 牌個別の傾きを打ち消して平面に密着させる */
+    transform: none !important;
 }
 
     .hand-0 .tile:hover {
-        transform: translateZ(20px) scale(1.05);
-        box-shadow: 0 0 15px rgba(255,255,255,0.8);
+        /* 🌟 まっすぐ立った2D平面上で「上」に動かすため、カーソルが外れず一生ピクつかない */
+        transform: translateY(-15px) !important;
+        box-shadow: 0 5px 15px rgba(255,255,255,0.8) !important;
     }
 
     .hand-0 .tile.selected-discard {
-        transform: translateY(-20px) scale(1.05) !important;
-        box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(46, 204, 113, 0.6) !important;
+        /* 選択中も垂直のまま高く浮かせる */
+        transform: translateY(-25px) scale(1.05) !important;
+        box-shadow: -4px 8px 0px #b0b0b0, 0 0 20px rgba(46, 204, 113, 0.8) !important;
         border: 2px solid #2ecc71 !important;
     }
 
@@ -241,28 +247,28 @@ html, body {
 }
 
 .river-0 {
-    top: calc(50% + 102px);
-    left: calc(50% - 105px);
+    top: calc(50% + 98px);
+    left: calc(50% - 110px);
     transform-origin: top left;
 }
 
 .river-1 {
     top: calc(50% + 97px);
-    left: calc(50% + 110px);
+    left: calc(50% + 112px);
     transform: rotate(-90deg);
     transform-origin: top left;
 }
 
 .river-2 {
-    top: calc(50% - 102px);
-    left: calc(50% + 105px);
+    top: calc(50% - 112px);
+    left: calc(50% + 110px);
     transform: rotate(180deg);
     transform-origin: top left;
 }
 
 .river-3 {
-    top: calc(50% - 97px);
-    left: calc(50% - 110px);
+    top: calc(50% - 110px);
+    left: calc(50% - 112px);
     transform: rotate(90deg);
     transform-origin: top left;
 }
@@ -573,6 +579,96 @@ html, body {
         transform: translateX(-50%) scale(1) !important;
     }
 
+/* --- スコア精算アニメーション --- */
+.pos-round-score-0 {
+    position: absolute;
+    bottom: 100px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-1 {
+    position: absolute;
+    top: 60% !important;
+    right: 320px;
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-2 {
+    position: absolute;
+    top: 250px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(80px) rotateX(-20deg) !important;
+    z-index: 200;
+    text-align: center;
+}
+
+.pos-round-score-3 {
+    position: absolute;
+    top: 60% !important;
+    left: 320px;
+    transform: translateY(-50%) translateZ(80px) rotateX(-20deg) !important;
+    z-index: 200;
+    text-align: center;
+}
+
+.player-round-score {
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.5s;
+    pointer-events: none !important;
+    white-space: nowrap;
+    z-index: 10000 !important;
+}
+
+.show-score {
+    opacity: 1;
+    transform: translateY(-40px);
+}
+
+.score-main-plus {
+    font-size: 54px;
+    font-weight: 900;
+    color: #f1c40f;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #f39c12;
+    line-height: 1.1;
+}
+
+.score-main-minus {
+    font-size: 54px;
+    font-weight: 900;
+    color: #e74c3c;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px #c0392b;
+    line-height: 1.1;
+}
+
+.score-main-zero {
+    font-size: 54px;
+    font-weight: 900;
+    color: #bdc3c7;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 20px rgba(0,0,0,0.8);
+    line-height: 1.1;
+}
+
+.score-rank-plus {
+    font-size: 22px;
+    font-weight: bold;
+    color: #00cec9;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
+    margin-top: 5px;
+}
+
+.score-rank-zero {
+    font-size: 22px;
+    font-weight: bold;
+    color: #95a5a6;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 5px rgba(0,0,0,0.8);
+    margin-top: 5px;
+}
+
 /* =====================================================================
     6. 🎛️ GAME CONTROLS (アクションボタン・中央パネル・タイマー)
 ===================================================================== */
@@ -639,7 +735,7 @@ html, body {
 .pos-waits-btn {
     position: absolute;
     bottom: 166px;
-    left: calc(50% - 230px);
+    left: calc(50% - 270px);
     z-index: 50;
     transform: translateZ(20px) !important;
     transform-style: flat !important;
@@ -689,7 +785,7 @@ html, body {
 
 #action-hide-area {
     position: absolute;
-    bottom: 162px;
+    bottom: 95px;
     left: 50%;
     transform: translateX(-50%) translateZ(20px) rotateX(-20deg) !important;
     width: 220px;
@@ -779,6 +875,90 @@ html, body {
         border-color: rgba(255,255,255,0.5);
         color: #fff;
         background: rgba(255,255,255,0.1);
+    }
+
+/* --- 待ち牌確認パネル --- */
+.waits-panel {
+    position: absolute;
+    bottom: 230px;
+    left: 50%;
+    transform: translateX(-50%) translateZ(120px) rotateX(-20deg) !important;
+    transform-origin: bottom center !important;
+    background: rgba(0,0,0,0.95);
+    border: 2px solid #e67e22;
+    border-radius: 8px;
+    padding: 10px 20px;
+    z-index: 9999 !important;
+    min-width: 250px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+.waits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #f1c40f;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #555;
+}
+
+    .waits-header button {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .waits-header button:hover {
+            color: #ff7675;
+        }
+
+.waits-list {
+    display: flex;
+    gap: 15px 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 580px;
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 5px;
+    margin: 0 auto;
+}
+
+    .waits-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .waits-list::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+
+    .waits-list::-webkit-scrollbar-thumb {
+        background: #e67e22;
+        border-radius: 3px;
+    }
+
+.wait-item {
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+    .wait-item .tile {
+        width: 32px;
+        height: 45px;
+        margin-bottom: 5px;
     }
 
 /* --- タイマー --- */
@@ -1237,9 +1417,11 @@ html, body {
     box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
 }
 
-.selected-exchange {
-    transform: translateY(-15px) !important;
-    box-shadow: 0 0 15px #e74c3c !important;
+/* 🌟 優先度を上げ、打牌選択時と同じようにくっきりと浮かせる */
+.hand-0 .tile.selected-exchange {
+    transform: translateY(-20px) scale(1.05) rotateX(-20deg) !important;
+    box-shadow: -4px 8px 0px #b0b0b0, -8px 20px 20px rgba(0,0,0,0.6), 0 0 15px rgba(231, 76, 60, 0.8) !important;
+    border: 2px solid #e74c3c !important;
 }
 
 /* =====================================================================
@@ -1804,8 +1986,8 @@ body.lang-en .en {
     background: linear-gradient(45deg, #e67e22, #f1c40f, #fff, #f1c40f, #e67e22);
     background-size: 300% 300%;
     animation: shine-gold 2.5s infinite ease-in-out;
-    color: #000 !important;
     border: 1px solid #ffeaa7;
+    text-shadow: 1px 1px 0 #5c2c06, -1px -1px 0 #5c2c06, 1px -1px 0 #5c2c06, -1px 1px 0 #5c2c06, 2px 2px 4px #000;
     font-weight: 900;
     padding: 5px 14px;
     font-size: 15px;
@@ -3381,6 +3563,11 @@ body.lang-en .en {
     box-shadow: 0 3px #95a5a6;
 }
 
+#btn-auto-play.auto-off:hover {
+    background: #95a5a6 !important;
+    box-shadow: 0 0 10px #7f8c8d !important;
+}
+
 .test-show {
     display: block !important;
 }
@@ -3580,6 +3767,38 @@ body.lang-en .en {
     box-shadow: 0 5px #2980b9;
 }
 
+/* --- リザルト画面の枠組み --- */
+#result-wrapper {
+    width: 1200px;
+    height: 940px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+#win-yaku {
+    max-height: 450px !important;
+    overflow-y: auto !important;
+    padding-right: 10px;
+    margin-bottom: 10px !important;
+}
+
+    #win-yaku::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #win-yaku::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+    }
+
+    #win-yaku::-webkit-scrollbar-thumb {
+        background: #f39c12;
+        border-radius: 4px;
+    }
+
 .res-title {
     font-size: 60px;
     color: #f1c40f;
@@ -3651,8 +3870,8 @@ body.lang-en .en {
         color: #e74c3c;
     }
 
-.c-ui-btn {
-    margin: 15px auto 0;
+.c-ui-btn, #btn-exchange {
+    margin: 15px auto 0 !important;
     font-size: 16px;
     padding: 8px 16px;
 }
@@ -3669,11 +3888,15 @@ body.lang-en .en {
     bottom: 136px;
     left: calc(50% - 460px);
     z-index: 50;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
 }
 
 .tut-review-btn {
     background: #8e44ad !important;
     box-shadow: 0 3px #732d91 !important;
+    pointer-events: auto !important;
 }
 
 .debug-log-panel {

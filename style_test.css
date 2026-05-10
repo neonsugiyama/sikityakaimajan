@@ -23,7 +23,7 @@ html, body {
     left: 50%;
     width: 1280px;
     height: 800px;
-    margin-top: -500px; /* 800の半分に！ */
+    margin-top: -535px; /* 800の半分に！ */
     margin-left: -640px; /* 1280の半分に！ */
     transform-origin: center center;
 }

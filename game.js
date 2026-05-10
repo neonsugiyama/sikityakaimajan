@@ -1013,8 +1013,8 @@ async function startTutorial() {
     navPanel.style.setProperty('z-index', '95000', 'important');
 
     // 🌟 修正：important を外す！これがあるとシナリオ進行中の上下移動や変更が一切効かなくなります。
-    navPanel.style.top = '50%';
-    navPanel.style.left = '52%';
+    navPanel.style.top = '55%';
+    navPanel.style.left = '50%';
 
     // 🚨 余計な3D回転を完全削除し、ただの中央揃えにする
     navPanel.style.transform = 'translate(-50%, -50%)';
@@ -1421,7 +1421,7 @@ async function startTutorial() {
             setup: () => {
                 setupDummyRivers(); // 🌟 ダミー牌配置
                 setOverlay(false);
-                if (navPanel) navPanel.style.top = "52%";
+                if (navPanel) navPanel.style.top = "50%";
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
         }
@@ -1501,7 +1501,7 @@ async function startTutorial() {
 
         const scorePanel = document.getElementById('score-diff-panel');
         if (scorePanel) scorePanel.style.display = 'none';
-        if (navPanel) navPanel.style.top = "52%";
+        if (navPanel) navPanel.style.top = "50%";
         charlestonPhase = false;
         myWinTiles = [];
 
@@ -1641,7 +1641,7 @@ async function startLesson(lessonId) {
     navPanel.style.setProperty('padding', '25px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
     navPanel.style.top = '50%';
-    navPanel.style.left = '52%'; // 中央に配置
+    navPanel.style.left = '50%'; // 中央に配置
     navPanel.style.transform = 'translate(-50%, -50%)';
 
     navText.innerHTML = `<span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${title}</span><br><br><span style='font-size: 22px; line-height: 1.6;'>${msg}</span>`;
@@ -1669,7 +1669,7 @@ function reviewTutorial() {
         } else {
             // 🌟 修正：出番の時は、常に「左上」の邪魔にならない位置に固定する
             nav.style.top = '20%';
-            nav.style.left = '52%';
+            nav.style.left = '50%';
             nav.style.transform = 'translateX(-50%)'; // 中央揃え
             nav.style.display = 'block'; // 隠れていたら出す
         }
