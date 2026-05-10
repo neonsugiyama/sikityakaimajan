@@ -23,8 +23,8 @@ html, body {
     left: 50%;
     width: 1280px;
     height: 800px;
-    margin-top: -440px;
-    margin-left: -650px;
+    margin-top: -500px; /* 800の半分に！ */
+    margin-left: -640px; /* 1280の半分に！ */
     transform-origin: center center;
 }
 
@@ -33,16 +33,17 @@ html, body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: 110%;
     background: radial-gradient(circle at center, #1a5e3a 0%, #0d3b22 100%);
-    border-top: 15px solid #2a2a2a;
-    border-bottom: 50px solid #111;
-    border-left: 25px solid #1a1a1a;
-    border-right: 25px solid #1a1a1a;
+    border-top: 10px solid #2a2a2a;
+    border-bottom: 15px solid #111;
+    border-left: 15px solid #1a1a1a;
+    border-right: 15px solid #1a1a1a;
     border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
     transform: perspective(1200px) rotateX(20deg);
     transform-style: preserve-3d;
+    box-sizing: border-box; /* 🌟 追加：ボーダーを幅の中に収める！ */
 }
 
 /* =====================================================================
@@ -57,15 +58,16 @@ html, body {
     transform: rotateX(-15deg);
 }
 
-/* 自分の手牌：本番値 36x50 */
+/* 🌟 自分の手牌を大幅に拡大！（36x50 → 48x67へ） */
 .hand-0 .tile {
-    width: 40px !important;
-    height: 56px !important;
+    width: 48px !important;
+    height: 67px !important;
 }
 
+/* 🌟 CPUの手牌を小さくしてスペースを確保（28x39 → 22x31へ） */
 .hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
-    width: 28px;
-    height: 39px;
+    width: 22px !important;
+    height: 31px !important;
 }
 
 .meld-0 .tile {
@@ -86,43 +88,47 @@ html, body {
 /* =====================================================================
         🗑️ 捨て牌（河）の配置エリア
         ===================================================================== */
+/* 🌟 河を10枚切りに変更し、完璧な正方形（手裏剣型）を描くように座標を計算！ */
 .river {
     position: absolute;
     display: grid;
-    grid-template-columns: repeat(6, max-content);
+    grid-template-columns: repeat(10, max-content); /* 10枚切り */
     gap: 2px;
-    width: 190px;
+    width: max-content;
 }
 
+/* 中心からの距離(R)=95px、河の半分の長さ(L/2)=149px を基準に各家から見て「左下」からスタート */
 .river-0 {
-    top: calc(50% + 105px);
-    left: calc(50% - 95px);
+    top: calc(50% + 102px);
+    left: calc(50% - 105px);
+    transform: none;
+    transform-origin: top left;
 }
 
 .river-1 {
-    top: calc(50% + 95px);
+    top: calc(50% + 97px);
     left: calc(50% + 110px);
-    transform-origin: top left;
     transform: rotate(-90deg);
+    transform-origin: top left;
 }
 
 .river-2 {
-    top: calc(50% - 105px);
-    left: calc(50% - 95px);
-    transform-origin: top center;
+    top: calc(50% - 102px);
+    left: calc(50% + 105px);
     transform: rotate(180deg);
+    transform-origin: top left;
 }
 
 .river-3 {
-    top: calc(50% + 95px);
-    right: calc(50% + 110px);
-    transform-origin: top right;
+    top: calc(50% - 97px);
+    left: calc(50% - 110px);
     transform: rotate(90deg);
+    transform-origin: top left;
 }
 
-/* 🌟 追加：河の牌だけは立体処理（傾きと厚み）を解除してペラペラにする */
+/* 🌟 河の牌だけは立体処理（傾きと厚み）を解除してペラペラにする */
 .river .tile {
-    box-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
     transform: none !important;
 }
 
@@ -138,7 +144,7 @@ html, body {
 
 .hand-0 {
     bottom: 10px;
-    left: 50%;
+    left: 45%;
     transform: translateX(-50%);
 }
 
@@ -160,7 +166,7 @@ html, body {
 
 .hand-1 {
     right: 30px;
-    top: 50%;
+    top: 55%;
     transform: translateY(-50%);
     flex-direction: column;
 }
@@ -172,13 +178,13 @@ html, body {
 
 .hand-2 {
     top: 20px;
-    left: 50%;
+    left: 55%;
     transform: translateX(-50%);
 }
 
 .hand-3 {
     left: 30px;
-    top: 50%;
+    top: 45%;
     transform: translateY(-50%);
     flex-direction: column;
 }
@@ -198,8 +204,9 @@ html, body {
     z-index: 100;
 }
 
+/* 🌟 自分の副露エリアを上に（奥に）ズラす */
 .meld-0 {
-    bottom: 70px;
+    bottom: 85px;
     left: 50%;
     transform: translateX(-50%);
     flex-direction: row;
@@ -262,7 +269,7 @@ html, body {
 .win-zone {
     position: absolute;
     border: 2px solid #f1c40f;
-    padding: 5px;
+    padding: 2px;
     border-radius: 5px;
     background: rgba(0,0,0,0.6);
     z-index: 100;
@@ -277,58 +284,64 @@ html, body {
         box-shadow: 0px 2px 4px rgba(0,0,0,0.6);
     }
 
+/* 🌟 和了ゾーンを「10枚ずつ」で綺麗に折り返すように幅・高さを固定 */
 .win-zone-0 {
-    bottom: 10px;
-    right: 10px;
-    max-width: 260px;
+    bottom: 0px;
+    right: 0px;
+    width: 250px; /* 10枚ピッタシの幅 */
     flex-direction: row-reverse;
     flex-wrap: wrap-reverse;
-    padding-bottom: 23px;
+    padding-bottom: 5px;
+    padding-right: 2px;
 }
 
 .win-zone-2 {
-    top: 10px;
-    left: calc(50% - 630px);
-    max-width: 260px;
-    padding-bottom: 23px;
+    top: 0px;
+    left: 0px;
+    width: 248px; /* 10枚ピッタシの幅 */
+    padding-bottom: 5px;
 }
 
 .win-zone-1 {
-    right: 10px;
-    top: 10px;
-    max-height: 115px;
+    right: 0px;
+    top: 0px;
+    max-height: 238px; /* 縦10枚ピッタシの高さ */
     flex-direction: column;
     flex-wrap: wrap-reverse;
-    padding-right: 15px;
-    padding-top: 20px;
+    padding-right: 6px;
+    padding-top: 8px;
+    padding-left: 0px;
+    padding-bottom: 0px;
 }
 
 .win-zone-3 {
-    left: 10px;
-    bottom: 10px;
-    max-height: 115px;
+    left: 0px;
+    bottom: 0px;
+    max-height: 238px; /* 縦10枚ピッタシの高さ */
     flex-direction: column-reverse;
     flex-wrap: wrap;
-    padding-left: 15px;
-    padding-bottom: 20px;
+    padding-right: 0px;
+    padding-top: 0px;
+    padding-left: 6px;
+    padding-bottom: 12px;
 }
-
 .win-zone-0 .tile, .win-zone-2 .tile {
-    margin-bottom: -12px;
-    margin-left: 0;
+    margin-bottom: -4px;
+    margin-left: -1px;
 }
 
 .win-zone-1 .tile {
     transform: rotate(-90deg);
-    margin-top: -15px;
-    margin-left: 2px;
+    margin-bottom: 0px;
+    margin-top: -12px;
+    margin-left: 8px;
 }
 
 .win-zone-3 .tile {
     transform: rotate(90deg);
     margin-bottom: -15px;
-    margin-right: 2px;
-    margin-top: 0;
+    margin-right: 8px;
+    margin-top: 3px;
 }
 
 /* =====================================================================
@@ -371,8 +384,8 @@ html, body {
 /* ⏳ タイマー表示エリア (完全に元のCSSを復元) */
 #timer-display {
     position: absolute;
-    bottom: 200px;
-    left: calc(50% + 160px);
+    bottom: 210px;
+    left: calc(50% + 210px);
     font-size: 32px;
     font-weight: 900;
     color: #2ecc71;
@@ -395,7 +408,7 @@ html, body {
     padding: 5px 15px;
     border-radius: 5px;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 10px;
     border: 2px solid #3498db;
     text-align: center;
     white-space: nowrap;
@@ -418,39 +431,39 @@ html, body {
 
 .pos-name-0 {
     position: absolute;
-    bottom: 180px;
-    left: calc(50% - 300px);
+    bottom: 215px;
+    left: calc(50% - 320px);
     transform: translateX(-50%);
     z-index: 40;
 }
 
 .pos-name-1 {
     position: absolute;
-    right: 170px;
-    top: calc(50% + 160px);
+    right: -80px;
+    top: calc(50% + 0px);
     transform: translateY(-50%);
     z-index: 40;
 }
 
 .pos-name-2 {
     position: absolute;
-    top: 180px;
-    left: calc(50% + 300px);
+    top: 145px;
+    left: calc(50% + 320px);
     transform: translateX(-50%);
     z-index: 40;
 }
 
 .pos-name-3 {
     position: absolute;
-    left: 170px;
-    top: calc(50% - 160px);
+    left: -80px;
+    top: calc(50% - 0px);
     transform: translateY(-50%);
     z-index: 40;
 }
 
 .pos-score-0 {
     position: absolute;
-    bottom: 300px;
+    bottom: 328px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
@@ -466,7 +479,7 @@ html, body {
 
 .pos-score-2 {
     position: absolute;
-    top: 300px;
+    top: 328px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
@@ -483,18 +496,25 @@ html, body {
 /* =====================================================================
         👁️ 待ち牌確認・オートプレイUIパネル ＆ ボタン
         ===================================================================== */
+/* 🌟 消えたボタンたちを救出（position: absolute; を復活） */
 .pos-waits-btn {
-    position: absolute;
-    bottom: 136px;
-    left: calc(50% - 280px);
+    position: absolute; /* ← 絶対必要！ */
+    bottom: 166px;
+    left: calc(50% - 230px);
     z-index: 50;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
 }
 
 .pos-auto-btn {
-    position: absolute;
-    bottom: 136px;
+    position: absolute; /* ← 絶対必要！ */
+    bottom: 166px;
     left: calc(50% + 120px);
     z-index: 50;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
 }
 
 .btn-waits {
@@ -514,10 +534,9 @@ html, body {
         🕹️ その他のアクションUI（ポン・カンなどのボタン）
         ===================================================================== */
 /* 📦 複数ボタンのグループを横に並べる親枠 (完全に元のCSSを復元) */
-/* 🌟 アクションボタン群 */
 .action-wrapper {
-    position: absolute;
-    bottom: 55px; /* 🌟 55pxから元の80pxに戻して上に上げる */
+    position: absolute; /* ← 絶対必要！ */
+    bottom: 80px;
     left: 50%;
     transform: translateX(-50%) translateZ(200px) !important;
     display: flex;
@@ -571,6 +590,26 @@ html, body {
 .btn-gray {
     background: #7f8c8d;
     box-shadow: 0 5px #636e72;
+}
+
+#action-hide-area {
+    position: absolute; /* ← 絶対必要！ */
+    bottom: 162px;
+    left: 50%;
+    transform: translateX(-50%) translateZ(20px) rotateX(-20deg) !important;
+    width: 220px;
+    height: 45px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px dashed #7f8c8d;
+    border-radius: 8px;
+    color: #bdc3c7;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    z-index: 10000;
+    cursor: pointer;
+    user-select: none;
 }
 
 /* ==========================================

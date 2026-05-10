@@ -1,0 +1,76 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>UI比較ツール</title>
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: sans-serif;
+        }
+
+        .controls {
+            margin: 20px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .image-container {
+            position: relative;
+            /* 比較しやすいように横幅を固定（お好みで調整してください） */
+            width: 1280px;
+            height: 720px;
+            border: 1px solid #555;
+        }
+
+        .layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 画像の縦横比を維持しつつ枠に収める */
+            object-fit: contain;
+        }
+
+        #img-overlay {
+            opacity: 0.5; /* 初期透過度 50% */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <label>
+            透け具合を調整:
+            <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5">
+        </label>
+        <span>👈 左に全振りで自作UI、右に全振りで参考UI</span>
+    </div>
+
+    <div class="image-container">
+        <img src="images/your_game.png" class="layer" id="img-base">
+        <img src="images/reference_game.jpg" class="layer" id="img-overlay">
+    </div>
+
+    <script>
+        const slider = document.getElementById('opacity-slider');
+        const overlay = document.getElementById('img-overlay');
+
+        slider.addEventListener('input', function() {
+            overlay.style.opacity = this.value;
+        });
+    </script>
+
+</body>
+</html>
