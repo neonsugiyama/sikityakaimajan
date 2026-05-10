@@ -14,20 +14,29 @@
             <div class="center-info">
                 <div id="round-info-center">
                     <span>第 1 局</span>
+                    <button class="btn-mini-icon">🎵</button>
                 </div>
                 <div id="wall-count">山: 60</div>
                 <div id="msg" style="color:#f39c12; font-weight:bold; font-size:18px;">↓打牌↓</div>
             </div>
 
+            <div id="timer-display" style="display: block;">⏱ <span>60</span>s</div>
+
             <div class="pos-waits-btn">
-                <button class="btn-waits" style="background:#9b59b6;">役一覧</button>
-                <button class="btn-waits" style="margin-left:10px;">待ち牌確認</button>
+                <button id="btn-show-waits" class="btn-waits">待ち牌確認</button>
             </div>
             <div class="pos-auto-btn">
-                <button class="btn-waits" style="background:#7f8c8d;">オート(和了後): OFF</button>
+                <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;">オート(和了後): OFF</button>
             </div>
 
-            <div class="pos-name-0"><div class="player-name">あなた (DummyData)</div></div>
+            <div id="action-hide-area" style="display: flex; position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%) translateZ(20px) rotateX(-20deg); width: 250px; height: 45px; background: rgba(0, 0, 0, 0.4); border: 1px dashed #7f8c8d; border-radius: 8px; color: #bdc3c7; justify-content: center; align-items: center; font-size: 14px; z-index: 10000; cursor: pointer; user-select: none;">
+                <span style="pointer-events: none;">ボタンを透過して副露を確認</span>
+            </div>
+
+            <div class="pos-name-0">
+                <div class="player-name">あなた (DummyData)</div>
+                <button id="btn-open-stamp" style="display:block;">😊</button>
+            </div>
             <div class="pos-score-0"><div class="player-score">持ち点: 25000</div></div>
 
             <div class="pos-name-1"><div class="player-name">CPU 1</div></div>
@@ -84,6 +93,53 @@
             }
         }
 
+        // 🌟 修正：全員の手牌に13枚+1枚（ツモ牌の隙間）を適用
+        function fillHandWithGap(id, tileName) {
+            const el = document.getElementById(id);
+
+            // まず13枚を手牌の箱に入れる
+            for (let i = 0; i < 13; i++) {
+                const img = document.createElement('img');
+                img.className = 'tile';
+                img.src = `images/${tileName}.png`;
+                el.appendChild(img);
+            }
+
+            // ツモ牌を作成して、13枚の箱の「外側」に絶対座標で配置する
+            const tsumo = document.createElement('img');
+            tsumo.className = 'tile';
+            if (id === 'hand-0') tsumo.classList.add('selected-discard');
+            tsumo.src = `images/${tileName}.png`;
+            tsumo.style.position = 'absolute'; // 🌟 13枚の幅に干渉させない
+
+            // 各プレイヤーから見て「右側」になるように配置
+            if (id === 'hand-0') {
+                // あなた：画面の右方向が「右」
+                tsumo.style.left = 'calc(100% + 15px)';
+                tsumo.style.top = '0';
+            } else if (id === 'hand-1') {
+                // CPU1(右側)：画面の【上方向】がCPU1にとっての「右」
+                tsumo.style.bottom = 'calc(100% + 15px)';
+                tsumo.style.left = '0';
+            } else if (id === 'hand-2') {
+                // CPU2(対面)：画面の【左方向】がCPU2にとっての「右」
+                tsumo.style.right = 'calc(100% + 15px)';
+                tsumo.style.top = '0';
+            } else if (id === 'hand-3') {
+                // CPU3(左側)：画面の【下方向】がCPU3にとっての「右」
+                tsumo.style.top = 'calc(100% + 15px)';
+                tsumo.style.left = '0';
+            }
+
+            el.appendChild(tsumo);
+        }
+
+        // 手牌の描画（引数をシンプルに直しました！）
+        fillHandWithGap('hand-0', '1p');
+        fillHandWithGap('hand-1', 'ura');
+        fillHandWithGap('hand-2', 'ura');
+        fillHandWithGap('hand-3', 'ura');
+
         function fillMelds(id, setCount, tileName) {
             const el = document.getElementById(id);
             for (let i = 0; i < setCount; i++) {
@@ -102,7 +158,7 @@
         function fillTilesSequence(id, count) {
             const el = document.getElementById(id);
             const tileKinds = [
-                '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m',
+                '1m', '9m', /* 萬子は1と9のみ */
                 '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
                 '1s', '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s',
                 '東', '南', '西', '北', '白', '發', '中', '春', '夏', '秋', '冬'
@@ -120,28 +176,16 @@
             }
         }
 
-        // ★ フルマックス描画の実行！
-        // 1. 手牌（最大14枚）
-        fillTiles('hand-0', 14, '1p');
-        fillTiles('hand-1', 14, 'ura');
-        fillTiles('hand-2', 14, 'ura');
-        fillTiles('hand-3', 14, 'ura');
-
-        // 2. 河（4段ギリギリまで＝24枚）
+        // 河・鳴き
         for (let i = 0; i < 4; i++) fillTiles(`river-${i}`, 24, '5s');
-
-        // 3. 鳴き（最大4副露 × 4枚のカン = 16枚）
         fillMelds('meld-0', 4, '中');
         fillMelds('meld-1', 4, '發');
         fillMelds('meld-2', 4, '白');
         fillMelds('meld-3', 4, '東');
-
-        // 4. アガリ牌（Win Zone）
-        // 理論上の限界突破・45連射のマシンガン和了を想定！
-        fillTilesSequence('win-zone-0', 45);
-        fillTilesSequence('win-zone-1', 45);
-        fillTilesSequence('win-zone-2', 45);
-        fillTilesSequence('win-zone-3', 45);
+        fillTilesSequence('win-zone-0', 60);
+        fillTilesSequence('win-zone-1', 60);
+        fillTilesSequence('win-zone-2', 60);
+        fillTilesSequence('win-zone-3', 60);
     </script>
 </body>
 </html>
