@@ -2424,60 +2424,6 @@ async function playExchangeAnimation(dirStr, participants) {
     }
 }
 
-// 🌟 修正：起動時に前回のIDをブラウザの記憶（localStorage）から読み出す
-let currentSessionRoomId = localStorage.getItem('shiki_mahjong_room_id') || "";
-
-// 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
-async function apiCall(endpoint, params = {}) {
-    try {
-        let url = endpoint;
-        params._t = new Date().getTime();
-
-        // 新規スタート以外は、必ず自分のルームIDを送信する
-        if (endpoint !== '/start') {
-            if (!currentSessionRoomId) throw new Error("セッションが切断されました。リロードしてください。");
-            params.room_id = currentSessionRoomId;
-        }
-
-        if (Object.keys(params).length > 0) {
-            const query = new URLSearchParams(params).toString();
-            url += `?${query}`;
-        }
-        logMsg(`>>> 通信: ${url}`);
-
-        const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-        if (!res.ok) throw new Error(`サーバーエラー(${res.status})。`);
-
-        const data = await res.json();
-
-        // サーバーから新しいルームIDが届いたら記憶して保存する
-        if (data.room_id) {
-            currentSessionRoomId = data.room_id;
-            localStorage.setItem('shiki_mahjong_room_id', currentSessionRoomId); // 🌟 永久保存
-
-            // 🌟 追加：現在のゲームモードも一緒に記憶しておく
-            localStorage.setItem('shiki_mahjong_game_mode', currentGameMode);
-
-            console.log(`[ROOM] 割り当てられたルームID: ${currentSessionRoomId}`);
-        }
-
-        if (data.error) {
-            if (data.error === "流局") throw new Error("流局");
-            throw new Error(data.error);
-        }
-
-        safeUpdate(data);
-        logMsg(`<<< 成功 (T:${turn}, 手牌:${myHand.length})`);
-        return data;
-    } catch (e) {
-        if (e.message === "流局") throw e;
-        logMsg(`[エラー] ${e.message}`, true);
-        alert(`【システムエラー】\n${e.message}\n\n※画面をリロードしてもう一度お試しください。`);
-        isProc = false;
-        throw e;
-    }
-}
-
 // 📦 サーバーから受け取った最新の盤面データで、手元の変数を安全に一括更新する関数
 function safeUpdate(data) {
     if (data.player_hand !== undefined) myHand = data.player_hand;
@@ -3288,9 +3234,19 @@ async function finishAskSecondCharleston() {
         clearCharlestonStatus();
         render(); renderCPU();
 
+        // 🌟🌟 修正：サーバーにも「スキップしたよ（不成立だよ）」と通知して状態を同期させる！
+        try {
+            await apiCall('/second_charleston', {
+                player_idx: 0, t1: "", t2: "", t3: "",
+                p0: secondCharlestonParticipating[0], p1: secondCharlestonParticipating[1],
+                p2: secondCharlestonParticipating[2], p3: secondCharlestonParticipating[3]
+            });
+        } catch (e) { }
+
         charlestonPhase = false;
         isProc = false;
         checkT();
+
     } else {
         // 🌟 人間が参加しているなら、記憶しておいた選んだ牌を取り出す
         let t1 = "", t2 = "", t3 = "";
@@ -5352,16 +5308,16 @@ async function showModeSelect() {
                         render();
                         renderCPU();
 
-                        // 🌟 修正：チャールストンのフェーズ判定をサーバー状態(絶対)に委ねる！
-                        if (!charlestonDoneServer && !secondCharlestonDoneServer) {
-                            console.log(`[再開ロジック] 🔄 まだ第1交換が終わっていません。第1交換から再開します。`);
-                            charlestonCount = 1;
-                            startCharlestonSelection();
-                        } else if (charlestonDoneServer && !secondCharlestonDoneServer) {
-                            console.log(`[再開ロジック] 🔄 第1交換完了済み。第2交換から再開します。`);
-                            charlestonCount = 2;
-                            askNextSecondCharleston();
-                        } else {
+                        // 🌟 追加：すでに誰かが牌を捨てている（河に牌がある）なら、絶対にチャールストンは終わっている！
+                        let hasDiscards = false;
+                        if (stateData.discards) {
+                            for (let i = 0; i < 4; i++) {
+                                if (stateData.discards[i].length > 0) hasDiscards = true;
+                            }
+                        }
+
+                        // 🌟 修正：チャールストンのフェーズ判定に「河に牌があるか(hasDiscards)」の条件を追加
+                        if (hasDiscards || (charlestonDoneServer && secondCharlestonDoneServer)) {
                             console.log("[再開ロジック] 🀄 チャールストンは全て完了済み。通常の対局フェーズから再開します。");
                             charlestonPhase = false;
                             document.getElementById('charleston-ui').style.display = "none";
@@ -5379,7 +5335,16 @@ async function showModeSelect() {
                                 console.log("[再開ロジック] アクション待ちではない通常のターンを再開します。");
                                 checkT();
                             }
+                        } else if (!charlestonDoneServer) {
+                            console.log(`[再開ロジック] 🔄 まだ第1交換が終わっていません。第1交換から再開します。`);
+                            charlestonCount = 1;
+                            startCharlestonSelection();
+                        } else {
+                            console.log(`[再開ロジック] 🔄 第1交換完了済み。第2交換から再開します。`);
+                            charlestonCount = 2;
+                            askNextSecondCharleston();
                         }
+
                         console.log(`========================================\n`);
                         return;
                     } else {

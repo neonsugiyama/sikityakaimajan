@@ -63,6 +63,10 @@ def read_js():
 async def get_audio_js():
     return FileResponse("audio.js")
 
+@app.get("/api.js")
+async def get_api_js():
+    return FileResponse("api.js")
+
 from fastapi.responses import FileResponse
 
 # --- 既存の index.html や game.js を返す処理の近くにこれを追加 ---
