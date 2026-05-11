@@ -289,15 +289,34 @@ function getYakuTierClass(yakuName) {
 }
 
 function resizeGame() {
-    const scale = Math.min(window.innerWidth / 1400, window.innerHeight / 820);
+    // 🌟 1. 基準となる「ゲームの設計解像度」
+    const BASE_WIDTH = 1400;
+    const BASE_HEIGHT = 820;
+
+    const scaleX = window.innerWidth / BASE_WIDTH;
+    const scaleY = window.innerHeight / BASE_HEIGHT;
+    const scale = Math.min(scaleX, scaleY) * 0.98; // 2%の安全マージン
+
     document.documentElement.style.setProperty('--game-scale', scale);
 
+    // 🌟 2. ゲームコンテナ本体（画面の中央に完全固定する）
     const container = document.getElementById('game-container');
     if (container) {
-        container.style.transform = `scale(${scale})`;
+        container.style.width = `${BASE_WIDTH}px`;
+        container.style.height = `${BASE_HEIGHT}px`;
+        container.style.position = "absolute";
+        container.style.left = "50%";
+        container.style.top = "50%";
+
+        // 🌟 追加：CSS側の古いマイナス余白設定を強制的に打ち消す！
+        container.style.margin = "0";
+
+        container.style.transformOrigin = "center center";
+        container.style.transform = `translate(-50%, -50%) scale(${scale})`;
         container.classList.add('ready');
     }
 
+    // 🌟 3. タイトルとモード選択（これらは従来通り絶対配置で画面中央に浮かせる）
     const screens = ['.title-content', '#mode-select-container'];
     screens.forEach(selector => {
         const el = document.querySelector(selector);
@@ -305,34 +324,30 @@ function resizeGame() {
             el.style.position = "absolute";
             el.style.left = "50%";
             el.style.top = "50%";
+            el.style.transformOrigin = "center center";
             el.style.transform = `translate(-50%, -50%) scale(${scale})`;
             el.classList.add('ready');
         }
     });
 
-    const modalContents = [
-        '#settings-modal > div',
-        '#howto-modal > div',
-        '#yaku-modal > div',
-        '#achievement-modal > div',
-        '#mypage-modal > div',
-        '#friend-match-modal > div',
-        '#settings-screen > div',
-        '#learning-modal > div',
-        '#online-match-modal > div',
+    // 🌟 4. モーダル群（0.95倍マージン）
+    const modalElements = [
+        '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
+        '#achievement-modal > div', '#mypage-modal > div', '#friend-match-modal > div',
+        '#settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
         '#rate-help-modal > div'
     ];
-    modalContents.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
+    modalElements.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
             el.style.setProperty('position', 'absolute', 'important');
             el.style.setProperty('left', '50%', 'important');
             el.style.setProperty('top', '50%', 'important');
             el.style.setProperty('transform-origin', 'center center', 'important');
-            el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 1})`, 'important');
+            el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 0.95})`, 'important');
         });
     });
 
+    // 🌟 5. 特殊要素のスケール調整
     const resultWrapper = document.getElementById('result-wrapper');
     if (resultWrapper) {
         resultWrapper.style.position = "absolute";
@@ -348,11 +363,14 @@ function resizeGame() {
         bigYaku.style.webkitTextStrokeWidth = `${4 * scale}px`;
     }
 
-    const debugPanels = ['.debug-panel', '#achieve-debug-panel'];
-    debugPanels.forEach(selector => {
-        const el = document.querySelector(selector);
+    const debugPanels = [
+        { selector: '.debug-panel', origin: 'top right' },
+        { selector: '#achieve-debug-panel', origin: 'top left' }
+    ];
+    debugPanels.forEach(panel => {
+        const el = document.querySelector(panel.selector);
         if (el) {
-            el.style.transformOrigin = selector === '.debug-panel' ? "top right" : "top left";
+            el.style.transformOrigin = panel.origin;
             el.style.transform = `scale(${scale})`;
         }
     });
