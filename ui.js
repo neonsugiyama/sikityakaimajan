@@ -7,6 +7,21 @@ const el = (id) => document.getElementById(id);
 const show = (id, display = 'block') => { if (el(id)) el(id).style.display = display; };
 const hide = (id) => { if (el(id)) el(id).style.display = 'none'; };
 
+// 🛡️ セキュリティ対策：入力された文字列のHTMLタグを無害化する関数
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/[&<>'"]/g, function (match) {
+        const escape = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        };
+        return escape[match];
+    });
+}
+
 // 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
 function closeAllModals() {
     console.log("[LOG] ▶ closeAllModals が呼ばれました");
