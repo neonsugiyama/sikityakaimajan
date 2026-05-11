@@ -300,6 +300,9 @@ function returnToHomeGracefully() {
     setTimeout(() => { modeScreen.style.opacity = '1'; }, 50);
 
     updateStampVisibility();
+
+    // 🌟 これを関数の最後に追加：画面が切り替わったので音を出すよう指示
+    if (typeof applyBGMVolume === 'function') applyBGMVolume();
 }
 
 // 🚪 対局を強制中断してホーム画面に戻る関数
@@ -402,13 +405,20 @@ function loadSettings() {
         currentLangMode = config.langMode;
         applyLangMode();
     }
+    // config.bgmOn !== undefined のブロックを以下のように書き換えてください
     if (config.bgmOn !== undefined) {
         audioState.bgmOn = config.bgmOn;
         const btn = document.getElementById('btn-toggle-bgm');
         if (!audioState.bgmOn && btn) {
             btn.innerText = "🔇"; btn.title = "BGM切替: OFF";
             btn.style.color = "#e74c3c"; btn.style.borderColor = "rgba(231, 76, 60, 0.4)";
+        } else if (btn) {
+            btn.innerText = "🎵"; btn.title = "BGM切替: ON";
+            btn.style.color = "rgba(255,255,255,0.5)";
+            btn.style.borderColor = "rgba(255,255,255,0.25)";
         }
+        // 🌟 追加：設定を読み込んだら、画面状態に合わせて音を鳴らすか判定
+        if (typeof applyBGMVolume === 'function') applyBGMVolume();
     }
 
     if (config.rightClick !== undefined) {
@@ -727,35 +737,6 @@ window.addEventListener('DOMContentLoaded', () => {
         updateTableGradient();
     }
 });
-
-// 🎵 BGMの音量を変更して保存する関数
-function updateMasterBGM(val) {
-    const v = parseFloat(val);
-    sounds.bgm.volume = v;
-    document.getElementById('settings-bgm-label').innerText = `${Math.round(v * 100)}%`;
-
-    // 🌟 追加：BGMが0%になったら一時停止してOSのオーディオ権限を返す
-    if (v <= 0) {
-        sounds.bgm.pause();
-    } else if (audioState.bgmOn && audioState.initialized && sounds.bgm.paused) {
-        // 0%より大きくなったら再生を再開する
-        sounds.bgm.play().catch(e => console.log(e));
-    }
-
-    saveSettings();
-}
-
-let masterSEVolume = 1.0;
-
-// 🔊 効果音(SE)の音量を変更し、必要に応じてテスト音を鳴らす関数
-function updateMasterSE(val, playTestSound = false) {
-    masterSEVolume = parseFloat(val);
-    document.getElementById('settings-se-label').innerText = `${Math.round(masterSEVolume * 100)}%`;
-    if (playTestSound) {
-        playSE('dahai'); // スライダーを手動で動かした時だけ鳴らす
-    }
-    saveSettings();
-}
 
 // ==========================================
 // ★ チュートリアル＆役一覧・ローカライズ制御
@@ -1768,215 +1749,6 @@ function switchSettingsTab(evt, tabId) {
     document.getElementById(tabId).style.display = "block";
     evt.currentTarget.classList.add("active");
 
-    playSE('click');
-}
-
-// ==========================================
-// ★ オーディオ管理システム
-// ==========================================
-const audioState = {
-    bgmOn: true,
-    seOn: true,
-    initialized: false
-};
-
-const sounds = {
-    bgm: new Audio('audio/bgm.mp3'),
-    tsumo: new Audio('audio/tsumo.mp3'),
-    dahai: new Audio('audio/dahai.mp3'),
-    dice: new Audio('audio/dice.mp3'),
-    yaku: new Audio('audio/yaku.mp3'),
-    score: new Audio('audio/score.mp3'),
-    exchange: new Audio('audio/exchange.mp3'),
-    tick: new Audio('audio/tick.mp3'),
-    alert: new Audio('audio/alert.mp3'),
-    click: new Audio('audio/click.mp3'),
-    special_win: new Audio('audio/special_win.mp3'),
-    jokerswap_se: new Audio('audio/jokerswap_se.mp3'),
-    coin: new Audio('audio/coin.mp3'),
-    start: new Audio('audio/start.mp3')
-};
-
-const voiceTypes = ['pon', 'kan', 'ron', 'zimo', 'jokerswap'];
-for (let i = 0; i < 4; i++) {
-    voiceTypes.forEach(v => {
-        sounds[`${v}_${i}`] = new Audio(`audio/${v}_${i}.wav`);
-    });
-}
-
-const soundVolumes = {
-    bgm: 0.3,
-    dahai: 0.6,
-    dice: 1.0,
-    exchange: 0.6,
-    yaku: 0.8,
-    score: 0.8,
-    tick: 0.5,
-    alert: 0.5,
-    click: 0.2,
-    jokerswap_se: 0.3,
-    coin: 0.4,
-    pon: 0.8,
-    kan: 0.8,
-    ron: 1.0,
-    zimo: 1.0,
-    jokerswap: 0.9
-};
-
-sounds.bgm.loop = true;
-sounds.bgm.volume = 0.3;
-
-// ==========================================
-// 🌟 音量管理のグローバル変数
-// ==========================================
-let globalMasterVolume = 1.0;
-let globalBgmVolume = 0.3;
-let globalSeVolume = 1.0;
-let globalVoiceVolume = 1.0;
-
-// 🔈 ユーザーの初回クリック時にBGMの再生を開始する関数（ブラウザの自動再生ブロック対策）
-function initAudio() {
-    if (audioState.initialized) return;
-    audioState.initialized = true;
-
-    if (audioState.bgmOn && (globalBgmVolume * globalMasterVolume) > 0) {
-        sounds.bgm.play().catch(e => console.log("BGM自動再生ブロック:", e));
-    }
-}
-window.addEventListener('click', initAudio, { once: true });
-
-// 🌟 追加：スライダー連続再生防止用のタイマー
-let testSoundTimer = null;
-
-// 🔊 マスター音量（全体）の変更
-function updateMasterVolume(val, playTest = false) {
-    globalMasterVolume = parseFloat(val);
-    if (document.getElementById('settings-master-label')) {
-        document.getElementById('settings-master-label').innerText = `${Math.round(globalMasterVolume * 100)}%`;
-    }
-    applyBGMVolume();
-
-    // 🌟 修正：ドラッグ中はタイマーをキャンセルし、指を止めて0.1秒後に1回だけ鳴らす
-    if (playTest) {
-        if (testSoundTimer) clearTimeout(testSoundTimer);
-        testSoundTimer = setTimeout(() => {
-            playSE('dahai');
-        }, 100);
-    }
-    saveSettings();
-}
-
-// 🎵 BGM音量の変更
-function updateBGMVolume(val) {
-    globalBgmVolume = parseFloat(val);
-    if (document.getElementById('settings-bgm-label')) {
-        document.getElementById('settings-bgm-label').innerText = `${Math.round(globalBgmVolume * 100)}%`;
-    }
-    applyBGMVolume();
-    saveSettings();
-}
-
-// 内部でBGMの最終的な音量を計算して反映する関数
-function applyBGMVolume() {
-    let finalV = globalBgmVolume * globalMasterVolume;
-    sounds.bgm.volume = Math.min(1.0, finalV);
-
-    if (finalV <= 0) {
-        sounds.bgm.pause();
-    } else if (audioState.bgmOn && audioState.initialized && sounds.bgm.paused) {
-        sounds.bgm.play().catch(e => console.log(e));
-    }
-}
-
-// 🔊 効果音（SE）音量の変更
-function updateSEVolume(val, playTest = false) {
-    globalSeVolume = parseFloat(val);
-    if (document.getElementById('settings-se-label')) {
-        document.getElementById('settings-se-label').innerText = `${Math.round(globalSeVolume * 100)}%`;
-    }
-
-    // 🌟 修正：多重再生防止
-    if (playTest) {
-        if (testSoundTimer) clearTimeout(testSoundTimer);
-        testSoundTimer = setTimeout(() => {
-            playSE('dahai');
-        }, 100);
-    }
-    saveSettings();
-}
-
-// 🗣️ ボイス（発声）音量の変更
-function updateVoiceVolume(val, playTest = false) {
-    globalVoiceVolume = parseFloat(val);
-    if (document.getElementById('settings-voice-label')) {
-        document.getElementById('settings-voice-label').innerText = `${Math.round(globalVoiceVolume * 100)}%`;
-    }
-
-    // 🌟 修正：多重再生防止
-    if (playTest) {
-        if (testSoundTimer) clearTimeout(testSoundTimer);
-        testSoundTimer = setTimeout(() => {
-            playSE('pon_0');
-        }, 100);
-    }
-    saveSettings();
-}
-
-// 🔊 指定された名前の効果音（ボイス含む）を適切な音量で再生する関数
-function playSE(soundName) {
-    if (!audioState.seOn || !sounds[soundName]) return;
-
-    // 1. 各ファイルごとの基本音量（微調整用）を取得
-    let baseVol = 0.6;
-    if (soundVolumes[soundName] !== undefined) {
-        baseVol = soundVolumes[soundName];
-    } else {
-        let baseName = soundName.split('_')[0];
-        if (soundVolumes[baseName] !== undefined) {
-            baseVol = soundVolumes[baseName];
-        }
-    }
-
-    // 2. 鳴らす音が「ボイス」か「SE」かを判定する
-    let isVoice = voiceTypes.some(v => soundName.startsWith(v));
-    let typeVol = isVoice ? globalVoiceVolume : globalSeVolume;
-
-    // 3. 最終的な音量を計算 (基本音量 × 種類別音量 × マスター音量)
-    let finalVol = Math.min(1.0, baseVol * typeVol * globalMasterVolume);
-
-    if (finalVol <= 0) return null;
-
-    let clone = sounds[soundName].cloneNode();
-    clone.volume = finalVol;
-    clone.play().catch(e => console.log("SE再生エラー:", e));
-    return clone;
-}
-
-// 🎵 BGMの再生/一時停止を切り替える関数
-function toggleBGM() {
-    audioState.bgmOn = !audioState.bgmOn;
-    const btn = document.getElementById('btn-toggle-bgm');
-
-    if (audioState.bgmOn) {
-        if (audioState.initialized) sounds.bgm.play().catch(e => console.log(e));
-        if (btn) {
-            btn.innerText = "🎵"; // アイコンのみ
-            btn.title = "BGM切替: ON";
-            // 🌟 ひっそり佇むための透過カラー
-            btn.style.color = "rgba(255,255,255,0.5)";
-            btn.style.borderColor = "rgba(255,255,255,0.25)";
-        }
-    } else {
-        sounds.bgm.pause();
-        if (btn) {
-            btn.innerText = "🔇"; // ミュートアイコン
-            btn.title = "BGM切替: OFF";
-            // 🌟 OFF時は気づきやすいように少し赤く、でも透過させる
-            btn.style.color = "rgba(231, 76, 60, 0.6)";
-            btn.style.borderColor = "rgba(231, 76, 60, 0.3)";
-        }
-    }
-    saveSettings();
     playSE('click');
 }
 
