@@ -224,11 +224,11 @@ function updateStatsModalUI(targetStats) {
     const createCleanCanvas = (containerId, canvasId) => {
         const container = document.getElementById(containerId);
         if (!container) return null;
-
+        
         // 描画中は隠す（巨大化の過程を見せない）
-        container.style.visibility = 'hidden';
+        container.style.visibility = 'hidden'; 
         container.style.opacity = '0';
-
+        
         // Canvasのサイズが勝手に暴れないようCSSでガッチリ固定
         container.innerHTML = `<canvas id="${canvasId}" style="width:100% !important; height:100% !important; display:block;"></canvas>`;
         return document.getElementById(canvasId);
@@ -238,7 +238,7 @@ function updateStatsModalUI(targetStats) {
     const canvasRadar = createCleanCanvas('mypage-radar-wrapper', 'mypage-radar-chart');
     if (canvasRadar) {
         if (radarChart) radarChart.destroy();
-
+        
         let chartAvgWins = Math.min(Math.sqrt(avgWins / 60) * 100, 100);
         let chartAvgScore = Math.min(Math.sqrt(avgWinScore / 2000) * 100, 100);
         let chartMuhana = Math.min((muhanaRate / 80) * 100, 100);
@@ -268,67 +268,130 @@ function updateStatsModalUI(targetStats) {
         if (pieChart) pieChart.destroy();
         let isZeroData = totalG === 0;
 
+        // 🌟 修正：スマートな引き出し線と、左右の空間を活用したラベル整列プラグイン
+        const customOutLabelPlugin = {
+            id: 'customOutLabels',
+            afterDraw: (chart) => {
+                const ctx = chart.ctx;
+                const { height } = chart;
+                const data = chart.data.datasets[0].data;
+                const meta = chart.getDatasetMeta(0);
+                const total = data.reduce((a, b) => a + b, 0);
+                if (total === 0 || chart.data.labels[0] === '未プレイ') return;
+
+                let leftLabels = [];
+                let rightLabels = [];
+
+                // 1. ラベルの初期位置を決定して左右に振り分ける
+                meta.data.forEach((arc, index) => {
+                    const value = data[index];
+                    if (value === 0) return;
+                    const percentage = ((value / total) * 100).toFixed(1) + '%';
+                    const labelText = chart.data.labels[index];
+                    const displayText = `${labelText}: ${percentage}`;
+
+                    const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+                    const r = arc.outerRadius;
+                    const x = arc.x;
+                    const y = arc.y;
+
+                    // 円周上のスタート地点
+                    const startX = x + Math.cos(midAngle) * r;
+                    const startY = y + Math.sin(midAngle) * r;
+
+                    // グラフから少し外に出た地点（線がグラフに被らないための折れ曲がりポイント）
+                    const breakExt = 8;
+                    const breakX = x + Math.cos(midAngle) * (r + breakExt);
+                    const breakY = y + Math.sin(midAngle) * (r + breakExt);
+
+                    const isRight = Math.cos(midAngle) >= 0;
+
+                    // 🌟 左右のデッドスペースを有効活用するため、ラベルのX座標を縦一列に揃える
+                    const labelX = isRight ? x + r + 25 : x - r - 25;
+
+                    // Y座標の初期値（最初は円の角度に合わせる）
+                    const targetY = y + Math.sin(midAngle) * (r + 15);
+
+                    const labelObj = {
+                        index, displayText, startX, startY, breakX, breakY, labelX, targetY, isRight,
+                        color: chart.data.datasets[0].backgroundColor[index]
+                    };
+
+                    if (isRight) rightLabels.push(labelObj);
+                    else leftLabels.push(labelObj);
+                });
+
+                // 2. 縦一列の中で、ラベル同士が重ならないようにY座標をスマートに調整
+                const resolveOverlaps = (labels) => {
+                    if (labels.length === 0) return;
+                    labels.sort((a, b) => a.targetY - b.targetY);
+                    const minGap = 24; // 最低限空ける間隔
+
+                    // 上から下へ重なりを解消
+                    for (let i = 1; i < labels.length; i++) {
+                        if (labels[i].targetY < labels[i - 1].targetY + minGap) {
+                            labels[i].targetY = labels[i - 1].targetY + minGap;
+                        }
+                    }
+
+                    // 枠からはみ出ないように全体を上下にシフト
+                    const maxY = height - 15;
+                    if (labels[labels.length - 1].targetY > maxY) {
+                        let diff = labels[labels.length - 1].targetY - maxY;
+                        for (let i = 0; i < labels.length; i++) labels[i].targetY -= diff;
+                    }
+
+                    const minY = 15;
+                    if (labels[0].targetY < minY) {
+                        let diff = minY - labels[0].targetY;
+                        for (let i = 0; i < labels.length; i++) labels[i].targetY += diff;
+                    }
+                };
+
+                resolveOverlaps(leftLabels);
+                resolveOverlaps(rightLabels);
+
+                // 3. 調整された安全な座標を使って、絶対に被らない折れ線を描画
+                const drawLabels = (labels) => {
+                    labels.forEach(l => {
+                        const preEndX = l.isRight ? l.labelX - 10 : l.labelX + 10;
+
+                        ctx.beginPath();
+                        ctx.moveTo(l.startX, l.startY);        // 円周から
+                        ctx.lineTo(l.breakX, l.breakY);        // グラフ外へ直進
+                        ctx.lineTo(preEndX, l.targetY);        // 目的の高さへ斜め移動
+                        ctx.lineTo(l.labelX, l.targetY);       // 水平に線を引く
+                        ctx.strokeStyle = l.color;
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 12px sans-serif';
+                        ctx.textAlign = l.isRight ? 'left' : 'right';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(l.displayText, l.isRight ? l.labelX + 4 : l.labelX - 4, l.targetY);
+                    });
+                };
+
+                drawLabels(leftLabels);
+                drawLabels(rightLabels);
+            }
+        };
+
         pieChart = new Chart(canvasPie.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: isZeroData ? ['未プレイ'] : ['1位', '2位', '3位', '4位'],
                 datasets: [{ data: isZeroData ? [1] : targetStats.rankCounts, backgroundColor: isZeroData ? ['#333333'] : ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'], borderColor: '#2c3e50', borderWidth: 2 }]
             },
-            plugins: [{
-                id: 'customOutLabels',
-                afterDraw: (chart) => {
-                    const ctx = chart.ctx;
-                    const { width, height } = chart;
-                    const data = chart.data.datasets[0].data;
-                    const meta = chart.getDatasetMeta(0);
-                    const total = data.reduce((a, b) => a + b, 0);
-                    if (total === 0 || chart.data.labels[0] === '未プレイ') return;
-
-                    meta.data.forEach((arc, index) => {
-                        const value = data[index];
-                        if (value === 0) return;
-                        const percentage = ((value / total) * 100).toFixed(1) + '%';
-                        const labelText = chart.data.labels[index];
-                        const displayText = `${labelText}: ${percentage}`;
-
-                        const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-                        const r = arc.outerRadius;
-                        const x = arc.x; const y = arc.y;
-                        const startX = x + Math.cos(midAngle) * r;
-                        const startY = y + Math.sin(midAngle) * r;
-
-                        // 🌟 見切れ防止：引き出し線を短めにし、フォントサイズを調整
-                        const lineExt = 12;
-                        const midX = x + Math.cos(midAngle) * (r + lineExt);
-                        const midY = y + Math.sin(midAngle) * (r + lineExt);
-                        const isRight = midX > x;
-                        const endX = isRight ? midX + 10 : midX - 10;
-
-                        ctx.beginPath();
-                        ctx.moveTo(startX, startY);
-                        ctx.lineTo(midX, midY);
-                        ctx.lineTo(endX, midY);
-                        ctx.strokeStyle = chart.data.datasets[0].backgroundColor[index];
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 13px sans-serif'; // 画質が良いので13pxで十分読めます
-                        ctx.textAlign = isRight ? 'left' : 'right';
-                        ctx.textBaseline = 'middle';
-
-                        // 🌟 最終的な描画位置（余白を考慮）
-                        ctx.fillText(displayText, isRight ? endX + 3 : endX - 3, midY);
-                    });
-                }
-            }],
+            plugins: [customOutLabelPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
-                devicePixelRatio: window.devicePixelRatio || 1, // 高画質
-                // 🌟 見切れ防止：グラフ本体を小さめにして外側のラベルスペースを確保
-                layout: { padding: { left: 55, right: 55, top: 15, bottom: 15 } },
+                devicePixelRatio: window.devicePixelRatio || 1,
+                // 🌟 修正：左右にラベルを並べるため、左右の余白(padding)をさらに大きく確保
+                layout: { padding: { left: 80, right: 80, top: 15, bottom: 15 } },
                 plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
             }
         });
@@ -653,8 +716,8 @@ function injectDummyData() {
     if (!confirm("現在のセーブデータを上書きして、テスト用の実績データを注入しますか？")) return;
     playerRatings[0] = 1850;
     playerStats.playerName = "DummyData";
-    playerStats.totalGamesPlayed = 85;
-    playerStats.rankCounts = [35, 25, 15, 10];
+    playerStats.totalGamesPlayed = 100;
+    playerStats.rankCounts = [97, 1, 1, 1];
     playerStats.totalRoundsPlayed = 342;
     playerStats.totalWins = 8550;
     playerStats.totalScoreSum = 4702500;

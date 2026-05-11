@@ -335,7 +335,8 @@ function saveSettings() {
         timeDiscard: timeDiscard,
         timeCall: timeCall,
         timeExchange: timeExchange,
-        cpuLevel: confCpuLevel
+        cpuLevel: confCpuLevel,
+        systemUnlocked: document.getElementById('btn-tab-system') ? (document.getElementById('btn-tab-system').style.display === "block") : false
     };
     localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config));
 }
@@ -345,6 +346,13 @@ function loadSettings() {
     const saved = localStorage.getItem('shiki_mahjong_settings');
     if (!saved) return;
     const config = JSON.parse(saved);
+
+    // 🌟 修正：真っ先にシステムタブの解放状態を復元する！
+    // （この後で他の設定が読み込まれて自動セーブが走った時に、falseで上書きされるのを防ぐため）
+    if (config.systemUnlocked) {
+        const btnTabSystem = document.getElementById('btn-tab-system');
+        if (btnTabSystem) btnTabSystem.style.display = "block";
+    }
 
     changeSpeed(config.speed || 1.0);
     if (document.getElementById('settings-speed-slider')) document.getElementById('settings-speed-slider').value = config.speed || 1.0;
@@ -1631,21 +1639,24 @@ function secretClick() {
     if (secretClickCount >= 7) {
         const btnTabSystem = document.getElementById('btn-tab-system');
 
-        if (btnTabSystem.style.display === "none") {
+        // 🌟 念のため、初期状態（空文字）の時も判定できるようにしておく
+        if (btnTabSystem.style.display === "none" || btnTabSystem.style.display === "") {
             btnTabSystem.style.display = "block";
             playSE('jokerswap_se');
             alert("【システム解放】\n設定メニューに「🔧 システム」タブが出現しました。");
         } else {
             btnTabSystem.style.display = "none";
-            toggleDevMode(false); // 開発者モードのスイッチも強制OFFにする
+            toggleDevMode(false);
 
-            // もしシステムタブを開いた状態なら、一番上の「操作」タブに強制的に戻す
             if (document.getElementById('set-tab-system').style.display === "block") {
                 document.querySelector('.settings-tab-btn').click();
             }
             alert("【システム封印】\n「🔧 システム」タブを隠しました。");
         }
         secretClickCount = 0;
+
+        // 🌟 ここを追加：表示/非表示が切り替わったので状態をセーブする
+        saveSettings();
     }
 }
 
