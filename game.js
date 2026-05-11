@@ -1,4 +1,23 @@
-﻿// ⏱️ 指定秒数待機しつつ、スキップ可能なタイマーUIを表示する関数
+﻿// ==========================================
+// 🛠️ 汎用DOM操作ヘルパー関数
+// ==========================================
+const el = (id) => document.getElementById(id);
+const show = (id, display = 'block') => { if (el(id)) el(id).style.display = display; };
+const hide = (id) => { if (el(id)) el(id).style.display = 'none'; };
+
+function openModal(modalId) {
+    closeAllModals();
+    show(modalId, 'flex');
+    playSE('click');
+}
+
+function closeModal(modalId) {
+    hide(modalId);
+    playSE('click');
+}
+// ==========================================
+
+// ⏱️ 指定秒数待機しつつ、スキップ可能なタイマーUIを表示する関数
 let resultWaitResolver = null;
 let resultTimerInterval = null;
 let currentGameMode = 'cpu'; // 'cpu' または 'online'
@@ -180,36 +199,7 @@ function dumpModalStatus(actionName) {
     console.log(`--------------------------------------------------\n`);
 }
 
-// ⚙️ 設定モーダルを開く関数
-function openSettings() {
-    console.log("[LOG] ▶ openSettings が呼ばれました");
-    closeAllModals();
-    document.getElementById('settings-modal').style.display = 'flex';
-    playSE('click');
 
-    // 🌟 対局中（CPU戦）のみ「中断してホームに戻る」ボタンを表示する処理
-    const titleScreen = document.getElementById('title-screen');
-    const modeScreen = document.getElementById('mode-select-screen');
-    const quitBtn = document.getElementById('btn-settings-quit');
-
-    if (quitBtn) {
-        // タイトル画面もホーム画面も隠れていて、かつCPU戦の時だけ表示
-        if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none' && currentGameMode === 'cpu') {
-            quitBtn.style.display = 'block';
-        } else {
-            quitBtn.style.display = 'none';
-        }
-    }
-    dumpModalStatus('openSettings');
-}
-
-// ⚙️ 設定モーダルを閉じる関数
-function closeSettings() {
-    console.log("[LOG] ▶ closeSettings が呼ばれました");
-    document.getElementById('settings-modal').style.display = 'none';
-    playSE('click');
-    dumpModalStatus('closeSettings');
-}
 
 // 🚪 画面をリロードせずに安全にホーム（モード選択）に戻る関数
 function returnToHomeGracefully() {
@@ -861,32 +851,7 @@ function closeAllModals() {
 // ==========================================
 let isIngameTutorial = false;
 
-// 📖 遊び方モーダルを開く関数
-function openHowTo() {
-    closeAllModals();
-    // 🌟 修正：対局中（CPU戦など）はチュートリアル開始ボタンを隠す
-    const btnTutorial = document.getElementById('btn-start-tutorial');
-    const titleScreen = document.getElementById('title-screen');
-    const modeScreen = document.getElementById('mode-select-screen');
 
-    if (btnTutorial) {
-        // タイトル画面もモード選択画面も隠れている＝現在対局中
-        if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none') {
-            btnTutorial.style.display = 'none';
-        } else {
-            btnTutorial.style.display = 'block';
-        }
-    }
-
-    document.getElementById('howto-modal').style.display = 'flex';
-    playSE('click');
-}
-
-// 📖 遊び方モーダルを閉じる関数
-function closeHowTo() {
-    document.getElementById('howto-modal').style.display = 'none';
-    playSE('click');
-}
 
 // 🎮 実戦形式のチュートリアルを開始する関数
 async function startTutorial() {
@@ -1702,14 +1667,7 @@ function reviewTutorial() {
     }
 }
 
-// 📜 役一覧モーダルを開く関数
-function openYakuList() {
-    console.log("[LOG] ▶ openYakuList が呼ばれました");
-    closeAllModals();
-    document.getElementById('yaku-modal').style.display = 'flex';
-    playSE('click');
-    dumpModalStatus('openYakuList');
-}
+
 
 // 📑 役一覧画面のタブ（点数ごとのページ）を切り替える関数
 function switchYakuTab(evt, tabId) {
@@ -1728,13 +1686,7 @@ function switchYakuTab(evt, tabId) {
     document.getElementById('yaku-list-container').scrollTop = 0;
 }
 
-// 📜 役一覧モーダルを閉じる関数
-function closeYakuList() {
-    console.log("[LOG] ▶ closeYakuList が呼ばれました");
-    document.getElementById('yaku-modal').style.display = 'none';
-    playSE('click');
-    dumpModalStatus('closeYakuList');
-}
+
 
 // 🎖️ 役の点数（強さ）に応じて、CSSの色分け用クラス名を返す関数
 function getYakuTierClass(yakuName) {
@@ -5731,19 +5683,7 @@ function cancelCpuGame() {
 // ★ 実績（アチーブメント）画面の描画
 // ==========================================
 
-// 🏅 実績（アチーブメント）画面を開き、達成度を描画する関数
-function openAchievements() {
-    closeAllModals();
-    playSE('click');
-    renderAchievements();
-    document.getElementById('achievement-modal').style.display = 'flex';
-}
 
-// 🏅 実績画面を閉じる関数
-function closeAchievements() {
-    playSE('click');
-    document.getElementById('achievement-modal').style.display = 'none';
-}
 
 function switchAchieveTab(evt, tabId) {
     const tabContents = document.getElementsByClassName("achieve-tab-content");
@@ -6283,41 +6223,7 @@ function updateStatsModalUI(targetStats) {
     });
 }
 
-// 👤 マイページ（自分の戦績と名前変更）を開く関数
-function openMyPage() {
-    closeAllModals();
-    document.getElementById('input-player-name').value = playerStats.playerName;
-    updateNameCounter(playerStats.playerName);
 
-    document.getElementById('mypage-edit-mode').style.display = 'flex';
-    document.getElementById('mypage-view-mode').style.display = 'none';
-
-    // 🌟 あなたのデータ(playerStats)を流し込んでグラフを描画
-    updateStatsModalUI(playerStats);
-
-    document.getElementById('mypage-modal').style.display = 'flex';
-    playSE('click');
-}
-
-// 👁️ 卓から各プレイヤーの詳細戦績（閲覧モード）を開く関数
-function openPlayerStats(idx) {
-    closeAllModals();
-    // 🌟 0なら自分のデータ、1〜3ならCPUのデータを取得
-    let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
-    let targetRate = playerRatings[idx];
-
-    document.getElementById('mypage-edit-mode').style.display = 'none';
-    document.getElementById('mypage-view-mode').style.display = 'flex';
-
-    document.getElementById('mypage-view-name').innerText = targetStats.playerName;
-    document.getElementById('mypage-view-rate').innerText = targetRate;
-
-    // 🌟 取得したデータを流し込んでグラフを描画
-    updateStatsModalUI(targetStats);
-
-    document.getElementById('mypage-modal').style.display = 'flex';
-    playSE('click');
-}
 
 // ✏️ 入力中の文字数をリアルタイムで更新する関数
 function updateNameCounter(val) {
@@ -6367,34 +6273,6 @@ function clearNameInput() {
     updateNameCounter('');
 }
 
-// 👤 マイページ画面を閉じる関数
-function closeMyPage() {
-    document.getElementById('mypage-modal').style.display = 'none';
-    playSE('click');
-}
-
-// 🏫 学習メニューモーダルを開く
-function openLearningMenu() {
-    closeAllModals();
-
-    // 🌟 追加：レッスンのクリア状況（済ハンコ）を反映する
-    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
-    for (let i = 1; i <= 4; i++) {
-        let stamp = document.getElementById(`stamp-lesson-${i}`);
-        if (stamp) {
-            stamp.style.display = savedLessons[i] ? 'block' : 'none';
-        }
-    }
-
-    document.getElementById('learning-modal').style.display = 'flex';
-    playSE('click');
-}
-
-// 🏫 学習メニューモーダルを閉じる
-function closeLearningMenu() {
-    document.getElementById('learning-modal').style.display = 'none';
-    playSE('click');
-}
 
 // 🏅 役の点数と回数から熟練度ランクを判定する関数
 function getYakuRankClass(yakuName, count) {
@@ -6720,27 +6598,7 @@ function checkTieredAchievement(id, title, icon, oldVal, newVal, tiers) {
 let currentRoomId = "";
 let lobbyWs = null; // 🌟 WebSocket接続を保存する変数を追加
 
-// 🤝 友人戦モーダルを開く
-function openFriendMatch() {
-    playSE('click');
-    document.getElementById('friend-match-modal').style.display = 'flex';
-    document.getElementById('friend-menu-select').style.display = 'block';
-    document.getElementById('friend-menu-waiting').style.display = 'none';
-    document.getElementById('room-id-input').value = "";
-}
 
-// 🚪 モーダルを閉じる（退室する）
-function closeFriendMatch() {
-    playSE('click');
-    document.getElementById('friend-match-modal').style.display = 'none';
-
-    // 🌟 モーダルを閉じたら、WebSocketも切断して部屋から抜ける
-    if (lobbyWs) {
-        lobbyWs.close();
-        lobbyWs = null;
-    }
-    currentRoomId = "";
-}
 
 // ✨ 新しいルームを作る（とりあえず見た目だけ）
 function createRoom() {
@@ -6883,27 +6741,22 @@ document.addEventListener('DOMContentLoaded', () => {
         playSE('click');
 
         // 🌟 退出ボタンの表示/非表示を切り替える
-        if (exitBtn) {
-            const titleScreen = document.getElementById('title-screen');
-            const modeScreen = document.getElementById('mode-select-screen');
-
-            // タイトル画面とモード選択画面の両方が隠れている（＝対局中 or 設定中）時だけ表示
-            if (titleScreen.style.display === 'none' && modeScreen.style.display === 'none') {
-                exitBtn.style.display = 'block';
-            } else {
-                exitBtn.style.display = 'none';
-            }
+        // タイトル画面とモード選択画面の両方が隠れている（＝対局中 or 設定中）時だけ表示
+        if (el('title-screen').style.display === 'none' && el('mode-select-screen').style.display === 'none') {
+            show('sidebar-exit');
+        } else {
+            hide('sidebar-exit');
         }
 
-        sidebarMenu.classList.add('open');
-        sidebarOverlay.classList.add('show');
+        el('sidebar-menu').classList.add('open');
+        el('sidebar-overlay').classList.add('show');
     }
 
     // メニューを閉じる（🌟修正：ここでは音を鳴らさない！）
     function closeSidebar(playClickSound = false) {
         if (playClickSound) playSE('click');
-        sidebarMenu.classList.remove('open');
-        sidebarOverlay.classList.remove('show');
+        el('sidebar-menu').classList.remove('open');
+        el('sidebar-overlay').classList.remove('show');
     }
 
     // 開閉イベントの登録
@@ -7152,41 +7005,9 @@ window.addEventListener('DOMContentLoaded', () => {
 // ★ オンライン対戦（卓選択）制御
 // ==========================================
 
-// 🌐 オンライン卓選択モーダルを開く
-function openOnlineMatch() {
-    closeAllModals();
-    playSE('click');
 
-    // 現在のレートを取得して表示
-    let rate = playerRatings[0];
-    document.getElementById('online-current-rate').innerText = `R:${rate}`;
 
-    // R1800未満なら上級卓をロック（暗くして押せなくする）
-    const btnAdvanced = document.getElementById('btn-room-advanced');
-    const lockAdvanced = document.getElementById('lock-advanced');
 
-    if (rate >= 1800) {
-        btnAdvanced.style.background = '#8e44ad';
-        btnAdvanced.style.opacity = '1';
-        btnAdvanced.style.cursor = 'pointer';
-        btnAdvanced.disabled = false;
-        lockAdvanced.style.display = 'none';
-    } else {
-        btnAdvanced.style.background = '#2c3e50'; // グレーアウト
-        btnAdvanced.style.opacity = '0.6';
-        btnAdvanced.style.cursor = 'not-allowed';
-        btnAdvanced.disabled = true;
-        lockAdvanced.style.display = 'block';
-    }
-
-    document.getElementById('online-match-modal').style.display = 'flex';
-}
-
-// 🚪 オンライン卓選択モーダルを閉じる
-function closeOnlineMatch() {
-    document.getElementById('online-match-modal').style.display = 'none';
-    playSE('click');
-}
 
 // ⚔️ 選択した卓でオンライン対戦を開始する（※今回はUIテスト用）
 function startOnlineGame(roomType) {
@@ -7201,14 +7022,105 @@ function startOnlineGame(roomType) {
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
 }
 
-// 📈 レートシステムのヘルプモーダルを開閉する関数
-function openRateHelp() {
-    playSE('click');
-    // ※卓選択モーダルはそのままにして、上に重ねて表示する
-    document.getElementById('rate-help-modal').style.display = 'flex';
+// ==========================================
+// 📚 各種モーダル（画面）の開閉制御
+// ==========================================
+
+function openSettings() {
+    openModal('settings-modal');
+    // 対局中（CPU戦）のみ「中断してホームに戻る」ボタンを表示
+    if (el('title-screen').style.display === 'none' && el('mode-select-screen').style.display === 'none' && currentGameMode === 'cpu') {
+        show('btn-settings-quit');
+    } else {
+        hide('btn-settings-quit');
+    }
+}
+function closeSettings() { closeModal('settings-modal'); }
+
+function openHowTo() {
+    openModal('howto-modal');
+    // 対局中はチュートリアル開始ボタンを隠す
+    if (el('title-screen').style.display === 'none' && el('mode-select-screen').style.display === 'none') {
+        hide('btn-start-tutorial');
+    } else {
+        show('btn-start-tutorial');
+    }
+}
+function closeHowTo() { closeModal('howto-modal'); }
+
+function openYakuList() { openModal('yaku-modal'); }
+function closeYakuList() { closeModal('yaku-modal'); }
+
+function openOnlineMatch() {
+    openModal('online-match-modal');
+    el('online-current-rate').innerText = `R:${playerRatings[0]}`;
+
+    // R1800未満なら上級卓をロック
+    const btnAdv = el('btn-room-advanced');
+    const lockAdv = el('lock-advanced');
+    if (playerRatings[0] >= 1800) {
+        btnAdv.style.background = '#8e44ad';
+        btnAdv.style.opacity = '1';
+        btnAdv.style.cursor = 'pointer';
+        btnAdv.disabled = false;
+        hide('lock-advanced');
+    } else {
+        btnAdv.style.background = '#2c3e50';
+        btnAdv.style.opacity = '0.6';
+        btnAdv.style.cursor = 'not-allowed';
+        btnAdv.disabled = true;
+        show('lock-advanced');
+    }
+}
+function closeOnlineMatch() { closeModal('online-match-modal'); }
+
+function openFriendMatch() {
+    openModal('friend-match-modal');
+    show('friend-menu-select');
+    hide('friend-menu-waiting');
+    el('room-id-input').value = "";
+}
+function closeFriendMatch() {
+    closeModal('friend-match-modal');
+    if (lobbyWs) { lobbyWs.close(); lobbyWs = null; }
+    currentRoomId = "";
 }
 
-function closeRateHelp() {
-    playSE('click');
-    document.getElementById('rate-help-modal').style.display = 'none';
+function openMyPage() {
+    openModal('mypage-modal');
+    el('input-player-name').value = playerStats.playerName;
+    updateNameCounter(playerStats.playerName);
+    show('mypage-edit-mode', 'flex');
+    hide('mypage-view-mode');
+    updateStatsModalUI(playerStats);
 }
+function closeMyPage() { closeModal('mypage-modal'); }
+
+function openPlayerStats(idx) {
+    openModal('mypage-modal');
+    let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
+    hide('mypage-edit-mode');
+    show('mypage-view-mode', 'flex');
+    el('mypage-view-name').innerText = targetStats.playerName;
+    el('mypage-view-rate').innerText = playerRatings[idx];
+    updateStatsModalUI(targetStats);
+}
+
+function openAchievements() {
+    renderAchievements();
+    openModal('achievement-modal');
+}
+function closeAchievements() { closeModal('achievement-modal'); }
+
+function openLearningMenu() {
+    openModal('learning-modal');
+    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
+    for (let i = 1; i <= 4; i++) {
+        if (savedLessons[i]) show(`stamp-lesson-${i}`);
+        else hide(`stamp-lesson-${i}`);
+    }
+}
+function closeLearningMenu() { closeModal('learning-modal'); }
+
+function openRateHelp() { show('rate-help-modal', 'flex'); playSE('click'); }
+function closeRateHelp() { hide('rate-help-modal'); playSE('click'); }

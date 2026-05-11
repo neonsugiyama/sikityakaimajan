@@ -3046,9 +3046,11 @@ body.lang-en .en {
 }
 
 .mypage-chart-radar {
-    width: 100%;
-    max-width: 350px;
-    flex-grow: 1;
+    width: 320px;
+    height: 200px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin: 0 auto;
     position: relative;
 }
 
