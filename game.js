@@ -1,20 +1,4 @@
-﻿// ==========================================
-// 🛠️ 汎用DOM操作ヘルパー関数
-// ==========================================
-const el = (id) => document.getElementById(id);
-const show = (id, display = 'block') => { if (el(id)) el(id).style.display = display; };
-const hide = (id) => { if (el(id)) el(id).style.display = 'none'; };
-
-function openModal(modalId) {
-    closeAllModals();
-    show(modalId, 'flex');
-    playSE('click');
-}
-
-function closeModal(modalId) {
-    hide(modalId);
-    playSE('click');
-}
+﻿
 // ==========================================
 
 // ⏱️ 指定秒数待機しつつ、スキップ可能なタイマーUIを表示する関数
@@ -741,17 +725,6 @@ const yakuEnMap = {
 };
 // 🇺🇸 中国語の役名を英語名に翻訳する関数
 function getEnYakuName(zhName) { return yakuEnMap[zhName] || zhName; }
-
-// 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
-function closeAllModals() {
-    console.log("[LOG] ▶ closeAllModals が呼ばれました");
-    // 🌟 online-match-modal と rate-help-modal を追加！
-    const modals = ['settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal', 'achievement-modal', 'friend-match-modal', 'learning-modal', 'online-match-modal', 'rate-help-modal'];
-    modals.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-}
 
 // 📑 役一覧画面のタブ（点数ごとのページ）を切り替える関数
 function switchYakuTab(evt, tabId) {
@@ -4952,106 +4925,3 @@ function startOnlineGame(roomType) {
     // 一旦アラートを出して、今後のマッチング処理の実装に備える
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
 }
-
-// ==========================================
-// 📚 各種モーダル（画面）の開閉制御
-// ==========================================
-
-function openSettings() {
-    openModal('settings-modal');
-    // 対局中（CPU戦）のみ「中断してホームに戻る」ボタンを表示
-    if (el('title-screen').style.display === 'none' && el('mode-select-screen').style.display === 'none' && currentGameMode === 'cpu') {
-        show('btn-settings-quit');
-    } else {
-        hide('btn-settings-quit');
-    }
-}
-function closeSettings() { closeModal('settings-modal'); }
-
-function openHowTo() {
-    openModal('howto-modal');
-    // 対局中はチュートリアル開始ボタンを隠す
-    if (el('title-screen').style.display === 'none' && el('mode-select-screen').style.display === 'none') {
-        hide('btn-start-tutorial');
-    } else {
-        show('btn-start-tutorial');
-    }
-}
-function closeHowTo() { closeModal('howto-modal'); }
-
-function openYakuList() { openModal('yaku-modal'); }
-function closeYakuList() { closeModal('yaku-modal'); }
-
-function openOnlineMatch() {
-    openModal('online-match-modal');
-    el('online-current-rate').innerText = `R:${playerRatings[0]}`;
-
-    // R1800未満なら上級卓をロック
-    const btnAdv = el('btn-room-advanced');
-    const lockAdv = el('lock-advanced');
-    if (playerRatings[0] >= 1800) {
-        btnAdv.style.background = '#8e44ad';
-        btnAdv.style.opacity = '1';
-        btnAdv.style.cursor = 'pointer';
-        btnAdv.disabled = false;
-        hide('lock-advanced');
-    } else {
-        btnAdv.style.background = '#2c3e50';
-        btnAdv.style.opacity = '0.6';
-        btnAdv.style.cursor = 'not-allowed';
-        btnAdv.disabled = true;
-        show('lock-advanced');
-    }
-}
-function closeOnlineMatch() { closeModal('online-match-modal'); }
-
-function openFriendMatch() {
-    openModal('friend-match-modal');
-    show('friend-menu-select');
-    hide('friend-menu-waiting');
-    el('room-id-input').value = "";
-}
-function closeFriendMatch() {
-    closeModal('friend-match-modal');
-    if (lobbyWs) { lobbyWs.close(); lobbyWs = null; }
-    currentRoomId = "";
-}
-
-function openMyPage() {
-    openModal('mypage-modal');
-    el('input-player-name').value = playerStats.playerName;
-    updateNameCounter(playerStats.playerName);
-    show('mypage-edit-mode', 'flex');
-    hide('mypage-view-mode');
-    updateStatsModalUI(playerStats);
-}
-function closeMyPage() { closeModal('mypage-modal'); }
-
-function openPlayerStats(idx) {
-    openModal('mypage-modal');
-    let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
-    hide('mypage-edit-mode');
-    show('mypage-view-mode', 'flex');
-    el('mypage-view-name').innerText = targetStats.playerName;
-    el('mypage-view-rate').innerText = playerRatings[idx];
-    updateStatsModalUI(targetStats);
-}
-
-function openAchievements() {
-    renderAchievements();
-    openModal('achievement-modal');
-}
-function closeAchievements() { closeModal('achievement-modal'); }
-
-function openLearningMenu() {
-    openModal('learning-modal');
-    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
-    for (let i = 1; i <= 4; i++) {
-        if (savedLessons[i]) show(`stamp-lesson-${i}`);
-        else hide(`stamp-lesson-${i}`);
-    }
-}
-function closeLearningMenu() { closeModal('learning-modal'); }
-
-function openRateHelp() { show('rate-help-modal', 'flex'); playSE('click'); }
-function closeRateHelp() { hide('rate-help-modal'); playSE('click'); }

@@ -75,6 +75,10 @@ async def get_stats_js():
 async def get_tutorial_js():
     return FileResponse("tutorial.js")
 
+@app.get("/ui.js")
+async def get_ui_js():
+    return FileResponse("ui.js")
+
 from fastapi.responses import FileResponse
 
 # --- 既存の index.html や game.js を返す処理の近くにこれを追加 ---
