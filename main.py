@@ -67,10 +67,13 @@ async def get_audio_js():
 async def get_api_js():
     return FileResponse("api.js")
 
-
 @app.get("/stats.js")
 async def get_stats_js():
     return FileResponse("stats.js")
+
+@app.get("/tutorial.js")
+async def get_tutorial_js():
+    return FileResponse("tutorial.js")
 
 from fastapi.responses import FileResponse
 
