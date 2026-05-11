@@ -83,6 +83,10 @@ async def get_ui_js():
 async def get_config_js():
     return FileResponse("config.js")
 
+@app.get("/app.js")
+async def get_app_js():
+    return FileResponse("app.js")
+
 from fastapi.responses import FileResponse
 
 # --- 既存の index.html や game.js を返す処理の近くにこれを追加 ---
