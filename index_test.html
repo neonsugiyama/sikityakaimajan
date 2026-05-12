@@ -2,190 +2,183 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>四季茶会麻雀 - 限界突破UIテスト</title>
-    <link rel="stylesheet" href="style_test.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>最大配置テスト (本番環境ベース)</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* 🧪 TEST OVERRIDES：テストの邪魔になる要素だけをピンポイントで隠す */
+        #center-message, #dice-overlay, #charleston-ui, #charleston-confirm-ui,
+        .waits-panel, #ingame-tutorial-nav, #debug-log, #action-hide-area, #stamp-menu,
+        .call-text, #big-yaku-text, .modal-overlay, #title-screen, #mode-select-screen,
+        .pos-stamp-inner {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
+        #timer-display {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+    </style>
 </head>
 <body>
-
     <div id="game-container">
         <div class="table">
 
-            <div class="center-info">
-                <div id="round-info-center">
-                    <span>第 1 局</span>
-                    <button class="btn-mini-icon">🎵</button>
-                </div>
-                <div id="wall-count">山: 60</div>
-                <div id="msg" style="color:#f39c12; font-weight:bold; font-size:18px;">↓打牌↓</div>
+            <div id="center-info" class="center-info">
+                <div id="round-info-center"><span id="round-text">最大配置テスト</span></div>
+                <div id="wall-count">山: 0</div>
+                <div id="msg">干渉チェック中</div>
             </div>
+            <div id="timer-display">⏱ <span id="timer-sec">0</span>s</div>
 
-            <div id="timer-display" style="display: block;">⏱ <span>60</span>s</div>
-
-            <div class="pos-waits-btn">
-                <button id="btn-show-waits" class="btn-waits">待ち牌確認</button>
-            </div>
-            <div class="pos-auto-btn">
-                <button id="btn-auto-play" class="btn-waits" style="background:#7f8c8d; box-shadow: 0 3px #95a5a6;">オート(和了後): OFF</button>
-            </div>
-
-            <div id="action-hide-area" style="display: flex; position: absolute; bottom: 162px; left: 50%; transform: translateX(-50%) translateZ(20px) rotateX(-20deg); width: 220px; height: 45px; background: rgba(0, 0, 0, 0.4); border: 1px dashed #7f8c8d; border-radius: 8px; color: #bdc3c7; justify-content: center; align-items: center; font-size: 14px; z-index: 10000; cursor: pointer; user-select: none;">
-                <span style="pointer-events: none;">ボタンを透過して副露を確認</span>
-            </div>
-
-            <div class="pos-name-0">
-                <div class="player-name">あなた (DummyData)</div>
-                <button id="btn-open-stamp" style="display:block;">😊</button>
-            </div>
-            <div class="pos-score-0"><div class="player-score">持ち点: 25000</div></div>
-
+            <div class="pos-name-0"><div class="player-name active-turn">あなた</div></div>
+            <div class="pos-score-0"><div class="player-score">99900</div></div>
             <div class="pos-name-1"><div class="player-name">CPU 1</div></div>
-            <div class="pos-score-1"><div class="player-score">持ち点: 25000</div></div>
-
+            <div class="pos-score-1"><div class="player-score">25000</div></div>
             <div class="pos-name-2"><div class="player-name">CPU 2</div></div>
-            <div class="pos-score-2"><div class="player-score">持ち点: 25000</div></div>
-
+            <div class="pos-score-2"><div class="player-score">-5000</div></div>
             <div class="pos-name-3"><div class="player-name">CPU 3</div></div>
-            <div class="pos-score-3"><div class="player-score">持ち点: 25000</div></div>
+            <div class="pos-score-3"><div class="player-score">12000</div></div>
+
+            <div id="win-zone-0" class="win-zone win-zone-0" style="display:flex;">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+                <img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png"><img class="tile" src="images/秋.png">
+                <img class="tile" src="images/冬.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png">
+                <img class="tile" src="images/8p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png">
+                <img class="tile" src="images/9s.png"><img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png">
+            </div>
+            <div id="win-zone-1" class="win-zone win-zone-1" style="display:flex;">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+                <img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png"><img class="tile" src="images/秋.png">
+                <img class="tile" src="images/冬.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png">
+                <img class="tile" src="images/8p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png">
+                <img class="tile" src="images/9s.png"><img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png">
+            </div>
+            <div id="win-zone-2" class="win-zone win-zone-2" style="display:flex;">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+                <img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png"><img class="tile" src="images/秋.png">
+                <img class="tile" src="images/冬.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png">
+                <img class="tile" src="images/8p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png">
+                <img class="tile" src="images/9s.png"><img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png">
+            </div>
+            <div id="win-zone-3" class="win-zone win-zone-3" style="display:flex;">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+                <img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png"><img class="tile" src="images/秋.png">
+                <img class="tile" src="images/冬.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png">
+                <img class="tile" src="images/8p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png">
+                <img class="tile" src="images/9s.png"><img class="tile" src="images/東.png"><img class="tile" src="images/南.png"><img class="tile" src="images/西.png"><img class="tile" src="images/北.png"><img class="tile" src="images/白.png"><img class="tile" src="images/發.png"><img class="tile" src="images/中.png"><img class="tile" src="images/春.png"><img class="tile" src="images/夏.png">
+            </div>
 
             <div class="action-wrapper">
-                <div class="action-layer" style="display:flex;">
-                    <button class="btn-act btn-red" style="display:flex;">アガリ！</button>
-                    <button class="btn-act btn-blue" style="display:flex;">ポン</button>
-                    <button class="btn-act btn-green" style="display:flex;">花槓</button>
-                    <button class="btn-act btn-blue" style="display:flex;">大明槓</button>
-                    <button class="btn-act btn-gray" style="display:flex;">スルー</button>
+                <div class="action-layer">
+                    <button class="btn-act btn-red" style="display: flex;">自摸</button>
+                    <button class="btn-act btn-blue" style="display: flex;">碰</button>
+                    <button class="btn-act btn-green" style="display: flex;">花槓</button>
                 </div>
             </div>
 
-            <div id="win-zone-0" class="win-zone win-zone-0"></div>
-            <div id="win-zone-1" class="win-zone win-zone-1"></div>
-            <div id="win-zone-2" class="win-zone win-zone-2"></div>
-            <div id="win-zone-3" class="win-zone win-zone-3"></div>
+            <div id="river-0" class="river river-0">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+            </div>
+            <div id="river-1" class="river river-1">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+            </div>
+            <div id="river-2" class="river river-2">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+            </div>
+            <div id="river-3" class="river river-3">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png">
+                <img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png"><img class="tile" src="images/3s.png"><img class="tile" src="images/4s.png"><img class="tile" src="images/5s.png"><img class="tile" src="images/6s.png"><img class="tile" src="images/7s.png"><img class="tile" src="images/8s.png"><img class="tile" src="images/9s.png">
+            </div>
 
-            <div id="river-0" class="river river-0"></div><div id="river-1" class="river river-1"></div>
-            <div id="river-2" class="river river-2"></div><div id="river-3" class="river river-3"></div>
+            <div id="meld-0" class="meld meld-0">
+                <div class="meld-group"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"></div>
+                <div class="meld-group"><img class="tile" src="images/ura.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/ura.png"></div>
+                <div class="meld-group"><img class="tile" src="images/東.png"><img class="tile" src="images/東.png"><img class="tile" src="images/東.png"><img class="tile" src="images/東.png"></div>
+                <div class="meld-group"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"></div>
+            </div>
+            <div id="meld-1" class="meld meld-1">
+                <div class="meld-group"><img class="tile" src="images/1s.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/1s.png"></div>
+                <div class="meld-group"><img class="tile" src="images/ura.png"><img class="tile" src="images/9s.png"><img class="tile" src="images/9s.png"><img class="tile" src="images/ura.png"></div>
+                <div class="meld-group"><img class="tile" src="images/白.png"><img class="tile" src="images/白.png"><img class="tile" src="images/白.png"><img class="tile" src="images/白.png"></div>
+                <div class="meld-group"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"></div>
+            </div>
+            <div id="meld-2" class="meld meld-2">
+                <div class="meld-group"><img class="tile" src="images/1m.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/1m.png"><img class="tile" src="images/1m.png"></div>
+                <div class="meld-group"><img class="tile" src="images/ura.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/ura.png"></div>
+                <div class="meld-group"><img class="tile" src="images/發.png"><img class="tile" src="images/發.png"><img class="tile" src="images/發.png"><img class="tile" src="images/發.png"></div>
+                <div class="meld-group"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"></div>
+            </div>
+            <div id="meld-3" class="meld meld-3">
+                <div class="meld-group"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/1p.png"></div>
+                <div class="meld-group"><img class="tile" src="images/ura.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/ura.png"></div>
+                <div class="meld-group"><img class="tile" src="images/西.png"><img class="tile" src="images/西.png"><img class="tile" src="images/西.png"><img class="tile" src="images/西.png"></div>
+                <div class="meld-group"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"><img class="tile" src="images/中.png"></div>
+            </div>
 
-            <div id="hand-0" class="hand hand-0"></div><div id="hand-1" class="hand hand-1"></div>
-            <div id="hand-2" class="hand hand-2"></div><div id="hand-3" class="hand hand-3"></div>
+            <div id="hand-0" class="hand hand-0">
+                <img class="tile" src="images/1m.png"><img class="tile" src="images/9m.png"><img class="tile" src="images/1p.png"><img class="tile" src="images/2p.png"><img class="tile" src="images/3p.png"><img class="tile" src="images/4p.png"><img class="tile" src="images/5p.png"><img class="tile" src="images/6p.png"><img class="tile" src="images/7p.png"><img class="tile" src="images/8p.png"><img class="tile" src="images/9p.png"><img class="tile" src="images/1s.png"><img class="tile" src="images/2s.png">
+                <img class="tile" src="images/3s.png" style="position:absolute; left:calc(100% + 15px); top:0;">
+            </div>
 
-            <div id="meld-0" class="meld meld-0"></div><div id="meld-1" class="meld meld-1"></div>
-            <div id="meld-2" class="meld meld-2"></div><div id="meld-3" class="meld meld-3"></div>
+            <div id="hand-1" class="hand hand-1">
+                <img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png">
+                <img class="tile" src="images/ura.png" style="position:absolute; bottom:calc(100% + 10px); left:0;">
+            </div>
+
+            <div id="hand-2" class="hand hand-2">
+                <img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png">
+                <img class="tile" src="images/ura.png" style="position:absolute; right:calc(100% + 15px); top:0;">
+            </div>
+
+            <div id="hand-3" class="hand hand-3">
+                <img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png">
+                <img class="tile" src="images/ura.png" style="position:absolute; top:calc(100% + 10px); left:0;">
+            </div>
+
         </div>
     </div>
 
     <script>
         function resizeGame() {
+            const BASE_WIDTH = 1280;
+            const BASE_HEIGHT = 800;
+            const VISUAL_WIDTH = 1550;
+            const VISUAL_HEIGHT = 900;
+
+            const scaleX = window.innerWidth / VISUAL_WIDTH;
+            const scaleY = window.innerHeight / VISUAL_HEIGHT;
+            const scale = Math.min(scaleX, scaleY);
+
+            document.documentElement.style.setProperty('--game-scale', scale);
+
             const container = document.getElementById('game-container');
-            const scale = Math.min(window.innerWidth / 1300, window.innerHeight / 820);
-            container.style.transform = `scale(${scale})`;
+            if (container) {
+                container.style.width = `${BASE_WIDTH}px`;
+                container.style.height = `${BASE_HEIGHT}px`;
+                container.style.position = "absolute";
+                container.style.left = "50%";
+                container.style.top = "50%";
+                container.style.setProperty('margin', '0', 'important');
+                container.style.transformOrigin = "center center";
+                container.style.transform = `translate(-50%, -55%) scale(${scale})`;
+            }
         }
         window.addEventListener('resize', resizeGame);
         window.addEventListener('DOMContentLoaded', resizeGame);
-
-        function fillTiles(id, count, tileName) {
-            const el = document.getElementById(id);
-            for (let i = 0; i < count; i++) {
-                const img = document.createElement('img');
-                img.className = 'tile';
-                img.src = `images/${tileName}.png`;
-                el.appendChild(img);
-            }
-        }
-
-        // 🌟 修正：全員の手牌に13枚+1枚（ツモ牌の隙間）を適用
-        function fillHandWithGap(id, tileName) {
-            const el = document.getElementById(id);
-
-            // まず13枚を手牌の箱に入れる
-            for (let i = 0; i < 13; i++) {
-                const img = document.createElement('img');
-                img.className = 'tile';
-                img.src = `images/${tileName}.png`;
-                el.appendChild(img);
-            }
-
-            // ツモ牌を作成して、13枚の箱の「外側」に絶対座標で配置する
-            const tsumo = document.createElement('img');
-            tsumo.className = 'tile';
-            if (id === 'hand-0') tsumo.classList.add('selected-discard');
-            tsumo.src = `images/${tileName}.png`;
-            tsumo.style.position = 'absolute'; // 🌟 13枚の幅に干渉させない
-
-            // 各プレイヤーから見て「右側」になるように配置
-            if (id === 'hand-0') {
-                // あなた：画面の右方向が「右」
-                tsumo.style.left = 'calc(100% + 15px)';
-                tsumo.style.top = '0';
-            } else if (id === 'hand-1') {
-                // CPU1(右側)：画面の【上方向】がCPU1にとっての「右」
-                tsumo.style.bottom = 'calc(100% + 15px)';
-                tsumo.style.left = '0';
-            } else if (id === 'hand-2') {
-                // CPU2(対面)：画面の【左方向】がCPU2にとっての「右」
-                tsumo.style.right = 'calc(100% + 15px)';
-                tsumo.style.top = '0';
-            } else if (id === 'hand-3') {
-                // CPU3(左側)：画面の【下方向】がCPU3にとっての「右」
-                tsumo.style.top = 'calc(100% + 15px)';
-                tsumo.style.left = '0';
-            }
-
-            el.appendChild(tsumo);
-        }
-
-        // 手牌の描画（引数をシンプルに直しました！）
-        fillHandWithGap('hand-0', '1p');
-        fillHandWithGap('hand-1', 'ura');
-        fillHandWithGap('hand-2', 'ura');
-        fillHandWithGap('hand-3', 'ura');
-
-        function fillMelds(id, setCount, tileName) {
-            const el = document.getElementById(id);
-            for (let i = 0; i < setCount; i++) {
-                const group = document.createElement('div');
-                group.className = 'meld-group';
-                for (let j = 0; j < 4; j++) {
-                    const img = document.createElement('img');
-                    img.className = 'tile';
-                    img.src = `images/${tileName}.png`;
-                    group.appendChild(img);
-                }
-                el.appendChild(group);
-            }
-        }
-
-        function fillTilesSequence(id, count) {
-            const el = document.getElementById(id);
-            const tileKinds = [
-                '1m', '9m', /* 萬子は1と9のみ */
-                '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
-                '1s', '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s',
-                '東', '南', '西', '北', '白', '發', '中', '春', '夏', '秋', '冬'
-            ];
-
-            for (let i = 0; i < count; i++) {
-                const img = document.createElement('img');
-                img.className = 'tile';
-                img.src = `images/${tileKinds[i % tileKinds.length]}.png`;
-
-                if (id.includes('-0') || id.includes('-1')) {
-                    img.style.zIndex = 1000 + i;
-                }
-                el.appendChild(img);
-            }
-        }
-
-        // 河・鳴き
-        for (let i = 0; i < 4; i++) fillTiles(`river-${i}`, 20, '5s');
-        fillMelds('meld-0', 4, '中');
-        fillMelds('meld-1', 4, '發');
-        fillMelds('meld-2', 4, '白');
-        fillMelds('meld-3', 4, '東');
-        fillTilesSequence('win-zone-0', 60);
-        fillTilesSequence('win-zone-1', 60);
-        fillTilesSequence('win-zone-2', 60);
-        fillTilesSequence('win-zone-3', 60);
     </script>
 </body>
 </html>
