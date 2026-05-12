@@ -201,9 +201,9 @@ function updateHomeStats() {
 }
 
 function updateStatsModalUI(targetStats) {
-    console.log("[DEBUG] 📊 updateStatsModalUI 開始 (高画質・安定化版)");
+    console.log("[DEBUG] 📊 updateStatsModalUI 開始 (絶対アニメーション発動版)");
 
-    // --- 指標計算などはそのまま ---
+    // --- 指標計算 ---
     let totalG = targetStats.totalGamesPlayed || 0;
     let totalR = targetStats.totalRoundsPlayed || 1;
     let totalW = targetStats.totalWins || 0;
@@ -220,71 +220,74 @@ function updateStatsModalUI(targetStats) {
     document.getElementById('stat-top-rate').innerText = topRate + "%";
     document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
 
-    // 🌟 画質を落とさず、かつ巨大化を防ぐためのコンテナ初期化
-    const createCleanCanvas = (containerId, canvasId) => {
-        const container = document.getElementById(containerId);
-        if (!container) return null;
-        
-        // 描画中は隠す（巨大化の過程を見せない）
-        container.style.visibility = 'hidden'; 
-        container.style.opacity = '0';
-        
-        // Canvasのサイズが勝手に暴れないようCSSでガッチリ固定
-        container.innerHTML = `<canvas id="${canvasId}" style="width:100% !important; height:100% !important; display:block;"></canvas>`;
-        return document.getElementById(canvasId);
-    };
+    // ========================================================
+    // 1. レーダーチャート（ゼロから実数値へアニメーションさせる）
+    // ========================================================
+    let radarContainer = document.getElementById('mypage-radar-wrapper');
+    if (radarContainer) {
+        // DOMを綺麗に初期化（余計な非表示処理を排除）
+        radarContainer.innerHTML = `<canvas id="mypage-radar-chart" style="width:100%; height:100%; display:block;"></canvas>`;
+        let canvasRadar = document.getElementById('mypage-radar-chart');
 
-    // 1. レーダーチャート
-    const canvasRadar = createCleanCanvas('mypage-radar-wrapper', 'mypage-radar-chart');
-    if (canvasRadar) {
-        if (radarChart) radarChart.destroy();
-        
+        if (typeof radarChart !== 'undefined' && radarChart) radarChart.destroy();
+
         let chartAvgWins = Math.min(Math.sqrt(avgWins / 60) * 100, 100);
         let chartAvgScore = Math.min(Math.sqrt(avgWinScore / 2000) * 100, 100);
         let chartMuhana = Math.min((muhanaRate / 80) * 100, 100);
         let chartLuckRate = Math.min((luckRate / 15) * 100, 100);
 
+        // ① 初期データは「すべて0」で作る（画面表示時のスキップバグを無効化）
         radarChart = new Chart(canvasRadar.getContext('2d'), {
             type: 'radar',
             data: {
                 labels: ['トップ率', '1局平均和了', '1局平均スコア', '無花果率', '天運'],
-                datasets: [{ data: [topRate, chartAvgWins, chartAvgScore, chartMuhana, chartLuckRate], backgroundColor: 'rgba(52, 152, 219, 0.4)', borderColor: '#3498db', pointBackgroundColor: '#f1c40f', borderWidth: 2 }]
+                datasets: [{
+                    data: [0, 0, 0, 0, 0], // 🌟 最初はゼロ
+                    backgroundColor: 'rgba(52, 152, 219, 0.4)', borderColor: '#3498db', pointBackgroundColor: '#f1c40f', borderWidth: 2
+                }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,
-                // 🌟 画質改善：デバイスピクセル比を自動（最高画質）に戻す
+                animation: { duration: 1200, easing: 'easeOutQuart' },
                 devicePixelRatio: window.devicePixelRatio || 1,
                 scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: '#555' }, pointLabels: { color: '#ecf0f1', font: { size: 14, weight: 'bold' } } } },
                 plugins: { legend: { display: false } }
             }
         });
+
+        // ② モーダルが完全に開いた後（100ms後）に実数値を流し込んで更新する！
+        setTimeout(() => {
+            if (radarChart) {
+                radarChart.data.datasets[0].data = [topRate, chartAvgWins, chartAvgScore, chartMuhana, chartLuckRate];
+                radarChart.update();
+            }
+        }, 100);
     }
 
-    // 2. 円グラフ
-    const canvasPie = createCleanCanvas('mypage-pie-wrapper', 'mypage-rank-pie-chart');
-    if (canvasPie) {
+    // ========================================================
+    // 2. 円グラフ（0度から360度へアニメーションさせる）
+    // ========================================================
+    let pieWrapper = document.getElementById('mypage-pie-wrapper');
+    if (pieWrapper) {
+        // 🌟 レイアウト崩れを永久に防ぐ、強固なHTML構造で上書き
+        pieWrapper.style.display = 'flex';
+        pieWrapper.style.flexDirection = 'row';
+        pieWrapper.style.alignItems = 'center';
+        pieWrapper.style.justifyContent = 'center';
+        pieWrapper.style.gap = '20px';
+        pieWrapper.innerHTML = `
+            <div style="width: 180px; height: 180px; flex-shrink: 0; position: relative;">
+                <canvas id="mypage-rank-pie-chart" style="width:100%; height:100%; display:block;"></canvas>
+            </div>
+            <div id="mypage-pie-legend" style="display: flex; flex-direction: column; justify-content: center; gap: 10px; font-size: 14px; color: #fff; min-width: 120px;"></div>
+        `;
+
         if (typeof pieChart !== 'undefined' && pieChart) pieChart.destroy();
         let isZeroData = totalG === 0;
+        let canvasPie = document.getElementById('mypage-rank-pie-chart');
 
-        let wrapper = document.getElementById('mypage-pie-wrapper');
-        if (wrapper) {
-            // 🌟 修正：左右に並べるために 'row' (横並び) に設定
-            wrapper.style.display = 'flex';
-            wrapper.style.flexDirection = 'row';
-            wrapper.style.alignItems = 'center';
-            wrapper.style.justifyContent = 'center'; // 中央に寄せる
-            wrapper.style.gap = '20px'; // グラフと凡例の間の溝
-            wrapper.style.height = '100%';
-            wrapper.style.padding = '0 10px';
-
-            // 🌟 グラフのサイズを半分強に制限して、右側のスペースを確保
-            canvasPie.style.width = '55%';
-            canvasPie.style.maxWidth = '180px';
-            canvasPie.style.height = 'auto';
-        }
-
+        // ① 初期設定で circumference: 0 (角度0＝見えない状態) にしておく
         pieChart = new Chart(canvasPie.getContext('2d'), {
             type: 'doughnut',
             data: {
@@ -297,67 +300,47 @@ function updateStatsModalUI(targetStats) {
                 }]
             },
             options: {
+                circumference: 0, // 🌟 最初は0度（見えない）
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,
+                animation: { duration: 1200, easing: 'easeOutQuart' },
                 devicePixelRatio: window.devicePixelRatio || 1,
-                layout: { padding: 0 }, // 枠一杯までグラフを広げる
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: !isZeroData }
-                }
+                layout: { padding: 0 },
+                plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
             }
         });
 
-        if (wrapper) {
-            let oldLegend = document.getElementById('mypage-pie-legend');
-            if (oldLegend) oldLegend.remove();
-
-            let legendDiv = document.createElement('div');
-            legendDiv.id = 'mypage-pie-legend';
-            legendDiv.style.display = 'flex';
-            // 🌟 修正：凡例を右側で「縦に並べる」
-            legendDiv.style.flexDirection = 'column';
-            legendDiv.style.justifyContent = 'center';
-            legendDiv.style.gap = '10px';
-            legendDiv.style.fontSize = '14px';
-            legendDiv.style.color = '#fff';
-            legendDiv.style.minWidth = '120px'; // 文字が潰れないよう幅を確保
-
-            if (isZeroData) {
-                legendDiv.innerHTML = `<span style="color: #aaa;">データなし</span>`;
-            } else {
-                const colors = ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'];
-                const labels = ['1位', '2位', '3位', '4位'];
-                let html = '';
-                for (let i = 0; i < 4; i++) {
-                    const count = targetStats.rankCounts[i];
-                    const percentage = totalG > 0 ? ((count / totalG) * 100).toFixed(1) : 0;
-
-                    html += `
-                    <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
-                        <div style="width:12px; height:12px; background-color:${colors[i]}; border-radius:2px; flex-shrink:0;"></div>
-                        <div style="display:flex; flex-direction:column; line-height:1.2;">
-                            <span style="font-weight:bold;">${labels[i]} ${percentage}%</span>
-                            <span style="font-size:11px; color:#aaa;">(${count}回)</span>
-                        </div>
-                    </div>
-                `;
-                }
-                legendDiv.innerHTML = html;
+        // ② モーダルが開いた後（100ms後）に360度へ展開するよう指示を出す！
+        setTimeout(() => {
+            if (pieChart) {
+                pieChart.options.circumference = 360;
+                pieChart.update();
             }
-            wrapper.appendChild(legendDiv);
+        }, 100);
+
+        // 凡例の生成
+        let legendDiv = document.getElementById('mypage-pie-legend');
+        if (isZeroData) {
+            legendDiv.innerHTML = `<span style="color: #aaa;">データなし</span>`;
+        } else {
+            const colors = ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'];
+            const labels = ['1位', '2位', '3位', '4位'];
+            let html = '';
+            for (let i = 0; i < 4; i++) {
+                const count = targetStats.rankCounts[i];
+                const percentage = totalG > 0 ? ((count / totalG) * 100).toFixed(1) : 0;
+                html += `
+                <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+                    <div style="width:12px; height:12px; background-color:${colors[i]}; border-radius:2px; flex-shrink:0;"></div>
+                    <div style="display:flex; flex-direction:column; line-height:1.2;">
+                        <span style="font-weight:bold;">${labels[i]} ${percentage}%</span>
+                        <span style="font-size:11px; color:#aaa;">(${count}回)</span>
+                    </div>
+                </div>`;
+            }
+            legendDiv.innerHTML = html;
         }
     }
-
-    // 🌟 パッと表示（待ち時間を最短にして違和感を消す）
-    setTimeout(() => {
-        const rw = document.getElementById('mypage-radar-wrapper');
-        const pw = document.getElementById('mypage-pie-wrapper');
-        if (rw) { rw.style.visibility = 'visible'; rw.style.opacity = '1'; }
-        if (pw) { pw.style.visibility = 'visible'; pw.style.opacity = '1'; }
-    }, 60);
-
     console.log("[DEBUG] 🏁 updateStatsModalUI 終了");
 }
 
