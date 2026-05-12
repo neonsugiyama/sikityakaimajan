@@ -265,136 +265,89 @@ function updateStatsModalUI(targetStats) {
     // 2. 円グラフ
     const canvasPie = createCleanCanvas('mypage-pie-wrapper', 'mypage-rank-pie-chart');
     if (canvasPie) {
-        if (pieChart) pieChart.destroy();
+        if (typeof pieChart !== 'undefined' && pieChart) pieChart.destroy();
         let isZeroData = totalG === 0;
 
-        // 🌟 修正：スマートな引き出し線と、左右の空間を活用したラベル整列プラグイン
-        const customOutLabelPlugin = {
-            id: 'customOutLabels',
-            afterDraw: (chart) => {
-                const ctx = chart.ctx;
-                const { height } = chart;
-                const data = chart.data.datasets[0].data;
-                const meta = chart.getDatasetMeta(0);
-                const total = data.reduce((a, b) => a + b, 0);
-                if (total === 0 || chart.data.labels[0] === '未プレイ') return;
+        let wrapper = document.getElementById('mypage-pie-wrapper');
+        if (wrapper) {
+            // 🌟 修正：左右に並べるために 'row' (横並び) に設定
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'row';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.justifyContent = 'center'; // 中央に寄せる
+            wrapper.style.gap = '20px'; // グラフと凡例の間の溝
+            wrapper.style.height = '100%';
+            wrapper.style.padding = '0 10px';
 
-                let leftLabels = [];
-                let rightLabels = [];
-
-                // 1. ラベルの初期位置を決定して左右に振り分ける
-                meta.data.forEach((arc, index) => {
-                    const value = data[index];
-                    if (value === 0) return;
-                    const percentage = ((value / total) * 100).toFixed(1) + '%';
-                    const labelText = chart.data.labels[index];
-                    const displayText = `${labelText}: ${percentage}`;
-
-                    const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-                    const r = arc.outerRadius;
-                    const x = arc.x;
-                    const y = arc.y;
-
-                    // 円周上のスタート地点
-                    const startX = x + Math.cos(midAngle) * r;
-                    const startY = y + Math.sin(midAngle) * r;
-
-                    // グラフから少し外に出た地点（線がグラフに被らないための折れ曲がりポイント）
-                    const breakExt = 8;
-                    const breakX = x + Math.cos(midAngle) * (r + breakExt);
-                    const breakY = y + Math.sin(midAngle) * (r + breakExt);
-
-                    const isRight = Math.cos(midAngle) >= 0;
-
-                    // 🌟 左右のデッドスペースを有効活用するため、ラベルのX座標を縦一列に揃える
-                    const labelX = isRight ? x + r + 25 : x - r - 25;
-
-                    // Y座標の初期値（最初は円の角度に合わせる）
-                    const targetY = y + Math.sin(midAngle) * (r + 15);
-
-                    const labelObj = {
-                        index, displayText, startX, startY, breakX, breakY, labelX, targetY, isRight,
-                        color: chart.data.datasets[0].backgroundColor[index]
-                    };
-
-                    if (isRight) rightLabels.push(labelObj);
-                    else leftLabels.push(labelObj);
-                });
-
-                // 2. 縦一列の中で、ラベル同士が重ならないようにY座標をスマートに調整
-                const resolveOverlaps = (labels) => {
-                    if (labels.length === 0) return;
-                    labels.sort((a, b) => a.targetY - b.targetY);
-                    const minGap = 24; // 最低限空ける間隔
-
-                    // 上から下へ重なりを解消
-                    for (let i = 1; i < labels.length; i++) {
-                        if (labels[i].targetY < labels[i - 1].targetY + minGap) {
-                            labels[i].targetY = labels[i - 1].targetY + minGap;
-                        }
-                    }
-
-                    // 枠からはみ出ないように全体を上下にシフト
-                    const maxY = height - 15;
-                    if (labels[labels.length - 1].targetY > maxY) {
-                        let diff = labels[labels.length - 1].targetY - maxY;
-                        for (let i = 0; i < labels.length; i++) labels[i].targetY -= diff;
-                    }
-
-                    const minY = 15;
-                    if (labels[0].targetY < minY) {
-                        let diff = minY - labels[0].targetY;
-                        for (let i = 0; i < labels.length; i++) labels[i].targetY += diff;
-                    }
-                };
-
-                resolveOverlaps(leftLabels);
-                resolveOverlaps(rightLabels);
-
-                // 3. 調整された安全な座標を使って、絶対に被らない折れ線を描画
-                const drawLabels = (labels) => {
-                    labels.forEach(l => {
-                        const preEndX = l.isRight ? l.labelX - 10 : l.labelX + 10;
-
-                        ctx.beginPath();
-                        ctx.moveTo(l.startX, l.startY);        // 円周から
-                        ctx.lineTo(l.breakX, l.breakY);        // グラフ外へ直進
-                        ctx.lineTo(preEndX, l.targetY);        // 目的の高さへ斜め移動
-                        ctx.lineTo(l.labelX, l.targetY);       // 水平に線を引く
-                        ctx.strokeStyle = l.color;
-                        ctx.lineWidth = 1.5;
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 12px sans-serif';
-                        ctx.textAlign = l.isRight ? 'left' : 'right';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(l.displayText, l.isRight ? l.labelX + 4 : l.labelX - 4, l.targetY);
-                    });
-                };
-
-                drawLabels(leftLabels);
-                drawLabels(rightLabels);
-            }
-        };
+            // 🌟 グラフのサイズを半分強に制限して、右側のスペースを確保
+            canvasPie.style.width = '55%';
+            canvasPie.style.maxWidth = '180px';
+            canvasPie.style.height = 'auto';
+        }
 
         pieChart = new Chart(canvasPie.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: isZeroData ? ['未プレイ'] : ['1位', '2位', '3位', '4位'],
-                datasets: [{ data: isZeroData ? [1] : targetStats.rankCounts, backgroundColor: isZeroData ? ['#333333'] : ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'], borderColor: '#2c3e50', borderWidth: 2 }]
+                datasets: [{
+                    data: isZeroData ? [1] : targetStats.rankCounts,
+                    backgroundColor: isZeroData ? ['#333333'] : ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'],
+                    borderColor: '#2c3e50',
+                    borderWidth: 2
+                }]
             },
-            plugins: [customOutLabelPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
                 devicePixelRatio: window.devicePixelRatio || 1,
-                // 🌟 修正：左右にラベルを並べるため、左右の余白(padding)をさらに大きく確保
-                layout: { padding: { left: 80, right: 80, top: 15, bottom: 15 } },
-                plugins: { legend: { display: false }, tooltip: { enabled: !isZeroData } }
+                layout: { padding: 0 }, // 枠一杯までグラフを広げる
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: !isZeroData }
+                }
             }
         });
+
+        if (wrapper) {
+            let oldLegend = document.getElementById('mypage-pie-legend');
+            if (oldLegend) oldLegend.remove();
+
+            let legendDiv = document.createElement('div');
+            legendDiv.id = 'mypage-pie-legend';
+            legendDiv.style.display = 'flex';
+            // 🌟 修正：凡例を右側で「縦に並べる」
+            legendDiv.style.flexDirection = 'column';
+            legendDiv.style.justifyContent = 'center';
+            legendDiv.style.gap = '10px';
+            legendDiv.style.fontSize = '14px';
+            legendDiv.style.color = '#fff';
+            legendDiv.style.minWidth = '120px'; // 文字が潰れないよう幅を確保
+
+            if (isZeroData) {
+                legendDiv.innerHTML = `<span style="color: #aaa;">データなし</span>`;
+            } else {
+                const colors = ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'];
+                const labels = ['1位', '2位', '3位', '4位'];
+                let html = '';
+                for (let i = 0; i < 4; i++) {
+                    const count = targetStats.rankCounts[i];
+                    const percentage = totalG > 0 ? ((count / totalG) * 100).toFixed(1) : 0;
+
+                    html += `
+                    <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+                        <div style="width:12px; height:12px; background-color:${colors[i]}; border-radius:2px; flex-shrink:0;"></div>
+                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                            <span style="font-weight:bold;">${labels[i]} ${percentage}%</span>
+                            <span style="font-size:11px; color:#aaa;">(${count}回)</span>
+                        </div>
+                    </div>
+                `;
+                }
+                legendDiv.innerHTML = html;
+            }
+            wrapper.appendChild(legendDiv);
+        }
     }
 
     // 🌟 パッと表示（待ち時間を最短にして違和感を消す）
