@@ -1514,11 +1514,11 @@ async function checkT() {
     console.log(`[処理順確認] ターン判定開始 -> 現在のターン: ${turn === 0 ? "あなた" : "CPU " + turn}, 山札残り: ${wallCount}枚, 自分の手牌相当: ${totalVirtualTiles}枚`);
 
     for (let i = 0; i < 4; i++) {
-        const nameEl = document.getElementById(`player-name-${i}`);
-        if (nameEl) nameEl.classList.remove('active-turn');
+        const scoreEl = document.getElementById(`player-score-${i}`);
+        if (scoreEl) scoreEl.classList.remove('active-turn');
     }
-    const activeNameEl = document.getElementById(`player-name-${turn}`);
-    if (activeNameEl) activeNameEl.classList.add('active-turn');
+    const activescoreEl = document.getElementById(`player-score-${turn}`);
+    if (activescoreEl) activescoreEl.classList.add('active-turn');
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     resetActionBtnPool();
