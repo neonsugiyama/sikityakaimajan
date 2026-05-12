@@ -473,14 +473,40 @@ async function showModeSelect() {
                         if (typeof render === 'function') render();
                         if (typeof renderCPU === 'function') renderCPU();
 
-                        let hasDiscards = false;
+                        // ▼▼▼ ここから修正 ▼▼▼
+                        // 🌟 修正：河の牌だけでなく、山札の減りや副露・和了の状態も含めて「対局が進行しているか」を判定する
+                        let isGameStarted = false;
+
+                        // 1. 河に牌があるか
                         if (stateData.discards) {
                             for (let i = 0; i < 4; i++) {
-                                if (stateData.discards[i].length > 0) hasDiscards = true;
+                                if (stateData.discards[i].length > 0) isGameStarted = true;
                             }
                         }
+                        // 2. 誰かがすでに副露（鳴き）しているか
+                        if (stateData.all_melds) {
+                            for (let i = 0; i < 4; i++) {
+                                if (stateData.all_melds[i] && stateData.all_melds[i].length > 0) isGameStarted = true;
+                            }
+                        }
+                        // 3. 誰かがすでに和了（アガリ）しているか
+                        if (stateData.all_win_tiles) {
+                            for (let i = 0; i < 4; i++) {
+                                if (stateData.all_win_tiles[i] && stateData.all_win_tiles[i].length > 0) isGameStarted = true;
+                            }
+                        }
+                        // 4. 山札が初期値(60)より減っているか（ゲームが動いた証拠）
+                        if (stateData.wall_count !== undefined && stateData.wall_count < 60) {
+                            isGameStarted = true;
+                        }
+                        // 5. サーバーからのチャールストン完了フラグ
+                        if (typeof charlestonDoneServer !== 'undefined' && charlestonDoneServer &&
+                            typeof secondCharlestonDoneServer !== 'undefined' && secondCharlestonDoneServer) {
+                            isGameStarted = true;
+                        }
 
-                        if (hasDiscards || (typeof charlestonDoneServer !== 'undefined' && charlestonDoneServer && typeof secondCharlestonDoneServer !== 'undefined' && secondCharlestonDoneServer)) {
+                        // 判定結果を使って分岐
+                        if (isGameStarted) {
                             if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
                             document.getElementById('charleston-ui').style.display = "none";
 
