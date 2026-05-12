@@ -293,7 +293,7 @@ function resizeGame() {
     const BASE_WIDTH = 1280;   // CSSのwidthと完全に一致させる
     const BASE_HEIGHT = 800;   // CSSのheightと完全に一致させる
     const VISUAL_WIDTH = 1500; // 1400 -> 1700 に拡大（左右の見切れを絶対に許さない）
-    const VISUAL_HEIGHT = 800; // 950 -> 1050 に拡大（上下のゆとり確保）
+    const VISUAL_HEIGHT = 820; // 950 -> 1050 に拡大（上下のゆとり確保）
 
     const scaleX = window.innerWidth / VISUAL_WIDTH;
     const scaleY = window.innerHeight / VISUAL_HEIGHT;
