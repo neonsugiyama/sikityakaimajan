@@ -1354,12 +1354,6 @@ function render() {
         myHand.sort((a, b) => SM[a] - SM[b]);
         const c = document.getElementById('hand-0'); c.innerHTML = "";
 
-        // 交換フェーズ中でない時だけ、メッセージを空にする（通常時への復帰）
-        if (!charlestonPhase) {
-            document.getElementById('msg').innerText = "";
-            document.getElementById('msg').className = "";
-        }
-
         let displayHand = [...myHand];
         let dTile = "";
         if (turn === 0 && drawnTile !== "" && displayHand.includes(drawnTile)) {
@@ -2572,6 +2566,12 @@ function skipAction() {
 async function handleRoundEnd(isReplayingResult = false) {
     try {
         stopTimer();
+
+        // 🌟 追加：リザルト表示に入る前に、全員の持ち点枠の光（active-turn）を完全に消去する
+        for (let i = 0; i < 4; i++) {
+            const scoreEl = document.getElementById(`player-score-${i}`);
+            if (scoreEl) scoreEl.classList.remove('active-turn');
+        }
 
         // 🌟 修正：万が一以前の時間が残っていた場合のバグを防ぐため、再開時以外は現在時刻で強制上書き
         let startTime = sessionStorage.getItem(`result_phase_start_${currentSessionRoomId}`);
