@@ -289,34 +289,38 @@ function getYakuTierClass(yakuName) {
 }
 
 function resizeGame() {
-    // 🌟 1. 基準となる「ゲームの設計解像度」
-    const BASE_WIDTH = 1400;
-    const BASE_HEIGHT = 820;
+    // 🌟 1. 卓の「ベースサイズ（箱の大きさ）」と「視覚的な広さ（余白込み）」を定義
+    const BASE_WIDTH = 1280;   // CSSのwidthと完全に一致させる
+    const BASE_HEIGHT = 800;   // CSSのheightと完全に一致させる
+    const VISUAL_WIDTH = 1500; // 1400 -> 1700 に拡大（左右の見切れを絶対に許さない）
+    const VISUAL_HEIGHT = 800; // 950 -> 1050 に拡大（上下のゆとり確保）
 
-    const scaleX = window.innerWidth / BASE_WIDTH;
-    const scaleY = window.innerHeight / BASE_HEIGHT;
-    const scale = Math.min(scaleX, scaleY) * 0.98; // 2%の安全マージン
+    const scaleX = window.innerWidth / VISUAL_WIDTH;
+    const scaleY = window.innerHeight / VISUAL_HEIGHT;
+    const scale = Math.min(scaleX, scaleY);
 
     document.documentElement.style.setProperty('--game-scale', scale);
 
-    // 🌟 2. ゲームコンテナ本体（画面の中央に完全固定する）
+    // 🌟 2. ゲームコンテナ本体（ついに完成する完璧な中央固定ロジック）
     const container = document.getElementById('game-container');
     if (container) {
         container.style.width = `${BASE_WIDTH}px`;
         container.style.height = `${BASE_HEIGHT}px`;
+
         container.style.position = "absolute";
         container.style.left = "50%";
-        container.style.top = "50%";
+        container.style.top = "40%";
 
-        // 🌟 追加：CSS側の古いマイナス余白設定を強制的に打ち消す！
-        container.style.margin = "0";
+        container.style.setProperty('margin', '0', 'important');
 
         container.style.transformOrigin = "center center";
+
         container.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
         container.classList.add('ready');
     }
 
-    // 🌟 3. タイトルとモード選択（これらは従来通り絶対配置で画面中央に浮かせる）
+    // 🌟 3. タイトルとモード選択
     const screens = ['.title-content', '#mode-select-container'];
     screens.forEach(selector => {
         const el = document.querySelector(selector);
@@ -324,6 +328,7 @@ function resizeGame() {
             el.style.position = "absolute";
             el.style.left = "50%";
             el.style.top = "50%";
+            el.style.setProperty('margin', '0', 'important');
             el.style.transformOrigin = "center center";
             el.style.transform = `translate(-50%, -50%) scale(${scale})`;
             el.classList.add('ready');
@@ -342,6 +347,7 @@ function resizeGame() {
             el.style.setProperty('position', 'absolute', 'important');
             el.style.setProperty('left', '50%', 'important');
             el.style.setProperty('top', '50%', 'important');
+            el.style.setProperty('margin', '0', 'important');
             el.style.setProperty('transform-origin', 'center center', 'important');
             el.style.setProperty('transform', `translate(-50%, -50%) scale(${scale * 0.95})`, 'important');
         });
@@ -353,6 +359,7 @@ function resizeGame() {
         resultWrapper.style.position = "absolute";
         resultWrapper.style.left = "50%";
         resultWrapper.style.top = "50%";
+        resultWrapper.style.setProperty('margin', '0', 'important');
         resultWrapper.style.transformOrigin = "center center";
         resultWrapper.style.transform = `translate(-50%, -50%) scale(${scale * 0.85})`;
     }

@@ -430,7 +430,7 @@ html, body {
 
 .pos-score-0 {
     position: absolute;
-    bottom: 338px;
+    bottom: calc(50% - 100px);
     left: 50%;
     transform: translateX(-50%) translateZ(20px) !important;
     z-index: 40;
@@ -446,7 +446,7 @@ html, body {
 
 .pos-score-2 {
     position: absolute;
-    top: 338px;
+    top: calc(50% - 100px);
     left: 50%;
     transform: translateX(-50%) translateZ(20px) !important;
     z-index: 40;
@@ -3977,9 +3977,6 @@ body.lang-en .en {
    11. 📱 RESPONSIVE (スマホ対応)
 ===================================================================== */
 @media screen and (max-width: 1000px), screen and (max-height: 600px) {
-    #game-container {
-        margin-top: -420px !important;
-    }
 
     .modal-content, #settings-screen > div {
         width: 950px !important;
