@@ -8,19 +8,16 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
-        /* 🧪 TEST OVERRIDES：テストの邪魔になる要素だけをピンポイントで隠す */
-        #center-message, #dice-overlay, #charleston-ui, #charleston-confirm-ui,
-        .waits-panel, #ingame-tutorial-nav, #debug-log, #action-hide-area, #stamp-menu,
-        .call-text, #big-yaku-text, .modal-overlay, #title-screen, #mode-select-screen,
-        .pos-stamp-inner {
+        /* 🧪 テスト専用：邪魔なUIを隠し、調整したいボタン類を強制表示 */
+        #title-screen, #mode-select-screen, .modal-overlay, #charleston-ui, 
+        #charleston-confirm-ui, .waits-panel, #ingame-tutorial-nav, 
+        #debug-log, #stamp-menu, .call-text, #big-yaku-text {
             display: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
         }
 
-        #timer-display {
-            display: block !important;
+        /* 調整対象のボタン類を強制的に見えるようにする */
+        .pos-waits-btn, .pos-auto-btn, #action-hide-area, #timer-display {
+            display: flex !important;
             opacity: 1 !important;
             visibility: visible !important;
         }
@@ -37,13 +34,23 @@
             </div>
             <div id="timer-display">⏱ <span id="timer-sec">0</span>s</div>
 
-            <div class="pos-name-0"><div class="player-name active-turn">あなた</div></div>
+            <div class="pos-waits-btn">
+                <button class="btn-waits">待ち牌確認</button>
+            </div>
+            <div class="pos-auto-btn">
+                <button class="btn-waits">オート(和了後): ON</button>
+            </div>
+            <div id="action-hide-area">
+                <span>ボタンを透過して副露を確認</span>
+            </div>
+
+            <div class="pos-name-0"><div class="player-name active-turn">ああああああああああ</div></div>
             <div class="pos-score-0"><div class="player-score">99900</div></div>
-            <div class="pos-name-1"><div class="player-name">CPU 1</div></div>
+            <div class="pos-name-1"><div class="player-name">ああああああああああ</div></div>
             <div class="pos-score-1"><div class="player-score">25000</div></div>
-            <div class="pos-name-2"><div class="player-name">CPU 2</div></div>
+            <div class="pos-name-2"><div class="player-name">ああああああああああ</div></div>
             <div class="pos-score-2"><div class="player-score">-5000</div></div>
-            <div class="pos-name-3"><div class="player-name">CPU 3</div></div>
+            <div class="pos-name-3"><div class="player-name">ああああああああああ</div></div>
             <div class="pos-score-3"><div class="player-score">12000</div></div>
 
             <div id="win-zone-0" class="win-zone win-zone-0" style="display:flex;">
@@ -154,9 +161,9 @@
 
     <script>
         function resizeGame() {
-            const BASE_WIDTH = 1280;
-            const BASE_HEIGHT = 800;
-            const VISUAL_WIDTH = 1550;
+            const BASE_WIDTH = 1520;
+            const BASE_HEIGHT = 1080;
+            const VISUAL_WIDTH = 1620;
             const VISUAL_HEIGHT = 900;
 
             const scaleX = window.innerWidth / VISUAL_WIDTH;
@@ -171,10 +178,10 @@
                 container.style.height = `${BASE_HEIGHT}px`;
                 container.style.position = "absolute";
                 container.style.left = "50%";
-                container.style.top = "50%";
+                container.style.top = "43%";
                 container.style.setProperty('margin', '0', 'important');
                 container.style.transformOrigin = "center center";
-                container.style.transform = `translate(-50%, -55%) scale(${scale})`;
+                container.style.transform = `translate(-50%, -50%) scale(${scale})`;
             }
         }
         window.addEventListener('resize', resizeGame);

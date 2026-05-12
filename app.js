@@ -290,10 +290,10 @@ function getYakuTierClass(yakuName) {
 
 function resizeGame() {
     // 🌟 1. 卓の「ベースサイズ（箱の大きさ）」と「視覚的な広さ（余白込み）」を定義
-    const BASE_WIDTH = 1280;   // CSSのwidthと完全に一致させる
-    const BASE_HEIGHT = 800;   // CSSのheightと完全に一致させる
-    const VISUAL_WIDTH = 1500; // 1400 -> 1700 に拡大（左右の見切れを絶対に許さない）
-    const VISUAL_HEIGHT = 820; // 950 -> 1050 に拡大（上下のゆとり確保）
+    const BASE_WIDTH = 1520;
+    const BASE_HEIGHT = 1080;
+    const VISUAL_WIDTH = 1620;
+    const VISUAL_HEIGHT = 900;
 
     const scaleX = window.innerWidth / VISUAL_WIDTH;
     const scaleY = window.innerHeight / VISUAL_HEIGHT;
@@ -309,7 +309,7 @@ function resizeGame() {
 
         container.style.position = "absolute";
         container.style.left = "50%";
-        container.style.top = "40%";
+        container.style.top = "43%";
 
         container.style.setProperty('margin', '0', 'important');
 

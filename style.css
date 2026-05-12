@@ -36,8 +36,8 @@ html, body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 1280px;
-    height: 800px;
+    width: 1520px;
+    height: 1080px;
     transform-origin: center center;
 }
 
@@ -46,15 +46,15 @@ html, body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 110%;
+    height: 100%;
     background: radial-gradient(circle at center, #1a5e3a 0%, #0d3b22 100%);
-    border-top: 10px solid #2a2a2a;
-    border-bottom: 15px solid #111;
-    border-left: 15px solid #1a1a1a;
-    border-right: 15px solid #1a1a1a;
+    border-top: 60px solid #2a2a2a;
+    border-bottom: 80px solid #111;
+    border-left: 80px solid #1a1a1a;
+    border-right: 80px solid #1a1a1a;
     border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 50px 80px rgba(0,0,0,0.9);
-    transform: perspective(1200px) rotateX(20deg);
+    transform: perspective(1000px) rotateX(20deg);
     transform-style: preserve-3d;
     box-sizing: border-box;
 }
@@ -72,23 +72,33 @@ html, body {
 }
 
 .hand-0 .tile {
-    width: 48px !important;
-    height: 67px !important;
+    width: 55px !important;
+    height: 77px !important;
 }
 
-.hand-1 .tile, .hand-2 .tile, .hand-3 .tile {
-    width: 22px !important;
-    height: 31px !important;
+.hand-1 .tile, .hand-3 .tile {
+    width: 28px !important;
+    height: 39px !important;
+}
+
+.hand-2 .tile {
+    width: 31px !important;
+    height: 43px !important;
 }
 
 .meld-0 .tile {
-    width: 32px;
-    height: 45px;
+    width: 38px;
+    height: 53px;
 }
 
-.meld-1 .tile, .meld-2 .tile, .meld-3 .tile {
+.meld-1 .tile, .meld-3 .tile {
     width: 28px;
     height: 39px;
+}
+
+.meld-2 .tile {
+    width: 31px;
+    height: 43px;
 }
 
 .river .tile {
@@ -175,7 +185,7 @@ html, body {
 }
 
 .meld-0 {
-    bottom: 85px;
+    bottom: 105px;
     left: 50%;
     transform: translateX(-50%);
     flex-direction: row;
@@ -190,7 +200,7 @@ html, body {
 }
 
 .meld-2 {
-    top: 70px;
+    top: 90px;
     left: 50%;
     transform: translateX(-50%);
     flex-direction: row;
@@ -362,7 +372,7 @@ html, body {
 ===================================================================== */
 .player-name {
     background: rgba(0,0,0,0.8);
-    padding: 5px 15px;
+    padding: 5px 5px;
     border-radius: 5px;
     font-weight: bold;
     font-size: 10px;
@@ -401,28 +411,28 @@ html, body {
 }
 
 .pos-name-0 {
-    bottom: 215px;
+    bottom: 220px;
     left: calc(50% - 320px);
     transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
     z-index: 40;
 }
 
 .pos-name-1 {
-    right: -80px;
+    right: -100px;
     top: calc(50% + 0px);
     transform: translateY(-50%) translateZ(40px) rotateX(-20deg) !important;
     z-index: 40;
 }
 
 .pos-name-2 {
-    top: 145px;
+    top: 200px;
     left: calc(50% + 320px);
     transform: translateX(-50%) translateZ(40px) rotateX(-20deg) !important;
     z-index: 40;
 }
 
 .pos-name-3 {
-    left: -80px;
+    left: -100px;
     top: calc(50% - 0px);
     transform: translateY(-50%) translateZ(40px) rotateX(-20deg) !important;
     z-index: 40;
@@ -673,7 +683,7 @@ html, body {
 /* --- アクションボタン群 --- */
 .action-wrapper {
     position: absolute;
-    bottom: 80px;
+    bottom: 110px;
     left: 50%;
     transform: translateX(-50%) translateZ(200px) !important;
     display: flex;
@@ -766,7 +776,7 @@ html, body {
 /* --- 待ち牌・オート・透過ボタン --- */
 .pos-waits-btn {
     position: absolute;
-    bottom: 166px;
+    bottom: 180px;
     left: calc(50% - 270px);
     z-index: 50;
     transform: translateZ(20px) !important;
@@ -776,7 +786,7 @@ html, body {
 
 .pos-auto-btn {
     position: absolute;
-    bottom: 166px;
+    bottom: 180px;
     left: calc(50% + 120px);
     z-index: 50;
     transform: translateZ(20px) !important;
@@ -817,7 +827,7 @@ html, body {
 
 #action-hide-area {
     position: absolute;
-    bottom: 95px;
+    bottom: 180px;
     left: 50%;
     transform: translateX(-50%) translateZ(20px) rotateX(-20deg) !important;
     width: 220px;
@@ -996,9 +1006,9 @@ html, body {
 /* --- タイマー --- */
 #timer-display {
     position: absolute;
-    bottom: 210px !important;
+    bottom: 220px !important;
     top: auto !important;
-    left: calc(50% + 210px) !important;
+    left: calc(50% + 240px) !important;
     font-size: 32px;
     font-weight: 900;
     color: #2ecc71;
