@@ -28,6 +28,7 @@ let timeLeft = 0;
 let maxTimeForTimer = 0;
 let timerAction = null;
 let currentTickAudio = null;
+let selectedTileIndex = -1; // -1は「何も選択されていない」状態
 
 // ==========================================
 // 🚀 牌画像のプリロード（読み込み遅延・チラつき防止）
@@ -1368,40 +1369,70 @@ function render() {
 
         displayHand.forEach((t, idx) => {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
-            i.id = `my-tile-${idx}`; // 🌟 追加：牌ごとにIDを付与する
+            i.id = `my-tile-${idx}`;
 
             if (charlestonPhase && exchangeSelection.includes(idx)) i.classList.add('selected-exchange');
 
+            if (!charlestonPhase && selectedTileIndex === idx) i.classList.add('selected-discard');
+
             i.onclick = () => {
+                // ① チャールストン中なら専用処理をしてすぐ終わる
                 if (charlestonPhase) {
                     toggleExchange(idx);
-                } else if (!isProc && turn === 0) {
-                    let msgText = document.getElementById('msg').innerText;
-                    if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+                    return;
+                }
 
-                    if (myWinTiles.length > 0) {
-                        logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
-                    } else {
-                        discard(t, false, idx); // 🌟 修正：何番目の牌を捨てたか(idx)を渡す
+                // ② すでにこの牌が浮いている（選択中）かどうかを「真っ先に」判定する
+                if (selectedTileIndex === idx) {
+                    // 【2回目のタップ（捨てる処理）】
+                    // 実際に捨てるのは「自分の番(turn === 0)」で「処理中じゃない時(!isProc)」だけ！
+                    if (!isProc && turn === 0) {
+                        let msgText = document.getElementById('msg').innerText;
+                        if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
+                        if (myWinTiles.length > 0) {
+                            logMsg("アガリ後は手牌を入れ替えられません！右端のツモ牌を捨ててください。", true);
+                        } else {
+                            selectedTileIndex = -1;
+                            discard(t, false, idx);
+                        }
                     }
+                } else {
+                    // 【1回目のタップ（浮かせる処理）】
+                    // ここには turn === 0 の制限がないので、相手の番でも自由に浮かせられます！
+                    selectedTileIndex = idx;
+                    render();
                 }
             };
             c.appendChild(i);
         });
 
+        // 🌟 ツモ牌（右端に離れている牌）の処理
         if (dTile !== "") {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${dTile}.png`;
-            i.id = `my-tile-drawn`; // 🌟 追加：ツモ牌専用のID
+            i.id = `my-tile-drawn`;
             i.style.position = "absolute";
             i.style.left = "calc(100% + 15px)";
             i.style.top = "0";
 
-            i.onclick = () => {
-                if (!isProc && turn === 0 && !charlestonPhase) {
-                    let msgText = document.getElementById('msg').innerText;
-                    if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+            if (!charlestonPhase && selectedTileIndex === 'drawn') i.classList.add('selected-discard');
 
-                    discard(dTile, true, 'drawn'); // 🌟 修正：ツモ牌であることを渡す
+            i.onclick = () => {
+                if (charlestonPhase) return;
+
+                if (selectedTileIndex === 'drawn') {
+                    // 【2回目のタップ（ツモ切り処理）】
+                    if (!isProc && turn === 0) {
+                        let msgText = document.getElementById('msg').innerText;
+                        if (msgText === "鳴き" || msgText === "胡！" || msgText === "海底牌" || msgText === "槍槓チャンス") return;
+
+                        selectedTileIndex = -1;
+                        discard(dTile, true, 'drawn');
+                    }
+                } else {
+                    // 【1回目のタップ（浮かせる処理）】
+                    selectedTileIndex = 'drawn';
+                    render();
                 }
             };
             c.appendChild(i);
@@ -1513,12 +1544,17 @@ async function checkT() {
 
     console.log(`[処理順確認] ターン判定開始 -> 現在のターン: ${turn === 0 ? "あなた" : "CPU " + turn}, 山札残り: ${wallCount}枚, 自分の手牌相当: ${totalVirtualTiles}枚`);
 
+    // 🌟 全員の光を一旦消す
     for (let i = 0; i < 4; i++) {
         const scoreEl = document.getElementById(`player-score-${i}`);
         if (scoreEl) scoreEl.classList.remove('active-turn');
     }
-    const activescoreEl = document.getElementById(`player-score-${turn}`);
-    if (activescoreEl) activescoreEl.classList.add('active-turn');
+
+    // 🌟 修正：チャールストン（交換フェーズ）中「ではない」時だけ光らせる！
+    if (!charlestonPhase) {
+        const activescoreEl = document.getElementById(`player-score-${turn}`);
+        if (activescoreEl) activescoreEl.classList.add('active-turn');
+    }
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     resetActionBtnPool();
