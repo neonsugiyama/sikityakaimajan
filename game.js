@@ -215,22 +215,24 @@ function isPlayerTenpai() {
 // 🤖 オートモード中、状況に応じて自動でツモ切りや鳴きスルーなどのボタンを押す関数
 function triggerAutoPlayIfNeeded() {
     if (!isAutoPlay || isProc) return;
-    if (!isPlayerTenpai()) return;
+
+    let hasWon = myWinTiles.length > 0;
+    if (!hasWon) return; // 🌟 1. 和了前はそもそも機能させない
 
     const msgText = document.getElementById('msg').innerText;
-    const btnWin = document.getElementById('btn-win');
-
-    let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
 
     if (turn === 0 && msgText.includes("打牌")) {
-        // 🌟 修正：カウント変数で判定
-        if (activeSelfActionsCount > 0) {
-            return;
-        }
+        // 🌟 2. 槓などのアクションが出たら一時停止
+        if (activeSelfActionsCount > 0) return;
+
+        const btnWin = document.getElementById('btn-win');
+        let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
 
         if (isWinVisible) {
+            // 🌟 3. 自摸ボタンが出れば押す
             btnWin.click();
         } else {
+            // 🌟 3. 和了でなければ自摸切り
             if (drawnTile !== "") {
                 discard(drawnTile, true, 'drawn');
             } else {
@@ -238,12 +240,27 @@ function triggerAutoPlayIfNeeded() {
                 discard(displayHand[displayHand.length - 1], false, displayHand.length - 1);
             }
         }
-    } else if (msgText === "鳴き" || msgText.includes("チャンス")) {
-        const btnSkip = document.getElementById('btn-skip');
+    } else if (msgText === "鳴き" || msgText === "胡！" || msgText.includes("チャンス")) {
+        const btnKan = document.getElementById('btn-kan');
+        const btnHanakan = document.getElementById('btn-hanakan');
+        let isKanVisible = (btnKan && (btnKan.style.display === "block" || btnKan.style.display === "flex")) ||
+            (btnHanakan && (btnHanakan.style.display === "block" || btnHanakan.style.display === "flex"));
+
+        // 🌟 2. 槓ボタンが出たら一時停止（和了かどうかにかかわらず）
+        if (isKanVisible) return;
+
+        const btnWin = document.getElementById('btn-win');
+        let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
+
         if (isWinVisible) {
+            // 🌟 3. 胡ボタンが出れば押す
             btnWin.click();
-        } else if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
-            btnSkip.click();
+        } else {
+            // 🌟 3. 和了でなければスルー
+            const btnSkip = document.getElementById('btn-skip');
+            if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+                btnSkip.click();
+            }
         }
     }
 }
@@ -1597,21 +1614,19 @@ async function checkT() {
                 btnWin.innerHTML = `自摸 ${getImg(winTile)}`;
                 btnWin.onclick = () => execTsumo();
 
-                // 副露ボタン等が一つもない場合はオート進行に任せて隠す
-                if (isAutoPlay && myWinTiles.length > 0 && activeSelfActionsCount === 0) {
-                    btnWin.style.display = "none";
-                } else {
-                    btnWin.style.display = "flex";
-                }
+                // 💥 古い「オートONならボタンを隠す」バグを完全削除。常に表示する。
+                btnWin.style.display = "flex";
             } else {
                 btnWin.style.display = "none";
             }
 
             let shouldAlert = false;
+            let hasWon = myWinTiles.length > 0;
+
             if (btnWin.style.display === "block" || btnWin.style.display === "flex" || activeSelfActionsCount > 0) {
                 shouldAlert = true;
-                if (isAutoPlay && isPlayerTenpai() && activeSelfActionsCount === 0) {
-                    shouldAlert = false;
+                if (isAutoPlay && hasWon && activeSelfActionsCount === 0) {
+                    shouldAlert = false; // オートで処理される場合はアラート音を消す
                 }
             }
             if (shouldAlert) {
@@ -1621,22 +1636,31 @@ async function checkT() {
             isProc = false;
 
             let autoActed = false;
-            if (isAutoPlay && isPlayerTenpai()) {
+            if (isAutoPlay && hasWon) {
+                let isWinVisible = btnWin.style.display === "block" || btnWin.style.display === "flex";
+
+                // 🌟 2. 槓などのアクションボタンが出ていれば一時停止
                 if (activeSelfActionsCount > 0) {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
                     setTimeout(hideCenterMessage, 2500);
-                }
-                else if (canWin) {
+                } else if (isWinVisible) {
+                    // 🌟 3. 自摸ボタンが出ていれば押す
                     isProc = true;
-                    setTimeout(() => { isProc = false; execTsumo(); }, 800 / speedMult);
+                    setTimeout(() => { isProc = false; btnWin.click(); }, 600 / speedMult);
                     autoActed = true;
-                }
-                else {
-                    if (drawnTile !== "") {
-                        isProc = true;
-                        setTimeout(() => { isProc = false; discard(drawnTile, true, 'drawn'); }, 600 / speedMult);
-                        autoActed = true;
-                    }
+                } else {
+                    // 🌟 3. 和了でなければ自摸切り
+                    isProc = true;
+                    setTimeout(() => {
+                        isProc = false;
+                        if (drawnTile !== "") {
+                            discard(drawnTile, true, 'drawn');
+                        } else {
+                            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+                            discard(displayHand[displayHand.length - 1], false, displayHand.length - 1);
+                        }
+                    }, 600 / speedMult);
+                    autoActed = true;
                 }
             }
 
@@ -2123,17 +2147,13 @@ async function checkHumanReaction(discarderIdx, tile) {
         btn.style.alignItems = "center";
         btn.style.gap = "5px";
         btn.onclick = () => execRon(false);
-
-        if (isAutoPlay) {
-            btn.style.display = "none";
-        }
+        // 💥 ここにあった isAutoPlay ならボタンを消すバグコードを完全消去！
         showAny = true;
     }
 
     // ----------------------------------------------------
-    // 2. 鳴き判定（和了絶対優先の法則を適用！）
+    // 2. 鳴き判定
     // ----------------------------------------------------
-    // 🟢 修正：CPUがロンする予定であっても、プレイヤーの「副露（ポン・カン等）」ボタンを隠さずに出す！
     if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
@@ -2173,9 +2193,31 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     renderCPU();
 
-    let isAutoDigest = (isAutoPlay && isPlayerTenpai());
+    let hasWon = myWinTiles.length > 0;
+    let isAutoDigest = (isAutoPlay && hasWon); // 🌟 1. 和了前は機能させない
 
-    if (!isAutoDigest) {
+    let isKanVisible = false;
+    if (myWinTiles.length === 0) {
+        if (count >= 3 && wallCount > 0) isKanVisible = true;
+        if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) isKanVisible = true;
+    }
+
+    let shouldAutoRon = false;
+    let shouldAutoSkip = false;
+
+    if (isAutoDigest) {
+        if (isKanVisible) {
+            // 🌟 2. 槓ボタンが出たら一時停止（和了かどうかにかかわらず）
+        } else if (canHumanRon) {
+            // 🌟 3. 槓が出なくて胡が出れば押す
+            shouldAutoRon = true;
+        } else {
+            // 🌟 3. 和了でなければスルー
+            shouldAutoSkip = true;
+        }
+    }
+
+    if (!shouldAutoRon && !shouldAutoSkip) {
         playSE('alert');
         document.getElementById('btn-skip').style.display = "block";
     }
@@ -2188,17 +2230,19 @@ async function checkHumanReaction(discarderIdx, tile) {
 
     document.getElementById('btn-skip').onclick = skipAction;
     isProc = false;
-    document.getElementById('msg').innerText = canHumanRon ? "胡！" : "鳴き"; // 胡優先表示
+    document.getElementById('msg').innerText = canHumanRon ? "胡！" : "鳴き";
 
-    if (isAutoDigest) {
+    if (shouldAutoRon) {
         isProc = true;
         setTimeout(() => {
             isProc = false;
-            if (canHumanRon) {
-                execRon(false);
-            } else {
-                skipAction();
-            }
+            document.getElementById('btn-win').click();
+        }, 800 / speedMult);
+    } else if (shouldAutoSkip) {
+        isProc = true;
+        setTimeout(() => {
+            isProc = false;
+            skipAction();
         }, 800 / speedMult);
     } else {
         startTimer(timeCall, () => {
