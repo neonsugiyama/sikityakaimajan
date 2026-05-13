@@ -3356,7 +3356,8 @@ body.lang-en .en {
 }
 
 .learning-content {
-    width: 500px !important;
+    width: 450px !important;
+    height: 500px !important;
     min-width: 500px !important;
     max-width: none !important;
     flex-shrink: 0 !important;
@@ -4054,19 +4055,6 @@ body.lang-en .en {
    11. 📱 RESPONSIVE (スマホ対応)
 ===================================================================== */
 @media screen and (max-width: 1000px), screen and (max-height: 600px) {
-
-    .modal-content, #settings-screen > div {
-        width: 950px !important;
-        height: 700px !important;
-        min-width: 950px !important;
-        min-height: 700px !important;
-        padding: 20px 30px !important;
-        box-sizing: border-box !important;
-        position: absolute !important;
-        left: 50% !important;
-        top: 50% !important;
-        transform: translate(-50%, -50%) scale(calc(var(--game-scale) * 1.15)) !important;
-    }
 
     #hamburger-btn {
         width: 36px !important;
