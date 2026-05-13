@@ -133,10 +133,12 @@
     </div>
 
     <div id="rate-help-modal" class="modal-overlay" style="display: none;">
-        <div class="rate-help-box">
+        <div class="rate-help-box" style="position: relative; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 20px;">
             <button class="modal-close-top" onclick="closeRateHelp()">×</button>
-            <h2 class="rate-help-title">📈 レートシステムについて</h2>
-            <div class="rate-help-desc">
+
+            <h2 class="rate-help-title" style="flex-shrink: 0;">📈 レートシステムについて</h2>
+
+            <div class="rate-help-desc" style="flex-grow: 1; overflow-y: auto; padding-right: 15px; margin-bottom: 10px;">
                 <p>オンライン対戦（段位戦）では、対局結果に応じてレート(R)が変動します。<br>最終的なレート変動値は、以下の3つの要素の合計で計算されます。</p>
                 <div class="rate-formula-box">
                     最終変動値 ＝ 順位点 ＋ 素点ボーナス ＋ レート差補正
@@ -191,7 +193,8 @@
                     ・すべての計算結果を合算した際、1位のプレイヤーは必ず「+1以上」、4位のプレイヤーは必ず「-1以下」になるよう保証されます。
                 </div>
             </div>
-            <button onclick="closeRateHelp()" class="btn-act btn-gray modal-close-bottom">閉じる</button>
+
+            <button onclick="closeRateHelp()" class="btn-act btn-gray modal-close-bottom" style="flex-shrink: 0; margin-top: 5px;">閉じる</button>
         </div>
     </div>
 
@@ -240,7 +243,8 @@
     </div>
 
     <div id="friend-match-modal" class="modal-overlay" style="display: none;">
-        <div class="friend-modal-box">
+        <div class="friend-modal-box" style="position: relative;">
+            <button class="modal-close-top" onclick="closeFriendMatch()">×</button>
             <h2 class="friend-title">🤝 友人戦ロビー</h2>
 
             <div id="friend-menu-select">
@@ -258,13 +262,15 @@
                     <div class="friend-wait-count"><span id="room-player-count">1</span> / 4</div>
                 </div>
             </div>
-            <button onclick="closeFriendMatch()" class="friend-btn-close">閉じる / 退室</button>
+            <button onclick="closeFriendMatch()" class="btn-act btn-gray modal-close-bottom" style="width: 100%; margin-top: 20px; box-sizing: border-box;">閉じる / 退室</button>
         </div>
     </div>
 
     <div id="mypage-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="mypage-header">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close-top" onclick="closeMyPage()">×</button>
+
+            <div class="mypage-header" style="padding-right: 40px;">
                 <h2 class="mypage-title">📊 詳細戦績データ</h2>
 
                 <div id="mypage-edit-mode" class="mypage-edit-wrap">
@@ -372,7 +378,8 @@
     </div>
 
     <div id="achievement-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close-top" onclick="closeAchievements()">×</button>
             <h2 class="achieve-header">🏆 実績 ＆ 役コレクター図鑑</h2>
 
             <div class="yaku-tabs" style="border-bottom: none;">
@@ -401,7 +408,8 @@
     </div>
 
     <div id="settings-modal" class="modal-overlay" style="display: none;">
-        <div class="settings-container">
+        <div class="settings-container" style="position: relative;">
+            <button class="modal-close-top" onclick="closeSettings()" style="z-index: 100;">×</button>
             <div class="settings-sidebar">
                 <h2 onclick="secretClick()" class="settings-sidebar-title">⚙️ 設定</h2>
 
@@ -524,45 +532,71 @@
     </div>
 
     <div id="learning-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content learning-content">
-            <h2 class="modal-title learning-title">🏫 学習メニュー</h2>
+        <div class="modal-content learning-content" style="display: flex; flex-direction: column; overflow: hidden; position: relative;">
 
-            <div class="learning-wrap">
-                <div class="learning-box-blue">
-                    <div class="learning-box-blue-title">基本操作・独自システムを学ぶ</div>
-                    <button class="btn-act btn-blue dev-btn-wide" onclick="startTutorial()">🔰 実戦チュートリアル体験</button>
-                </div>
+            <button class="modal-close-top" onclick="closeLearningMenu()">×</button>
 
-                <div class="learning-box-red">
-                    <div class="learning-box-red-title">日麻の常識を破壊する（実践ミッション）</div>
-                    <div class="lesson-btn-group">
-                        <button class="btn-act lesson-btn" style="background: #c0392b;" onclick="startLesson(1)">
-                            🎓 レッスン①：脳死の全単アタック
-                            <div id="stamp-lesson-1" class="lesson-stamp" style="display: none;">済</div>
-                        </button>
-                        <button class="btn-act lesson-btn" style="background: #d35400;" onclick="startLesson(2)">
-                            🎓 レッスン②：寒江独釣で裸になれ
-                            <div id="stamp-lesson-2" class="lesson-stamp" style="display: none;">済</div>
-                        </button>
-                        <button class="btn-act lesson-btn" style="background: #8e44ad;" onclick="startLesson(3)">
-                            🎓 レッスン③：七星不靠ってなんだ？
-                            <div id="stamp-lesson-3" class="lesson-stamp" style="display: none;">済</div>
-                        </button>
-                        <button class="btn-act lesson-btn" style="background: #2c3e50;" onclick="startLesson(4)">
-                            🎓 レッスン④：面前のロマン
-                            <div id="stamp-lesson-4" class="lesson-stamp" style="display: none;">済</div>
-                        </button>
+            <h2 class="modal-title learning-title" style="flex-shrink: 0;">🏫 学習メニュー</h2>
+
+            <div style="flex-grow: 1; overflow-y: auto; padding-right: 10px; margin-bottom: 10px;">
+                <div class="learning-wrap">
+                    <div class="learning-box-blue">
+                        <div class="learning-box-blue-title">基本操作・独自システムを学ぶ</div>
+                        <button class="btn-act btn-blue dev-btn-wide" onclick="startTutorial()">🔰 実戦チュートリアル体験</button>
+                    </div>
+
+                    <div class="learning-box-red">
+                        <div class="learning-box-red-title">日麻の常識を破壊する（実践ミッション）</div>
+                        <div class="lesson-btn-group">
+                            <button class="btn-act lesson-btn" style="background: #c0392b;" onclick="startLesson(1)">
+                                🎓 レッスン①：脳死の全単アタック
+                                <div id="stamp-lesson-1" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #d35400;" onclick="startLesson(2)">
+                                🎓 レッスン②：上下対称の美学
+                                <div id="stamp-lesson-2" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #8e44ad;" onclick="startLesson(3)">
+                                🎓 レッスン③：圧倒的スケール
+                                <div id="stamp-lesson-3" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #2c3e50;" onclick="startLesson(4)">
+                                🎓 レッスン④：階段状の刻子
+                                <div id="stamp-lesson-4" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #16a085;" onclick="startLesson(5)">
+                                🎓 レッスン⑤：赤を憎む者
+                                <div id="stamp-lesson-5" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #2980b9;" onclick="startLesson(6)">
+                                🎓 レッスン⑥：寒江独釣で裸になれ
+                                <div id="stamp-lesson-6" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #f39c12;" onclick="startLesson(7)">
+                                🎓 レッスン⑦：未知の幾何学
+                                <div id="stamp-lesson-7" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #27ae60;" onclick="startLesson(8)">
+                                🎓 レッスン⑧：面前のロマン
+                                <div id="stamp-lesson-8" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                            <button class="btn-act lesson-btn" style="background: #e74c3c;" onclick="startLesson(9)">
+                                🎓 レッスン⑨：最終試験
+                                <div id="stamp-lesson-9" class="lesson-stamp" style="display: none;">済</div>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <button class="btn-act btn-gray modal-close-bottom" onclick="closeLearningMenu()">閉じる</button>
+            <button class="btn-act btn-gray modal-close-bottom" style="flex-shrink: 0; margin-top: 5px;" onclick="closeLearningMenu()">閉じる</button>
         </div>
     </div>
 
     <div id="howto-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="max-width: 700px; position: relative;">
-            <button id="btn-start-tutorial" class="btn-act btn-green howto-tut-btn" onclick="startTutorial()">🎮 実戦チュートリアル体験</button>
+            <button class="modal-close-top" onclick="closeHowTo()">×</button>
+            <button id="btn-start-tutorial" class="btn-act btn-green howto-tut-btn" style="right: 60px;" onclick="startTutorial()">🎮 実戦チュートリアル体験</button>
             <h2 id="howto-text-title" class="modal-title">📖 遊び方 (How to Play)</h2>
 
             <div id="howto-text-scroll" class="modal-scroll-area">
@@ -621,7 +655,8 @@
     </div>
 
     <div id="yaku-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="width: 95%; max-width: 1100px; height: 750px;">
+        <div class="modal-content" style="width: 95%; max-width: 1100px; height: 750px; position: relative;">
+            <button class="modal-close-top" onclick="closeYakuList()">×</button>
             <h2 class="modal-title">📜 役一覧 (Yaku List)</h2>
 
             <div class="text-center-mb10">

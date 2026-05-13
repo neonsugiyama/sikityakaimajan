@@ -681,24 +681,200 @@ async function startLesson(lessonId) {
     let title, msg, apiScenario;
     switch (lessonId) {
         case 1:
-            title = "レッスン①：脱・平和主義【脳死の全単アタック】";
-            msg = "通常の麻雀では順子に使いやすい「4」や「6」ですが、『全単』を狙うときはただのゴミです。<br>すべて切り捨てて、脳みそを空っぽにして奇数だけを集めましょう！<br>碰・槓もダメですよ！<br><br><span style='color:#f1c40f;'>🏆クリア条件：「全単」で和了！</span>";
+            title = "レッスン①：脱・平和主義【全単アタック】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：全単（チャンタン）</div>
+                        数字の「1, 3, 5, 7, 9」と字牌だけで構成する役です。<br>
+                        偶数牌はすべてノイズ。漢は黙って奇数と字牌だけを集めましょう！
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち、全単に【使えない】牌はどれ？<br>① 1m　② 5p　③ 6s　④ 中</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 6s（偶数だから）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：不要な偶数を捨てて「全単」を和了せよ！</span>
+            `;
             apiScenario = "lesson_1";
             break;
+
         case 2:
-            title = "レッスン②：面前信仰の破壊【寒江独釣で裸になれ】";
-            msg = "「鳴いたら安くなる」という常識は捨ててください。<br>全部鳴いて手牌を1枚にすれば、強力な役『寒江独釣』が付きます。<br>四季牌で待てば、他家が何を捨てても和了り放題です！<br><br><span style='color:#f1c40f;'>🏆ミッション：4回碰・槓をして、手牌を1枚（裸単騎）にして和了！</span>";
+            title = "レッスン②：上下対称の美学【推不倒】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：推不倒（推しても倒れない）</div>
+                        「上下逆さまにしても図柄が同じ牌」だけで構成する役です。<br>
+                        【対象牌】1,2,3,4,5,8,9筒 / 2,4,5,6,8,9索 / 白
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち「推不倒」に使える牌は？<br>① 7s　② 6p　③ 4s</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 4s（7sと6pは上下非対称なデザインです）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：対象外の牌を捨てて「推不倒」を和了せよ！</span>
+            `;
             apiScenario = "lesson_2";
             break;
+
         case 3:
-            title = "レッスン③：未知の幾何学【七星不靠ってなんだ？】";
-            msg = "バラバラのクズ配牌に見えますか？<br>いいえ、これは四季茶会麻雀における黄金の形です。<br>「東南西北白發中」の7枚に、「147」「258」「369」の3色の筋。<br>面子を作らなくても和了れる美しい星の並びを覚えましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：正しい有効牌を見極めて「七星不靠」を和了！</span>";
+            title = "レッスン③：圧倒的スケール【全大】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：全大（＆ 全小 / 全中）</div>
+                        数字の「7, 8, 9」だけで構成すると『全大』。<br>
+                        逆に「1, 2, 3」だけなら『全小』、「4, 5, 6」だけなら『全中』という役になります。
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 全小・全中・全大を狙うとき、絶対に入れてはいけない牌は？<br>① 字牌　② 索子　③ 萬子</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：① 字牌（数字の縛りなので字牌はすべてノイズになります）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：デカい数字だけを集めて「全大」を和了せよ！</span>
+            `;
             apiScenario = "lesson_3";
             break;
+
         case 4:
-            title = "レッスン④：面前のロマン【一色四歩高 / 連七対】";
-            msg = "基本は鳴きが強いゲームですが、『一色四歩高』や『連七対』だけは別格です。<br>普段お目にかかれない芸術的な手役を完成させましょう。<br><br><span style='color:#f1c40f;'>🏆ミッション：鳴かずに門前で『一色四歩高』か『連七対』を和了！</span>";
+            title = "レッスン④：階段状の刻子【一色四節高】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：一色四節高（いっしょくよんせつこう）</div>
+                        同じ色で「111」「222」「333」「444」のように、数字が1つずつズレた「刻子」を4つ作る役です。（3つなら三節高）
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 「222p」「333p」「444p」と揃っています。四節高にするにはあと何が必要？<br>① 111p か 555p　② 555p か 666p</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：①（階段状に繋げるため、上下に隣接する刻子が必要です）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：連続した刻子を完成させ「一色四節高」を和了せよ！</span>
+            `;
             apiScenario = "lesson_4";
+            break;
+
+        case 5:
+            title = "レッスン⑤：赤を憎む者【陰陽両儀】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：陰陽両儀（黒一色）</div>
+                        牌の図柄に「赤い塗料」が一切使われていない牌だけで構成する役です。<br>
+                        【対象牌】2,4,8筒 / 2,3,4,6,8索 / 東,南,西,北,白,發
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち「陰陽両儀」で【使えない】字牌はどれ？<br>① 白　② 發　③ 中</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 中（真っ赤なのでアウトです！）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：赤をすべて切り捨て「陰陽両儀」を和了せよ！</span>
+            `;
+            apiScenario = "lesson_5";
+            break;
+
+        case 6:
+            title = "レッスン⑥：面前信仰の破壊【寒江独釣で裸になれ】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：寒江独釣（かんこうどくちょう）</div>
+                        4回副露（ポンやカン等）を行い、手牌を「たった1枚（裸単騎）」にして和了する役です。<br>
+                        鳴けば鳴くほど強くなる、このゲームの象徴です。
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 寒江独釣の待ち牌として最強なのはどれ？<br>① 四季牌（春など）　② 1m　③ 中</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：① 四季牌（万能牌なので、他家が何を捨てても絶対和了れます！）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：4回鳴いて手牌を1枚にし「寒江独釣」を和了せよ！</span>
+            `;
+            apiScenario = "lesson_6";
+            break;
+
+        case 7:
+            title = "レッスン⑦：未知の幾何学【七星不靠】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：七星不靠（チーシンブーカオ）</div>
+                        字牌7種（東南西北白發中）すべてと、各色で筋が被らない「147」「258」「369」を組み合わせた特殊形です。（面子不要）
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 手牌に「1m・4m・7m」「2p・5p・8p」があります。索子は何を集めればいい？<br>① 1s・4s・7s　② 2s・5s・8s　③ 3s・6s・9s</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 3s・6s・9s（各色で別の筋を担当させます）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：正しい有効牌を見極めて「七星不靠」を和了せよ！</span>
+            `;
+            apiScenario = "lesson_7";
+            break;
+
+        case 8:
+            title = "レッスン⑧：面前のロマン【一色四歩高】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：一色四歩高（いっしょくよんほこう）</div>
+                        同じ色で「123」「234」「345」「456」のように、数字が1つずつズレた「順子」を4つ作る役です。<br>
+                        鳴かずに門前で狙うと美しさが際立ちます。
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 「345p」「456p」「567p」と揃っています。四歩高にするにはあと何が必要？<br>① 234p か 678p　② 345p か 567p</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：①（階段状に繋げるため、上下の順子が必要です）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：階段状の順子を完成させ「一色四歩高」を和了せよ！</span>
+            `;
+            apiScenario = "lesson_8";
+            break;
+
+        case 9:
+            title = "レッスン⑨：最終試験【無花果＆槓上開花】";
+            msg = `
+                <div class='learning-wrap'>
+                    <div class='learning-box-blue'>
+                        <div class='learning-box-blue-title'>📖 役の紹介：無花果 / 槓上開花</div>
+                        四季牌を1枚も持たずに和了する縛りプレイ「無花果（むいちじく）」。<br>
+                        そして、カンをした補充牌で和了する「槓上開花（リンシャンカイホウ）」。<br>
+                        これらを複合させて脳汁を出しましょう！
+                    </div>
+                    <div class='learning-box-red'>
+                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
+                        <details>
+                            <summary style='cursor:pointer; font-weight:bold;'>Q. 暗槓（アンカン）をすると、山札から嶺上牌を引くことができますか？<br>① はい　② いいえ</summary>
+                            <div style='margin-top:10px; color:#f1c40f;'>正解：① はい（この性質を利用して強引にツモ和了りをもぎ取ります）</div>
+                        </details>
+                    </div>
+                </div>
+                <br><span style='color:#f1c40f;'>🏆 ミッション：暗槓からの嶺上ツモで、美しく暴力的な和了をキメろ！</span>
+            `;
+            apiScenario = "lesson_9";
             break;
     }
 
