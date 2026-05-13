@@ -3608,6 +3608,40 @@ body.lang-en .en {
         color: #fff;
     }
 
+
+/* 🚪 クイック退出ボタン (プレイ画面右上) */
+#quick-exit-btn {
+    position: absolute;
+    top: 160px;
+    right: -45px;
+    background: rgba(231, 76, 60, 0.15);
+    border: 2px solid #e74c3c;
+    color: #ff7675;
+    padding: 10px 10px;
+    font-size: 15px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    z-index: 10000;
+    transition: all 0.2s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+    #quick-exit-btn:hover {
+        background: rgba(231, 76, 60, 0.8);
+        color: #fff;
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 8px 20px rgba(231, 76, 60, 0.6);
+    }
+
+    #quick-exit-btn:active {
+        transform: translateY(2px) scale(0.95);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
 /* =====================================================================
    10. 🛠️ UTILITIES & DEBUG (汎用クラス・テストツール)
 ===================================================================== */
