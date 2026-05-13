@@ -1,19 +1,18 @@
 ﻿import random
 import traceback
-from typing import Dict, List  # 🌟 追加
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends  # 🌟 ここに HTTPException, Depends を追加！
+from typing import Dict, List
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# 🧠 分離した「麻雀の脳みそ（ルールとAI）」を読み込む
+# 🧠 「麻雀の脳みそ（ルールとAI）」を読み込む
+# ※ GameState と get_safe_state は main.py 側で定義するので外す
 from mahjong_logic import (
-    GameState, get_safe_state, evaluate_hand, get_waits_for_hand,
-    determine_target, evaluate_tile_dynamically, is_kan_valid_for_player,
-    get_visible_count, SEASON_TILES, TILE_NAMES, ODDS, SORT_ORDER,
-    is_agari # 🌟 これを追加！
+    evaluate_hand, get_waits_for_hand, determine_target, evaluate_tile_dynamically, 
+    is_kan_valid_for_player, get_visible_count, SEASON_TILES, TILE_NAMES, ODDS, SORT_ORDER,
+    is_agari
 )
 
 app = FastAPI()
@@ -24,21 +23,134 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 
 # ==========================================
-# 🧠 セッション（同時プレイ）管理システム
+# 🎲 状態管理クラス & 牌譜記録システム (main.pyに集約)
 # ==========================================
-# 🌟 追加：プレイヤー（ブラウザ）ごとに独立したゲームを保存するロッカー
-active_sessions: Dict[str, GameState] = {}
+class GameState:
+    def __init__(self):
+        # 局をまたいで保持するデータ
+        self.current_round = 1
+        self.dealer = random.randint(0, 3) 
+        self.scores = [0, 0, 0, 0] 
+        self.total_scores = [0, 0, 0, 0] 
+        self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
+        self.cpu_level = 1
+        print(f"【CPU起動】 CPU1:タイプ{self.cpu_personalities[1]}, CPU2:タイプ{self.cpu_personalities[2]}, CPU3:タイプ{self.cpu_personalities[3]}")
+        
+        # 📼 牌譜（リプレイ）保存用データ
+        self.replay_data = {
+            "room_id": "",
+            "start_time": "",
+            "player_names": ["あなた", "CPU 1", "CPU 2", "CPU 3"],
+            "rounds": [] # 各局の全ログを配列で保持
+        }
+        
+        self.reset_round()
 
-def get_game(session_id: str) -> GameState:
-    """指定されたセッションIDのゲームを取得。無ければ新しく作る"""
-    if not session_id:
-        session_id = "default" # IDがない場合の保険
+    def reset_round(self):
+        """局の開始時に状態をリセットし、牌譜の新しい章を作る"""
+        self.wall = (TILE_NAMES * 4) + list(SEASON_TILES)
+        random.shuffle(self.wall)
         
-    if session_id not in active_sessions:
-        print(f"[DEBUG] 新しいセッションを作成しました: {session_id}")
-        active_sessions[session_id] = GameState()
+        # 手牌の配分
+        self.hands = [self.sort_hand([self.wall.pop() for _ in range(13)]) for _ in range(4)]
+        self.melds = [[] for _ in range(4)]
+        self.win_tiles = [[] for _ in range(4)]
+        self.win_records = [[] for _ in range(4)]
+        self.discards = [[] for _ in range(4)]
+        self.last_drawn = [""] * 4
+        self.turn = self.dealer
+        self.scores = [0, 0, 0, 0]
         
-    return active_sessions[session_id]
+        # 思考用データ
+        self.cpu_targets = ["", "", "", ""]
+        self.cpu_initial_targets = ["", "", "", ""]
+        self.cpu_fixed_scores = [{}, {}, {}, {}]
+        
+        # フラグ類
+        self.is_first_turn = [True, True, True, True]
+        self.any_meld_occurred = False
+        self.discards_count = 0
+        self.just_drawn = -1 
+        self.last_discard_info = {"player": -1, "tile": ""}
+        self.round_calculated = False 
+        self.last_calc_data = None 
+        self.charleston_done = False
+        self.second_charleston_done = False
+
+        # 📼 牌譜の初期状態を記録
+        self.current_round_log = {
+            "round": self.current_round,
+            "dealer": self.dealer,
+            "initial_hands": [list(h) for h in self.hands],
+            "wall": list(self.wall),
+            "actions": [] # ツモ、打牌、鳴きなどの時系列ログ
+        }
+
+    def sort_hand(self, hand):
+        return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
+
+    def append_log(self, action_type, **kwargs):
+        if not hasattr(self, 'current_round_log'): return
+        entry = {"type": action_type, "turn": self.turn}
+        entry.update(kwargs)
+        
+        # 🌟 修正：jsonを使って「その瞬間の状態」を完全に凍結（ディープコピー）する！
+        import json
+        snapshot = json.loads(json.dumps(get_safe_state(self, 0, {
+            "discards": [list(d) for d in self.discards],
+            "last_drawn": list(self.last_drawn)
+        })))
+        entry["state_snapshot"] = snapshot
+        
+        self.current_round_log["actions"].append(entry)
+
+    def finalize_round_log(self, results):
+        if not hasattr(self, 'current_round_log'): return
+        self.current_round_log["results"] = results
+        
+        # 🌟 追加：局終了時も凍結して保存
+        import json
+        end_action = {
+            "type": "round_end",
+            "turn": self.turn,
+            "state_snapshot": json.loads(json.dumps(get_safe_state(self, 0, {
+                "discards": [list(d) for d in self.discards],
+                "last_drawn": list(self.last_drawn)
+            })))
+        }
+        self.current_round_log["actions"].append(end_action)
+        self.replay_data["rounds"].append(self.current_round_log)
+
+
+# 📦 フロントエンド（JS）に送付するための、安全な盤面データをまとめる関数
+def get_safe_state(game: GameState, player_idx=0, extra_data=None):
+    res = {
+        "status": "success",
+        "player_hand": game.hands[player_idx],
+        "player_melds": game.melds[player_idx],
+        "player_win_tiles": game.win_tiles[player_idx],
+        "wall_count": len(game.wall),
+        "turn": game.turn,
+        "dealer": game.dealer,
+        "current_round": game.current_round,
+        "scores": game.scores,
+        "total_scores": game.total_scores,
+        "all_hands": game.hands,
+        "all_melds": game.melds,
+        "all_win_tiles": game.win_tiles,
+        "cpu_targets": game.cpu_targets,
+        "cpu_personalities": game.cpu_personalities,
+        "discards_count": game.discards_count,
+        "any_meld_occurred": game.any_meld_occurred,
+        "just_drawn": game.just_drawn,
+        "last_drawn": game.last_drawn,
+        "last_discard_info": game.last_discard_info,
+        "round_calculated": getattr(game, 'round_calculated', False),
+        "charleston_done": getattr(game, 'charleston_done', False),
+        "second_charleston_done": getattr(game, 'second_charleston_done', False)
+    }
+    if extra_data: res.update(extra_data)
+    return res
 
 # ==========================================
 # 🌐 画面表示用のAPI（フロントエンド配信）
@@ -349,46 +461,6 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         print(f"==============================================================\n")
         lobby_manager.disconnect(websocket, room_id)
 
-class GameState:
-    def __init__(self):
-        self.current_round = 1
-        self.dealer = random.randint(0, 3) 
-        self.scores = [0, 0, 0, 0] 
-        self.total_scores = [0, 0, 0, 0] 
-        self.cpu_targets = ["", "", "", ""]
-        self.cpu_personalities = ["", random.randint(1, 4), random.randint(1, 4), random.randint(1, 4)]
-        self.just_drawn = -1 
-        self.round_calculated = False 
-        self.last_calc_data = None    
-        self.charleston_done = False          # 🌟 追加：第1交換完了フラグ
-        self.second_charleston_done = False   # 🌟 追加：第2交換完了フラグ
-        self.reset_round()
-
-    def reset_round(self):
-        self.wall = (TILE_NAMES * 4) + list(SEASON_TILES)
-        random.shuffle(self.wall)
-        self.hands = [self.sort_hand([self.wall.pop() for _ in range(13)]) for _ in range(4)]
-        self.melds = [[] for _ in range(4)]
-        self.win_tiles = [[] for _ in range(4)]
-        self.last_drawn = [""] * 4
-        self.discards = [[] for _ in range(4)]
-        self.turn = self.dealer 
-        self.scores = [0, 0, 0, 0]
-        self.cpu_targets = ["", "", "", ""]
-        self.just_drawn = -1 
-        self.win_records = [[] for _ in range(4)]
-        self.is_first_turn = [True, True, True, True]
-        self.any_meld_occurred = False
-        self.discards_count = 0
-        self.last_discard_info = {"player": -1, "tile": ""}
-        self.round_calculated = False 
-        self.last_calc_data = None    
-        self.charleston_done = False          # 🌟 追加
-        self.second_charleston_done = False   # 🌟 追加
-        
-    def sort_hand(self, hand):
-        return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
-
 # 🌟 10000パターンのルーム管理システム
 ROOM_COUNTER = 0
 active_rooms: Dict[str, GameState] = {}
@@ -593,6 +665,7 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", ga
         game.just_drawn = -1 
         game.last_discard_info = {"player": -1, "tile": ""}
         game.charleston_done = True # 🌟 追加：終わったことを記録
+        game.append_log("charleston", type="first", dice=dice, direction=msg)
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
@@ -666,6 +739,7 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         game.just_drawn = -1 
         game.last_discard_info = {"player": -1, "tile": ""} 
         game.second_charleston_done = True # 🌟 追加
+        game.append_log("charleston", type="second", dice=dice, direction=msg)
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
@@ -680,6 +754,7 @@ def draw_tile(player_idx: int = 0, game: GameState = Depends(get_current_game)):
     game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
     game.just_drawn = player_idx 
     game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+    game.append_log("draw", player=player_idx, tile=tile)
     return get_safe_state(game, 0, {"drawn_tile": tile})
 
 @app.get("/discard")
@@ -696,6 +771,7 @@ def discard_tile(player_idx: int = 0, tile: str = "", game: GameState = Depends(
         game.turn = (player_idx + 1) % 4
         game.just_drawn = -1 
         game.last_discard_info = {"player": player_idx, "tile": tile} # 🌟 追加
+        game.append_log("discard", player=player_idx, tile=tile, tsumogiri=(tile == game.last_drawn[player_idx]))
         return get_safe_state(game)
     return {"error": "通信エラー: 牌が見つかりません"}
 
@@ -708,13 +784,26 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         
         # 🌟 レッスンモード（cpu_level == -1）なら、アガリ判定や鳴き判定を全てスキップして即ツモ切り！
         if getattr(game, 'cpu_level', 1) == -1:
+            # 先にツモを処理して記録
+            game.hands[cpu_idx].append(drawn)
+            game.just_drawn = cpu_idx
+            print(f"[DEBUG 🤖] CPU {cpu_idx} ツモ: {drawn}")
+            game.append_log("draw", player=cpu_idx, tile=drawn)
+            
+            # その後に打牌処理
             discard = drawn
+            
+            # 🌟 修正：.remove() だと手牌の同種牌を消してしまうため、確実に追加した末尾のツモ牌を消す
+            game.hands[cpu_idx].pop() 
+            
             game.discards[cpu_idx].append(discard) 
             game.discards_count += 1
             game.is_first_turn[cpu_idx] = False 
             game.turn = (cpu_idx + 1) % 4
             game.just_drawn = -1 
             game.last_discard_info = {"player": cpu_idx, "tile": discard}
+            print(f"[DEBUG 🤖] CPU {cpu_idx} 打牌: {discard}")
+            game.append_log("discard", player=cpu_idx, tile=discard, tsumogiri=True)
             return get_safe_state(game, 0, {
                 "tsumo": False,
                 "discard": discard, 
@@ -773,7 +862,17 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 if len(waits) < 27:
                     is_pass = True
 
+            # 🌟 追加：アガリを無効化し、コンソールに理由を出力する
+            print(f"[DEBUG 🤖] CPU {cpu_idx} 自摸和了が可能ですが、設定により強制パスします。")
+            is_pass = True 
+
             if not is_pass:
+                # 和了の前にツモを処理して記録
+                game.hands[cpu_idx].append(drawn)
+                game.just_drawn = cpu_idx
+                print(f"[DEBUG 🤖] CPU {cpu_idx} ツモ和了: {drawn}")
+                game.append_log("draw", player=cpu_idx, tile=drawn)
+
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
                 game.turn = (cpu_idx + 1) % 4 
@@ -782,11 +881,16 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 
                 # 🌟 追加：演出用の役を即席判定してフロントに渡す
                 effects = get_special_effects(game, cpu_idx, ctx)
+                game.append_log("win", player=cpu_idx, method="tsumo", tile=drawn)
                 return get_safe_state(game, 0, {"tsumo": True, "cpu_idx": cpu_idx, "winning_tile": drawn, "yaku": effects, "score": 0})
 
+        # ここでツモの瞬間の盤面を記録
         game.hands[cpu_idx].append(drawn)
+        game.just_drawn = cpu_idx
+        print(f"[DEBUG 🤖] CPU {cpu_idx} ツモ: {drawn}")
+        game.append_log("draw", player=cpu_idx, tile=drawn)
         
-        did_joker_swap_in_turn = False 
+        did_joker_swap_in_turn = False
         did_kakan_in_turn = False 
         kakan_tile_in_turn = ""  
 
@@ -818,6 +922,10 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 
             for t, c in counts.items():
                 if c == 4 and t not in SEASON_TILES:
+                    # 🌟 追加：暗槓を無効化し、コンソールに理由を出力して次の処理へ進ませる
+                    print(f"[DEBUG 🤖] CPU {cpu_idx} 暗槓({t})が可能ですが、設定により強制スキップします。")
+                    continue 
+
                     if is_kan_valid_for_player(cpu_idx, "ankan", t, game):
                         for _ in range(4): game.hands[cpu_idx].remove(t)
                         game.melds[cpu_idx].append({"type": "ankan", "tiles": [t]*4, "is_hidden": True})
@@ -923,7 +1031,8 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         game.turn = (cpu_idx + 1) % 4
         game.just_drawn = -1 
         game.last_discard_info = {"player": cpu_idx, "tile": discard}
-        
+        print(f"[DEBUG 🤖] CPU {cpu_idx} 打牌: {discard}")
+        game.append_log("discard", player=cpu_idx, tile=discard, tsumogiri=(discard == drawn))
         return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
     except Exception as e:
         traceback.print_exc()
@@ -990,6 +1099,7 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                 
                 # 🌟 追加：演出用の役を即席判定してフロントに渡す
                 effects = get_special_effects(game, i, ctx)
+                game.append_log("win", player=i, method="ron", tile=tile, from_player=discarder_idx)
                 return get_safe_state(game, 0, {"reacted": True, "type": "ron", "player": i, "yaku": effects, "score": 0})
 
         if is_chankan_bool: return get_safe_state(game, 0, {"reacted": False})
@@ -1107,6 +1217,7 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
         game.last_discard_info = {"player": -1, "tile": ""}
+        game.append_log("meld", player=player_idx, meld_type=type, tile=tile, from_player=discarder)
         return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         return {"error": str(e)}
@@ -1193,6 +1304,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
             game.just_drawn = player_idx 
 
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
+        game.append_log("self_meld", player=player_idx, meld_type=type, tile=tile, season=season)
         return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
         traceback.print_exc()
@@ -1220,7 +1332,7 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
         game.turn = player_idx
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
         game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
-        
+        game.append_log("joker_swap", player=player_idx, tile=tile, season=season, target_player=target_idx)
         return get_safe_state(game, 0, {"drawn_tile": season})
     except Exception as e:
         return {"error": str(e)}
@@ -1251,6 +1363,7 @@ def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rins
         
         # 🌟 追加：演出用の役を即席判定してフロントに渡す
         effects = get_special_effects(game, player_idx, ctx)
+        game.append_log("win", player=player_idx, method="tsumo", tile=tile)
         return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()
@@ -1334,6 +1447,7 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
 
         # 🌟 追加：演出用の役を即席判定してフロントに渡す
         effects = get_special_effects(game, player_idx, ctx)
+        game.append_log("win", player=player_idx, method="ron", tile=tile, from_player=discarder)
         return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()
@@ -1428,6 +1542,7 @@ def calculate_round_scores(game: GameState = Depends(get_current_game)):
     # 🌟 追加：計算が終わったら結果を保存してフラグを立てる
     game.round_calculated = True
     game.last_calc_data = {"status": "success", "results": results, "scores": game.scores, "ranking_points": ranking_points}
+    game.finalize_round_log(game.last_calc_data)
     return game.last_calc_data
 
 @app.get("/get_valid_self_melds")
@@ -2335,6 +2450,11 @@ def exit_room(room_id: str = ""):
         del active_rooms[room_id]
         print(f"🧹 ルーム {room_id} を削除・お掃除しました！ (現在稼働中: {len(active_rooms)}卓)")
     return {"status": "success"}
+
+# 🌟 牌譜データをフロントエンドに送るAPI
+@app.get("/get_replay_data")
+def get_replay_data(game: GameState = Depends(get_current_game)):
+    return {"status": "success", "replay_data": game.replay_data}
 
 @app.get("/should_cpu_participate_second_charleston")
 def should_cpu_participate_second_charleston(cpu_idx: int, game: GameState = Depends(get_current_game)):

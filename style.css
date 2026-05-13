@@ -683,7 +683,7 @@ html, body {
 /* --- アクションボタン群 --- */
 .action-wrapper {
     position: absolute;
-    bottom: 110px;
+    bottom: 105px;
     left: 50%;
     transform: translateX(-50%) translateZ(200px) !important;
     display: flex;
@@ -845,6 +845,48 @@ html, body {
     user-select: none;
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     pointer-events: auto !important;
+}
+
+/* --- リプレイ専用コントローラー --- */
+#replay-controls {
+    position: absolute;
+    bottom: 150px; /* 🌟 ここで上下の位置を調整！(120pxくらいが副露と被りにくいです) */
+    left: 50%;
+    transform: translateX(-50%) translateZ(200px) !important;
+    display: flex;
+    gap: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 10px 10px;
+    border-radius: 10px;
+    border: 2px solid #f1c40f;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    z-index: 20000;
+    pointer-events: auto;
+    transform-style: flat !important;
+    transition: opacity 0.2s ease;
+}
+    /* --- リプレイ用ボタンの個別サイズ調整（通常ボタンの上書き） --- */
+    #replay-controls .btn-act {
+        font-size: 14px; /* 文字の大きさ（通常は20px） */
+        padding: 8px 8px; /* ボタンの縦・横のサイズ（通常は 12px 20px） */
+        border-radius: 6px; /* 角の丸み（通常は8px） */
+    }
+
+/* ついでに「Step: X」の文字サイズ調整用（先ほど追加したものを上書きするか、こちらに統一してください） */
+#replay-step-text {
+    color: white;
+    font-size: 14px; /* 文字の大きさ（通常は20px） */
+    font-weight: bold;
+    margin: 0 10px; /* 左右の隙間 */
+}
+
+/* 🌟 アクション隠しボタンに触れた時、通常ボタンとリプレイボタンを両方とも透明にする純粋なCSS */
+#action-hide-area:hover ~ .action-wrapper,
+#action-hide-area:hover ~ #replay-controls {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 /* --- 中央情報パネル --- */

@@ -74,6 +74,7 @@
 
                 <button class="mode-btn" style="background: #8e44ad;" onclick="openAchievements()">🏆 実績・役図鑑</button>
                 <button class="mode-btn" style="background: #2980b9;" onclick="openMyPage()">📊 詳細戦績データ</button>
+                <button class="mode-btn" style="background: #2980b9;" onclick="openReplayList()">📼 牌譜（リプレイ）</button>
                 <button class="mode-btn" style="background: #16a085;" onclick="openLearningMenu()">🏫 学習メニュー</button>
 
                 <button class="mode-back-btn" onclick="backToTitle()">◀ タイトルへ戻る</button>
@@ -366,6 +367,18 @@
 
             <div class="text-center-mb10">
                 <button onclick="closeMyPage()" class="btn-act btn-gray modal-close-bottom">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="replay-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close-top" onclick="closeReplayList()">×</button>
+            <h2 class="modal-title">📼 牌譜一覧</h2>
+            <div id="replay-list-container" class="modal-scroll-area">
+            </div>
+            <div class="text-center-mb10">
+                <button onclick="closeReplayList()" class="btn-act btn-gray modal-close-bottom">閉じる</button>
             </div>
         </div>
     </div>
@@ -1429,8 +1442,14 @@
             <div class="pos-auto-btn">
                 <button id="btn-auto-play" class="btn-waits auto-off" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
             </div>
-            <div id="action-hide-area" style="display: none;">
-                <span style="pointer-events: none;">ボタンを透過して副露を確認</span>
+            <div id="action-hide-area" style="display: none;">アクションボタンを隠す</div>
+
+            <div id="replay-controls" style="display: none;">
+                <button class="btn-act btn-gray" onclick="exitReplay()">🚪 終了</button>
+                <button class="btn-act btn-blue" onclick="prevReplayStep()">◀ 前へ</button>
+                <span id="replay-step-text">Step: 0</span>
+                <button class="btn-act btn-blue" onclick="nextReplayStep()">次へ ▶</button>
+                <button id="btn-replay-auto" class="btn-act btn-green" style="margin-left: 10px;" onclick="toggleReplayAuto()">自動再生: OFF</button>
             </div>
 
             <div class="pos-name-1">

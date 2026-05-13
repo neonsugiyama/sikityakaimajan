@@ -7,6 +7,11 @@ let currentSessionRoomId = localStorage.getItem('shiki_mahjong_room_id') || "";
 
 // 📡 Pythonサーバー(FastAPI)へ通信し、データを受け取る超重要関数
 async function apiCall(endpoint, params = {}) {
+    // 🌟 追加：リプレイモード中は一切の通信を行わず、空のデータを返す
+    if (typeof isReplayMode !== 'undefined' && isReplayMode) {
+        return {};
+    }
+
     try {
         let url = endpoint;
         params._t = new Date().getTime();
@@ -61,5 +66,31 @@ async function apiCall(endpoint, params = {}) {
         alert(`【システムエラー】\n${e.message}\n\n※画面をリロードしてもう一度お試しください。`);
         if (typeof isProc !== 'undefined') isProc = false;
         throw e;
+    }
+}
+
+// 🌟 牌譜データをサーバーから取得してローカルストレージに保存する
+async function fetchAndSaveReplay() {
+    if (!currentSessionRoomId) return;
+    try {
+        const res = await fetch(`/get_replay_data?room_id=${currentSessionRoomId}`);
+        const data = await res.json();
+
+        // ログが1局分でも存在すれば保存する
+        if (data.status === 'success' && data.replay_data && data.replay_data.rounds.length > 0) {
+            let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
+
+            // 一意のIDを付与
+            data.replay_data.id = Date.now().toString();
+            savedReplays.push(data.replay_data);
+
+            // ストレージ容量圧迫を防ぐため、最新の30件だけ保存する
+            if (savedReplays.length > 30) savedReplays.shift();
+
+            localStorage.setItem('shiki_mahjong_replays', JSON.stringify(savedReplays));
+            console.log("📼 牌譜をローカルストレージに保存しました！");
+        }
+    } catch (e) {
+        console.error("牌譜の取得・保存に失敗:", e);
     }
 }

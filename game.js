@@ -710,6 +710,13 @@ let currentNanikiru = null;
 
 // 🀄 現在の待ち牌（または何切る）を計算し、「待ち確認」ボタンの状態を更新する関数
 async function updateWaitsButton() {
+    // 🌟 追加：リプレイ中は待ち牌の計算（サーバー通信）をスキップし、ボタンも隠す
+    if (typeof isReplayMode !== 'undefined' && isReplayMode) {
+        const btn = document.getElementById('btn-show-waits');
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+
     const waitsBtn = document.getElementById('btn-show-waits');
     if (!waitsBtn) return;
 

@@ -132,7 +132,23 @@ async function takeResultScreenshot() {
     }
 }
 
-function returnToHomeGracefully() {
+async function returnToHomeGracefully() {
+    console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
+
+    if (typeof fetchAndSaveReplay === 'function') {
+        console.log("[App] 📼 牌譜の保存処理を開始します...");
+        await fetchAndSaveReplay();
+        console.log("[App] 📼 牌譜の保存処理が完了しました");
+    }
+
+    if (typeof isReplayMode !== 'undefined') isReplayMode = false;
+    if (typeof replayAutoInterval !== 'undefined' && replayAutoInterval) {
+        clearInterval(replayAutoInterval);
+        replayAutoInterval = null;
+    }
+    const actionWrapper = document.getElementById('action-wrapper');
+    if (actionWrapper) actionWrapper.style.display = ''; // 隠していた操作ボタンを復活！
+
     if (typeof stopTimer === 'function') stopTimer();
     isProc = false;
     if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
@@ -167,7 +183,7 @@ function returnToHomeGracefully() {
     const overlay = document.getElementById('overlay');
     if (overlay) overlay.style.display = 'none';
 
-    const uiList = ['charleston-ui', 'charleston-confirm-ui', 'center-message', 'dice-overlay', 'tutorial-review-container'];
+    const uiList = ['charleston-ui', 'charleston-confirm-ui', 'center-message', 'dice-overlay', 'tutorial-review-container', 'replay-controls'];
     uiList.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -238,6 +254,7 @@ function returnToHomeGracefully() {
     updateStampVisibility();
 
     if (typeof applyBGMVolume === 'function') applyBGMVolume();
+    console.log("[App] 🏠 タイトル画面への帰還処理完了");
 }
 
 function quitGame() {
@@ -340,7 +357,7 @@ function resizeGame() {
         '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
         '#achievement-modal > div', '#mypage-modal > div', '#friend-match-modal > div',
         '#settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
-        '#rate-help-modal > div', '#ingame-tutorial-nav'
+        '#rate-help-modal > div', '#replay-modal > div', '#ingame-tutorial-nav'
     ];
     modalElements.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => {
