@@ -1526,7 +1526,6 @@ body.lang-en .en {
     width: 950px !important;
     height: 700px !important;
     max-width: none !important;
-    max-height: none !important;
     min-width: 950px !important;
     min-height: 700px !important;
     color: white;
@@ -1534,6 +1533,22 @@ body.lang-en .en {
     display: flex;
     flex-direction: column;
     flex-shrink: 0 !important;
+}
+
+/* 🌟 追加：チュートリアル用のハイライトとスクロールバー設定 */
+.tut-highlight {
+    z-index: 85005 !important;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.8) !important;
+    border-radius: 8px;
+}
+
+.tut-nav-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tut-nav-box::-webkit-scrollbar-thumb {
+    background: #3498db;
+    border-radius: 4px;
 }
 
 .modal-title {
@@ -2489,7 +2504,10 @@ body.lang-en .en {
     background: #1e272e;
     padding: 30px;
     border-radius: 12px;
-    width: 600px;
+    width: 600px !important;
+    min-width: 600px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     text-align: center;
     color: white;
     border: 2px solid #e67e22;
@@ -2615,7 +2633,10 @@ body.lang-en .en {
 }
 
 .rate-help-box {
-    width: 900px;
+    width: 900px !important;
+    min-width: 900px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     padding: 30px;
     border-radius: 12px;
     background: #1e272e;
@@ -2735,9 +2756,11 @@ body.lang-en .en {
 
 .match-settings-content {
     width: 450px !important;
-    min-width: unset !important;
+    min-width: 450px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     height: auto !important;
-    min-height: unset !important;
+    min-height: auto !important;
     display: flex;
     flex-direction: column;
     padding: 25px 35px !important;
@@ -2835,7 +2858,10 @@ body.lang-en .en {
     background: #1e272e;
     padding: 30px;
     border-radius: 12px;
-    width: 400px;
+    width: 400px !important;
+    min-width: 400px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     text-align: center;
     color: white;
     border: 2px solid #3498db;
@@ -3133,8 +3159,12 @@ body.lang-en .en {
 
 .settings-container {
     display: flex;
-    width: 850px;
-    height: 600px;
+    width: 850px !important;
+    min-width: 850px !important;
+    height: 600px !important;
+    min-height: 600px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     background: #2c3e50;
     border: 3px solid #34495e;
     border-radius: 15px;
@@ -3326,7 +3356,10 @@ body.lang-en .en {
 }
 
 .learning-content {
-    width: 500px;
+    width: 500px !important;
+    min-width: 500px !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
     padding: 30px;
     max-height: 750px;
     overflow-y: auto;

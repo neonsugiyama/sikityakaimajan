@@ -653,303 +653,285 @@ async function startTutorial() {
 }
 
 // ==========================================
-// 🎓 英才教育（レッスン）モード制御
+// 🎓 レッスン紙芝居データ管理用グローバル変数
 // ==========================================
+let lessonTitle = "";
+let lessonIntro = "";
+let lessonQuizHtml = "";
+let lessonMission = "";
+let currentLessonPage = 0;
+
+// 🎓 各レッスンを開始する関数（紙芝居UIの立ち上げ）
 async function startLesson(lessonId) {
     closeAllModals();
     playSE('start');
 
+    // チュートリアル用のUI最前面固定（Z-index）
+    if (!document.getElementById('tut-zindex-fix')) {
+        const style = document.createElement('style');
+        style.id = 'tut-zindex-fix';
+        style.innerHTML = `
+            .modal-overlay, #settings-modal, #friend-match-modal, #howto-modal, #yaku-modal, #mypage-modal, #achievement-modal { z-index: 100000 !important; }
+            #sidebar-overlay { z-index: 99998 !important; }
+            #sidebar-menu { z-index: 99999 !important; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 退出時のクリーンアップフック設定
+    if (!window.tutExitHooked) {
+        window.originalExecExchange = window.execExchange;
+        const originalReturn = window.returnToHomeGracefully;
+        window.returnToHomeGracefully = function () {
+            isIngameTutorial = false;
+            window.currentLessonId = null;
+            document.getElementById('tut-dark-overlay').style.display = "none";
+            document.getElementById('ingame-tutorial-nav').style.display = "none";
+            document.getElementById('tutorial-review-container').style.display = "none";
+            if (originalReturn) originalReturn();
+        };
+        window.tutExitHooked = true;
+    }
+
+    isIngameTutorial = true;
+    window.currentLessonId = lessonId;
+
+    let qText = "", ansText = "";
+
+    // 🌟 1. 各レッスンのテキストデータをセット
+    switch (lessonId) {
+        case 1:
+            lessonTitle = "レッスン①：脱・平和主義【全単アタック】";
+            lessonIntro = "数字の「1, 3, 5, 7, 9」と字牌だけで構成する役です。<br>偶数牌はすべてノイズ。漢は黙って奇数と字牌だけを集めましょう！";
+            qText = "Q. 次のうち、全単に【使えない】牌はどれ？<br>① 1m　② 5p　③ 6s　④ 中";
+            ansText = "③ 6s（偶数だから）";
+            lessonMission = "不要な偶数を捨てて「全単」を和了せよ！";
+            break;
+        case 2:
+            lessonTitle = "レッスン②：上下対称の美学【推不倒】";
+            lessonIntro = "「上下逆さまにしても図柄が同じ牌」だけで構成する役です。<br>【対象牌】1,2,3,4,5,8,9筒 / 2,4,5,6,8,9索 / 白";
+            qText = "Q. 次のうち「推不倒」に使える牌は？<br>① 7s　② 6p　③ 4s";
+            ansText = "③ 4s（7sと6pは上下非対称なデザインです）";
+            lessonMission = "対象外の牌を捨てて「推不倒」を和了せよ！";
+            break;
+        case 3:
+            lessonTitle = "レッスン③：圧倒的スケール【全大】";
+            lessonIntro = "数字の「7, 8, 9」だけで構成すると『全大』。<br>逆に「1, 2, 3」だけなら『全小』、「4, 5, 6」だけなら『全中』という役になります。";
+            qText = "Q. 全小・全中・全大を狙うとき、絶対に入れてはいけない牌は？<br>① 字牌　② 索子　③ 萬子";
+            ansText = "① 字牌（数字の縛りなので字牌はすべてノイズになります）";
+            lessonMission = "デカい数字だけを集めて「全大」を和了せよ！";
+            break;
+        case 4:
+            lessonTitle = "レッスン④：階段状の刻子【一色四節高】";
+            lessonIntro = "同じ色で「111」「222」「333」「444」のように、数字が1つずつズレた「刻子」を4つ作る役です。（3つなら三節高）";
+            qText = "Q. 「222p」「333p」「444p」と揃っています。四節高にするにはあと何が必要？<br>① 111p か 555p　② 555p か 666p";
+            ansText = "①（階段状に繋げるため、上下に隣接する刻子が必要です）";
+            lessonMission = "連続した刻子を完成させ「一色四節高」を和了せよ！";
+            break;
+        case 5:
+            lessonTitle = "レッスン⑤：赤を憎む者【陰陽両儀】";
+            lessonIntro = "牌の図柄に「赤い塗料」が一切使われていない牌だけで構成する役です。<br>【対象牌】2,4,8筒 / 2,3,4,6,8索 / 東,南,西,北,白,發";
+            qText = "Q. 次のうち「陰陽両儀」で【使えない】字牌はどれ？<br>① 白　② 發　③ 中";
+            ansText = "③ 中（真っ赤なのでアウトです！）";
+            lessonMission = "赤をすべて切り捨て「陰陽両儀」を和了せよ！";
+            break;
+        case 6:
+            lessonTitle = "レッスン⑥：面前信仰の破壊【寒江独釣で裸になれ】";
+            lessonIntro = "4回副露（ポンやカン等）を行い、手牌を「たった1枚（裸単騎）」にして和了する役です。<br>鳴けば鳴くほど強くなる、このゲームの象徴です。";
+            qText = "Q. 寒江独釣の待ち牌として最強なのはどれ？<br>① 四季牌（春など）　② 1m　③ 中";
+            ansText = "① 四季牌（万能牌なので、他家が何を捨てても絶対和了れます！）";
+            lessonMission = "4回鳴いて手牌を1枚にし「寒江独釣」を和了せよ！";
+            break;
+        case 7:
+            lessonTitle = "レッスン⑦：未知の幾何学【七星不靠】";
+            lessonIntro = "字牌7種（東南西北白發中）すべてと、各色で筋が被らない「147」「258」「369」を組み合わせた特殊形です。（面子不要）";
+            qText = "Q. 手牌に「1m・4m・7m」「2p・5p・8p」があります。索子は何を集めればいい？<br>① 1s・4s・7s　② 2s・5s・8s　③ 3s・6s・9s";
+            ansText = "③ 3s・6s・9s（各色で別の筋を担当させます）";
+            lessonMission = "正しい有効牌を見極めて「七星不靠」を和了せよ！";
+            break;
+        case 8:
+            lessonTitle = "レッスン⑧：面前のロマン【一色四歩高】";
+            lessonIntro = "同じ色で「123」「234」「345」「456」のように、数字が1つずつズレた「順子」を4つ作る役です。<br>鳴かずに門前で狙うと美しさが際立ちます。";
+            qText = "Q. 「345p」「456p」「567p」と揃っています。四歩高にするにはあと何が必要？<br>① 234p か 678p　② 345p か 567p";
+            ansText = "①（階段状に繋げるため、上下の順子が必要です）";
+            lessonMission = "階段状の順子を完成させ「一色四歩高」を和了せよ！";
+            break;
+        case 9:
+            lessonTitle = "レッスン⑨：最終試験【無花果＆槓上開花】";
+            lessonIntro = "四季牌を1枚も持たずに和了する縛りプレイ「無花果（むいちじく）」。<br>そして、カンをした補充牌で和了する「槓上開花（リンシャンカイホウ）」。<br>これらを複合させて脳汁を出しましょう！";
+            qText = "Q. 暗槓（アンカン）をすると、山札から嶺上牌を引くことができますか？<br>① はい　② いいえ";
+            ansText = "① はい（この性質を利用して強引にツモ和了りをもぎ取ります）";
+            lessonMission = "暗槓からの嶺上ツモで、美しく暴力的な和了をキメろ！";
+            break;
+    }
+
+    // クイズ用のアコーディオンHTMLを構築
+    lessonQuizHtml = `
+        <details style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid #c0392b; margin-top: 10px;">
+            <summary style="cursor:pointer; font-weight:bold; outline: none; font-size: 22px;">${qText}</summary>
+            <div style="margin-top:15px; color:#f1c40f; font-weight: bold; border-top: 1px dashed #e74c3c; padding-top: 15px; font-size: 22px;">正解：${ansText}</div>
+        </details>
+    `;
+
+    // 🌟 2. サーバー通信で盤面をセットアップ
+    let apiScenario = `lesson_${lessonId}`;
+    stopTimer();
+    isProc = true;
+
+    // 画面遷移を先に行う
     document.getElementById('title-screen').style.display = 'none';
     document.getElementById('mode-select-screen').style.display = 'none';
     document.querySelector('.table').style.opacity = 1;
     document.getElementById('game-container').style.opacity = 1;
     document.getElementById('overlay').style.display = 'none';
-
-    isProc = true;
-
-    for (let i = 0; i < 4; i++) {
-        document.getElementById(`river-${i}`).innerHTML = "";
-        document.getElementById(`meld-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).style.display = "none";
-    }
-    clearCharlestonStatus();
-    resetActionBtnPool();
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    document.getElementById('tutorial-review-container').style.display = 'block';
-
-    let title, msg, apiScenario;
-    switch (lessonId) {
-        case 1:
-            title = "レッスン①：脱・平和主義【全単アタック】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：全単（チャンタン）</div>
-                        数字の「1, 3, 5, 7, 9」と字牌だけで構成する役です。<br>
-                        偶数牌はすべてノイズ。漢は黙って奇数と字牌だけを集めましょう！
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち、全単に【使えない】牌はどれ？<br>① 1m　② 5p　③ 6s　④ 中</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 6s（偶数だから）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：不要な偶数を捨てて「全単」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_1";
-            break;
-
-        case 2:
-            title = "レッスン②：上下対称の美学【推不倒】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：推不倒（推しても倒れない）</div>
-                        「上下逆さまにしても図柄が同じ牌」だけで構成する役です。<br>
-                        【対象牌】1,2,3,4,5,8,9筒 / 2,4,5,6,8,9索 / 白
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち「推不倒」に使える牌は？<br>① 7s　② 6p　③ 4s</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 4s（7sと6pは上下非対称なデザインです）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：対象外の牌を捨てて「推不倒」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_2";
-            break;
-
-        case 3:
-            title = "レッスン③：圧倒的スケール【全大】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：全大（＆ 全小 / 全中）</div>
-                        数字の「7, 8, 9」だけで構成すると『全大』。<br>
-                        逆に「1, 2, 3」だけなら『全小』、「4, 5, 6」だけなら『全中』という役になります。
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 全小・全中・全大を狙うとき、絶対に入れてはいけない牌は？<br>① 字牌　② 索子　③ 萬子</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：① 字牌（数字の縛りなので字牌はすべてノイズになります）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：デカい数字だけを集めて「全大」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_3";
-            break;
-
-        case 4:
-            title = "レッスン④：階段状の刻子【一色四節高】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：一色四節高（いっしょくよんせつこう）</div>
-                        同じ色で「111」「222」「333」「444」のように、数字が1つずつズレた「刻子」を4つ作る役です。（3つなら三節高）
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 「222p」「333p」「444p」と揃っています。四節高にするにはあと何が必要？<br>① 111p か 555p　② 555p か 666p</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：①（階段状に繋げるため、上下に隣接する刻子が必要です）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：連続した刻子を完成させ「一色四節高」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_4";
-            break;
-
-        case 5:
-            title = "レッスン⑤：赤を憎む者【陰陽両儀】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：陰陽両儀（黒一色）</div>
-                        牌の図柄に「赤い塗料」が一切使われていない牌だけで構成する役です。<br>
-                        【対象牌】2,4,8筒 / 2,3,4,6,8索 / 東,南,西,北,白,發
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 次のうち「陰陽両儀」で【使えない】字牌はどれ？<br>① 白　② 發　③ 中</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 中（真っ赤なのでアウトです！）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：赤をすべて切り捨て「陰陽両儀」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_5";
-            break;
-
-        case 6:
-            title = "レッスン⑥：面前信仰の破壊【寒江独釣で裸になれ】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：寒江独釣（かんこうどくちょう）</div>
-                        4回副露（ポンやカン等）を行い、手牌を「たった1枚（裸単騎）」にして和了する役です。<br>
-                        鳴けば鳴くほど強くなる、このゲームの象徴です。
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 寒江独釣の待ち牌として最強なのはどれ？<br>① 四季牌（春など）　② 1m　③ 中</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：① 四季牌（万能牌なので、他家が何を捨てても絶対和了れます！）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：4回鳴いて手牌を1枚にし「寒江独釣」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_6";
-            break;
-
-        case 7:
-            title = "レッスン⑦：未知の幾何学【七星不靠】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：七星不靠（チーシンブーカオ）</div>
-                        字牌7種（東南西北白發中）すべてと、各色で筋が被らない「147」「258」「369」を組み合わせた特殊形です。（面子不要）
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 手牌に「1m・4m・7m」「2p・5p・8p」があります。索子は何を集めればいい？<br>① 1s・4s・7s　② 2s・5s・8s　③ 3s・6s・9s</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：③ 3s・6s・9s（各色で別の筋を担当させます）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：正しい有効牌を見極めて「七星不靠」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_7";
-            break;
-
-        case 8:
-            title = "レッスン⑧：面前のロマン【一色四歩高】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：一色四歩高（いっしょくよんほこう）</div>
-                        同じ色で「123」「234」「345」「456」のように、数字が1つずつズレた「順子」を4つ作る役です。<br>
-                        鳴かずに門前で狙うと美しさが際立ちます。
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 「345p」「456p」「567p」と揃っています。四歩高にするにはあと何が必要？<br>① 234p か 678p　② 345p か 567p</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：①（階段状に繋げるため、上下の順子が必要です）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：階段状の順子を完成させ「一色四歩高」を和了せよ！</span>
-            `;
-            apiScenario = "lesson_8";
-            break;
-
-        case 9:
-            title = "レッスン⑨：最終試験【無花果＆槓上開花】";
-            msg = `
-                <div class='learning-wrap'>
-                    <div class='learning-box-blue'>
-                        <div class='learning-box-blue-title'>📖 役の紹介：無花果 / 槓上開花</div>
-                        四季牌を1枚も持たずに和了する縛りプレイ「無花果（むいちじく）」。<br>
-                        そして、カンをした補充牌で和了する「槓上開花（リンシャンカイホウ）」。<br>
-                        これらを複合させて脳汁を出しましょう！
-                    </div>
-                    <div class='learning-box-red'>
-                        <div class='learning-box-red-title'>🧠 ミニクイズ</div>
-                        <details>
-                            <summary style='cursor:pointer; font-weight:bold;'>Q. 暗槓（アンカン）をすると、山札から嶺上牌を引くことができますか？<br>① はい　② いいえ</summary>
-                            <div style='margin-top:10px; color:#f1c40f;'>正解：① はい（この性質を利用して強引にツモ和了りをもぎ取ります）</div>
-                        </details>
-                    </div>
-                </div>
-                <br><span style='color:#f1c40f;'>🏆 ミッション：暗槓からの嶺上ツモで、美しく暴力的な和了をキメろ！</span>
-            `;
-            apiScenario = "lesson_9";
-            break;
-    }
-
     currentGameMode = 'lesson';
-    window.currentLessonId = lessonId;
-    await apiCall('/start', { cpu_level: -1 });
 
-    await apiCall('/debug_setup', { scenario: apiScenario });
+    try {
+        // 🌟 修正：まだルーム（セッション）が存在しない場合は、まず「開始」して部屋を作る
+        if (typeof currentSessionRoomId === 'undefined' || !currentSessionRoomId) {
+            await apiCall('/start', { cpu_level: 1 });
+        }
+        await apiCall('/debug_setup', { scenario: apiScenario });
+    } catch (e) {
+        console.error("サーバーとの通信エラー:", e);
+        // エラーが出た場合は強制的に新しいルームを作ってリトライ
+        try {
+            await apiCall('/start', { cpu_level: 1 });
+            await apiCall('/debug_setup', { scenario: apiScenario });
+        } catch (retryError) {
+            alert("通信に失敗しました。画面をリロードしてください。");
+            returnToHomeGracefully();
+            return;
+        }
+    }
 
+    // 🌟 3. 盤面表示の初期化（前回のゲームのゴミを消す）
     charlestonPhase = false;
     document.getElementById('charleston-ui').style.display = "none";
     document.getElementById('charleston-confirm-ui').style.display = "none";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-
-    const btnHaitei = document.getElementById('btn-haitei-tsumo');
-    const btnRyukyoku = document.getElementById('btn-ryukyoku');
-    if (btnHaitei) btnHaitei.style.display = "none";
-    if (btnRyukyoku) btnRyukyoku.style.display = "none";
-
-    drawnTile = "";
-    lastDiscardPlayer = -1;
-    justPonged = false;
-    pendingIsRinshan = false;
-    pendingIsMiaoshou = false;
-
+    for (let i = 0; i < 4; i++) {
+        let r = document.getElementById(`river-${i}`); if (r) r.innerHTML = "";
+        let m = document.getElementById(`meld-${i}`); if (m) m.innerHTML = "";
+        let wz = document.getElementById(`win-zone-${i}`); if (wz) { wz.innerHTML = ""; wz.style.display = "none"; }
+    }
+    drawnTile = ""; lastDiscardPlayer = -1; justPonged = false;
+    pendingIsJokerSwap = false; pendingIsRinshan = false; pendingIsMiaoshou = false;
     hideCpuTiles = [0, 0, 0, 0];
-    clearCharlestonStatus();
+    if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
 
     render(); renderCPU();
 
+    // 🌟 4. 紙芝居パネル（UI）の設定と表示
     const navPanel = document.getElementById('ingame-tutorial-nav');
-    const navText = document.getElementById('ingame-tutorial-text');
-    const nextBtn = document.getElementById('ingame-tutorial-next-btn');
-    const prevBtn = document.getElementById('ingame-tutorial-prev-btn');
-    if (prevBtn) prevBtn.style.display = 'none';
-
-    const gameContainer = document.getElementById('game-container');
-    if (navPanel.parentNode !== gameContainer) {
-        gameContainer.appendChild(navPanel);
-    }
-
     navPanel.style.setProperty('width', '950px', 'important');
     navPanel.style.setProperty('padding', '25px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
     navPanel.style.top = '50%';
     navPanel.style.left = '50%';
-    navPanel.style.transform = 'translate(-50%, -50%)';
-
-    navText.innerHTML = `<span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${title}</span><br><br><span style='font-size: 22px; line-height: 1.6;'>${msg}</span>`;
-
-    nextBtn.style.display = "inline-block";
-    nextBtn.innerHTML = "挑戦する！ ⚔️";
+    // 🌟 修正：scale(var(--game-scale, 1)) を追加！
+    navPanel.style.transform = 'translate(-50%, -50%) scale(var(--game-scale, 1))';
     navPanel.style.display = 'block';
 
-    nextBtn.onclick = () => {
-        playSE('start');
-        navPanel.style.display = 'none';
-        isProc = false;
-        checkT();
-    };
+    // 最初のページ（役の紹介）を描画
+    currentLessonPage = 0;
+    renderLessonPage();
 }
 
-// 💡 プレイ中にチュートリアルのメッセージを再表示・非表示する関数
+// 📖 紙芝居（スライドショー）のページを描画する関数
+function renderLessonPage() {
+    const navText = document.getElementById('ingame-tutorial-text');
+    const prevBtn = document.getElementById('ingame-tutorial-prev-btn');
+    const nextBtn = document.getElementById('ingame-tutorial-next-btn');
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+
+    let contentHtml = `<span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${lessonTitle}</span><br><br>`;
+
+    if (currentLessonPage === 0) {
+        // --- 1ページ目：役の紹介 ---
+        contentHtml += `<div class='learning-box-blue'><div class='learning-box-blue-title'>📖 役の紹介</div><span style='font-size: 22px; line-height: 1.6;'>${lessonIntro}</span></div>`;
+        prevBtn.style.display = "none";
+        nextBtn.style.display = "inline-block";
+        nextBtn.className = "btn-act btn-blue tut-btn-next";
+        nextBtn.innerHTML = "次へ ▶";
+        nextBtn.onclick = () => { playSE('click'); currentLessonPage++; renderLessonPage(); };
+
+    } else if (currentLessonPage === 1) {
+        // --- 2ページ目：ミニクイズ ---
+        contentHtml += `<div class='learning-box-red'><div class='learning-box-red-title'>🧠 ミニクイズ</div><span style='font-size: 22px; line-height: 1.6;'>${lessonQuizHtml}</span></div>`;
+        prevBtn.style.display = "inline-block";
+        prevBtn.onclick = () => { playSE('click'); currentLessonPage--; renderLessonPage(); };
+        nextBtn.style.display = "inline-block";
+        nextBtn.className = "btn-act btn-blue tut-btn-next";
+        nextBtn.innerHTML = "次へ ▶";
+        nextBtn.onclick = () => { playSE('click'); currentLessonPage++; renderLessonPage(); };
+
+    } else if (currentLessonPage === 2) {
+        // --- 3ページ目：ミッション提示＆スタート ---
+        contentHtml += `<div style='font-size: 26px; font-weight: bold; color: #f1c40f; margin-top: 20px; line-height: 1.5;'>🏆 ミッション：<br>${lessonMission}</div>`;
+        prevBtn.style.display = "inline-block";
+        prevBtn.onclick = () => { playSE('click'); currentLessonPage--; renderLessonPage(); };
+        nextBtn.style.display = "inline-block";
+        nextBtn.className = "btn-act btn-red tut-btn-next"; // 赤くして目立たせる
+        nextBtn.innerHTML = "挑戦する！ ⚔️";
+        nextBtn.onclick = () => {
+            playSE('start');
+            navPanel.style.display = 'none';
+            // プレイ中の復習ボタンを表示
+            document.getElementById('tutorial-review-container').style.display = "block";
+            isProc = false;
+            checkT(); // 🌟 ゲーム進行再開
+        };
+    }
+
+    navText.innerHTML = contentHtml;
+}
+
+// 💡 プレイ中にチュートリアル・レッスンのメッセージを再表示する関数
 function reviewTutorial() {
     playSE('click');
-    const nav = document.getElementById('ingame-tutorial-nav');
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    const navText = document.getElementById('ingame-tutorial-text');
+    const prevBtn = document.getElementById('ingame-tutorial-prev-btn');
+    const nextBtn = document.getElementById('ingame-tutorial-next-btn');
 
-    if (nav) {
-        if (nav.style.display === 'block') {
-            nav.style.display = 'none';
-        } else {
-            nav.style.top = '20%';
-            nav.style.left = '50%';
-            nav.style.transform = 'translateX(-50%)';
-            nav.style.display = 'block';
-        }
+    navPanel.style.top = '50%';
+    navPanel.style.left = '50%';
+    // 🌟 修正：scale(var(--game-scale, 1)) を追加！
+    navPanel.style.transform = 'translate(-50%, -50%) scale(var(--game-scale, 1))';
+    if (navPanel.dataset) navPanel.dataset.returnTop = ""; // 位置記憶リセット
+
+    if (window.currentLessonId) {
+        // 🌟 レッスンの再確認（役の紹介 ＋ ミッションを1つのパネルで合体表示）
+        let contentHtml = `
+            <span style='color:#e74c3c; font-size:1.3em; font-weight:bold;'>${lessonTitle}</span><br><br>
+            <div class='learning-box-blue'>
+                <div class='learning-box-blue-title'>📖 役の紹介</div>
+                <span style='font-size: 20px; line-height: 1.5;'>${lessonIntro}</span>
+            </div>
+            <div style='font-size: 24px; font-weight: bold; color: #f1c40f; margin-top: 20px; line-height: 1.5;'>
+                🏆 ミッション：<br>${lessonMission}
+            </div>
+        `;
+        navText.innerHTML = contentHtml;
+        prevBtn.style.display = "none";
+
+        nextBtn.style.display = "inline-block";
+        nextBtn.className = "btn-act btn-gray tut-btn-next";
+        nextBtn.innerHTML = "閉じる";
+        nextBtn.onclick = () => {
+            playSE('click');
+            navPanel.style.display = 'none';
+        };
+        navPanel.style.display = 'block';
+    } else {
+        // 実戦チュートリアルの場合の再確認処理
+        navText.innerHTML = "チュートリアルの進行状況を確認します...";
+        prevBtn.style.display = "none";
+        nextBtn.style.display = "inline-block";
+        nextBtn.className = "btn-act btn-gray tut-btn-next";
+        nextBtn.innerHTML = "閉じる";
+        nextBtn.onclick = () => { navPanel.style.display = 'none'; };
+        navPanel.style.display = 'block';
     }
 }

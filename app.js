@@ -340,7 +340,7 @@ function resizeGame() {
         '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
         '#achievement-modal > div', '#mypage-modal > div', '#friend-match-modal > div',
         '#settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
-        '#rate-help-modal > div'
+        '#rate-help-modal > div', '#ingame-tutorial-nav'
     ];
     modalElements.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => {
