@@ -915,13 +915,13 @@ async function startLesson(lessonId) {
 
     try {
         if (typeof currentSessionRoomId === 'undefined' || !currentSessionRoomId) {
-            await apiCall('/start', { cpu_level: 1 });
+            await apiCall('/start', { cpu_level: -1 });
         }
         await apiCall('/debug_setup', { scenario: apiScenario });
     } catch (e) {
         console.error("サーバーとの通信エラー:", e);
         try {
-            await apiCall('/start', { cpu_level: 1 });
+            await apiCall('/start', { cpu_level: -1 });
             await apiCall('/debug_setup', { scenario: apiScenario });
         } catch (retryError) {
             alert("通信に失敗しました。画面をリロードしてください。");
