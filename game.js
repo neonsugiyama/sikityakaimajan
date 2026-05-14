@@ -3082,11 +3082,17 @@ async function handleRoundEnd(isReplayingResult = false) {
                 let myYaku = myResult ? (myResult.details || []).flatMap(d => d.yaku || []) : [];
 
                 if (window.currentLessonId === 1 && myYaku.includes("全単")) isCleared = true;
-                else if (window.currentLessonId === 2 && myYaku.includes("寒江独釣")) isCleared = true;
-                else if (window.currentLessonId === 3 && myYaku.includes("七星不靠")) isCleared = true;
-                else if (window.currentLessonId === 4 && (myYaku.includes("一色四歩高") || myYaku.includes("連七対"))) isCleared = true;
+                else if (window.currentLessonId === 2 && myYaku.includes("推不倒")) isCleared = true;
+                else if (window.currentLessonId === 3 && (myYaku.includes("全大") || myYaku.includes("全中") || myYaku.includes("全小"))) isCleared = true;
+                else if (window.currentLessonId === 4 && myYaku.includes("三節高")) isCleared = true;
+                else if (window.currentLessonId === 5 && myYaku.includes("断紅胡")) isCleared = true;
+                else if (window.currentLessonId === 6 && myYaku.includes("寒江独釣")) isCleared = true;
+                else if (window.currentLessonId === 7 && myYaku.includes("七星不靠")) isCleared = true;
+                else if (window.currentLessonId === 8 && myYaku.includes("一色四歩高")) isCleared = true;
+                else if (window.currentLessonId === 9 && myYaku.includes("無花果") && myYaku.includes("槓上開花")) isCleared = true;
 
                 if (isCleared) {
+                    console.log("実際にサーバーから返ってきた獲得役:", myYaku);
                     clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
 
                     // 🌟 追加：レッスンクリア状況を専用の領域にセーブする
@@ -3095,6 +3101,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                     localStorage.setItem('shiki_mahjong_lessons', JSON.stringify(savedLessons));
 
                 } else {
+                    console.log("実際にサーバーから返ってきた獲得役:", myYaku);
                     clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
                 }
             } else {

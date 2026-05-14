@@ -703,123 +703,124 @@ async function startLesson(lessonId) {
     // 🌟 1. 各レッスンのテキストとクイズデータをセット (画像を埋め込み)
     switch (lessonId) {
         case 1:
-            lessonTitle = "レッスン①：脱・平和主義【全単アタック】";
-            lessonIntro = `数字の「1, 3, 5, 7, 9」と字牌だけで構成する役です。<br>偶数牌はすべてノイズ。漢は黙って奇数と字牌だけを集めましょう！
+            lessonTitle = "レッスン①：斬新で簡単な和了形【全単】";
+            lessonIntro = `奇数の牌「1, 3, 5, 7, 9」だけで構成する役です。<br>碰と槓をしていなければどんな形でも奇数の牌全てが和了牌になります！
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">使える牌の例：</span><br>
-                ${getTutImg('1m')}${getTutImg('3p')}${getTutImg('5p')}${getTutImg('7s')}${getTutImg('9s')} &nbsp; &nbsp; ${getTutImg('東')}${getTutImg('白')}${getTutImg('發')}${getTutImg('中')}
+                <span style="color:#bdc3c7; font-size: 16px;">対象牌一覧：</span><br>
+                ${getTutImg('1m')}${getTutImg('9m')}${getTutImg('1p')}${getTutImg('3p')}${getTutImg('5p')}${getTutImg('7p')}${getTutImg('9p')}
+                ${getTutImg('1s')}${getTutImg('3s')}${getTutImg('5s')}${getTutImg('7s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 次のうち、全単に【使えない】牌はどれ？",
+                qText: "Q. 次のうち、全単で【使えない】牌はどれ？",
                 options: [
-                    { text: "1m", img: "1m" },
-                    { text: "5p", img: "5p" },
-                    { text: "6s", img: "6s" },
-                    { text: "中", img: "中" }
+                    { text: "1萬", img: "1m" },
+                    { text: "5筒", img: "5p" },
+                    { text: "6索", img: "6s" }
                 ],
                 correctIndex: 2,
-                explanation: "6s は偶数なので全単には使えません。"
+                explanation: "6索 は偶数なので全単には使えません。"
             };
-            lessonMission = "不要な偶数を捨てて「全単」を和了せよ！";
+            lessonMission = "「全単」で和了！";
             break;
 
         case 2:
-            lessonTitle = "レッスン②：上下対称の美学【推不倒】";
-            lessonIntro = `「上下逆さまにしても図柄が同じ牌」だけで構成する役です。<br>【対象牌】1,2,3,4,5,8,9筒 / 2,4,5,6,8,9索 / 白
+            lessonTitle = "レッスン②：点対称の美学【推不倒】";
+            lessonIntro = `「上下逆さまにしても図柄が同じ牌」だけで構成する役です。<br>四季牌を使っても点対称な牌の代わりになっていれば成立します。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">すべての対象牌：</span><br>
+                <span style="color:#bdc3c7; font-size: 16px;">対象牌一覧：</span><br>
                 ${getTutImg('1p')}${getTutImg('2p')}${getTutImg('3p')}${getTutImg('4p')}${getTutImg('5p')}${getTutImg('8p')}${getTutImg('9p')} <br>
-                ${getTutImg('2s')}${getTutImg('4s')}${getTutImg('5s')}${getTutImg('6s')}${getTutImg('8s')}${getTutImg('9s')} &nbsp; &nbsp;
-                ${getTutImg('白')}
+                ${getTutImg('2s')}${getTutImg('4s')}${getTutImg('5s')}${getTutImg('6s')}${getTutImg('8s')}${getTutImg('9s')}${getTutImg('白')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 次のうち「推不倒」に【使える】牌はどれ？",
+                qText: "Q. 次のうち「推不倒」で【使える】牌はどれ？",
                 options: [
-                    { text: "7s", img: "7s" },
-                    { text: "6p", img: "6p" },
-                    { text: "4s", img: "4s" }
+                    { text: "7索", img: "7s" },
+                    { text: "6筒", img: "6p" },
+                    { text: "4索", img: "4s" }
                 ],
                 correctIndex: 2,
-                explanation: "4s は上下対称ですが、7sと6pは非対称なデザインです。"
+                explanation: "4索 は点対称ですが、7索と6筒は点対称ではない図柄です。"
             };
-            lessonMission = "対象外の牌を捨てて「推不倒」を和了せよ！";
+            lessonMission = "「推不倒」で和了！";
             break;
 
         case 3:
-            lessonTitle = "レッスン③：圧倒的スケール【全大】";
-            lessonIntro = `数字の「7, 8, 9」だけで構成すると『全大』。<br>逆に「1, 2, 3」だけなら『全小』、「4, 5, 6」だけなら『全中』という役になります。
+            lessonTitle = "レッスン③：狭き門【全大、全中、全小】";
+            lessonIntro = `数字の「7, 8, 9」だけで構成すると『全大』が成立します。<br>他にも「1, 2, 3」だけなら『全小』、「4, 5, 6」と「中」だけなら『全中』になります。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">全大の例：</span><br>
-                ${getTutImg('7p')}${getTutImg('8p')}${getTutImg('9p')} &nbsp; &nbsp; ${getTutImg('7s')}${getTutImg('8s')}${getTutImg('9s')} &nbsp; &nbsp; ${getTutImg('9s')}${getTutImg('9s')}${getTutImg('9s')}
+                <span style="color:#bdc3c7; font-size: 16px;">全大で使える牌：</span><br>
+                ${getTutImg('9m')}${getTutImg('7p')}${getTutImg('8p')}${getTutImg('9p')}${getTutImg('7s')}${getTutImg('8s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
                 qText: "Q. 全小・全中・全大を狙うとき、絶対に入れてはいけない牌は？",
                 options: [
-                    { text: "字牌", img: "東" },
-                    { text: "索子", img: "8s" },
+                    { text: "風牌", img: "東" },
+                    { text: "三元牌", img: "中" },
                     { text: "萬子", img: "9m" }
                 ],
                 correctIndex: 0,
-                explanation: "数字の縛りなので、字牌はすべてノイズになります。"
+                explanation: "風牌は全大、全中、全小では使いません。"
             };
-            lessonMission = "デカい数字だけを集めて「全大」を和了せよ！";
+            lessonMission = "7から9の数字の牌だけを集めて「全大」で和了！";
             break;
 
         case 4:
-            lessonTitle = "レッスン④：階段状の刻子【一色四節高】";
-            lessonIntro = `同じ色で「111」「222」「333」「444」のように、数字が1つずつズレた「刻子」を4つ作る役です。（3つなら三節高）
+            lessonTitle = "レッスン④：古の手役三連刻【三節高】";
+            lessonIntro = `同じ色で「111」「222」「333」のように、数字が1つずつズレた「刻子」を3つ作る役です。<br>1色で三連刻だけではなく、1萬と2筒と3索のように3色で三連刻が完成している場合も三節高になります！
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">一色四節高の例：</span><br>
+                <span style="color:#bdc3c7; font-size: 16px;">三節高の例</span><br>1色の三節高：<br>
                 ${getTutImg('2p')}${getTutImg('2p')}${getTutImg('2p')} &nbsp; 
                 ${getTutImg('3p')}${getTutImg('3p')}${getTutImg('3p')} &nbsp; 
-                ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} &nbsp; 
-                ${getTutImg('5p')}${getTutImg('5p')}${getTutImg('5p')}
+                ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} <br>3色の三節高：<br>
+                ${getTutImg('1m')}${getTutImg('1m')}${getTutImg('1m')} &nbsp; 
+                ${getTutImg('2p')}${getTutImg('2p')}${getTutImg('2p')} &nbsp; 
+                ${getTutImg('3s')}${getTutImg('3s')}${getTutImg('3s')}                
             </div>`;
             lessonQuizData = {
-                qText: "Q. 「222p」「333p」「444p」と揃っています。四節高にするにはあと何が必要？",
+                qText: "Q. 「2筒」と「3筒」と「3索」が刻子になっているとき、三節高に【ならない】刻子はどれ？",
                 options: [
-                    { text: "111p か 555p", img: "1p" },
-                    { text: "567p の順子", img: "6p" },
-                    { text: "666p か 777p", img: "7p" }
+                    { text: "1筒", img: "1p" },
+                    { text: "1索", img: "1s" },
+                    { text: "1萬", img: "1m" }
                 ],
-                correctIndex: 0,
-                explanation: "階段状に繋げるため、上下に隣接する刻子（111pか555p）が必要です。"
+                correctIndex: 1,
+                explanation: "1筒と4筒は1色、1萬は三色の三節高です。"
             };
-            lessonMission = "連続した刻子を完成させ「一色四節高」を和了せよ！";
+            lessonMission = "「三節高」を和了！";
             break;
 
         case 5:
-            lessonTitle = "レッスン⑤：赤を憎む者【陰陽両儀】";
-            lessonIntro = `牌の図柄に「赤い塗料」が一切使われていない牌だけで構成する役です。<br>【対象牌】2,4,8筒 / 2,3,4,6,8索 / 東,南,西,北,白,發
+            lessonTitle = `レッスン⑤："赤"抜けた手役【断紅胡】`;
+            lessonIntro = `牌の図柄に「赤」が一切使われていない牌だけで構成する役です。<br>四季牌を使っても赤が使われていない牌の代わりになっていれば成立します。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">使える牌の例（一切赤がない）：</span><br>
+                <span style="color:#bdc3c7; font-size: 16px;">使える牌一覧：</span><br>
                 ${getTutImg('2p')}${getTutImg('4p')}${getTutImg('8p')} &nbsp; 
                 ${getTutImg('2s')}${getTutImg('3s')}${getTutImg('4s')}${getTutImg('6s')}${getTutImg('8s')} &nbsp; 
-                ${getTutImg('東')}${getTutImg('北')}${getTutImg('白')}${getTutImg('發')}
+                ${getTutImg('東')}${getTutImg('南')}${getTutImg('西')}${getTutImg('北')}${getTutImg('白')}${getTutImg('發')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 次のうち「陰陽両儀」で【使えない】字牌はどれ？",
+                qText: "Q. 次のうち「断紅胡」で【使えない】字牌はどれ？",
                 options: [
                     { text: "白", img: "白" },
                     { text: "發", img: "發" },
                     { text: "中", img: "中" }
                 ],
                 correctIndex: 2,
-                explanation: "中は真っ赤なのでアウトです！"
+                explanation: "中は真っ赤なのでアウト！"
             };
-            lessonMission = "赤をすべて切り捨て「陰陽両儀」を和了せよ！";
+            lessonMission = "「断紅胡」を和了！";
             break;
 
         case 6:
-            lessonTitle = "レッスン⑥：面前信仰の破壊【寒江独釣で裸になれ】";
-            lessonIntro = `4回副露（ポンやカン等）を行い、手牌を「たった1枚（裸単騎）」にして和了する役です。<br>鳴けば鳴くほど強くなる、このゲームの象徴です。
+            lessonTitle = "レッスン⑥：最強の最終形態【寒江独釣】";
+            lessonIntro = `4回副露（ポンやカン等）を行い、手牌を「1枚（裸単騎）」にして和了する役です。<br>鳴けば鳴くほど打点が高くなる、このゲームを象徴する役です。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">寒江独釣のイメージ：</span><br>
-                ${getTutImg('3s')} 単騎待ちなのに、横には副露の山！<br><br>
+                <span style="color:#bdc3c7; font-size: 16px;">寒江独釣の特徴：</span><br>
+                ${getTutImg('3s')} 必ず単騎待ちで、複合できる役も多い！<br><br>
                 ${getTutImg('ura')}${getTutImg('1m')}${getTutImg('1m')}${getTutImg('ura')} &nbsp;
                 ${getTutImg('3p')}${getTutImg('3p')}${getTutImg('3p')} &nbsp;
-                ${getTutImg('5p')}${getTutImg('5p')}${getTutImg('5p')} &nbsp;
-                ${getTutImg('白')}${getTutImg('白')}${getTutImg('白')}
+                ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} &nbsp;
+                ${getTutImg('5p')}${getTutImg('5p')}${getTutImg('5p')}
             </div>`;
             lessonQuizData = {
                 qText: "Q. 寒江独釣の待ち牌として最強なのはどれ？",
@@ -829,75 +830,79 @@ async function startLesson(lessonId) {
                     { text: "中", img: "中" }
                 ],
                 correctIndex: 0,
-                explanation: "四季牌は万能牌なので、他家が何を捨てても絶対和了れます！"
+                explanation: "四季牌単騎で無限待ちは無敵！"
             };
-            lessonMission = "4回鳴いて手牌を1枚にし「寒江独釣」を和了せよ！";
+            lessonMission = "手牌を1枚にし、「寒江独釣」を和了！";
             break;
 
         case 7:
-            lessonTitle = "レッスン⑦：未知の幾何学【七星不靠】";
-            lessonIntro = `字牌7種（東南西北白發中）すべてと、各色で筋が被らない「147」「258」「369」を組み合わせた特殊形です。（面子不要）
+            lessonTitle = "レッスン⑦：対子がいらない唯一の和了【七星不靠】";
+            lessonIntro = `字牌7種（東南西北白發中）と、各色で被っていない筋「147」「258」「369」を組み合わせた特殊な和了形です。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">七星不靠の例：</span><br>
+                <span style="color:#bdc3c7; font-size: 16px;">七星不靠の一例：</span><br>
                 ${getTutImg('東')}${getTutImg('南')}${getTutImg('西')}${getTutImg('北')}${getTutImg('白')}${getTutImg('發')}${getTutImg('中')} <br><br>
                 ${getTutImg('1m')} &nbsp; &nbsp; 
                 ${getTutImg('2p')}${getTutImg('5p')}${getTutImg('8p')} &nbsp; &nbsp; 
                 ${getTutImg('3s')}${getTutImg('6s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 手牌に「1m・4m・7m」「2p・5p・8p」があります。索子は何を集めればいい？",
+                qText: "Q. 字牌7種と「1, 4, 7筒」と「2, 5, 8索」があるなら、どれが和了牌になる？",
                 options: [
-                    { text: "1s・4s・7s", img: "4s" },
-                    { text: "2s・5s・8s", img: "5s" },
-                    { text: "3s・6s・9s", img: "6s" }
+                    { text: "1萬", img: "1m" },
+                    { text: "白", img: "白" },
+                    { text: "9萬", img: "9m" }
                 ],
                 correctIndex: 2,
-                explanation: "各色で別の筋（今回は 3, 6, 9）を担当させます。"
+                explanation: "各色で別の筋を集めます。"
             };
-            lessonMission = "正しい有効牌を見極めて「七星不靠」を和了せよ！";
+            lessonMission = "正しい有効牌を見極めて「七星不靠」を和了！";
             break;
 
         case 8:
-            lessonTitle = "レッスン⑧：面前のロマン【一色四歩高】";
-            lessonIntro = `同じ色で「123」「234」「345」「456」のように、数字が1つずつズレた「順子」を4つ作る役です。<br>鳴かずに門前で狙うと美しさが際立ちます。
+            lessonTitle = "レッスン⑧：面前のロマン役【一色四歩高】";
+            lessonIntro = `1色で数字が1つまたは2つずつズレた「順子」を4つ作る役です。<br>1つズレ「123」「234」「345」「456」<br>2つズレ「123」「345」「567」「789」
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">一色四歩高の例：</span><br>
                 ${getTutImg('2s')}${getTutImg('3s')}${getTutImg('4s')} &nbsp; 
                 ${getTutImg('3s')}${getTutImg('4s')}${getTutImg('5s')} &nbsp; 
                 ${getTutImg('4s')}${getTutImg('5s')}${getTutImg('6s')} &nbsp; 
-                ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')}
+                ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')}<br>
+                ${getTutImg('1s')}${getTutImg('2s')}${getTutImg('3s')} &nbsp; 
+                ${getTutImg('3s')}${getTutImg('4s')}${getTutImg('5s')} &nbsp; 
+                ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')} &nbsp; 
+                ${getTutImg('7s')}${getTutImg('8s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 「345p」「456p」「567p」と揃っています。四歩高にするにはあと何が必要？",
+                qText: "Q. 筒子が「345」「456」「567」と揃っています。四歩高にするにはどの面子が必要？",
                 options: [
-                    { text: "234p", img: "2p" },
-                    { text: "345p", img: "3p" },
-                    { text: "666p", img: "6p" }
+                    { text: "234", img: "2p" },
+                    { text: "345", img: "3p" },
+                    { text: "666", img: "6p" }
                 ],
                 correctIndex: 0,
-                explanation: "階段状に繋げるため、前後に隣接する順子（234p か 678p）が必要です。"
+                explanation: "今回は1つズレなので一色四歩高のためには「234」か「678」の面子が必要です。"
             };
-            lessonMission = "階段状の順子を完成させ「一色四歩高」を和了せよ！";
+            lessonMission = "「一色四歩高」を和了！";
             break;
 
         case 9:
-            lessonTitle = "レッスン⑨：最終試験【無花果＆槓上開花】";
-            lessonIntro = `四季牌を1枚も持たずに和了する縛りプレイ「無花果（むいちじく）」。<br>そして、カンをした補充牌で和了する「槓上開花（リンシャンカイホウ）」。<br>これらを複合させて脳汁を出しましょう！
+            lessonTitle = "レッスン⑨：乗算の複合【無花果、槓上開花、花天月地】";
+            lessonIntro = `手牌の中に四季牌が無い和了「無花果（ウーファーグオ）」。<br>カンをしたときの補充牌で和了「槓上開花（ガンシャンカイホァ）」。<br>海底牌での和了「花天月地（ホァティエンユエディ）」<br>これらが複合したときは乗算が重なるので恐ろしくインフレします。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">最高の脳汁展開：</span><br>
-                ${getTutImg('1s')}${getTutImg('1s')}${getTutImg('1s')}${getTutImg('1s')} を暗槓！ <br>
-                ➔ 嶺上から ${getTutImg('8p')} を引いて「ツモ！」
+                <span style="color:#bdc3c7; font-size: 16px;">乗算の複合例：</span><br>
+                無花果の状態で「槓上開花」で6倍の和了になります！
             </div>`;
             lessonQuizData = {
-                qText: "Q. 暗槓（アンカン）をすると、山札から嶺上牌を引くことができますか？",
+                qText: "Q. 無花果と槓上開花と花天月地が重なると何倍になる？",
                 options: [
-                    { text: "はい", img: "ura" },
-                    { text: "いいえ", img: "1m" }
+                    { text: "8倍", img: "8p" },
+                    { text: "12倍", img: "春" },
+                    { text: "18倍", img: "冬" }
                 ],
                 correctIndex: 0,
-                explanation: "この性質を利用して、強引にツモ和了りをもぎ取ります。"
+                explanation: "乗算の最大値はこの3つの役が複合したときで12倍にもなります。"
             };
-            lessonMission = "暗槓からの嶺上ツモで、美しく暴力的な和了をキメろ！";
+            lessonMission = "無花果と槓上開花を複合させて和了！";
             break;
     }
 
