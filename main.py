@@ -862,10 +862,6 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 if len(waits) < 27:
                     is_pass = True
 
-            # 🌟 追加：アガリを無効化し、コンソールに理由を出力する
-            print(f"[DEBUG 🤖] CPU {cpu_idx} 自摸和了が可能ですが、設定により強制パスします。")
-            is_pass = True 
-
             if not is_pass:
                 # 和了の前にツモを処理して記録
                 game.hands[cpu_idx].append(drawn)
@@ -922,10 +918,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 
             for t, c in counts.items():
                 if c == 4 and t not in SEASON_TILES:
-                    # 🌟 追加：暗槓を無効化し、コンソールに理由を出力して次の処理へ進ませる
-                    print(f"[DEBUG 🤖] CPU {cpu_idx} 暗槓({t})が可能ですが、設定により強制スキップします。")
-                    continue 
-
+                    
                     if is_kan_valid_for_player(cpu_idx, "ankan", t, game):
                         for _ in range(4): game.hands[cpu_idx].remove(t)
                         game.melds[cpu_idx].append({"type": "ankan", "tiles": [t]*4, "is_hidden": True})
