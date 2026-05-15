@@ -227,6 +227,37 @@ window.startReplay = function (id) {
         return alert("牌譜データが見つからないか、破損しています。");
     }
 
+    // 🌟 【強力パッチ】バックエンドのバグで「プレイヤーが鳴いたのに河に残り続ける」ゴースト牌のデータを全自動で修復する
+    replayDataObj.rounds.forEach(round => {
+        if (!round.actions) return;
+        let activeGhosts = []; // 追跡中のゴースト牌
+
+        round.actions.forEach(act => {
+            const state = act.state_snapshot;
+            if (!state || !state.discards || !state.last_discard_info) return;
+
+            // アクションが「鳴き」または「ロン」の場合、その対象牌をゴーストとして登録
+            let isMeld = (act.type === "meld" || act.type === "self_meld" || String(act.type).includes("kan") || act.type === "pon");
+            let isRon = (act.type === "win" && String(act.player) !== String(state.last_discard_info.player));
+
+            if (isMeld || isRon) {
+                activeGhosts.push({
+                    player: Number(state.last_discard_info.player),
+                    tile: state.last_discard_info.tile
+                });
+            }
+
+            // 登録されたゴースト牌が河の末尾に残っていれば、データから強制的に削除（ポップ）する
+            activeGhosts.forEach(ghost => {
+                let discards = state.discards[ghost.player];
+                if (discards && discards.length > 0 && discards[discards.length - 1] === ghost.tile) {
+                    state.discards[ghost.player] = [...discards]; // 過去のステップを壊さないよう参照を切る
+                    state.discards[ghost.player].pop(); // 末尾のゴースト牌を抹消！
+                }
+            });
+        });
+    });
+
     if (typeof closeReplayList === 'function') closeReplayList();
     isReplayMode = true;
     replayRoundIdx = 0;
@@ -249,17 +280,13 @@ window.startReplay = function (id) {
 
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
-    // 🌟 不要な「待ち牌確認」「オート」ボタンを非表示にする
     const btnWaits = document.getElementById('btn-show-waits');
     const btnAuto = document.getElementById('btn-auto-play');
     if (btnWaits) btnWaits.style.display = 'none';
     if (btnAuto) btnAuto.style.display = 'none';
 
-    // 🌟 牌譜再生中は、誤動作を防ぐため「退出」関連のボタンを強制非表示にする
     const topExitBtn = document.getElementById('quick-exit-btn');
     const menuExitBtn = document.getElementById('sidebar-exit');
-
-    // 通常の style.display = 'none' ではなく、CSSに勝つために setProperty を使う
     if (topExitBtn) topExitBtn.style.setProperty('display', 'none', 'important');
     if (menuExitBtn) menuExitBtn.style.setProperty('display', 'none', 'important');
 
@@ -305,36 +332,32 @@ window.applyReplayState = function () {
                 handDiv.innerHTML = "";
                 let hand = state.all_hands ? [...state.all_hands[i]] : [];
 
-                // 🌟 ツモ牌を特定して手牌配列から抜き取る
+                // 🌟 理牌崩れ対策：lastIndexOf を使って末尾の牌を安全に引き抜く
                 let drawnTile = null;
                 if (state.just_drawn === i && state.last_drawn && state.last_drawn[i]) {
                     const dTile = state.last_drawn[i];
-                    const dIdx = hand.indexOf(dTile);
+                    const dIdx = hand.lastIndexOf(dTile);
                     if (dIdx !== -1) {
                         drawnTile = hand.splice(dIdx, 1)[0];
                     }
                 }
 
-                // 🌟 修正：下家(1)と対面(2)の手牌の並びを反転させる
                 if (i === 1 || i === 2) {
                     hand.reverse();
                 }
 
-                // ツモ牌以外を描画
                 hand.forEach(t => {
                     let img = document.createElement('img');
                     img.className = 'tile';
                     img.src = `images/${t}.png`;
 
-                    // 🌟 修正：対面(i=2)の手牌を上下逆（180度回転）にする
                     if (i === 2) {
                         img.style.transform = 'rotate(180deg)';
                     }
-
                     handDiv.appendChild(img);
                 });
 
-                // 🌟 修正：ツモ牌の配置を「右手側（自然な位置）」に統一
+                // 🌟 前回の修正通り、各CPUの正確な右手側に配置
                 if (drawnTile) {
                     let img = document.createElement('img');
                     img.className = 'tile';
@@ -343,21 +366,17 @@ window.applyReplayState = function () {
                     img.style.margin = '0';
 
                     if (i === 0) {
-                        // 自分
                         img.style.left = 'calc(100% + 15px)';
                         img.style.top = '0';
                     } else if (i === 1) {
-                        // 下家：手牌の「下（彼らにとっての右）」に配置
-                        img.style.top = 'calc(100% + 10px)';
+                        img.style.bottom = 'calc(100% + 10px)';
                         img.style.left = '0';
                     } else if (i === 2) {
-                        // 対面：手牌の「右（彼らにとっての右）」に配置
-                        img.style.left = 'calc(100% + 15px)';
+                        img.style.right = 'calc(100% + 15px)';
                         img.style.top = '0';
                         img.style.transform = 'rotate(180deg)';
                     } else if (i === 3) {
-                        // 上家：手牌の「上（彼らにとっての右）」に配置
-                        img.style.bottom = 'calc(100% + 10px)';
+                        img.style.top = 'calc(100% + 10px)';
                         img.style.left = '0';
                     }
                     handDiv.appendChild(img);
@@ -419,9 +438,7 @@ window.applyReplayState = function () {
         if (wallCountDiv) wallCountDiv.innerText = `山: ${state.wall_count}`;
     }
 
-    // 🌟 applyReplayState 関数の中にある「4. メッセージ解説」のブロックを以下に差し替え
     let msg = document.getElementById('msg');
-
     if (msg && action) {
         msg.style.display = 'block';
         msg.className = "fade-in";
@@ -435,12 +452,9 @@ window.applyReplayState = function () {
         } else if (action.type === "win") {
             msgText = (pIdx === 0) ? "和了！" : `CPU ${pIdx} 和了`;
         } else if (action.type === "start") {
-            // 🌟 初期配牌の表示
             msgText = `配牌`;
-            console.log(`[Replay 🔄] 配牌`);
         } else if (action.type === "first" || action.type === "second" || action.type === "charleston") {
             msgText = action.type === "first" ? "第1交換" : (action.type === "second" ? "第2交換" : "交換");
-            console.log(`[Replay 🔄] ${msgText} (${action.direction || "完了"})`);
         } else if (action.type === "round_end") {
             msgText = `局終了`;
         } else {
@@ -450,7 +464,6 @@ window.applyReplayState = function () {
     }
 
     const stepText = document.getElementById('replay-step-text');
-    // 🌟 修正：余分な文字(extraInfo)を削除し、シンプルにステップ数だけにする
     if (stepText) stepText.innerText = `第${replayRoundIdx + 1}局 | Step: ${replayStepIdx + 1} / ${maxSteps}`;
 };
 
@@ -563,6 +576,42 @@ window.prevToMyTurn = function () {
         }
     }
     applyReplayState();
+};
+
+// 🌟 追加：「次の局の配牌」へスキップする関数
+window.skipToNextRound = function () {
+    if (!replayDataObj) return;
+    if (typeof playSE === 'function') playSE('click');
+
+    if (replayRoundIdx < replayDataObj.rounds.length - 1) {
+        replayRoundIdx++;
+        replayStepIdx = 0; // その局の最初（配牌）からスタート
+        console.log(`[Replay ⏭️⏭️] 第 ${replayRoundIdx + 1} 局の配牌へスキップしました`);
+        applyReplayState();
+    } else {
+        console.log("[Replay 🛑] すでに最終局です");
+    }
+};
+
+// 🌟 追加：「現在/前の局の配牌」へ戻る関数
+window.prevToRoundStart = function () {
+    if (!replayDataObj) return;
+    if (typeof playSE === 'function') playSE('click');
+
+    if (replayStepIdx > 0) {
+        // 局の途中なら、現在の局の最初（配牌）に戻る
+        replayStepIdx = 0;
+        console.log(`[Replay ⏮️⏮️] 第 ${replayRoundIdx + 1} 局の配牌へ戻りました`);
+        applyReplayState();
+    } else if (replayRoundIdx > 0) {
+        // すでに現在の局の最初なら、1つ前の局の最初（配牌）に戻る
+        replayRoundIdx--;
+        replayStepIdx = 0;
+        console.log(`[Replay ⏮️⏮️] 第 ${replayRoundIdx + 1} 局の配牌へ戻りました`);
+        applyReplayState();
+    } else {
+        console.log("[Replay 🛑] すでに最初の局の配牌です");
+    }
 };
 
 window.toggleReplayAuto = function () {

@@ -1447,13 +1447,17 @@
             <div id="action-hide-area" style="display: none;">アクションボタンを隠す</div>
 
             <div id="replay-controls" style="display: none;">
-                <button class="btn-act btn-gray" onclick="exitReplay()">🚪 終了</button>
-                <button class="btn-act btn-purple" style="margin-left: 10px;" onclick="prevToMyTurn()">⏪ 前の自番</button>
-                <button class="btn-act btn-blue" onclick="prevReplayStep()">◀ 前へ</button>
-                <span id="replay-step-text">局: 1 | Step: 0</span>
+                <button class="btn-act btn-gray" onclick="prevToRoundStart()">⏮️ 前局</button>
+
+                <button class="btn-act btn-gray" onclick="prevToMyTurn()">⏪ 前の自番</button>
+                <button class="btn-act btn-gray" onclick="prevReplayStep()">◀ 前へ</button>
+                <button class="btn-act btn-blue" id="btn-replay-auto" onclick="toggleReplayAuto()">自動再生: OFF</button>
                 <button class="btn-act btn-blue" onclick="nextReplayStep()">次へ ▶</button>
-                <button class="btn-act btn-purple" onclick="skipToMyTurn()">次の自番 ⏩</button>
-                <button id="btn-replay-auto" class="btn-act btn-green" style="margin-left: 10px;" onclick="toggleReplayAuto()">自動再生: OFF</button>
+                <button class="btn-act btn-blue" onclick="skipToMyTurn()">次の自番 ⏩</button>
+
+                <button class="btn-act btn-blue" onclick="skipToNextRound()">次局 ⏭️</button>
+
+                <button class="btn-act btn-red" onclick="exitReplay()">終了 🚪</button>
             </div>
 
             <div class="pos-name-1">

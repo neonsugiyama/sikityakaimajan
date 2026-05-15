@@ -908,13 +908,10 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
             cpu_level = getattr(game, 'cpu_level', 1)
             hanakan_seasons = []
             if cpu_level == 0:
-                # よわい: 70%の確率で、何も考えずに即座に花槓してしまう（Jokerを温存できない）
                 if random.random() < 0.7: hanakan_seasons = seasons
             elif cpu_level == 1:
-                # ふつう: 30%の確率で、迷った末に花槓してしまう
                 if random.random() < 0.3: hanakan_seasons = seasons
             else:
-                # つよい: 自分の性格（戦術）に従って冷静に判断する
                 hanakan_seasons = seasons if game.cpu_personalities[cpu_idx] in [2, 4] else []
 
             counts = {t: game.hands[cpu_idx].count(t) for t in set(game.hands[cpu_idx])}
@@ -924,7 +921,6 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
             if has_won and len(seasons) > 0: break
                 
             current_target = determine_target(cpu_idx, game.hands[cpu_idx], game)
-            # 🌟 修正：全単を狙っている時は、自分のツモ番でも「暗槓・花槓・加槓を一切しない」
             if current_target in ["十三幺九", "七星不靠", "全単"]: break
                 
             for t, c in counts.items():
@@ -933,8 +929,15 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                     if is_kan_valid_for_player(cpu_idx, "ankan", t, game):
                         for _ in range(4): game.hands[cpu_idx].remove(t)
                         game.melds[cpu_idx].append({"type": "ankan", "tiles": [t]*4, "is_hidden": True})
-                        game.hands[cpu_idx].append(game.wall.pop())
+                        drawn_rinshan = game.wall.pop()
+                        game.hands[cpu_idx].append(drawn_rinshan)
+                        
+                        # 🌟 追加：引いた嶺上牌をセットし、打牌前に記録！
+                        game.last_drawn[cpu_idx] = drawn_rinshan
+                        game.just_drawn = cpu_idx
                         game.last_discard_info = {"player": -1, "tile": ""}
+                        game.append_log("self_meld", player=cpu_idx, meld_type="ankan", tile=t)
+                        
                         did_meld = True; break
 
             if did_meld: continue
@@ -947,12 +950,19 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                             game.hands[cpu_idx].remove(base_t)
                             m["type"] = "minkan"
                             m["tiles"].append(base_t)
-                            game.hands[cpu_idx].append(game.wall.pop())
+                            drawn_rinshan = game.wall.pop()
+                            game.hands[cpu_idx].append(drawn_rinshan)
+                            
+                            # 🌟 追加：引いた嶺上牌をセットし、打牌前に記録！
+                            game.last_drawn[cpu_idx] = drawn_rinshan
+                            game.just_drawn = cpu_idx
                             game.any_meld_occurred = True 
+                            game.last_discard_info = {"player": cpu_idx, "tile": base_t}
+                            game.append_log("self_meld", player=cpu_idx, meld_type="kakan", tile=base_t)
+                            
                             did_meld = True
                             did_kakan_in_turn = True 
                             kakan_tile_in_turn = base_t 
-                            game.last_discard_info = {"player": cpu_idx, "tile": base_t}
                             break
                     
             if did_meld: continue
@@ -965,19 +975,23 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                                 base_t = m["tiles"][0]
                                 season_t = m["tiles"][1]
                                 if base_t in game.hands[cpu_idx]:
-                                    # 🌟 追加：「よわい」「ふつう」の Joker Swap 見落とし
                                     cpu_level = getattr(game, 'cpu_level', 1)
-                                    if cpu_level == 0 and random.random() < 0.6: continue # 60%で見落とす
-                                    if cpu_level == 1 and random.random() < 0.3: continue # 30%で見落とす
+                                    if cpu_level == 0 and random.random() < 0.6: continue 
+                                    if cpu_level == 1 and random.random() < 0.3: continue 
 
                                     game.hands[cpu_idx].remove(base_t)
                                     m["type"] = "minkan"
                                     m["tiles"] = [base_t]*4
                                     game.hands[cpu_idx].append(season_t)
+                                    
+                                    # 🌟 追加：スワップした牌をツモ牌扱いにし、打牌前に記録！
+                                    game.last_drawn[cpu_idx] = season_t
+                                    game.just_drawn = cpu_idx
                                     game.any_meld_occurred = True 
                                     did_meld = True
                                     did_joker_swap_in_turn = True 
                                     game.last_discard_info = {"player": -1, "tile": ""}
+                                    game.append_log("joker_swap", player=cpu_idx, tile=base_t, season=season_t, target_player=target_idx)
                                     break
                         if did_meld: break
             if did_meld: continue
@@ -1148,7 +1162,16 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                         if is_kan and game.wall:
                             drawn = game.wall.pop()
                             game.hands[i].append(drawn)
+                            # 🌟 追加：引いた嶺上牌をセットする
+                            game.last_drawn[i] = drawn
+                            game.just_drawn = i
+                        else:
+                            game.just_drawn = -1
                             
+                        # 🌟 追加：【打牌する前】の「鳴きが完了した状態」を牌譜に記録！
+                        game.append_log("meld", player=i, meld_type=call_type, tile=tile, from_player=discarder_idx)
+                            
+                        # --- ここから打牌処理 ---
                         scored = [(t, evaluate_tile_dynamically(t, game.hands[i], game, i, game.cpu_personalities[i]) + random.randint(0, 5)) for t in game.hands[i]]
                         scored.sort(key=lambda x: x[1])
                         discard = scored[0][0]
@@ -1159,6 +1182,12 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
                         
                         game.turn = (i + 1) % 4
                         game.just_drawn = -1 
+                        game.last_discard_info = {"player": i, "tile": discard}
+                        
+                        # 🌟 追加：【打牌した後】の状態も牌譜に記録！
+                        is_tsumogiri = (is_kan and discard == drawn) if is_kan else False
+                        game.append_log("discard", player=i, tile=discard, tsumogiri=is_tsumogiri)
+                        
                         return get_safe_state(game, 0, {"reacted": True, "type": call_type, "player": i, "discard": discard})
 
         return get_safe_state(game, 0, {"reacted": False})
@@ -1179,7 +1208,6 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 game.win_tiles[i].append(tile)
                 game.win_records[i].append(interceptor["ctx"])
                 game.last_discard_info = {"player": -1, "tile": ""}
-                # 🌟 削除：和了時の強制ストッパーを解除
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
@@ -1219,8 +1247,14 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
             else:
                 game.just_drawn = -1 
                 
+        # 🌟 修正：牌譜を記録（append_log）する前に、確実に河から対象の牌を消しておく！
+        if discarder != -1 and game.discards[discarder] and game.discards[discarder][-1] == tile:
+            game.discards[discarder].pop()
+            
         game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
         game.last_discard_info = {"player": -1, "tile": ""}
+        
+        # 🌟 ここで記録される状態（snapshot）には、すでに河から消えた綺麗なデータが入る
         game.append_log("meld", player=player_idx, meld_type=type, tile=tile, from_player=discarder)
         return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
     except Exception as e:
@@ -1239,14 +1273,14 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
             if game.hands[player_idx].count(tile) < 4: return {"error": "同期エラー：指定された牌が足りません。"}
             for _ in range(4): game.hands[player_idx].remove(tile)
             game.melds[player_idx].append({"type": "ankan", "tiles": [tile] * 4, "is_hidden": is_hidden_bool})
-            game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+            game.last_discard_info = {"player": -1, "tile": ""}
             
         elif type == "暗花槓":
             if game.hands[player_idx].count(tile) < 3 or season not in game.hands[player_idx]: return {"error": "同期エラー：指定された牌が足りません。"}
             for _ in range(3): game.hands[player_idx].remove(tile)
             game.hands[player_idx].remove(season)
             game.melds[player_idx].append({"type": "hanakan", "tiles": [tile, season, tile, tile]})
-            game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+            game.last_discard_info = {"player": -1, "tile": ""}
             
         elif type in ["加槓", "大明槓"]: 
             if tile not in game.hands[player_idx]: return {"error": "同期エラー：指定された牌が足りません。"}
@@ -1282,7 +1316,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                 game.is_first_turn[player_idx] = False
                 return get_safe_state(game, 0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
 
-            game.last_discard_info = {"player": player_idx, "tile": tile} # 🌟 追加：槍槓待ち用
+            game.last_discard_info = {"player": player_idx, "tile": tile}
 
             for m in game.melds[player_idx]:
                 if m["type"] == "pong" and m["tiles"][0] == tile:
@@ -1298,7 +1332,7 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                     m["type"] = "hanakan"
                     m["tiles"] = [tile, season, tile, tile]
                     break
-                game.last_discard_info = {"player": -1, "tile": ""} # 🌟 追加
+                game.last_discard_info = {"player": -1, "tile": ""}
 
         game.turn = player_idx
         if game.wall:
