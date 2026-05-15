@@ -1469,31 +1469,67 @@ function render() {
 function renderCPU() {
     for (let i = 1; i <= 3; i++) {
         const c = document.getElementById(`hand-${i}`); c.innerHTML = "";
-        let cpuHand = myAllHands[i] || [];
+        let cpuHand = [...(myAllHands[i] || [])]; // 元データを壊さないようコピー
 
         let limit = cpuHand.length - (hideCpuTiles[i] || 0);
-        for (let j = 0; j < limit; j++) {
-            const t = cpuHand[j];
+        let tilesToRender = cpuHand.slice(0, limit);
+
+        let drawnTileImg = null;
+        // ツモ番（14枚目がある）なら最後の一枚を切り離す
+        if (limit % 3 === 2) {
+            drawnTileImg = tilesToRender.pop();
+        }
+
+        // 🌟 修正：下家(1)と対面(2)の手牌の並びを反転させる（昇順を維持するため）
+        if (i === 1 || i === 2) {
+            tilesToRender.reverse();
+        }
+
+        // 基本の手牌を描画
+        tilesToRender.forEach(t => {
             const img = document.createElement('img');
             img.className = 'tile';
+            img.src = isDevMode ? `images/${t}.png` : 'images/ura.png';
 
-            img.src = isDevMode ? `images/${t}.png` : `images/ura.png`;
-
-            if (j === limit - 1 && limit % 3 === 2) {
-                img.style.position = 'absolute';
-                img.style.margin = '0';
-
-                if (i === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
-                if (i === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
-                if (i === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
+            // 🌟 修正：対面(i=2)のみ向きを上下逆（180度回転）にする
+            if (i === 2) {
+                img.style.transform = 'rotate(180deg)';
             }
 
+            c.appendChild(img);
+        });
+
+        // 🌟 修正：ツモ牌の配置を「各CPUの右手側（自然な位置）」に修正
+        if (drawnTileImg) {
+            const img = document.createElement('img');
+            img.className = 'tile';
+            img.src = isDevMode ? `images/${drawnTileImg}.png` : 'images/ura.png';
+            img.style.position = 'absolute';
+            img.style.margin = '0';
+
+            if (i === 1) {
+                // 下家：手牌の「下（彼らにとっての右）」に配置
+                img.style.top = 'calc(100% + 10px)';
+                img.style.left = '0';
+            } else if (i === 2) {
+                // 対面：手牌の「右（彼らにとっての右）」に配置
+                img.style.left = 'calc(100% + 15px)';
+                img.style.top = '0';
+                img.style.transform = 'rotate(180deg)';
+            } else if (i === 3) {
+                // 上家：手牌の「上（彼らにとっての右）」に配置
+                img.style.bottom = 'calc(100% + 10px)';
+                img.style.left = '0';
+            }
             c.appendChild(img);
         }
 
         renderMelds(i);
         renderWinTiles(i);
     }
+
+    // 原因がわかるように、正常に描画されたことをコンソールに出力
+    console.log("[DEBUG 描画] CPUの手牌描画を更新しました（下家・対面の反転適用済み）");
 }
 
 // 🀄 指定プレイヤーの鳴き牌（ポン・カン）を描画する関数
@@ -1522,6 +1558,11 @@ function renderMelds(idx) {
                 i.src = `images/${t}.png`;
             }
 
+            // 🌟 修正：対面(idx=2)の副露牌を上下逆にする
+            if (idx === 2) {
+                i.style.transform = 'rotate(180deg)';
+            }
+
             g.appendChild(i);
         });
         m.appendChild(g);
@@ -1548,6 +1589,11 @@ function renderWinTiles(idx) {
         // 🌟 追加：和了ゾーンの牌も影とフチを消して平面で統一する
         i.style.boxShadow = "none";
         i.style.border = "none";
+
+        // 🌟 修正：対面(idx=2)の和了牌を上下逆にする
+        if (idx === 2) {
+            i.style.transform = 'rotate(180deg)';
+        }
 
         wz.appendChild(i);
     });
@@ -1721,7 +1767,7 @@ async function checkT() {
             img.style.margin = '0';
 
             if (turn === 1) { img.style.bottom = 'calc(100% + 10px)'; img.style.left = '0'; }
-            if (turn === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; }
+            if (turn === 2) { img.style.right = 'calc(100% + 15px)'; img.style.top = '0'; img.style.transform = 'rotate(180deg)'; }
             if (turn === 3) { img.style.top = 'calc(100% + 10px)'; img.style.left = '0'; }
 
             c.appendChild(img);
@@ -2002,7 +2048,7 @@ async function cpu() {
             dummyTile.style.position = 'absolute';
             dummyTile.style.margin = '0';
             if (currentCpuTurn === 1) { dummyTile.style.bottom = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
-            if (currentCpuTurn === 2) { dummyTile.style.right = 'calc(100% + 15px)'; dummyTile.style.top = '0'; }
+            if (currentCpuTurn === 2) { dummyTile.style.right = 'calc(100% + 15px)'; dummyTile.style.top = '0'; dummyTile.style.transform = 'rotate(180deg)'; }
             if (currentCpuTurn === 3) { dummyTile.style.top = 'calc(100% + 10px)'; dummyTile.style.left = '0'; }
             c.appendChild(dummyTile);
 

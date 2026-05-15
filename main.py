@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# 🧠 「麻雀の脳みそ（ルールとAI）」を読み込む
+# 🧠 「麻雀の脳みそ（ルールとAI）」を読み込むtest1
 # ※ GameState と get_safe_state は main.py 側で定義するので外す
 from mahjong_logic import (
     evaluate_hand, get_waits_for_hand, determine_target, evaluate_tile_dynamically, 
@@ -85,6 +85,17 @@ class GameState:
             "wall": list(self.wall),
             "actions": [] # ツモ、打牌、鳴きなどの時系列ログ
         }
+    # 配牌（チャールストン前）の初期状態を「Step 1 (start)」として記録しておく
+        import json
+        initial_action = {
+            "type": "start",
+            "turn": self.dealer,
+            "state_snapshot": json.loads(json.dumps(get_safe_state(self, 0, {
+                "discards": [[] for _ in range(4)],
+                "last_drawn": [""] * 4
+            })))
+        }
+        self.current_round_log["actions"].append(initial_action)
 
     def sort_hand(self, hand):
         return sorted(hand, key=lambda x: SORT_ORDER.get(x, 999))
@@ -868,7 +879,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 game.just_drawn = cpu_idx
                 print(f"[DEBUG 🤖] CPU {cpu_idx} ツモ和了: {drawn}")
                 game.append_log("draw", player=cpu_idx, tile=drawn)
-
+                game.hands[cpu_idx].remove(drawn)
                 game.win_tiles[cpu_idx].append(drawn)
                 game.win_records[cpu_idx].append(ctx)
                 game.turn = (cpu_idx + 1) % 4 
@@ -1860,16 +1871,38 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.turn = 1
         game.is_first_turn = [True, True, True, True]
         game.discards_count = 0
-        game.hands[1] = ["1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","4p","5p"]
-        game.wall.append("5p") 
+        game.hands[1] = ["1p","1p","1p","2p","2p","2p","3p","3p","5s","6s","7s","8s","9s"]
+        game.wall = ["7s", "7s", "6s", "5p", "4s"]
 
-    elif scenario == "cpu_chiihou":
+    elif scenario == "cpu1_chiihou":
+        game.dealer = 3
+        game.turn = 3
+        game.is_first_turn = [True, True, True, True]
+        game.hands[1] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
+        game.hands[3] = base_hand + ["東"]
+        game.hands[0] = base_hand + ["南"]
+        game.hands[2] = base_hand + ["西"]
+        game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
+
+    elif scenario == "cpu2_chiihou":
         game.dealer = 3
         game.turn = 3
         game.is_first_turn = [True, True, True, True]
         game.hands[2] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
         base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
         game.hands[3] = base_hand + ["東"]
+        game.hands[0] = base_hand + ["南"]
+        game.hands[1] = base_hand + ["西"]
+        game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]
+
+    elif scenario == "cpu3_chiihou":
+        game.dealer = 3
+        game.turn = 3
+        game.is_first_turn = [True, True, True, True]
+        game.hands[3] = ["1p","2p","3p","4p","5p","6p","7s","8s","9s","春","夏","秋","冬"]
+        base_hand = ["1s","2s","3s","4s","5s","6s","7p","8p","9p","1m","9m","中"]
+        game.hands[2] = base_hand + ["東"]
         game.hands[0] = base_hand + ["南"]
         game.hands[1] = base_hand + ["西"]
         game.wall = ["9s", "8s", "7s", "6s", "5s", "4s"]

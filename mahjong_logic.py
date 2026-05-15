@@ -12,9 +12,10 @@ TILE_NAMES = [
     "1m","9m",
     "東","南","西","北","白","發","中"
 ]
-SEASON_TILES = {"春", "夏", "秋", "冬"} 
+SEASON_TILES_LIST = ["春", "夏", "秋", "冬"]
+SEASON_TILES = set(SEASON_TILES_LIST)
 
-SORT_ORDER = {t: i for i, t in enumerate(TILE_NAMES + list(SEASON_TILES))}
+SORT_ORDER = {t: i for i, t in enumerate(TILE_NAMES + SEASON_TILES_LIST)}
 
 DOTS = set(range(0, 9)); BAMS = set(range(9, 18)); CRACKS = {18, 19}; HONORS = set(range(20, 27))
 TERMINALS = {0, 8, 9, 17, 18, 19}; ODDS = {0, 2, 4, 6, 8, 9, 11, 13, 15, 17, 18, 19}

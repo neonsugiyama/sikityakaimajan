@@ -1295,7 +1295,9 @@
             <button class="debug-btn" onclick="loadDebugScenario('chiihou')">[102] 地胡 テスト</button>
             <button class="debug-btn" onclick="loadDebugScenario('block_chiihou_by_meld')">[103] 副露発生時地胡</button>
             <button class="debug-btn" onclick="loadDebugScenario('cpu_tenhou')">[104] CPU天胡</button>
-            <button class="debug-btn" onclick="loadDebugScenario('cpu_chiihou')">[105] CPU地胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu1_chiihou')">[105] CPU1地胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu2_chiihou')">[112] CPU2地胡</button>
+            <button class="debug-btn" onclick="loadDebugScenario('cpu3_chiihou')">[113] CPU3地胡</button>
             <button class="debug-btn" onclick="loadDebugScenario('all_waits_1st_turn')">[106] 1巡目全部待ち(地胡)</button>
             <button class="debug-btn" onclick="loadDebugScenario('test_chow_patern')">[107] 順子探索テスト</button>
             <button class="debug-btn" onclick="loadDebugScenario('test_sibugao_sijiegao')">[108] 四歩高四節高テスト</button>
@@ -1446,9 +1448,11 @@
 
             <div id="replay-controls" style="display: none;">
                 <button class="btn-act btn-gray" onclick="exitReplay()">🚪 終了</button>
+                <button class="btn-act btn-purple" style="margin-left: 10px;" onclick="prevToMyTurn()">⏪ 前の自番</button>
                 <button class="btn-act btn-blue" onclick="prevReplayStep()">◀ 前へ</button>
-                <span id="replay-step-text">Step: 0</span>
+                <span id="replay-step-text">局: 1 | Step: 0</span>
                 <button class="btn-act btn-blue" onclick="nextReplayStep()">次へ ▶</button>
+                <button class="btn-act btn-purple" onclick="skipToMyTurn()">次の自番 ⏩</button>
                 <button id="btn-replay-auto" class="btn-act btn-green" style="margin-left: 10px;" onclick="toggleReplayAuto()">自動再生: OFF</button>
             </div>
 

@@ -278,9 +278,6 @@ window.applyReplayState = function () {
     if (replayStepIdx >= maxSteps) replayStepIdx = maxSteps - 1;
     if (replayStepIdx < 0) replayStepIdx = 0;
 
-    const stepText = document.getElementById('replay-step-text');
-    if (stepText) stepText.innerText = `Step: ${replayStepIdx + 1} / ${maxSteps}`;
-
     const action = roundData.actions[replayStepIdx];
 
     if (action && action.state_snapshot) {
@@ -298,7 +295,7 @@ window.applyReplayState = function () {
             const handDiv = document.getElementById(`hand-${i}`);
             if (handDiv) {
                 handDiv.innerHTML = "";
-                const hand = state.all_hands ? [...state.all_hands[i]] : [];
+                let hand = state.all_hands ? [...state.all_hands[i]] : [];
 
                 // 🌟 ツモ牌を特定して手牌配列から抜き取る
                 let drawnTile = null;
@@ -306,8 +303,13 @@ window.applyReplayState = function () {
                     const dTile = state.last_drawn[i];
                     const dIdx = hand.indexOf(dTile);
                     if (dIdx !== -1) {
-                        drawnTile = hand.splice(dIdx, 1)[0]; // 手牌から1枚だけ除外
+                        drawnTile = hand.splice(dIdx, 1)[0];
                     }
+                }
+
+                // 🌟 修正：下家(1)と対面(2)の手牌の並びを反転させる
+                if (i === 1 || i === 2) {
+                    hand.reverse();
                 }
 
                 // ツモ牌以外を描画
@@ -318,15 +320,31 @@ window.applyReplayState = function () {
                     handDiv.appendChild(img);
                 });
 
-                // 🌟 ツモ牌をマージン（隙間）を空けて描画
+                // 🌟 修正：ツモ牌を正しい「右側」の位置に絶対座標で配置
                 if (drawnTile) {
                     let img = document.createElement('img');
                     img.className = 'tile';
                     img.src = `images/${drawnTile}.png`;
-                    if (i === 0) img.style.marginLeft = "15px";
-                    else if (i === 1) img.style.marginTop = "15px";
-                    else if (i === 2) img.style.marginRight = "15px";
-                    else if (i === 3) img.style.marginBottom = "15px";
+                    img.style.position = 'absolute';
+                    img.style.margin = '0';
+
+                    if (i === 0) {
+                        img.style.left = 'calc(100% + 15px)';
+                        img.style.top = '0';
+                    } else if (i === 1) {
+                        // 下家
+                        img.style.top = 'calc(100% + 10px)';
+                        img.style.left = '0';
+                    } else if (i === 2) {
+                        // 対面
+                        img.style.left = 'calc(100% + 15px)';
+                        img.style.top = '0';
+                        img.style.transform = 'rotate(180deg)';
+                    } else if (i === 3) {
+                        // 上家
+                        img.style.bottom = 'calc(100% + 10px)';
+                        img.style.left = '0';
+                    }
                     handDiv.appendChild(img);
                 }
             }
@@ -386,8 +404,9 @@ window.applyReplayState = function () {
         if (wallCountDiv) wallCountDiv.innerText = `山: ${state.wall_count}`;
     }
 
-    // 4. メッセージ解説（画面中央にアクションを表示）
+    // 🌟 applyReplayState 関数の中にある「4. メッセージ解説」のブロックを以下に差し替え
     let msg = document.getElementById('msg');
+
     if (msg && action) {
         msg.style.display = 'block';
         msg.className = "fade-in";
@@ -400,8 +419,13 @@ window.applyReplayState = function () {
             msgText = (pIdx === 0) ? "鳴き" : `CPU ${pIdx} 鳴き`;
         } else if (action.type === "win") {
             msgText = (pIdx === 0) ? "和了！" : `CPU ${pIdx} 和了`;
-        } else if (action.type === "charleston") {
-            msgText = `交換`;
+        } else if (action.type === "start") {
+            // 🌟 初期配牌の表示
+            msgText = `配牌`;
+            console.log(`[Replay 🔄] 配牌`);
+        } else if (action.type === "first" || action.type === "second" || action.type === "charleston") {
+            msgText = action.type === "first" ? "第1交換" : (action.type === "second" ? "第2交換" : "交換");
+            console.log(`[Replay 🔄] ${msgText} (${action.direction || "完了"})`);
         } else if (action.type === "round_end") {
             msgText = `局終了`;
         } else {
@@ -409,24 +433,121 @@ window.applyReplayState = function () {
         }
         msg.innerText = msgText;
     }
+
+    const stepText = document.getElementById('replay-step-text');
+    // 🌟 修正：余分な文字(extraInfo)を削除し、シンプルにステップ数だけにする
+    if (stepText) stepText.innerText = `第${replayRoundIdx + 1}局 | Step: ${replayStepIdx + 1} / ${maxSteps}`;
 };
 
 window.nextReplayStep = function () {
     if (!replayDataObj) return;
     const roundData = replayDataObj.rounds[replayRoundIdx];
+
     if (replayStepIdx < roundData.actions.length - 1) {
         if (typeof playSE === 'function') playSE('click');
         replayStepIdx++;
         applyReplayState();
+    } else if (replayRoundIdx < replayDataObj.rounds.length - 1) {
+        // 🌟 局を跨ぐ処理
+        if (typeof playSE === 'function') playSE('click');
+        replayRoundIdx++;
+        replayStepIdx = 0;
+        console.log(`[Replay ⏭️] 第 ${replayRoundIdx + 1} 局へ進みました`);
+        applyReplayState();
+    } else {
+        console.log("[Replay 🛑] 牌譜の最後まで到達しました");
     }
 };
 
 window.prevReplayStep = function () {
+    if (!replayDataObj) return;
     if (replayStepIdx > 0) {
         if (typeof playSE === 'function') playSE('click');
         replayStepIdx--;
         applyReplayState();
+    } else if (replayRoundIdx > 0) {
+        // 🌟 前の局へ戻る処理
+        if (typeof playSE === 'function') playSE('click');
+        replayRoundIdx--;
+        replayStepIdx = replayDataObj.rounds[replayRoundIdx].actions.length - 1;
+        console.log(`[Replay ⏮️] 第 ${replayRoundIdx + 1} 局の最後へ戻りました`);
+        applyReplayState();
     }
+};
+
+window.skipToMyTurn = function () {
+    if (!replayDataObj) return;
+    if (typeof playSE === 'function') playSE('click');
+
+    let found = false;
+    while (replayRoundIdx < replayDataObj.rounds.length) {
+        const roundData = replayDataObj.rounds[replayRoundIdx];
+
+        for (let i = replayStepIdx + 1; i < roundData.actions.length; i++) {
+            const act = roundData.actions[i];
+            // 🌟 修正：act.type === "start" (配牌) も自番スキップの停止条件に含める
+            if ((act.type === "draw" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "meld" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "self_meld" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "first" || act.type === "second" || act.type === "charleston" || act.type === "start")) {
+                replayStepIdx = i;
+                found = true;
+                console.log(`[Replay ⏩] 自分の出番 (第${replayRoundIdx + 1}局, Step:${i + 1}) へスキップしました`);
+                break;
+            }
+        }
+
+        if (found) break;
+
+        if (replayRoundIdx < replayDataObj.rounds.length - 1) {
+            replayRoundIdx++;
+            replayStepIdx = -1;
+        } else {
+            replayStepIdx = roundData.actions.length - 1;
+            console.log("[Replay ⏩] これ以降自分のターンが見つからないため、牌譜の終端までスキップしました");
+            break;
+        }
+    }
+    applyReplayState();
+};
+
+window.prevToMyTurn = function () {
+    if (!replayDataObj) return;
+    if (typeof playSE === 'function') playSE('click');
+
+    let found = false;
+    while (replayRoundIdx >= 0) {
+        const roundData = replayDataObj.rounds[replayRoundIdx];
+        let startIdx = replayStepIdx - 1;
+
+        if (startIdx >= roundData.actions.length) startIdx = roundData.actions.length - 1;
+
+        for (let i = startIdx; i >= 0; i--) {
+            const act = roundData.actions[i];
+            // 🌟 修正：act.type === "start" (配牌) も自番スキップの停止条件に含める
+            if ((act.type === "draw" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "meld" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "self_meld" && (act.player === 0 || act.turn === 0)) ||
+                (act.type === "first" || act.type === "second" || act.type === "charleston" || act.type === "start")) {
+                replayStepIdx = i;
+                found = true;
+                console.log(`[Replay ⏪] 自分の出番 (第${replayRoundIdx + 1}局, Step:${i + 1}) へ戻りました`);
+                break;
+            }
+        }
+
+        if (found) break;
+
+        if (replayRoundIdx > 0) {
+            replayRoundIdx--;
+            replayStepIdx = replayDataObj.rounds[replayRoundIdx].actions.length;
+        } else {
+            replayStepIdx = 0;
+            console.log("[Replay ⏪] これ以上前の自分のターンがないため、先頭に戻りました");
+            break;
+        }
+    }
+    applyReplayState();
 };
 
 window.toggleReplayAuto = function () {
@@ -449,8 +570,13 @@ window.toggleReplayAuto = function () {
             if (replayStepIdx < roundData.actions.length - 1) {
                 replayStepIdx++;
                 applyReplayState();
+            } else if (replayRoundIdx < replayDataObj.rounds.length - 1) {
+                // 🌟 自動再生でも局を跨げるようにする
+                replayRoundIdx++;
+                replayStepIdx = 0;
+                applyReplayState();
             } else {
-                toggleReplayAuto();
+                toggleReplayAuto(); // 最後まで行ったら自動停止
             }
         }, 800);
     }
@@ -463,6 +589,11 @@ window.exitReplay = function () {
     replayAutoInterval = null;
     const replayControls = document.getElementById('replay-controls');
     if (replayControls) replayControls.style.display = 'none';
+
+    // 🌟 追加：リプレイ開始時に隠したオートボタンを確実に復活させる！
+    const btnAuto = document.getElementById('btn-auto-play');
+    if (btnAuto) btnAuto.style.display = 'block';
+
     if (typeof returnToHomeGracefully === 'function') returnToHomeGracefully();
 };
 
