@@ -668,15 +668,20 @@ def charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str = "", ga
         elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
         else: offset, msg = 1, "上家(左)へ交換"
         
+        # 🌟 追加：誰が何をもらったかの正確なリストを作成
+        received_tiles = [[] for _ in range(4)]
         for i in range(4):
             giver_idx = (i + offset) % 4
             game.hands[i].extend(all_passed[giver_idx])
+            received_tiles[i] = all_passed[giver_idx] # 記録用
             game.hands[i] = game.sort_hand(game.hands[i])
             
         game.just_drawn = -1 
         game.last_discard_info = {"player": -1, "tile": ""}
-        game.charleston_done = True # 🌟 追加：終わったことを記録
-        game.append_log("charleston", type="first", dice=dice, direction=msg)
+        game.charleston_done = True 
+        
+        # 🌟 修正：渡した牌(passed_tiles)ともらった牌(received_tiles)をログに刻む
+        game.append_log("charleston", type="first", dice=dice, direction=msg, passed_tiles=all_passed, received_tiles=received_tiles)
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
@@ -693,7 +698,9 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         active = [i for i in range(4) if participating[i]]
 
         if len(active) <= 1:
-            game.second_charleston_done = True # 🌟 追加
+            game.second_charleston_done = True
+            # 🌟 修正：不成立時もエラーにならないよう空リストを渡しておく
+            game.append_log("charleston", type="second", dice=0, direction="不成立(参加者不足)", active_players=active, passed_tiles=[[],[],[],[]], received_tiles=[[],[],[],[]])
             return get_safe_state(game, 0, {"dice": 0, "direction": "参加者が足りないため不成立となりました"})
 
         passed_tiles = {i: [] for i in active}
@@ -725,6 +732,10 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         dice = random.randint(1, 6)
         msg = ""
 
+        # 🌟 追加：誰が何を渡し、何を受け取ったかのリストを作成
+        passed_tiles_list = [passed_tiles.get(i, []) for i in range(4)]
+        received_tiles_list = [[] for _ in range(4)]
+
         if len(active) == 4:
             if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
             elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
@@ -732,6 +743,8 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
             for i in range(4):
                 giver_idx = (i + offset) % 4
                 game.hands[i].extend(passed_tiles[giver_idx])
+                # 🌟 追加：受け取った牌を記録
+                received_tiles_list[i] = passed_tiles[giver_idx]
 
         elif len(active) == 3:
             if dice in [1, 2, 3]: offset_idx, msg = -1, "参加者間で右回り(下家方向)に交換"
@@ -739,6 +752,8 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
             for idx, player in enumerate(active):
                 giver_idx = active[(idx + offset_idx) % len(active)]
                 game.hands[player].extend(passed_tiles[giver_idx])
+                # 🌟 追加：受け取った牌を記録
+                received_tiles_list[player] = passed_tiles[giver_idx]
 
         elif len(active) == 2:
             dice, msg = 0, "2人で直接交換"
@@ -749,8 +764,11 @@ def second_charleston(player_idx: int = 0, t1: str = "", t2: str = "", t3: str =
         for i in range(4): game.hands[i] = game.sort_hand(game.hands[i])
         game.just_drawn = -1 
         game.last_discard_info = {"player": -1, "tile": ""} 
-        game.second_charleston_done = True # 🌟 追加
-        game.append_log("charleston", type="second", dice=dice, direction=msg)
+        game.second_charleston_done = True
+        
+        # 🌟 修正：第1交換と同じく、passed_tiles と received_tiles をログに刻む！
+        game.append_log("charleston", type="second", dice=dice, direction=msg, active_players=active, passed_tiles=passed_tiles_list, received_tiles=received_tiles_list)
+        
         return get_safe_state(game, 0, {"dice": dice, "direction": msg})
     except Exception as e:
         traceback.print_exc()
