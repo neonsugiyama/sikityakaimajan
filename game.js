@@ -1007,6 +1007,12 @@ async function init() {
     sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
     sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
 
+    // 🌟 修正：牌譜再生モードで隠した「退出」ボタンの非表示設定を解除し、元に戻す！
+    const topExitBtn = document.getElementById('quick-exit-btn');
+    const menuExitBtn = document.getElementById('sidebar-exit');
+    if (topExitBtn) topExitBtn.style.removeProperty('display');
+    if (menuExitBtn) menuExitBtn.style.removeProperty('display');
+
     charlestonCount = 1;
     startCharlestonSelection();
     render(); renderCPU();

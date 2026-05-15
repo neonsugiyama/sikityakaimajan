@@ -255,6 +255,14 @@ window.startReplay = function (id) {
     if (btnWaits) btnWaits.style.display = 'none';
     if (btnAuto) btnAuto.style.display = 'none';
 
+    // 🌟 牌譜再生中は、誤動作を防ぐため「退出」関連のボタンを強制非表示にする
+    const topExitBtn = document.getElementById('quick-exit-btn');
+    const menuExitBtn = document.getElementById('sidebar-exit');
+
+    // 通常の style.display = 'none' ではなく、CSSに勝つために setProperty を使う
+    if (topExitBtn) topExitBtn.style.setProperty('display', 'none', 'important');
+    if (menuExitBtn) menuExitBtn.style.setProperty('display', 'none', 'important');
+
     const replayControls = document.getElementById('replay-controls');
     if (replayControls) {
         replayControls.style.display = 'flex';
@@ -317,10 +325,16 @@ window.applyReplayState = function () {
                     let img = document.createElement('img');
                     img.className = 'tile';
                     img.src = `images/${t}.png`;
+
+                    // 🌟 修正：対面(i=2)の手牌を上下逆（180度回転）にする
+                    if (i === 2) {
+                        img.style.transform = 'rotate(180deg)';
+                    }
+
                     handDiv.appendChild(img);
                 });
 
-                // 🌟 修正：ツモ牌を正しい「右側」の位置に絶対座標で配置
+                // 🌟 修正：ツモ牌の配置を「右手側（自然な位置）」に統一
                 if (drawnTile) {
                     let img = document.createElement('img');
                     img.className = 'tile';
@@ -329,19 +343,20 @@ window.applyReplayState = function () {
                     img.style.margin = '0';
 
                     if (i === 0) {
+                        // 自分
                         img.style.left = 'calc(100% + 15px)';
                         img.style.top = '0';
                     } else if (i === 1) {
-                        // 下家
+                        // 下家：手牌の「下（彼らにとっての右）」に配置
                         img.style.top = 'calc(100% + 10px)';
                         img.style.left = '0';
                     } else if (i === 2) {
-                        // 対面
+                        // 対面：手牌の「右（彼らにとっての右）」に配置
                         img.style.left = 'calc(100% + 15px)';
                         img.style.top = '0';
                         img.style.transform = 'rotate(180deg)';
                     } else if (i === 3) {
-                        // 上家
+                        // 上家：手牌の「上（彼らにとっての右）」に配置
                         img.style.bottom = 'calc(100% + 10px)';
                         img.style.left = '0';
                     }

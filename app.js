@@ -742,10 +742,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const ms = document.getElementById('mode-select-screen');
         const exitBtn = document.getElementById('sidebar-exit');
         if (ts && ms && exitBtn) {
-            if (ts.style.display === 'none' && ms.style.display === 'none') {
+            // 🌟 修正：牌譜再生中（isReplayModeがtrue）の場合も、タイトル画面と同様に非表示にする！
+            const isReplaying = (typeof isReplayMode !== 'undefined' && isReplayMode);
+
+            if (ts.style.display === 'none' && ms.style.display === 'none' && !isReplaying) {
+                // タイトルでもモード選択でもなく、リプレイ中でもない（＝通常の対局中）
                 exitBtn.style.display = 'block';
             } else {
-                exitBtn.style.display = 'none';
+                // タイトル画面、モード選択画面、または牌譜再生中のいずれか
+                exitBtn.style.setProperty('display', 'none', 'important');
             }
         }
         const menu = document.getElementById('sidebar-menu');
