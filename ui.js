@@ -359,19 +359,40 @@ window.applyReplayState = async function () {
                 handDiv.innerHTML = "";
                 let hand = stateToRender.all_hands ? [...stateToRender.all_hands[i]] : [];
 
+                // ========================================================
+                // 🌟 CPU戦の修正と同じロジック：
+                // 理牌（ソート）する「前」に、配列の末尾からツモ牌を抽出する！
+                // ========================================================
+                let drawnTile = null;
+                if (stateToRender.just_drawn === i && stateToRender.last_drawn && stateToRender.last_drawn[i]) {
+                    drawnTile = stateToRender.last_drawn[i];
+
+                    // 手牌がツモ牌を含んで14枚（余り2）になっている場合のみ抽出
+                    if (hand.length % 3 === 2) {
+                        if (hand[hand.length - 1] === drawnTile) {
+                            hand.pop();
+                        } else {
+                            const dIdx = hand.lastIndexOf(drawnTile);
+                            if (dIdx !== -1) hand.splice(dIdx, 1);
+                        }
+                    }
+
+                    // 🌟 追加：「自摸」の文字が出るとき（自摸和了の瞬間）は自摸牌を完全に消去する
+                    if (action.type === "win" && stateToRender.just_drawn === i) {
+                        console.log(`[DEBUG 牌譜再生] プレイヤー${i}の「自摸」表示に合わせ、画面から自摸牌を消去しました。`);
+                        drawnTile = null;
+                    }
+                }
+
+                // 🌟 ツモ牌を安全に分離した「後」に理牌（ソート）する
+                if (typeof SM !== 'undefined') {
+                    hand.sort((a, b) => SM[a] - SM[b]);
+                }
+
                 let highlightTiles = [];
                 if (action.passed_tiles && action.received_tiles && highlightMode !== "none") {
                     if (highlightMode === "outgoing") highlightTiles = [...(action.passed_tiles[i] || [])];
                     if (highlightMode === "incoming") highlightTiles = [...(action.received_tiles[i] || [])];
-                }
-
-                let drawnTile = null;
-                if (stateToRender.just_drawn === i && stateToRender.last_drawn && stateToRender.last_drawn[i]) {
-                    const dTile = stateToRender.last_drawn[i];
-                    const dIdx = hand.lastIndexOf(dTile);
-                    if (dIdx !== -1) {
-                        drawnTile = hand.splice(dIdx, 1)[0];
-                    }
                 }
 
                 if (i === 1 || i === 2) hand.reverse();
