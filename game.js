@@ -2897,11 +2897,16 @@ async function handleRoundEnd(isReplayingResult = false) {
             let elapsed = (Date.now() - resultStartTime) / 1000;
             if (isNaN(elapsed)) elapsed = 0;
 
-            if (elapsed >= (i + 1) * 8) continue;
+            // 🌟 UI調整用のコメントアウト。あとで戻します
+            // if (elapsed >= (i + 1) * 8) continue; 
 
-            let currentWaitTime = 8 - (elapsed - (i * 8));
-            if (currentWaitTime > 8) currentWaitTime = 8;
-            if (currentWaitTime < 0) currentWaitTime = 0;
+            // 🌟 UI調整用に600秒にします。
+            let currentWaitTime = 600;
+
+            // 🌟 UI調整用のコメントアウト。あとで戻します
+            // let currentWaitTime = 8 - (elapsed - (i * 8));
+            // if (currentWaitTime > 8) currentWaitTime = 8;
+            // if (currentWaitTime < 0) currentWaitTime = 0;
 
             let isWinner = false;
             let winData = null;
@@ -3360,6 +3365,7 @@ async function handleRoundEnd(isReplayingResult = false) {
         returnToHomeGracefully();
     }
 }
+
 // 🗑️ 捨てられた牌を河（捨て牌置き場）に描画する関数
 function addR(idx, t, isTsumogiri = false) {
     playSE('dahai');

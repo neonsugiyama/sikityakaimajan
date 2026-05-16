@@ -1265,7 +1265,7 @@
         </div>
     </div>
 
-    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 100000;">
+    <div id="overlay" style="display: none;">
         <div id="result-wrapper">
             <h1 id="win-label-text" class="res-title"></h1>
             <div id="win-score" class="res-score"></div>
@@ -1273,9 +1273,10 @@
             <div id="win-yaku" class="res-yaku-list"></div>
 
             <div id="result-controls" class="res-controls" style="display: none;">
-                <div id="result-timer-text" class="res-timer-text">次へ: 8s</div>
-                <button class="btn-act btn-blue res-btn" onclick="takeResultScreenshot()">📷 スクショ保存</button>
-                <button class="btn-act btn-gray res-btn" onclick="skipResultWait()">⏭ スキップ</button>
+                <button id="btn-cpu-screenshot" class="btn-act btn-blue" onclick="takeResultScreenshot()">📸 撮影</button>
+                <button id="btn-cpu-next" class="btn-act btn-red" onclick="skipResultWait()">
+                    <span id="result-timer-text">次へ: 8s</span> ⏭️
+                </button>
             </div>
         </div>
     </div>

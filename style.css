@@ -850,7 +850,7 @@ html, body {
 /* --- リプレイ専用コントローラー --- */
 #replay-controls {
     position: absolute;
-    bottom: 150px; /* 🌟 ここで上下の位置を調整！(120pxくらいが副露と被りにくいです) */
+    bottom: 165px; /* 🌟 ここで上下の位置を調整！(120pxくらいが副露と被りにくいです) */
     left: 50%;
     transform: translateX(-50%) translateZ(200px) !important;
     display: flex;
@@ -869,7 +869,7 @@ html, body {
 }
     /* --- リプレイ用ボタンの個別サイズ調整（通常ボタンの上書き） --- */
     #replay-controls .btn-act {
-        font-size: 14px; /* 文字の大きさ（通常は20px） */
+        font-size: 12px; /* 文字の大きさ（通常は20px） */
         padding: 8px 8px; /* ボタンの縦・横のサイズ（通常は 12px 20px） */
         border-radius: 6px; /* 角の丸み（通常は8px） */
     }
@@ -3931,88 +3931,6 @@ body.lang-en .en {
     font-size: 24px;
     box-shadow: 0 5px #2980b9;
 }
-
-/* --- リザルト画面の枠組み --- */
-#result-wrapper {
-    width: 1200px;
-    height: 940px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-#win-yaku {
-    max-height: 450px !important;
-    overflow-y: auto !important;
-    padding-right: 10px;
-    margin-bottom: 10px !important;
-}
-
-    #win-yaku::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    #win-yaku::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.2);
-        border-radius: 4px;
-    }
-
-    #win-yaku::-webkit-scrollbar-thumb {
-        background: #f39c12;
-        border-radius: 4px;
-    }
-
-.res-title {
-    font-size: 60px;
-    color: #f1c40f;
-    margin: 0 0 10px 0;
-    text-shadow: 2px 2px 10px #e67e22;
-}
-
-.res-score {
-    font-size: 60px;
-    color: #2ecc71;
-    font-weight: bold;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
-}
-
-.res-yaku-list {
-    margin: 10px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    width: 90%;
-    max-width: 900px;
-}
-
-.res-controls {
-    gap: 15px;
-    align-items: center;
-    background: rgba(0,0,0,0.85);
-    padding: 10px 25px;
-    border-radius: 12px;
-    border: 2px solid #f39c12;
-    margin-top: 30px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.9);
-}
-
-.res-timer-text {
-    font-size: 24px;
-    font-weight: bold;
-    color: #f1c40f;
-    margin-right: 15px;
-}
-
-.res-btn {
-    display: block;
-    padding: 10px 20px;
-    font-size: 18px;
-}
-
 .c-ui-title {
     color: #3498db;
     margin: 0 0 5px 0;
@@ -4091,6 +4009,221 @@ body.lang-en .en {
     z-index: 85000;
     pointer-events: none;
     transition: opacity 0.3s ease;
+}
+
+/* --- リザルト画面のオーバーレイ --- */
+#overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0,0,0,0.95) !important;
+    z-index: 100000 !important;
+    /* ※ 表示/非表示（display: flex または none）はJSで制御されます */
+}
+
+/* --- リザルト画面の枠組み --- */
+#result-wrapper {
+    position: relative !important;
+    display: block !important;
+    width: 1750px !important;
+    height: 940px !important;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+#win-yaku {
+    overflow-y: auto !important;
+    padding-right: 10px;
+    margin-bottom: 10px !important;
+}
+
+    #win-yaku::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #win-yaku::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+    }
+
+    #win-yaku::-webkit-scrollbar-thumb {
+        background: #f39c12;
+        border-radius: 4px;
+    }
+
+/* 🌟 左上：和了プレイヤー名・スコア・手牌 */
+.res-title {
+    position: absolute !important;
+    left: 60px !important;
+    top: 80px !important;
+    text-align: left !important;
+    margin: 0 !important;
+    font-size: 48px !important;
+    color: #f1c40f !important;
+    text-shadow: 2px 2px 10px #e67e22 !important;
+    line-height: 1.2 !important;
+}
+
+.res-score {
+    position: absolute !important;
+    left: 60px !important;
+    top: 150px !important;
+    text-align: left !important;
+    margin: 0 !important;
+    font-size: 84px !important;
+    font-weight: 900 !important;
+    font-family: 'Arial Black', Impact, sans-serif !important;
+    color: #f1c40f !important;
+    filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.9)) !important;
+    line-height: 1.1 !important;
+}
+
+#win-hand-display {
+    position: absolute !important;
+    left: 60px !important;
+    top: 270px !important;
+    width: max-content !important; /* 🌟 固定幅(520px)を解除し、中身に合わせて伸縮させる */
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+    #win-hand-display > div {
+        display: inline-flex !important; /* 🌟 箱の幅を中身にピタッと合わせる */
+        justify-content: flex-start !important;
+        background: rgba(255,255,255,0.08) !important;
+        padding: 15px 25px !important;
+        border-radius: 10px !important;
+        width: max-content !important;
+    }
+
+/* 🌟 右側：役リスト */
+.res-yaku-list {
+    position: absolute !important;
+    right: 40px !important;
+    top: 30px !important;
+    width: 750px !important;
+    height: 800px !important;
+    max-height: 800px !important;
+    overflow-y: auto !important;
+    margin: 0 !important;
+    padding: 0 10px 0 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    justify-content: flex-start !important; /* 🌟 罠回避のため上詰めに直す */
+}
+
+    /* 🌟 追加：数が少ない時は上下の余白が自動で伸びて「中央寄せ」になり、
+         数が増えて溢れた時は余白が消えて「通常スクロール」になる最強の指定 */
+    .res-yaku-list > div:first-child {
+        margin-top: auto !important;
+    }
+
+    .res-yaku-list > div:last-child {
+        margin-bottom: auto !important;
+    }
+
+/* =====================================================================
+   🌟 リザルト画面のボタン制御（個別に自由配置できるバージョン）
+===================================================================== */
+/* ボタンを配置するための透明な基準箱（左下固定） */
+.res-controls {
+    position: absolute !important;
+    left: 60px !important;
+    bottom: 60px !important;
+    width: 520px !important;
+    height: 120px !important; /* 🌟 ボタンを置くための高さを確保 */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+    display: block !important; /* 🌟 flexを解除して自由配置モードに！ */
+}
+
+    /* リザルト画面内のボタン共通設定 */
+    .res-controls .btn-act {
+        position: absolute !important; /* 🌟 それぞれを絶対配置に変更 */
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        font-size: 30px !important;
+        font-weight: bold !important;
+        padding: 12px 20px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        pointer-events: auto !important; /* クリック有効化 */
+        transition: transform 0.1s, filter 0.1s !important;
+    }
+
+        .res-controls .btn-act:hover {
+            transform: translateY(-2px) !important;
+        }
+
+        .res-controls .btn-act:active {
+            transform: translateY(2px) !important;
+        }
+
+/* =====================================================================
+   🎯 ボタン個別のサイズと位置指定 (CPU戦と牌譜で完全分離！)
+===================================================================== */
+
+/* 🎮 【CPU戦用】 ボタン2つ (大きくバランス良く配置) */
+#btn-cpu-screenshot {
+    top: -350px !important;
+    left: 0px !important;
+    width: 300px !important;
+    height: 80px !important;
+}
+
+#btn-cpu-next {
+    top: 90px !important;
+    left: 1250px !important;
+    width: 400px !important;
+    height: 100px !important;
+}
+
+/* 📼 【牌譜リプレイ用】 ボタン4つ (杉山様の調整した位置・サイズを反映) */
+#btn-replay-screenshot {
+    top: -350px !important;
+    left: 0px !important;
+    width: 300px !important;
+    height: 80px !important;
+}
+
+#btn-replay-prev {
+    top: 90px !important;
+    left: 0px !important;
+    width: 400px !important;
+    height: 100px !important;
+}
+
+#btn-replay-next {
+    top: 90px !important;
+    left: 1250px !important;
+    width: 400px !important;
+    height: 100px !important;
+}
+
+#btn-replay-close {
+    top: 90px !important;
+    left: 630px !important;
+    width: 400px !important;
+    height: 100px !important;
+}
+
+/* タイマーの文字設定 */
+#result-timer-text {
+    font-size: inherit !important;
+    font-weight: bold !important;
+    color: inherit !important;
+    margin-right: 5px !important;
 }
 
 /* =====================================================================

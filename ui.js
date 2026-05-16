@@ -219,8 +219,9 @@ let replayDataObj = null;
 let replayRoundIdx = 0;
 let replayStepIdx = 0;
 let replayAutoInterval = null;
-window.charlestonAnimLock = false; // 🌟 追加：アニメーション中の連打防止ロック
-let charlestonPhaseState = 0; // 🌟 0: 交換前の赤ハイライト, 1: 交換後の黄ハイライト
+window.charlestonAnimLock = false;
+let charlestonPhaseState = 0;
+let replayResultPlayerIdx = 0; // 🌟 追加：リザルト画面で現在見ているプレイヤー
 
 window.startReplay = function (id) {
     let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
@@ -229,32 +230,25 @@ window.startReplay = function (id) {
         return alert("牌譜データが見つからないか、破損しています。");
     }
 
-    // 🌟 【強力パッチ】バックエンドのバグで「プレイヤーが鳴いたのに河に残り続ける」ゴースト牌のデータを全自動で修復する
     replayDataObj.rounds.forEach(round => {
         if (!round.actions) return;
-        let activeGhosts = []; // 追跡中のゴースト牌
-
+        let activeGhosts = [];
         round.actions.forEach(act => {
             const state = act.state_snapshot;
             if (!state || !state.discards || !state.last_discard_info) return;
 
-            // アクションが「鳴き」または「ロン」の場合、その対象牌をゴーストとして登録
             let isMeld = (act.type === "meld" || act.type === "self_meld" || String(act.type).includes("kan") || act.type === "pon");
             let isRon = (act.type === "win" && String(act.player) !== String(state.last_discard_info.player));
 
             if (isMeld || isRon) {
-                activeGhosts.push({
-                    player: Number(state.last_discard_info.player),
-                    tile: state.last_discard_info.tile
-                });
+                activeGhosts.push({ player: Number(state.last_discard_info.player), tile: state.last_discard_info.tile });
             }
 
-            // 登録されたゴースト牌が河の末尾に残っていれば、データから強制的に削除（ポップ）する
             activeGhosts.forEach(ghost => {
                 let discards = state.discards[ghost.player];
                 if (discards && discards.length > 0 && discards[discards.length - 1] === ghost.tile) {
-                    state.discards[ghost.player] = [...discards]; // 過去のステップを壊さないよう参照を切る
-                    state.discards[ghost.player].pop(); // 末尾のゴースト牌を抹消！
+                    state.discards[ghost.player] = [...discards];
+                    state.discards[ghost.player].pop();
                 }
             });
         });
@@ -264,6 +258,8 @@ window.startReplay = function (id) {
     isReplayMode = true;
     replayRoundIdx = 0;
     replayStepIdx = 0;
+    charlestonPhaseState = 0;
+    window.charlestonAnimLock = false;
 
     const hideList = ['title-screen', 'mode-select-screen', 'settings-screen', 'tutorial-review-container'];
     hideList.forEach(hideId => {
@@ -308,7 +304,7 @@ window.startReplay = function (id) {
 };
 
 window.applyReplayState = async function () {
-    if (window.charlestonAnimLock) return; // アニメーション中は操作をブロック
+    if (window.charlestonAnimLock) return;
 
     const roundData = replayDataObj.rounds[replayRoundIdx];
     if (!roundData || !roundData.actions || roundData.actions.length === 0) return;
@@ -323,7 +319,6 @@ window.applyReplayState = async function () {
     let isCharleston = (action.type === "first" || action.type === "second" || action.type === "charleston");
     let isSkippedCharleston = (action.direction && action.direction.includes("不成立"));
 
-    // 🌟 描画する盤面の状態を決定（状態0の時は1つ前の盤面を借りる）
     let stateToRender = action.state_snapshot;
     if (isCharleston && !isSkippedCharleston && charlestonPhaseState === 0) {
         if (replayStepIdx > 0 && roundData.actions[replayStepIdx - 1].state_snapshot) {
@@ -331,9 +326,7 @@ window.applyReplayState = async function () {
         }
     }
 
-    // 🌟 内部の描画ヘルパー関数（再利用可能）
     const updateDOM = (stateToRender, compareState, highlightMode) => {
-        // 局情報の同期
         if (stateToRender.current_round !== undefined) currentRound = stateToRender.current_round;
         if (stateToRender.dealer !== undefined) dealer = stateToRender.dealer;
         if (stateToRender.scores !== undefined) scores = stateToRender.scores;
@@ -350,7 +343,6 @@ window.applyReplayState = async function () {
 
         let hideDiscardPlayer = -1;
         let hideDiscardTile = "";
-        // 🌟 修正: 比較対象を stateToRender に統一
         if (action && stateToRender.last_discard_info && highlightMode !== "outgoing") {
             if (action.type === "meld" || action.type === "self_meld") {
                 hideDiscardPlayer = stateToRender.last_discard_info.player;
@@ -365,18 +357,15 @@ window.applyReplayState = async function () {
             const handDiv = document.getElementById(`hand-${i}`);
             if (handDiv) {
                 handDiv.innerHTML = "";
-                // 🌟 修正: stateData ではなく stateToRender に変更
                 let hand = stateToRender.all_hands ? [...stateToRender.all_hands[i]] : [];
 
                 let highlightTiles = [];
-                // Pythonから送られた正確な配列を使ってハイライト対象をセット
                 if (action.passed_tiles && action.received_tiles && highlightMode !== "none") {
                     if (highlightMode === "outgoing") highlightTiles = [...(action.passed_tiles[i] || [])];
                     if (highlightMode === "incoming") highlightTiles = [...(action.received_tiles[i] || [])];
                 }
 
                 let drawnTile = null;
-                // 🌟 修正: stateData ではなく stateToRender に変更
                 if (stateToRender.just_drawn === i && stateToRender.last_drawn && stateToRender.last_drawn[i]) {
                     const dTile = stateToRender.last_drawn[i];
                     const dIdx = hand.lastIndexOf(dTile);
@@ -395,7 +384,6 @@ window.applyReplayState = async function () {
                     let transformStr = "";
                     if (i === 2) transformStr += "rotate(180deg) ";
 
-                    // ハイライト演出
                     let hIdx = highlightTiles.indexOf(t);
                     if (hIdx !== -1) {
                         let color = highlightMode === "outgoing" ? "#e74c3c" : "#f1c40f";
@@ -445,7 +433,6 @@ window.applyReplayState = async function () {
             const meldDiv = document.getElementById(`meld-${i}`);
             if (meldDiv) {
                 meldDiv.innerHTML = "";
-                // 🌟 修正: stateData ではなく stateToRender に変更
                 const melds = stateToRender.all_melds ? stateToRender.all_melds[i] : [];
                 melds.forEach(m => {
                     let mWrap = document.createElement('div');
@@ -464,14 +451,12 @@ window.applyReplayState = async function () {
             const riverDiv = document.getElementById(`river-${i}`);
             if (riverDiv) {
                 riverDiv.innerHTML = "";
-                // 🌟 修正: stateData ではなく stateToRender に変更
                 const discards = stateToRender.discards ? stateToRender.discards[i] : [];
                 discards.forEach((t, idx) => {
                     if (hideDiscardPlayer === i && idx === discards.length - 1 && hideDiscardTile === t) return;
                     let img = document.createElement('img');
                     img.className = 'tile';
                     img.src = `images/${t}.png`;
-                    // 🌟 修正: stateData ではなく stateToRender に変更
                     if (stateToRender.last_discard_info && stateToRender.last_discard_info.player === i && idx === discards.length - 1 && stateToRender.last_discard_info.tile === t) {
                         img.style.boxShadow = "0 0 10px 3px rgba(255, 0, 0, 0.8)";
                     }
@@ -482,7 +467,6 @@ window.applyReplayState = async function () {
             const winDiv = document.getElementById(`win-zone-${i}`);
             if (winDiv) {
                 winDiv.innerHTML = "";
-                // 🌟 修正: stateData ではなく stateToRender に変更
                 const winTiles = stateToRender.all_win_tiles ? stateToRender.all_win_tiles[i] : [];
                 if (winTiles && winTiles.length > 0) {
                     winDiv.style.display = "flex";
@@ -498,12 +482,15 @@ window.applyReplayState = async function () {
             }
         }
         const wallCountDiv = document.getElementById('wall-count');
-        // 🌟 修正: stateData ではなく stateToRender に変更
         if (wallCountDiv) wallCountDiv.innerText = `山: ${stateToRender.wall_count}`;
     };
 
-    // 🌟 描画の実行
     let msg = document.getElementById('msg');
+
+    // 🌟 リザルト画面を閉じる（局終了時以外）
+    if (action.type !== "round_end") {
+        document.getElementById('overlay').style.display = 'none';
+    }
 
     if (isCharleston && !isSkippedCharleston) {
         if (charlestonPhaseState === 0) {
@@ -542,18 +529,252 @@ window.applyReplayState = async function () {
                 msgText = `配牌`;
             } else if (action.type === "round_end") {
                 msgText = `局終了`;
+                // 🌟 局終了ステップに来たらリザルト画面を描画
+                if (document.getElementById('overlay').style.display !== "flex") {
+                    replayResultPlayerIdx = 0;
+                    renderReplayResult(replayResultPlayerIdx);
+
+                    // 🌟 追加：リザルト画面に入ったら自動再生を強制的にストップする
+                    if (replayAutoInterval) {
+                        clearInterval(replayAutoInterval);
+                        replayAutoInterval = null;
+                        const btnAuto = document.getElementById('btn-replay-auto');
+                        if (btnAuto) {
+                            btnAuto.innerText = "自動再生: OFF";
+                            btnAuto.style.background = "#273c75";
+                        }
+                        // 🌟 杉山様のご指示通り、原因・挙動がわかるようにログを出力
+                        console.log("[DEBUG 牌譜再生] 局終了ステップに到達したため、自動再生を一時停止しました。");
+                    }
+                }
             } else {
                 msgText = `CPU ${pIdx}`;
             }
             msg.innerHTML = msgText;
+
+            // ========================================================
+            // 🌟 修正：カタカナ（カン）や漢字（暗槓）の表記ブレに完全対応！
+            // ========================================================
+            let callTextStr = "";
+
+            if (action.type === "win") {
+                if (stateToRender.just_drawn === pIdx) {
+                    callTextStr = "自摸";
+                } else {
+                    callTextStr = "胡";
+                }
+            } else if (action.type === "meld" || action.type === "self_meld" || String(action.type).includes("kan") || action.type === "pon") {
+                let mType = action.meld_type || action.type;
+
+                if (mType === "meld" || mType === "self_meld") {
+                    const melds = stateToRender.all_melds ? stateToRender.all_melds[pIdx] : [];
+                    if (melds && melds.length > 0) {
+                        mType = melds[melds.length - 1].type;
+                    }
+                }
+
+                // 🌟 文字列に変換して、カタカナ・漢字・ローマ字の「部分一致」で拾う
+                let typeStr = String(mType);
+
+                if (typeStr.includes("pon") || typeStr.includes("ポン") || typeStr.includes("碰")) {
+                    callTextStr = "碰";
+                } else if (typeStr.includes("flower") || typeStr.includes("花")) {
+                    callTextStr = "花槓";
+                } else if (typeStr.includes("kan") || typeStr.includes("カン") || typeStr.includes("槓")) {
+                    callTextStr = "槓";
+                } else {
+                    callTextStr = "鳴"; // 万が一不明な場合
+                }
+
+                // 原因がわかるようにコンソールにログを出力
+                console.log(`[DEBUG 牌譜再生] アクション判定: 内部タイプ名='${mType}' -> 画面表示='${callTextStr}'`);
+            }
+
+            if (callTextStr !== "" && typeof showCallout === 'function') {
+                showCallout(pIdx, callTextStr);
+            }
+            // ========================================================
+
         }
     }
 
     const stepText = document.getElementById('replay-step-text');
-    if (stepText) stepText.innerText = `第${replayRoundIdx + 1}局 | Step: ${replayStepIdx + 1} / ${maxSteps}`;
+    if (stepText) {
+        // 🌟 修正：画面中央の「第○局」と、下のバーの局数表示がズレないように同期する！
+        const actualRoundNum = roundData.round !== undefined ? roundData.round : (replayRoundIdx + 1);
+        stepText.innerText = `第${actualRoundNum}局 | Step: ${replayStepIdx + 1} / ${maxSteps}`;
+    }
 };
 
-// 🌟 ボタンが押された時の処理を async にし、アニメーション待機を挟む
+// 🌟 新規：リザルト画面の描画関数
+window.renderReplayResult = function (pIdx) {
+    const roundData = replayDataObj.rounds[replayRoundIdx];
+    if (!roundData || !roundData.results) return;
+
+    const calcData = roundData.results;
+    let isWinner = false;
+    let winData = null;
+
+    for (let res of (calcData.results || [])) {
+        if (res.player === pIdx) {
+            isWinner = true;
+            winData = res;
+            break;
+        }
+    }
+
+    let diff = (calcData.scores && calcData.scores[pIdx]) !== undefined ? calcData.scores[pIdx] : 0;
+    let yakuHtml = "";
+    let titleText = "";
+    let scoreText = "";
+    let scoreColor = "";
+
+    if (isWinner && winData) {
+        titleText = (pIdx === 0) ? "あなたの和了！" : `CPU ${pIdx} の和了！`;
+        scoreText = `${winData.total_score} 点`;
+        scoreColor = "#2ecc71";
+
+        let groupedDetails = {};
+        for (let detail of (winData.details || [])) {
+            let yakuKey = [...(detail.yaku || [])].sort().join(",");
+            let groupKey = `${detail.tile}_${yakuKey}`;
+            if (!groupedDetails[groupKey]) {
+                groupedDetails[groupKey] = { tile: detail.tile, yaku: (detail.yaku || []), score: detail.score || 0, count: 1, total_score: detail.score || 0 };
+            } else {
+                groupedDetails[groupKey].count++;
+                groupedDetails[groupKey].total_score += (detail.score || 0);
+            }
+        }
+
+        let sortedDetails = Object.values(groupedDetails);
+        sortedDetails.sort((a, b) => {
+            if (b.total_score !== a.total_score) return b.total_score - a.total_score;
+            return SM[a.tile] - SM[b.tile];
+        });
+
+        for (let d of sortedDetails) {
+            let tile = d.tile;
+            const tierOrder = { "yaku-tier-64": 1, "yaku-tier-32": 2, "yaku-tier-16": 3, "yaku-tier-8": 4, "yaku-tier-6": 5, "yaku-tier-4": 6, "yaku-tier-2": 7, "yaku-tier-1": 8, "yaku-tier-multi": 9 };
+            d.yaku.sort((a, b) => {
+                let orderA = tierOrder[getYakuTierClass(a)] !== undefined ? tierOrder[getYakuTierClass(a)] : 99;
+                let orderB = tierOrder[getYakuTierClass(b)] !== undefined ? tierOrder[getYakuTierClass(b)] : 99;
+                return orderA - orderB;
+            });
+
+            // 🌟 修正：「×N枚」が絶対に改行されないように white-space: nowrap; を追加
+            let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px; white-space: nowrap;">×${d.count}枚</span>` : "";
+
+            // 🌟 ついでに右側の点数表記も絶対に改行されないよう保護
+            let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa; white-space: nowrap;">(${d.score}点 × ${d.count})</span> <br> <span style="white-space: nowrap;">${d.total_score}点</span>` : `<span style="white-space: nowrap;">${d.score}点</span>`;
+
+            // 🌟 修正：「和了牌」の文字を削除し、左側の枠をスッキリさせる
+            yakuHtml += `
+                <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
+                    <div style="display: flex; align-items: center; width: 100px; flex-shrink: 0;">
+                        <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px; flex-shrink: 0;">
+                        ${countStr}
+                    </div>
+                    <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
+                        ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${typeof getJaYakuName === 'function' ? getJaYakuName(y) : ''}</span><span class="en">${typeof getEnYakuName === 'function' ? getEnYakuName(y) : ''}</span></span>`).join("")}
+                    </div>
+                    <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right; flex-shrink: 0;">
+                        ${scoreDetailStr}
+                    </div>
+                </div>`;
+        }
+    } else {
+        titleText = (pIdx === 0) ? "あなたの結果" : `CPU ${pIdx} の結果`;
+        let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+        scoreText = `${diffStr} 点`;
+        scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
+        let resultLabel = diff < 0 ? "失点 (振込み等)" : ((calcData.results || []).length === 0 ? "流局" : "ー");
+        yakuHtml = `
+            <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
+                ${resultLabel}
+            </div>`;
+    }
+
+    let endAction = roundData.actions[roundData.actions.length - 1];
+    let closedHand = endAction.state_snapshot.all_hands[pIdx] || [];
+    let melds = endAction.state_snapshot.all_melds[pIdx] || [];
+    let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
+
+    let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
+    handHtml += `<div style="display: flex; gap: 2px;">`;
+    for (let t of sortedHand) {
+        handHtml += `<img src="images/${t}.png" style="width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">`;
+    }
+    handHtml += `</div>`;
+
+    if (melds.length > 0) {
+        handHtml += `<div style="width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;"></div>`;
+        for (let m of melds) {
+            handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
+            for (let idx = 0; idx < m.tiles.length; idx++) {
+                let t = m.tiles[idx];
+                let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
+                handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
+            }
+            handHtml += `</div>`;
+        }
+    }
+    handHtml += `</div>`;
+
+    document.getElementById('win-label-text').innerText = titleText;
+    document.getElementById('win-score').innerHTML = scoreText;
+    document.getElementById('win-score').style.color = scoreColor;
+    document.getElementById('win-hand-display').innerHTML = handHtml;
+    document.getElementById('win-yaku').innerHTML = yakuHtml;
+
+    // 🌟 牌譜リプレイ時は、右下に集約された2段組の操作ボタン構造を構築する
+    const controls = document.getElementById('result-controls');
+    if (!controls.dataset.originalHtml) {
+        controls.dataset.originalHtml = controls.innerHTML; // 元のボタンを記憶
+    }
+
+    controls.style.cssText = "display: block !important;";
+
+    // 🌟 見た目(style)は全てCSSに任せ、シンプルな構造だけを生成する
+    controls.innerHTML = `
+        <button id="btn-replay-screenshot" class="btn-act btn-blue" onclick="takeResultScreenshot()">📸 撮影</button>
+        <button id="btn-replay-prev" class="btn-act btn-gray" onclick="prevReplayResult()">⏮️ 前へ</button>
+        <button id="btn-replay-next" class="btn-act btn-blue" onclick="nextReplayResult()">次へ ⏭️</button>
+        <button id="btn-replay-close" class="btn-act btn-red" onclick="closeReplayResult()">❌ 閉じて盤面を見る</button>
+    `;
+
+    document.getElementById('overlay').scrollTop = 0;
+    document.getElementById('overlay').style.display = "flex";
+};
+
+// 🌟 新規：リザルト画面で「次へ」を押した時
+window.nextReplayResult = function () {
+    if (typeof playSE === 'function') playSE('click');
+    if (replayResultPlayerIdx < 3) {
+        replayResultPlayerIdx++;
+        renderReplayResult(replayResultPlayerIdx);
+    } else {
+        document.getElementById('overlay').style.display = 'none';
+        nextReplayStep(); // 4人目を見終わったら次の局へ
+    }
+};
+
+// 🌟 新規：リザルト画面で「戻る」を押した時
+window.prevReplayResult = function () {
+    if (typeof playSE === 'function') playSE('click');
+    if (replayResultPlayerIdx > 0) {
+        replayResultPlayerIdx--;
+        renderReplayResult(replayResultPlayerIdx);
+    } else {
+        document.getElementById('overlay').style.display = 'none';
+        prevReplayStep(); // 1人目から戻る時は1つ前のステップへ
+    }
+};
+
+window.closeReplayResult = function () {
+    if (typeof playSE === 'function') playSE('click');
+    document.getElementById('overlay').style.display = 'none';
+};
+
 window.nextReplayStep = async function () {
     if (!replayDataObj || window.charlestonAnimLock) return;
     const roundData = replayDataObj.rounds[replayRoundIdx];
@@ -562,7 +783,6 @@ window.nextReplayStep = async function () {
     let isCharleston = (currentAction && (currentAction.type === "first" || currentAction.type === "second" || currentAction.type === "charleston"));
     let isSkippedCharleston = (currentAction && currentAction.direction && currentAction.direction.includes("不成立"));
 
-    // 🌟 チャールストン待機状態（0）なら、アニメーションしてから状態を（1）にする！
     if (isCharleston && !isSkippedCharleston && charlestonPhaseState === 0) {
         if (typeof playSE === 'function') playSE('click');
         window.charlestonAnimLock = true;
@@ -580,10 +800,10 @@ window.nextReplayStep = async function () {
         charlestonPhaseState = 1;
         window.charlestonAnimLock = false;
         applyReplayState();
-        return; // ここで止まる（StepIdxは増やさない）
+        return;
     }
 
-    charlestonPhaseState = 0; // 次のステップへ行く時は必ずリセット
+    charlestonPhaseState = 0;
 
     if (replayStepIdx < roundData.actions.length - 1) {
         if (typeof playSE === 'function') playSE('click');
@@ -600,7 +820,6 @@ window.nextReplayStep = async function () {
 window.prevReplayStep = function () {
     if (!replayDataObj || window.charlestonAnimLock) return;
 
-    // 交換直後なら、交換前に戻す
     if (charlestonPhaseState === 1) {
         if (typeof playSE === 'function') playSE('click');
         charlestonPhaseState = 0;
@@ -614,7 +833,7 @@ window.prevReplayStep = function () {
         replayStepIdx--;
         const prevAction = replayDataObj.rounds[replayRoundIdx].actions[replayStepIdx];
         if (prevAction && (prevAction.type === "first" || prevAction.type === "second" || prevAction.type === "charleston")) {
-            charlestonPhaseState = 1; // 戻った先がチャールストンなら、完了状態にする
+            charlestonPhaseState = 1;
         }
         applyReplayState();
     } else if (replayRoundIdx > 0) {
@@ -736,8 +955,8 @@ window.toggleReplayAuto = function () {
         }
         replayAutoInterval = setInterval(() => {
             if (window.charlestonAnimLock) return;
-            nextReplayStep(); // 🌟 修正：直接 nextReplayStep を呼ぶことでアニメーションを同期させる
-        }, 1200); // 🌟 少し長めに待つ
+            nextReplayStep();
+        }, 1200);
     }
 };
 
@@ -751,6 +970,12 @@ window.exitReplay = function () {
 
     const btnAuto = document.getElementById('btn-auto-play');
     if (btnAuto) btnAuto.style.display = 'block';
+
+    // 🌟 リザルト画面のボタンをCPU戦用の元の状態に戻す
+    const resultControls = document.getElementById('result-controls');
+    if (resultControls && resultControls.dataset.originalHtml) {
+        resultControls.innerHTML = resultControls.dataset.originalHtml;
+    }
 
     if (typeof returnToHomeGracefully === 'function') returnToHomeGracefully();
 };
