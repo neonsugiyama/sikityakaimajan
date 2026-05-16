@@ -458,11 +458,21 @@ window.applyReplayState = async function () {
                 melds.forEach(m => {
                     let mWrap = document.createElement('div');
                     mWrap.className = 'meld-group';
-                    m.tiles.forEach(t => {
+
+                    // 🌟 修正：インデックス(idx)を取得して、両端の牌を判定する
+                    m.tiles.forEach((t, idx) => {
                         let img = document.createElement('img');
                         img.className = 'tile';
-                        img.src = `images/${t}.png`;
-                        if (m.type === "ankan") img.style.opacity = "0.6";
+
+                        // 🌟 修正：暗槓かつ、1枚目(idx:0)または4枚目(idx:3)なら画像ファイル名を 'ura' にする
+                        let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
+                        img.src = `images/${src}.png`;
+
+                        // ログを出力して暗槓の描画処理が走ったことを確認
+                        if (m.type === 'ankan') {
+                            console.log(`[DEBUG 牌譜再生] プレイヤー${i}の暗槓を描画: ${idx + 1}枚目を ${src}.png に設定しました。`);
+                        }
+
                         mWrap.appendChild(img);
                     });
                     meldDiv.appendChild(mWrap);
