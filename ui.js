@@ -189,19 +189,59 @@ function openReplayList() {
         container.innerHTML = "<p style='text-align:center; color:#aaa; margin-top:50px;'>保存された牌譜がありません。<br>対局を終了してロビーに戻ると自動で保存されます。</p>";
     } else {
         // 新しい対局が上に来るように reverse() して表示
-        container.innerHTML = savedReplays.slice().reverse().map(replay => `
+        container.innerHTML = savedReplays.slice().reverse().map(replay => {
+
+            // 🌟 追加：牌譜の最後の瞬間から最終点数を抽出して順位を計算する
+            let finalScores = [0, 0, 0, 0];
+            if (replay.rounds && replay.rounds.length > 0) {
+                let lastRound = replay.rounds[replay.rounds.length - 1];
+                if (lastRound.actions && lastRound.actions.length > 0) {
+                    // 後ろから遡って「total_scores」を持っているスナップショットを探す
+                    for (let i = lastRound.actions.length - 1; i >= 0; i--) {
+                        if (lastRound.actions[i].state_snapshot && lastRound.actions[i].state_snapshot.total_scores) {
+                            finalScores = lastRound.actions[i].state_snapshot.total_scores;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let names = replay.player_names || ["あなた", "CPU 1", "CPU 2", "CPU 3"];
+            let players = [0, 1, 2, 3].map(i => ({ name: names[i], score: finalScores[i] }));
+
+            // 🌟 点数で降順（高い順）にソート
+            players.sort((a, b) => b.score - a.score);
+
+            // 🌟 順位表のHTMLを構築（2列のグリッドで綺麗に並べる）
+            let scoreHtml = `<div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; font-size: 14px;">`;
+            players.forEach((p, rank) => {
+                let rankColors = ["#f1c40f", "#bdc3c7", "#cd7f32", "#7f8c8d"]; // 1位:金, 2位:銀, 3位:銅, 4位:鉄
+                let rColor = rankColors[rank];
+                scoreHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;">
+                        <span style="color: ${rColor}; font-weight: bold;">${rank + 1}位 ${p.name}</span>
+                        <span style="color: #ecf0f1; font-weight: bold;">${p.score} <span style="font-size: 10px; color: #aaa; font-weight: normal;">点</span></span>
+                    </div>`;
+            });
+            scoreHtml += `</div>`;
+
+            // 🌟 UIの構造をリッチに変更（ボタンを右側に縦並びにしてスッキリさせる）
+            return `
             <div style="background: rgba(0,0,0,0.5); border: 1px solid #555; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="color: #3498db; font-weight: bold; margin-bottom: 5px;">📅 ${replay.start_time || "日時不明"}</div>
-                    <div style="color: #ecf0f1; font-size: 14px;">対局者: ${replay.player_names ? replay.player_names.join(" / ") : "不明"}</div>
-                    <div style="color: #aaa; font-size: 12px; margin-top: 5px;">収録局数: ${replay.rounds.length}局</div>
+                <div style="flex-grow: 1; padding-right: 20px;">
+                    <div style="color: #3498db; font-weight: bold; margin-bottom: 5px; font-size: 16px;">
+                        📅 ${replay.start_time || "日時不明"} 
+                        <span style="color: #aaa; font-size: 12px; margin-left: 12px; font-weight: normal; background: #2c3e50; padding: 2px 6px; border-radius: 4px;">全 ${replay.rounds.length} 局</span>
+                    </div>
+                    ${scoreHtml}
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-act" style="display: block; padding: 8px 15px; font-size: 14px; background: #c0392b; color: white;" onclick="deleteReplay('${replay.id}')">削除 🗑️</button>
-                    <button class="btn-act btn-blue" style="display: block; padding: 8px 15px; font-size: 14px;" onclick="startReplay('${replay.id}')">再生 ▶</button>
+                <div style="display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; width: 100px;">
+                    <button class="btn-act btn-blue" style="display: block; padding: 10px; font-size: 14px; font-weight: bold;" onclick="startReplay('${replay.id}')">▶ 再生</button>
+                    <button class="btn-act" style="display: block; padding: 8px; font-size: 12px; background: #c0392b; color: white; opacity: 0.8;" onclick="deleteReplay('${replay.id}')">🗑️ 削除</button>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     document.getElementById('replay-modal').style.display = 'flex';

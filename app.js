@@ -149,6 +149,12 @@ async function takeResultScreenshot() {
 async function returnToHomeGracefully() {
     console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
 
+    // 🌟 追加：途中で退出した時は、実績のストック状態を強制リセットして元に戻す
+    if (window.originalShowAchievementUnlock) {
+        window.showAchievementUnlock = window.originalShowAchievementUnlock;
+        window.pendingAchievements = [];
+    }
+
     if (typeof fetchAndSaveReplay === 'function') {
         console.log("[App] 📼 牌譜の保存処理を開始します...");
         await fetchAndSaveReplay();

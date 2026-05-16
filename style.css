@@ -739,6 +739,14 @@ html, body {
     box-shadow: 0 5px #636e72;
 }
 
+/* 🌟 ここに追加：花槓ボタン用の黄色設定 */
+.btn-flower {
+    background: #f1c40f !important;
+    box-shadow: 0 5px #d35400 !important;
+    color: #333 !important; /* 🌟 白文字だと見えにくいので濃いグレーに変更 */
+    border: none !important;
+}
+
 /* 🌟 アクションボタンのホバー・押し込み時の動きを復元 */
 .btn-act {
     transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease;
@@ -771,6 +779,12 @@ html, body {
 
 .btn-gray:hover {
     background-color: #8d9a9b;
+}
+
+/* 🌟 ここに追加：花槓ボタンのホバー色設定 */
+.btn-flower:hover {
+    background-color: #f39c12 !important;
+    color: #fff !important; /* 🌟 ホバー時はオレンジが濃くなるので白文字に戻す */
 }
 
 /* --- 待ち牌・オート・透過ボタン --- */

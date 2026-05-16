@@ -481,7 +481,8 @@ function renderAchievements() {
         { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "muhana_addiction", icon: "🍂", title: "無花果依存症", desc: "4局全てで一回以上無花果で和了する", val: playerStats.muhanaAddictionCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "he_jue_zhang", icon: "🀄", title: "和絶張", desc: "場に3枚見えている牌の最後の1枚で和了する(四季牌除く)", val: playerStats.hezuezhangCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false }
+        { id: "he_jue_zhang", icon: "🀄", title: "和絶張", desc: "場に3枚見えている牌の最後の1枚で和了する(四季牌除く)", val: playerStats.hezuezhangCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "oya_shirazu", icon: "🦷", title: "親知らず", desc: "一回も荘家（親番）をやらずに連帯（2位以上）する", val: playerStats.oyaShirazuCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false }
     ];
 
     let gridHtml = ``;
@@ -620,18 +621,52 @@ async function processToastQueue() {
     let achieve = toastQueue.shift();
 
     const toast = document.getElementById('achievement-toast');
-    if (!toast) return;
+    if (!toast) {
+        isToastShowing = false;
+        return;
+    }
 
     document.getElementById('toast-icon').innerText = achieve.icon;
     document.getElementById('toast-name').innerText = achieve.name;
 
     if (typeof playSE === 'function') playSE('coin');
 
+    // 🌟 マウスを乗せたら「押せるよ」と分かるようにカーソルを指マークにする
+    toast.style.cursor = "pointer";
+
     toast.classList.add('toast-show');
-    await new Promise(res => setTimeout(res, 4000));
+
+    // 🌟 修正：トースト自体ではなく「画面全体（document.body）」のクリック・タップを監視する！
+    await new Promise(resolve => {
+        let timeoutId;
+
+        // クリック・タップされた時のスキップ処理
+        const skipHandler = (e) => {
+            if (typeof playSE === 'function') playSE('click');
+            clearTimeout(timeoutId); // 4秒待つタイマーを即座に破壊
+            document.body.removeEventListener('mousedown', skipHandler);
+            document.body.removeEventListener('touchstart', skipHandler);
+            resolve(); // 待機を終了させる
+        };
+
+        // 誤爆（トーストが出た瞬間のクリックを拾ってしまう現象）を防ぐため、0.1秒だけ待ってから判定を有効にする
+        setTimeout(() => {
+            document.body.addEventListener('mousedown', skipHandler);
+            document.body.addEventListener('touchstart', skipHandler);
+        }, 100);
+
+        // 誰もクリックしなかった場合の通常処理（4秒後に自動で消える）
+        timeoutId = setTimeout(() => {
+            document.body.removeEventListener('mousedown', skipHandler);
+            document.body.removeEventListener('touchstart', skipHandler);
+            resolve(); // 待機を終了させる
+        }, 4000);
+    });
+
     toast.classList.remove('toast-show');
 
-    await new Promise(res => setTimeout(res, 600));
+    // 🌟 引っ込んだ後、次の実績が出るまでのインターバル
+    await new Promise(res => setTimeout(res, 300));
     processToastQueue();
 }
 

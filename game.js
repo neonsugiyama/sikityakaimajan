@@ -502,7 +502,11 @@ function safeUpdate(data) {
     }
 
     if (data.current_round !== undefined) currentRound = data.current_round;
-    if (data.dealer !== undefined) dealer = data.dealer;
+    if (data.dealer !== undefined) {
+        dealer = data.dealer;
+        // 🌟 追加：もし親が自分(0)なら、親知らずフラグをへし折る！
+        if (dealer === 0) playerStats._tempWasDealer = true;
+    }
     if (data.scores !== undefined) scores = data.scores;
     if (data.total_scores !== undefined) totalScores = data.total_scores;
 
@@ -1006,6 +1010,20 @@ async function init() {
     sessionStorage.removeItem(`result_display_idx_${currentSessionRoomId}`);
     sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
     sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
+
+    // 🌟 ここに1行追加：新ゲーム開始時に親知らずフラグをリセット！
+    playerStats._tempWasDealer = false;
+
+    // 🌟🌟 新規追加：実績ポップアップをゲーム終了時までストックする「キューシステム」を起動
+    window.pendingAchievements = [];
+    if (!window.originalShowAchievementUnlock && typeof showAchievementUnlock === 'function') {
+        window.originalShowAchievementUnlock = window.showAchievementUnlock; // 本物の関数を退避
+    }
+    // ゲーム中は画面に出さず、裏の配列に貯め込むだけの偽物の関数にすり替える
+    window.showAchievementUnlock = function (title, icon) {
+        window.pendingAchievements.push({ title: title, icon: icon });
+        console.log(`[実績ストック] '${title}' を達成！ゲーム終了時にまとめて表示します。`);
+    };
 
     // 🌟 修正：牌譜再生モードで隠した「退出」ボタンの非表示設定を解除し、元に戻す！
     const topExitBtn = document.getElementById('quick-exit-btn');
@@ -1814,6 +1832,13 @@ function setupActionBtn(html, cls, onClick) {
     btn.style.gap = '5px';
     btn.onclick = onClick;
 
+    // 🌟 追加：ボタンに割り当てられたクラスと、描画された後の実際のCSSカラーをログに出す
+    let btnName = html.replace(/<[^>]*>?/gm, '').trim(); // 画像タグなどを消して文字だけ抽出
+    console.log(`[DEBUG] アクションボタン生成 [${btnName}]: 指定されたクラス = '${cls}' | 適用後のクラス = '${btn.className}'`);
+    setTimeout(() => {
+        console.log(`[DEBUG] 👆 [${btnName}] の最終的な背景色 =`, window.getComputedStyle(btn).backgroundColor);
+    }, 50);
+
     activeSelfActionsCount++;
 }
 
@@ -1871,13 +1896,14 @@ function renderSelfMeldsMenu() {
                 else execSelfMeld(g.type, g.tile, '');
             });
         } else {
-            let btnClass = 'btn-act btn-blue';
             let btnLabel = "花槓";
 
             if (g.seasons.length === 1) {
-                setupActionBtn(`${btnLabel} ${getImg(g.tile)}${getImg(g.seasons[0])}`, 'btn-blue', () => execSelfMeld(g.type, g.tile, g.seasons[0]));
+                // 🚨 ここに 'btn-blue' が残っていたのが原因です！ 'btn-flower' に書き換えました！
+                setupActionBtn(`${btnLabel} ${getImg(g.tile)}${getImg(g.seasons[0])}`, 'btn-flower', () => execSelfMeld(g.type, g.tile, g.seasons[0]));
             } else {
-                setupActionBtn(`${btnLabel} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-green', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons));
+                // 🚨 ここに 'btn-green' が残っていたのが原因です！ 'btn-flower' に書き換えました！
+                setupActionBtn(`${btnLabel} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-flower', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons));
             }
         }
     });
@@ -1890,10 +1916,9 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
 
     setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
 
-    let btnClass = 'btn-blue';
     seasons.forEach(s => {
         let btnLabel = "花槓";
-        setupActionBtn(`${btnLabel} ${getImg(tile)}${getImg(s)}`, 'btn-blue', () => execSelfMeld(type, tile, s));
+        setupActionBtn(`${btnLabel} ${getImg(tile)}${getImg(s)}`, 'btn-flower', () => execSelfMeld(type, tile, s));
     });
 }
 
@@ -2234,12 +2259,18 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
         if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
             const btn = document.getElementById('btn-hanakan');
-            btn.className = 'btn-act btn-blue';
+            btn.className = 'btn-act btn-flower';
             btn.innerHTML = `花槓 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
             showAny = true;
+
+            // 🌟 追加：他家からの花槓ボタンのクラスと色をログに出す
+            console.log(`[DEBUG] 他家鳴き 花槓ボタン表示: 現在のクラス = '${btn.className}'`);
+            setTimeout(() => {
+                console.log(`[DEBUG] 👆 花槓ボタンの最終的な背景色 =`, window.getComputedStyle(btn).backgroundColor);
+            }, 50);
         }
     }
 
@@ -3224,6 +3255,11 @@ async function handleRoundEnd(isReplayingResult = false) {
                     showAchievementUnlock("逆転の劇薬", "💊");
                 }
 
+                if (myRank <= 2 && !playerStats._tempWasDealer && (playerStats.oyaShirazuCount || 0) === 0) {
+                    playerStats.oyaShirazuCount = 1;
+                    showAchievementUnlock("親知らず", "🦷");
+                }
+
                 playerStats.recentRecords.unshift({ rank: myRank, score: totalScores[0] });
                 if (playerStats.recentRecords.length > 20) playerStats.recentRecords.pop();
 
@@ -3334,6 +3370,20 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
             }
 
+            // 🌟🌟 修正：ストックしておいた実績をここで一気に全解放する！
+            if (window.originalShowAchievementUnlock) {
+                window.showAchievementUnlock = window.originalShowAchievementUnlock; // 本来の関数に戻す
+            }
+
+            if (window.pendingAchievements && window.pendingAchievements.length > 0) {
+                console.log(`[実績解放] ストックされていた ${window.pendingAchievements.length} 個の実績を表示します！`);
+                for (let ach of window.pendingAchievements) {
+                    window.showAchievementUnlock(ach.title, ach.icon);
+                }
+                window.pendingAchievements = []; // キューを空にする
+            }
+
+            // ポップアップ（トースト）がすべて連続で表示され終わるまでしっかり待機する
             while (isToastShowing || toastQueue.length > 0) {
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
