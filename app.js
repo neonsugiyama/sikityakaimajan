@@ -693,19 +693,32 @@ function copyRoomUrl() {
 }
 
 // ==========================================
-// ★ マウス操作・ショートカット制御
+// ★ マウス操作・ショートカット制御 (海底流局スルー対応版)
 // ==========================================
 document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     if (typeof confRightClick !== 'undefined' && !confRightClick) return;
     if (typeof isProc !== 'undefined' && isProc) return;
 
+    // 🌟 修正：通常のスキップボタンだけでなく、海底スルー（流局）ボタンも取得対象にする
     const btnSkip = document.getElementById('btn-skip');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+
+    // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
+    if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
+        console.log("[DEBUG 操作] 右クリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
+        btnRyukyoku.click();
+        return;
+    }
+
+    // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
     if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+        console.log("[DEBUG 操作] 右クリックを検知: #btn-skip をクリックしてスルーします。");
         btnSkip.click();
         return;
     }
 
+    // 3. ボタンが出ていない通常のツモ番の時だけツモ切り処理へ
     if (typeof turn !== 'undefined' && turn === 0 && typeof drawnTile !== 'undefined' && drawnTile !== "" && typeof charlestonPhase !== 'undefined' && !charlestonPhase) {
         const msgEl = document.getElementById('msg');
         if (msgEl) {
@@ -724,7 +737,19 @@ if (gameTable) {
         if (typeof isProc !== 'undefined' && isProc) return;
 
         const btnSkip = document.getElementById('btn-skip');
+        const btnRyukyoku = document.getElementById('btn-ryukyoku');
+
+        // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
+        if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
+            console.log("[DEBUG 操作] ダブルクリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
+            btnRyukyoku.click();
+            window.getSelection().removeAllRanges();
+            return;
+        }
+
+        // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
         if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+            console.log("[DEBUG 操作] ダブルクリックを検知: #btn-skip をクリックしてスルーします。");
             btnSkip.click();
             window.getSelection().removeAllRanges();
             return;
