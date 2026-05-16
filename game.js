@@ -2966,7 +2966,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                     yakuHtml += `
                         <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
                             <div style="display: flex; align-items: center; width: 160px;">
-                                <span style="color: #ddd; margin-right: 10px; font-size: 16px;">和了牌</span>
                                 <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
                                 ${countStr}
                             </div>
@@ -2980,7 +2979,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
             } else {
                 titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
-                let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+                let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
                 scoreText = `${diffStr} 点`;
                 scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
 
@@ -3019,10 +3018,12 @@ async function handleRoundEnd(isReplayingResult = false) {
             handHtml += `</div>`;
 
             document.getElementById('win-label-text').innerText = titleText;
-            document.getElementById('win-score').innerHTML = scoreText;
-            document.getElementById('win-score').style.color = scoreColor;
+            document.getElementById('win-yaku').innerHTML = yakuHtml; // 🌟 修正：アニメーション関数を呼ぶ「前」に役リストを入れる！
             document.getElementById('win-hand-display').innerHTML = handHtml;
-            document.getElementById('win-yaku').innerHTML = yakuHtml;
+
+            // 🌟 修正：役がDOMに入った「後」にアニメーション関数を呼ぶ！
+            let finalScoreAmount = (isWinner && winData) ? winData.total_score : diff;
+            window.animateWinScore(document.getElementById('win-score'), finalScoreAmount, isWinner);
 
             // 🌟 修正：リザルト画面が出たタイミングでパネルを隠し、そのまま復元しない！
             const navPanel = document.getElementById('ingame-tutorial-nav');

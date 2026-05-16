@@ -637,7 +637,7 @@ window.applyReplayState = async function () {
     }
 };
 
-// 🌟 新規：リザルト画面の描画関数
+// 🌟 新規：リザルト画面の描画関数 (牌譜再生用・カウントアップ演出対応版)
 window.renderReplayResult = function (pIdx) {
     const roundData = replayDataObj.rounds[replayRoundIdx];
     if (!roundData || !roundData.results) return;
@@ -658,12 +658,10 @@ window.renderReplayResult = function (pIdx) {
     let yakuHtml = "";
     let titleText = "";
     let scoreText = "";
-    let scoreColor = "";
 
     if (isWinner && winData) {
         titleText = (pIdx === 0) ? "あなたの和了！" : `CPU ${pIdx} の和了！`;
-        scoreText = `${winData.total_score} 点`;
-        scoreColor = "#2ecc71";
+        scoreText = `${winData.total_score} 点`; // 🌟 文字列の組み立ては後でアニメーション関数が上書きします
 
         let groupedDetails = {};
         for (let detail of (winData.details || [])) {
@@ -692,13 +690,10 @@ window.renderReplayResult = function (pIdx) {
                 return orderA - orderB;
             });
 
-            // 🌟 修正：「×N枚」が絶対に改行されないように white-space: nowrap; を追加
             let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px; white-space: nowrap;">×${d.count}枚</span>` : "";
-
-            // 🌟 ついでに右側の点数表記も絶対に改行されないよう保護
             let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa; white-space: nowrap;">(${d.score}点 × ${d.count})</span> <br> <span style="white-space: nowrap;">${d.total_score}点</span>` : `<span style="white-space: nowrap;">${d.score}点</span>`;
 
-            // 🌟 修正：「和了牌」の文字を削除し、左側の枠をスッキリさせる
+            // 🌟 修正：「和了牌」の文字を完全に削除したバージョンで統一
             yakuHtml += `
                 <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; width: 100px; flex-shrink: 0;">
@@ -715,9 +710,9 @@ window.renderReplayResult = function (pIdx) {
         }
     } else {
         titleText = (pIdx === 0) ? "あなたの結果" : `CPU ${pIdx} の結果`;
-        let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
+        let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
         scoreText = `${diffStr} 点`;
-        scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
+
         let resultLabel = diff < 0 ? "失点 (振込み等)" : ((calcData.results || []).length === 0 ? "流局" : "ー");
         yakuHtml = `
             <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
@@ -752,20 +747,19 @@ window.renderReplayResult = function (pIdx) {
     handHtml += `</div>`;
 
     document.getElementById('win-label-text').innerText = titleText;
-    document.getElementById('win-score').innerHTML = scoreText;
-    document.getElementById('win-score').style.color = scoreColor;
+    document.getElementById('win-yaku').innerHTML = yakuHtml; // 🌟 修正：アニメーション関数の「前」に役リストをDOMに入れる！
     document.getElementById('win-hand-display').innerHTML = handHtml;
-    document.getElementById('win-yaku').innerHTML = yakuHtml;
 
-    // 🌟 牌譜リプレイ時は、右下に集約された2段組の操作ボタン構造を構築する
+    // 🌟 修正：点数カウントアップのアニメーション関数を呼び出す
+    let finalScoreAmount = (isWinner && winData) ? winData.total_score : diff;
+    window.animateWinScore(document.getElementById('win-score'), finalScoreAmount, isWinner);
+
     const controls = document.getElementById('result-controls');
     if (!controls.dataset.originalHtml) {
-        controls.dataset.originalHtml = controls.innerHTML; // 元のボタンを記憶
+        controls.dataset.originalHtml = controls.innerHTML;
     }
 
     controls.style.cssText = "display: block !important;";
-
-    // 🌟 見た目(style)は全てCSSに任せ、シンプルな構造だけを生成する
     controls.innerHTML = `
         <button id="btn-replay-screenshot" class="btn-act btn-blue" onclick="takeResultScreenshot()">📸 撮影</button>
         <button id="btn-replay-prev" class="btn-act btn-gray" onclick="prevReplayResult()">⏮️ 前へ</button>
@@ -1057,3 +1051,90 @@ setTimeout(() => {
         window.addEventListener('touchcancel', showActions);
     }
 }, 1000);
+
+// 🌟 リザルト画面の点数をカウントアップし、到達点数に応じてリアルタイムに色を変化させる関数（待機時間可変・記号排除版）
+window.animateWinScore = function (element, targetScore, isWinner) {
+    if (!element) return;
+
+    element.className = "res-score";
+    element.style.color = "";
+
+    let duration = 1400;
+    let startTime = null;
+
+    // 🌟 修正：役の個数を取得して、待機時間(delay)を完璧に同期させる！
+    let yakuCount = 0;
+    const yakuListEl = document.getElementById('win-yaku');
+    if (yakuListEl && isWinner) {
+        yakuCount = yakuListEl.children.length;
+    }
+
+    // 役1つにつき約200ms遅延 + アニメーション自体の再生時間(約200ms)。上限は1800ms。
+    // 振込など（役リストがない・勝者でない）場合はサクッと300msで開始。
+    let delay = isWinner ? Math.min(1800, yakuCount * 200 + 200) : 300;
+
+    // 挙動確認用のログ
+    console.log(`[DEBUG 演出] 役の数: ${yakuCount}個 -> 点数カウントアップまでの待機時間を ${delay}ms に自動設定しました。`);
+
+    let absTargetScore = Math.abs(targetScore);
+    let suffix = " 点";
+
+    element.innerText = "0" + suffix;
+    element.classList.add('score-tier-0');
+    let lastTier = 0;
+
+    function getTier(score) {
+        if (!isWinner && targetScore < 0) return -1;
+        let absS = Math.abs(score);
+        if (absS === 0) return 0;
+        if (absS <= 99) return 1;
+        if (absS <= 499) return 2;
+        if (absS <= 999) return 3;
+        return 4;
+    }
+
+    function applyTierClass(tier) {
+        element.className = "res-score";
+        if (tier === -1) element.classList.add('score-tier-minus');
+        else if (tier === 0) element.classList.add('score-tier-0');
+        else if (tier === 1) element.classList.add('score-tier-1');
+        else if (tier === 2) element.classList.add('score-tier-2');
+        else if (tier === 3) element.classList.add('score-tier-3');
+        else if (tier === 4) element.classList.add('score-tier-4');
+    }
+
+    function updateScore(timestamp) {
+        if (!startTime) startTime = timestamp;
+        let progress = (timestamp - startTime) / duration;
+        if (progress > 1) progress = 1;
+
+        let easeInOut = progress < 0.5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        let currentVal = Math.floor(easeInOut * absTargetScore);
+
+        element.innerText = currentVal + suffix;
+
+        let currentTier = getTier(currentVal);
+        if (currentTier !== lastTier) {
+            applyTierClass(currentTier);
+            lastTier = currentTier;
+        }
+
+        if (progress < 1) {
+            requestAnimationFrame(updateScore);
+        } else {
+            element.innerText = absTargetScore + suffix;
+            let finalTier = getTier(absTargetScore);
+            if (finalTier !== lastTier) {
+                applyTierClass(finalTier);
+            }
+        }
+    }
+
+    // 計算された待機時間分だけ待ってから、アニメーションをスタート！
+    setTimeout(() => {
+        requestAnimationFrame(updateScore);
+    }, delay);
+};

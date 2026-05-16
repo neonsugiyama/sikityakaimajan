@@ -4029,9 +4029,10 @@ body.lang-en .en {
     position: relative !important;
     display: block !important;
     width: 1750px !important;
-    height: 940px !important;
+    height: 950px !important;
     box-sizing: border-box;
     flex-shrink: 0;
+    overflow: hidden !important; /* 🌟 追加：枠からはみ出した要素による全体スクロールを完全に防ぐ */
 }
 
 #win-yaku {
@@ -4108,6 +4109,7 @@ body.lang-en .en {
     height: 765px !important;
     max-height: 765px !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important; /* 🌟 追加：横方向のはみ出し（右から飛んでくるアニメ）のスクロールバーを隠す */
     margin: 0 !important;
     padding: 0 10px 0 0 !important;
     display: flex !important;
@@ -4172,6 +4174,120 @@ body.lang-en .en {
         }
 
 /* =====================================================================
+   🌟 リザルト画面：点数カウントアップ用の5段階カラー設定
+===================================================================== */
+/* Tier 0: 0点 (流局など) */
+.score-tier-0 {
+    color: #bdc3c7 !important;
+    filter: drop-shadow(0 0 10px rgba(189,195,199,0.4)) !important;
+}
+/* Tier 1: 1～99点 (通常・緑系) */
+.score-tier-1 {
+    color: #2ecc71 !important;
+    filter: drop-shadow(0 0 12px rgba(46,204,113,0.6)) !important;
+}
+/* Tier 2: 100～499点 (良形・青系) */
+.score-tier-2 {
+    color: #3498db !important;
+    filter: drop-shadow(0 0 15px rgba(52,152,219,0.8)) !important;
+}
+/* Tier 3: 500～999点 (高打点・燃えるオレンジ系) */
+.score-tier-3 {
+    color: #e67e22 !important;
+    filter: drop-shadow(0 0 20px rgba(230,126,34,0.9)) !important;
+}
+/* Tier 4: 1000点～ (最強・レインボー＆ゴールドの輝き) */
+.score-tier-4 {
+    background: linear-gradient(to right, #f1c40f, #e74c3c, #9b59b6, #3498db, #f1c40f) !important;
+    background-size: 200% auto !important;
+    color: transparent !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    animation: rainbowGlow 2.5s linear infinite !important;
+    filter: drop-shadow(0 0 25px rgba(241,196,15,0.8)) !important;
+}
+
+/* マイナス時（振り込みなど）用の赤色 */
+.score-tier-minus {
+    color: #e74c3c !important;
+    filter: drop-shadow(0 0 10px rgba(231,76,60,0.6)) !important;
+}
+
+@keyframes rainbowGlow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 200% 50%;
+    }
+}
+
+/* =====================================================================
+   🔥 リザルト画面：さらなる脳汁特化リッチ演出（100% CSS完結）
+===================================================================== */
+
+/* ----------------------------------------------------
+   ① 役リストの「時間差」連続カットインアニメーション
+---------------------------------------------------- */
+/* 役の行を最初透明にしておき、順番にスライドインさせる */
+.res-yaku-list > div {
+    animation: yakuSlideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both !important;
+}
+
+    /* 上から順番に遅延時間（delay）を増やして「ドガガガッ」感を出す */
+    .res-yaku-list > div:nth-child(1) {
+        animation-delay: 0.1s !important;
+    }
+
+    .res-yaku-list > div:nth-child(2) {
+        animation-delay: 0.3s !important;
+    }
+
+    .res-yaku-list > div:nth-child(3) {
+        animation-delay: 0.5s !important;
+    }
+
+    .res-yaku-list > div:nth-child(4) {
+        animation-delay: 0.7s !important;
+    }
+
+    .res-yaku-list > div:nth-child(5) {
+        animation-delay: 0.9s !important;
+    }
+
+    .res-yaku-list > div:nth-child(6) {
+        animation-delay: 1.1s !important;
+    }
+
+    .res-yaku-list > div:nth-child(7) {
+        animation-delay: 1.3s !important;
+    }
+
+    .res-yaku-list > div:nth-child(8) {
+        animation-delay: 1.5s !important;
+    }
+
+    .res-yaku-list > div:nth-child(n+9) {
+        animation-delay: 1.7s !important;
+    }
+/* 9個目以降は一気に出す */
+
+@keyframes yakuSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateX(100px) scale(0.8); /* 右から小さく飛んでくる */
+        filter: blur(4px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1); /* 定位置で少しバウンドして止まる */
+        filter: blur(0);
+    }
+}
+
+/* =====================================================================
    🎯 ボタン個別のサイズと位置指定 (CPU戦と牌譜で完全分離！)
 ===================================================================== */
 
@@ -4184,7 +4300,7 @@ body.lang-en .en {
 }
 
 #btn-cpu-next {
-    top: 90px !important;
+    top: 80px !important;
     left: 1250px !important;
     width: 400px !important;
     height: 100px !important;
@@ -4199,21 +4315,21 @@ body.lang-en .en {
 }
 
 #btn-replay-prev {
-    top: 90px !important;
+    top: 80px !important;
     left: 0px !important;
     width: 400px !important;
     height: 100px !important;
 }
 
 #btn-replay-next {
-    top: 90px !important;
+    top: 80px !important;
     left: 1250px !important;
     width: 400px !important;
     height: 100px !important;
 }
 
 #btn-replay-close {
-    top: 90px !important;
+    top: 80px !important;
     left: 630px !important;
     width: 400px !important;
     height: 100px !important;
