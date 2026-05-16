@@ -39,32 +39,38 @@ function skipResultWait() {
 
 async function takeResultScreenshot() {
     const resultWrapper = document.getElementById('result-wrapper');
-    const btn = document.querySelector('#result-controls .btn-blue');
+    // 🌟 CPU戦用・牌譜用の両方のボタンIDに対応できるように修正
+    const btn = document.getElementById('btn-cpu-screenshot') || document.getElementById('btn-replay-screenshot') || document.querySelector('#result-controls .btn-blue');
 
-    if (!resultWrapper) return;
+    if (!resultWrapper || !btn) {
+        console.error("[DEBUG 撮影エラー] result-wrapper または 撮影ボタンが見つかりません。");
+        return;
+    }
 
     const originalText = btn.innerText;
     btn.innerText = "📸 撮影中...";
     btn.disabled = true;
 
     try {
+        console.log("[DEBUG 撮影] クローンを作成して撮影準備を開始します...");
         const clone = resultWrapper.cloneNode(true);
         document.body.appendChild(clone);
 
-        const origWidth = resultWrapper.offsetWidth || 1000;
+        // 🌟 役リストの実際の高さを取得し、見切れないようにキャンバスの高さを計算
+        const winYakuOrig = document.getElementById('win-yaku');
+        const neededHeight = winYakuOrig ? Math.max(940, winYakuOrig.scrollHeight + 100) : 940;
+        console.log(`[DEBUG 撮影] 撮影サイズ設定: Width = 1750px, Height = ${neededHeight}px`);
+
+        // 🌟 幅1750pxを強制し、不要なpaddingなどを削除して絶対配置のズレを防ぐ
         clone.style.cssText = `
             position: absolute;
             top: 0;
             left: 0;
-            width: ${origWidth}px;
-            height: auto !important;
-            max-height: none !important;
-            transform: none;
-            overflow: visible !important;
-            background-color: #0a0a0a;
-            padding: 40px;
-            box-sizing: border-box;
-            z-index: -99999;
+            width: 1750px !important; 
+            height: ${neededHeight}px !important;
+            transform: none !important;
+            background-color: #0a0a0a !important;
+            z-index: -99999 !important;
         `;
 
         const winYaku = clone.querySelector('#win-yaku');
@@ -99,32 +105,40 @@ async function takeResultScreenshot() {
 
         await new Promise(r => setTimeout(r, 200));
 
+        console.log("[DEBUG 撮影] html2canvasによる描画を開始します...");
         const canvas = await html2canvas(clone, {
             backgroundColor: "#0a0a0a",
             scale: 2,
             useCORS: true,
             logging: false,
-            width: clone.offsetWidth,
-            height: clone.offsetHeight,
-            windowWidth: clone.offsetWidth,
-            windowHeight: clone.offsetHeight
+            width: 1750, // 🌟 html2canvasの内部キャンバスサイズも強制
+            height: neededHeight,
+            windowWidth: 1750,
+            windowHeight: neededHeight
         });
 
         clone.remove();
+        console.log("[DEBUG 撮影] 描画完了。画像を出力します。");
 
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (!blob) throw new Error("画像データの生成に失敗しました");
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.download = `mahjong_result_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.png`;
+
+        // 保存ファイル名の日付フォーマット
+        const date = new Date();
+        const dateStr = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+        link.download = `mahjong_result_${dateStr}.png`;
+
         link.href = url;
         link.click();
 
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        console.log("[DEBUG 撮影] 正常に保存が完了しました。");
 
     } catch (e) {
-        console.error("Screenshot Error:", e);
+        console.error("[DEBUG 撮影エラー] Screenshot Error:", e);
         alert("スクリーンショットの保存に失敗しました。\n" + e.message);
     } finally {
         btn.innerText = originalText;
