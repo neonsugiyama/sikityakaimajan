@@ -156,7 +156,7 @@ function closeAchievements() { closeModal('achievement-modal'); }
 function openLearningMenu() {
     openModal('learning-modal');
     let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 9; i++) {
         if (savedLessons[i]) show(`stamp-lesson-${i}`);
         else hide(`stamp-lesson-${i}`);
     }

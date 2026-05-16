@@ -707,7 +707,8 @@ async function startLesson(lessonId) {
             lessonIntro = `奇数の牌「1, 3, 5, 7, 9」だけで構成する役です。<br>碰と槓をしていなければどんな形でも奇数の牌全てが和了牌になります！
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">対象牌一覧：</span><br>
-                ${getTutImg('1m')}${getTutImg('9m')}${getTutImg('1p')}${getTutImg('3p')}${getTutImg('5p')}${getTutImg('7p')}${getTutImg('9p')}
+                ${getTutImg('1m')}${getTutImg('9m')}
+                ${getTutImg('1p')}${getTutImg('3p')}${getTutImg('5p')}${getTutImg('7p')}${getTutImg('9p')}
                 ${getTutImg('1s')}${getTutImg('3s')}${getTutImg('5s')}${getTutImg('7s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
@@ -752,45 +753,45 @@ async function startLesson(lessonId) {
                 ${getTutImg('9m')}${getTutImg('7p')}${getTutImg('8p')}${getTutImg('9p')}${getTutImg('7s')}${getTutImg('8s')}${getTutImg('9s')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 全小・全中・全大を狙うとき、絶対に入れてはいけない牌は？",
+                qText: "Q. 次のうち、「全中」で【使える】牌はどれ？",
                 options: [
-                    { text: "風牌", img: "東" },
-                    { text: "三元牌", img: "中" },
-                    { text: "萬子", img: "9m" }
+                    { text: "東", img: "東" },
+                    { text: "中", img: "中" },
+                    { text: "9萬", img: "9m" }
                 ],
-                correctIndex: 0,
-                explanation: "風牌は全大、全中、全小では使いません。"
+                correctIndex: 1,
+                explanation: "全中だけは中が使えます。"
             };
             lessonMission = "7から9の数字の牌だけを集めて「全大」で和了！";
             break;
 
         case 4:
             lessonTitle = "レッスン④：古の手役三連刻【三節高】";
-            lessonIntro = `同じ色で「111」「222」「333」のように、数字が1つずつズレた「刻子」を3つ作る役です。<br>1色で三連刻だけではなく、1萬と2筒と3索のように3色で三連刻が完成している場合も三節高になります！
+            lessonIntro = `同じ色で「111」「222」「333」のように、数字が1つずつズレた「刻子」を3つ作る役です。<br>さらに、1萬と2筒と3索のように3色で三連刻の場合も三節高になります！
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">三節高の例</span><br>1色の三節高：<br>
+                <span style="color:#bdc3c7; font-size: 16px;">三節高の例</span><br>1色の三節高<br>
                 ${getTutImg('2p')}${getTutImg('2p')}${getTutImg('2p')} &nbsp; 
                 ${getTutImg('3p')}${getTutImg('3p')}${getTutImg('3p')} &nbsp; 
-                ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} <br>3色の三節高：<br>
-                ${getTutImg('1m')}${getTutImg('1m')}${getTutImg('1m')} &nbsp; 
-                ${getTutImg('2p')}${getTutImg('2p')}${getTutImg('2p')} &nbsp; 
-                ${getTutImg('3s')}${getTutImg('3s')}${getTutImg('3s')}                
+                ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} <br>3色の三節高<br>
+                ${getTutImg('7s')}${getTutImg('7s')}${getTutImg('7s')} &nbsp; 
+                ${getTutImg('8p')}${getTutImg('8p')}${getTutImg('8p')} &nbsp; 
+                ${getTutImg('9m')}${getTutImg('9m')}${getTutImg('9m')}                
             </div>`;
             lessonQuizData = {
-                qText: "Q. 「2筒」と「3筒」と「3索」が刻子になっているとき、三節高に【ならない】刻子はどれ？",
+                qText: "Q. 「2筒」と「3筒」と「3索」が刻子になっているとき、「三節高」に【ならない】刻子はどれ？",
                 options: [
                     { text: "1筒", img: "1p" },
                     { text: "1索", img: "1s" },
                     { text: "1萬", img: "1m" }
                 ],
                 correctIndex: 1,
-                explanation: "1筒と4筒は1色、1萬は三色の三節高です。"
+                explanation: "1筒と4筒は1色、1萬は3色の三節高です。"
             };
             lessonMission = "「三節高」を和了！";
             break;
 
         case 5:
-            lessonTitle = `レッスン⑤："赤"抜けた手役【断紅胡】`;
+            lessonTitle = 'レッスン⑤："赤"抜けた手役【断紅胡】';
             lessonIntro = `牌の図柄に「赤」が一切使われていない牌だけで構成する役です。<br>四季牌を使っても赤が使われていない牌の代わりになっていれば成立します。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">使える牌一覧：</span><br>
@@ -799,7 +800,7 @@ async function startLesson(lessonId) {
                 ${getTutImg('東')}${getTutImg('南')}${getTutImg('西')}${getTutImg('北')}${getTutImg('白')}${getTutImg('發')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 次のうち「断紅胡」で【使えない】字牌はどれ？",
+                qText: "Q. 次のうち、「断紅胡」で【使えない】字牌はどれ？",
                 options: [
                     { text: "白", img: "白" },
                     { text: "發", img: "發" },
@@ -816,14 +817,14 @@ async function startLesson(lessonId) {
             lessonIntro = `4回副露（ポンやカン等）を行い、手牌を「1枚（裸単騎）」にして和了する役です。<br>鳴けば鳴くほど打点が高くなる、このゲームを象徴する役です。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">寒江独釣の特徴：</span><br>
-                ${getTutImg('3s')} 必ず単騎待ちで、複合できる役も多い！<br><br>
+                必ず単騎待ちで、複合できる役も多い！<br><br>
                 ${getTutImg('ura')}${getTutImg('1m')}${getTutImg('1m')}${getTutImg('ura')} &nbsp;
                 ${getTutImg('3p')}${getTutImg('3p')}${getTutImg('3p')} &nbsp;
                 ${getTutImg('4p')}${getTutImg('4p')}${getTutImg('4p')} &nbsp;
-                ${getTutImg('5p')}${getTutImg('5p')}${getTutImg('5p')}
+                ${getTutImg('5p')}${getTutImg('5p')}${getTutImg('5p')}<br>${getTutImg('3s')}
             </div>`;
             lessonQuizData = {
-                qText: "Q. 寒江独釣の待ち牌として最強なのはどれ？",
+                qText: "Q. 次のうち、「寒江独釣」の待ち牌で最高形なのはどれ？",
                 options: [
                     { text: "四季牌", img: "春" },
                     { text: "1m", img: "1m" },
@@ -837,7 +838,7 @@ async function startLesson(lessonId) {
 
         case 7:
             lessonTitle = "レッスン⑦：対子がいらない唯一の和了【七星不靠】";
-            lessonIntro = `字牌7種（東南西北白發中）と、各色で被っていない筋「147」「258」「369」を組み合わせた特殊な和了形です。
+            lessonIntro = `字牌7種（東南西北白發中）を1枚ずつと<br>各色で「1」「258」「369」か「147」「258」「9」を組み合わせた特殊な和了形です。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">七星不靠の一例：</span><br>
                 ${getTutImg('東')}${getTutImg('南')}${getTutImg('西')}${getTutImg('北')}${getTutImg('白')}${getTutImg('發')}${getTutImg('中')} <br><br>
@@ -860,13 +861,13 @@ async function startLesson(lessonId) {
 
         case 8:
             lessonTitle = "レッスン⑧：面前のロマン役【一色四歩高】";
-            lessonIntro = `1色で数字が1つまたは2つずつズレた「順子」を4つ作る役です。<br>1つズレ「123」「234」「345」「456」<br>2つズレ「123」「345」「567」「789」
+            lessonIntro = `1色で数字が1つまたは2つずつズレた「順子」を4つ作る役です。<br>刻子が無い和了形になるため副露で揃えられないのが大きな特徴です。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
-                <span style="color:#bdc3c7; font-size: 16px;">一色四歩高の例：</span><br>
+                <span style="color:#bdc3c7; font-size: 16px;">一色四歩高の例</span><br>1つズレの例
                 ${getTutImg('2s')}${getTutImg('3s')}${getTutImg('4s')} &nbsp; 
                 ${getTutImg('3s')}${getTutImg('4s')}${getTutImg('5s')} &nbsp; 
                 ${getTutImg('4s')}${getTutImg('5s')}${getTutImg('6s')} &nbsp; 
-                ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')}<br>
+                ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')}<br>2つズレの例
                 ${getTutImg('1s')}${getTutImg('2s')}${getTutImg('3s')} &nbsp; 
                 ${getTutImg('3s')}${getTutImg('4s')}${getTutImg('5s')} &nbsp; 
                 ${getTutImg('5s')}${getTutImg('6s')}${getTutImg('7s')} &nbsp; 
@@ -899,7 +900,7 @@ async function startLesson(lessonId) {
                     { text: "12倍", img: "春" },
                     { text: "18倍", img: "冬" }
                 ],
-                correctIndex: 0,
+                correctIndex: 1,
                 explanation: "乗算の最大値はこの3つの役が複合したときで12倍にもなります。"
             };
             lessonMission = "無花果と槓上開花を複合させて和了！";

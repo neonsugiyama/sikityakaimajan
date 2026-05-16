@@ -3398,9 +3398,9 @@ body.lang-en .en {
 }
 
 .learning-content {
-    width: 450px !important;
+    width: 600px !important;
     height: 500px !important;
-    min-width: 500px !important;
+    min-width: 600px !important;
     max-width: none !important;
     flex-shrink: 0 !important;
     padding: 30px;
@@ -3468,8 +3468,8 @@ body.lang-en .en {
     right: 15px;
     top: 50%;
     transform: translateY(-50%) rotate(-15deg);
-    color: #e74c3c;
-    border: 3px solid #e74c3c;
+    color: #e74c3c !important; /* 🌟 クッキリした赤に変更 */
+    border: 3px solid #e74c3c !important; /* 🌟 枠線も鮮やかな赤に変更 */
     border-radius: 50%;
     width: 35px;
     height: 35px;
@@ -3479,7 +3479,8 @@ body.lang-en .en {
     font-size: 16px;
     font-family: 'Hiragino Mincho ProN', serif;
     box-sizing: border-box;
-    background: rgba(0,0,0,0.5);
+    background: #ffffff !important; /* 🌟 背景を完全な不透明の白にして透過をシャットアウト！ */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important; /* 🌟 少し影をつけて、ボタンから綺麗に浮き上がらせる */
 }
 
 .howto-tut-btn {
