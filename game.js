@@ -924,13 +924,18 @@ async function loadDebugScenario(scenario) {
     // 🌟 ここを追加！おかえりなさいボタンが押されたらフラグON
     isWelcomeHomeTest = (scenario === 'achieve_welcomehome');
 
-    // テスト開始時にすべての画面（モーダル）を強制終了する
-    document.getElementById('mypage-modal').style.display = 'none';
-    document.getElementById('achievement-modal').style.display = 'none';
-    document.getElementById('settings-modal').style.display = 'none';
-    document.getElementById('howto-modal').style.display = 'none';
-    document.getElementById('yaku-modal').style.display = 'none';
-    document.getElementById('waits-panel').style.display = 'none';
+    // 🌟 修正：テスト開始時に画面を強制終了する（エラー落ちを防ぐ安全な書き方）
+    const screensToClose = [
+        'mypage-modal', 'achievement-modal', 'achievement-screen',
+        'settings-modal', 'howto-modal', 'yaku-modal', 'waits-panel'
+    ];
+    screensToClose.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = 'none';
+            el.classList.remove('screen-active'); // 全画面スクリーン用のクラスも剥がす
+        }
+    });
 
     stopTimer();
     isProc = true;
@@ -3066,17 +3071,99 @@ async function handleRoundEnd(isReplayingResult = false) {
             document.getElementById('overlay').style.display = "flex";
 
             // =========================================================
-            // 🌟 ここに追加：CPU戦用の盤面覗き見（ホバー透過）処理
+            // 🌟 ここに追加：CPU戦用の盤面覗き見（ホバー透過 ＋ 手牌・副露の完全公開）処理
             const cpuPeekBtn = document.getElementById('btn-cpu-peek');
             const overlayElement = document.getElementById('overlay');
+
+            // 盤面を元に戻すためのバックアップ変数
+            let originalHandsHTML = {};
+            let originalMeldsHTML = {};
+
             if (cpuPeekBtn && overlayElement) {
                 cpuPeekBtn.onmouseenter = () => {
-                    console.log("[DEBUG CPU戦プレビュー] ホバー検知: リザルト画面を100%透過します。");
+                    console.log("[DEBUG CPU戦プレビュー] ホバー検知: リザルト画面を透過し、手牌と暗槓を公開します。");
                     overlayElement.classList.add('peek-mode');
+
+                    // 1. 手牌のバックアップと公開（対象: CPUの 1, 2, 3）
+                    for (let i = 1; i <= 3; i++) {
+                        const handDiv = document.getElementById(`hand-${i}`);
+                        if (handDiv && typeof myAllHands !== 'undefined' && myAllHands[i]) {
+                            // 現在の裏向きになっているDOMを保存
+                            originalHandsHTML[i] = handDiv.innerHTML;
+                            handDiv.innerHTML = ""; // 一旦クリア
+
+                            // 実際の手牌を取り出してソート
+                            let sorted = [...myAllHands[i]];
+
+                            // 🌟 修正：下家(i=1)と対面(i=2)の理牌を逆（降順）にする
+                            if (i === 1 || i === 2) {
+                                console.log(`[DEBUG CPU戦プレビュー] CPU ${i} の手牌を降順(理牌を逆)にソートしました。`);
+                                // 降順
+                                if (typeof SM !== 'undefined') sorted.sort((a, b) => SM[b] - SM[a]);
+                            } else {
+                                // 昇順（上家i=3のみ、自分i=0はループ外）
+                                console.log(`[DEBUG CPU戦プレビュー] CPU ${i} の手牌を昇順(理牌)にソートしました。`);
+                                if (typeof SM !== 'undefined') sorted.sort((a, b) => SM[a] - SM[b]);
+                            }
+
+                            // 表向きの牌を描画
+                            sorted.forEach(t => {
+                                let img = document.createElement('img');
+                                img.className = 'tile';
+                                img.src = `images/${t}.png`;
+                                // 対面の牌だけは上下反転させる
+                                if (i === 2) img.style.transform = "rotate(180deg)";
+                                handDiv.appendChild(img);
+                            });
+                        }
+                    }
+
+                    // 2. 副露のバックアップと、暗槓の「2枚表・2枚裏」化（対象: 全員の 0, 1, 2, 3）
+                    for (let i = 0; i < 4; i++) {
+                        const meldDiv = document.getElementById(`meld-${i}`);
+                        let pMelds = (i === 0) ? (typeof myMelds !== 'undefined' ? myMelds : []) : (typeof myAllMelds !== 'undefined' ? myAllMelds[i] : []);
+
+                        if (meldDiv && pMelds.length > 0) {
+                            // 現在のDOMを保存
+                            originalMeldsHTML[i] = meldDiv.innerHTML;
+                            meldDiv.innerHTML = ""; // 一旦クリア
+
+                            pMelds.forEach(m => {
+                                let mWrap = document.createElement('div');
+                                mWrap.className = 'meld-group';
+                                m.tiles.forEach((t, idx) => {
+                                    let img = document.createElement('img');
+                                    img.className = 'tile';
+
+                                    // 🌟 最重要：暗槓の場合は両端(0と3)を裏、真ん中(1と2)を表にする
+                                    let src = (m.type === 'ankan' || m.type === '暗槓') && (idx === 0 || idx === 3) ? 'ura' : t;
+                                    img.src = `images/${src}.png`;
+
+                                    mWrap.appendChild(img);
+                                });
+                                meldDiv.appendChild(mWrap);
+                            });
+                        }
+                    }
                 };
+
                 cpuPeekBtn.onmouseleave = () => {
-                    console.log("[DEBUG CPU戦プレビュー] ホバー解除: リザルト画面を元に戻します。");
+                    console.log("[DEBUG CPU戦プレビュー] ホバー解除: リザルト画面と盤面を元に戻します。");
                     overlayElement.classList.remove('peek-mode');
+
+                    // バックアップから安全に元の状態（裏向き）へ復元する
+                    for (let i = 1; i <= 3; i++) {
+                        const handDiv = document.getElementById(`hand-${i}`);
+                        if (handDiv && originalHandsHTML[i] !== undefined) {
+                            handDiv.innerHTML = originalHandsHTML[i];
+                        }
+                    }
+                    for (let i = 0; i < 4; i++) {
+                        const meldDiv = document.getElementById(`meld-${i}`);
+                        if (meldDiv && originalMeldsHTML[i] !== undefined) {
+                            meldDiv.innerHTML = originalMeldsHTML[i];
+                        }
+                    }
                 };
             }
             // =========================================================
