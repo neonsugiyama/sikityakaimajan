@@ -147,12 +147,51 @@ function openPlayerStats(idx) {
     }
 }
 
+// 🌟 実績・役図鑑画面を開く (全画面)
 function openAchievements() {
-    if (typeof renderAchievements === 'function') renderAchievements();
-    openModal('achievement-modal');
-}
-function closeAchievements() { closeModal('achievement-modal'); }
+    console.log("[SCREEN NAV] 🏆 実績・役図鑑画面への遷移を要求されました。");
 
+    const targetScreen = document.getElementById('achievement-screen');
+    if (!targetScreen) return;
+
+    if (typeof closeAllModals === 'function') closeAllModals();
+    if (typeof renderAchievements === 'function') renderAchievements();
+
+    targetScreen.style.display = 'flex';
+
+    setTimeout(() => {
+        targetScreen.classList.add('screen-active');
+
+        // 🌟 ご指示通り、戻るボタンが「本当に画面に描画されているか」をログに出力します
+        const backBtn = document.getElementById('btn-achieve-back');
+        if (backBtn) {
+            const computedStyle = window.getComputedStyle(backBtn);
+            console.log(`[DEBUG 画面遷移] 戻るボタンの最終的な display 状態: ${computedStyle.display} (※ block または flex なら正常、none ならCSSに殺されています)`);
+        } else {
+            console.error("[DEBUG 画面遷移] 🚨 戻るボタンの要素自体がHTML内に存在しません！");
+        }
+
+    }, 10);
+
+    if (typeof playSE === 'function') playSE('click');
+}
+
+// 🌟 実績・役図鑑画面を閉じる (全画面)
+function closeAchievements() {
+    console.log("[SCREEN NAV] 🏆 実績画面からメニューへ戻る要求を検知。");
+
+    // 🚨 ここを screen に変更
+    const targetScreen = document.getElementById('achievement-screen');
+
+    if (targetScreen) {
+        targetScreen.classList.remove('screen-active');
+        if (typeof playSE === 'function') playSE('click');
+
+        setTimeout(() => {
+            targetScreen.style.display = 'none';
+        }, 300);
+    }
+}
 function openLearningMenu() {
     openModal('learning-modal');
     let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];

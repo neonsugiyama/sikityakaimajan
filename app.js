@@ -343,17 +343,12 @@ function resizeGame() {
     if (container) {
         container.style.width = `${BASE_WIDTH}px`;
         container.style.height = `${BASE_HEIGHT}px`;
-
         container.style.position = "absolute";
         container.style.left = "50%";
         container.style.top = "43%";
-
         container.style.setProperty('margin', '0', 'important');
-
         container.style.transformOrigin = "center center";
-
         container.style.transform = `translate(-50%, -50%) scale(${scale})`;
-
         container.classList.add('ready');
     }
 
@@ -375,7 +370,8 @@ function resizeGame() {
     // 🌟 4. モーダル群（0.95倍マージン）
     const modalElements = [
         '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
-        '#achievement-modal > div', '#mypage-modal > div', '#friend-match-modal > div',
+        /* 🚨 古い achievement-modal は削除しました */
+        '#mypage-modal > div', '#friend-match-modal > div',
         '#settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
         '#rate-help-modal > div', '#replay-modal > div', '#ingame-tutorial-nav'
     ];
@@ -417,6 +413,20 @@ function resizeGame() {
             el.style.transformOrigin = panel.origin;
             el.style.transform = `scale(${scale})`;
         }
+    });
+
+    // 🌟 6. 新設：全画面スクリーン（実績・役図鑑など）のスマホ対応レイアウト保護
+    const gameScreens = document.querySelectorAll('.game-screen');
+    gameScreens.forEach(el => {
+        // 画面を 1620x900 の固定キャンバスにして、スマホの画面サイズに合わせて自動縮小させる
+        el.style.width = `${VISUAL_WIDTH}px`;
+        el.style.height = `${VISUAL_HEIGHT}px`;
+        el.style.position = "absolute";
+        el.style.left = "50%";
+        el.style.top = "50%";
+        el.style.setProperty('margin', '0', 'important');
+        el.style.transformOrigin = "center center";
+        el.style.transform = `translate(-50%, -50%) scale(${scale})`;
     });
 }
 

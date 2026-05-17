@@ -3513,6 +3513,95 @@ body.lang-en .en {
 }
 
 /* =====================================================================
+    📚 全画面スクリーン遷移システム (100% CSS制御)
+===================================================================== */
+/* すべての全画面スクリーンの共通ベーススタイル */
+.game-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, #112240 0%, #0a0a0a 100%);
+    box-sizing: border-box;
+    padding: 40px 60px;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.05);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 20000; /* 卓の上に完全に被せる高プライオリティ */
+    display: flex;
+    flex-direction: column;
+}
+
+    /* 🌟 このクラスがONになった時だけ、100% CSSの力で全画面表示化する */
+    .game-screen.screen-active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: scale(1);
+    }
+
+/* 役図鑑・実績スクリーンの個別レイアウト調整 */
+#yaku-screen-container, #achievement-screen-container {
+    /* モーダル枠を破棄して全画面に広げる */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    transform: none !important; /* resizeGameによる強制中央配置を解除 */
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+}
+
+/* 画面上部のヘッダーエリア（タイトルと戻るボタンを横並びに） */
+.screen-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f1c40f;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    flex-shrink: 0;
+}
+
+.screen-header-title {
+    font-size: 36px;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    color: #f1c40f;
+    margin: 0;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(241, 196, 15, 0.3);
+}
+
+/* スクリーンのメインコンテンツ領域（スクロールをここに持たせる） */
+.screen-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+    /* スクロールバーの装飾もCSS側で完全一元管理 */
+    .screen-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .screen-body::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.3);
+        border-radius: 4px;
+    }
+
+    .screen-body::-webkit-scrollbar-thumb {
+        background: #f1c40f;
+        border-radius: 4px;
+    }
+
+/* =====================================================================
     9. 🍔 SIDEBAR (ハンバーガーメニュー)
 ===================================================================== */
 #hamburger-btn {

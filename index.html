@@ -383,32 +383,29 @@
         </div>
     </div>
 
-    <div id="achievement-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="position: relative;">
-            <button class="modal-close-top" onclick="closeAchievements()">×</button>
-            <h2 class="achieve-header">🏆 実績 ＆ 役コレクター図鑑</h2>
+    <div id="achievement-screen" class="game-screen" style="display: none;">
 
-            <div class="yaku-tabs" style="border-bottom: none;">
-                <button class="yaku-tab-btn active" id="btn-tab-achieve" onclick="switchAchieveTab(event, 'tab-achieve')">🏆 プレイヤー実績</button>
-                <button class="yaku-tab-btn" id="btn-tab-yaku-dex" onclick="switchAchieveTab(event, 'tab-yaku-dex')">📜 役コレクター図鑑</button>
+        <div class="screen-header">
+            <h2 class="screen-header-title">🏆 実績 ＆ 役コレクター図鑑</h2>
+            <button id="btn-achieve-back" class="btn-act btn-gray" onclick="closeAchievements()" style="display: block; font-size: 18px; padding: 10px 25px; z-index: 99999;">◀ メニューに戻る</button>
+        </div>
+
+        <div class="yaku-tabs" style="border-bottom: none; margin-bottom: 20px;">
+            <button class="yaku-tab-btn active" id="btn-tab-achieve" onclick="switchAchieveTab(event, 'tab-achieve')">🏆 プレイヤー実績</button>
+            <button class="yaku-tab-btn" id="btn-tab-yaku-dex" onclick="switchAchieveTab(event, 'tab-yaku-dex')">📜 役コレクター図鑑</button>
+        </div>
+
+        <div class="screen-body" id="achievement-list-container">
+            <div id="tab-achieve" class="achieve-tab-content" style="display: block;">
+                <div class="achieve-grid" id="achieve-container"></div>
             </div>
-
-            <div class="modal-scroll-area">
-                <div id="tab-achieve" class="achieve-tab-content" style="display: block;">
-                    <div class="achieve-grid" id="achieve-container"></div>
+            <div id="tab-yaku-dex" class="achieve-tab-content" style="display: none;">
+                <div class="achieve-comp-wrap">
+                    <span class="achieve-comp-badge">
+                        コンプリート率: <span id="dex-comp-count">0</span> / <span id="dex-total-count">0</span>
+                    </span>
                 </div>
-                <div id="tab-yaku-dex" class="achieve-tab-content" style="display: none;">
-                    <div class="achieve-comp-wrap">
-                        <span class="achieve-comp-badge">
-                            コンプリート率: <span id="dex-comp-count">0</span> / <span id="dex-total-count">0</span>
-                        </span>
-                    </div>
-                    <div class="yaku-collection-grid" id="yaku-dex-container"></div>
-                </div>
-            </div>
-
-            <div class="text-center-mb10">
-                <button onclick="closeAchievements()" class="btn-act btn-red modal-close-bottom">閉じる</button>
+                <div class="yaku-collection-grid" id="yaku-dex-container"></div>
             </div>
         </div>
     </div>
