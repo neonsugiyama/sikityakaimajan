@@ -983,6 +983,17 @@ async function loadDebugScenario(scenario) {
         render(); renderCPU();
         isProc = false;
         checkT();
+
+        // =========================================================
+        // 🌟 ここに追加！レッスン（シナリオ）開始時のメッセージ判定！
+        setTimeout(() => {
+            // 前回の履歴をリセットしてスタート
+            if (typeof LESSON_MESSAGES !== 'undefined' && LESSON_MESSAGES[window.currentLessonId]) {
+                LESSON_MESSAGES[window.currentLessonId].forEach(m => m.shown = false);
+            }
+            if (typeof checkLessonMessage === 'function') checkLessonMessage('start');
+        }, 800); // 画面が描画されてから少し遅れてフワッと出す
+        // =========================================================
     }
 }
 
@@ -1961,6 +1972,13 @@ async function draw() {
 
         render(); renderCPU();
 
+        // =========================================================
+        // 🌟 ここに追加！ツモった直後にレッスン用メッセージを判定！
+        if (typeof checkLessonMessage === 'function') {
+            checkLessonMessage('draw', drawnTile);
+        }
+        // =========================================================
+
         pendingIsJokerSwap = false; pendingIsRinshan = false; pendingIsMiaoshou = false; justPonged = false;
 
         isProc = false; checkT();
@@ -1990,6 +2008,7 @@ function removeLastDiscard(overrideIdx = null, targetTile = null) {
 
 // 🖐️ 指定した牌を捨てる通信を行い、CPUの反応待ちへ進む関数
 async function discard(t, isTsumogiri = false, domIdx = null) {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return;
     isProc = true;
@@ -2120,6 +2139,7 @@ async function cpu() {
                     };
 
                     btnSkip.onclick = async () => {
+                        if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
                         stopTimer();
                         isProc = true;
                         btnWin.style.display = "none";
@@ -2183,6 +2203,14 @@ async function cpu() {
         addR(currentCpuTurn, lastT, isTsumogiri);
 
         renderCPU(); // ここでダミーの嶺上牌が消え、正しい手牌になる
+
+        // =========================================================
+        // 🌟 ここに追加！CPUが牌を捨てた直後にレッスン用メッセージを判定！
+        if (typeof checkLessonMessage === 'function') {
+            checkLessonMessage('discard', lastT, currentCpuTurn);
+        }
+        // =========================================================
+
         await sleep(500);
         await checkHumanReaction(currentCpuTurn, lastT);
     } catch (e) {
@@ -2318,6 +2346,7 @@ async function checkHumanReaction(discarderIdx, tile) {
     }
 
     const skipAction = () => {
+        if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
         stopTimer();
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
         checkCpuReactions(discarderIdx, tile);
@@ -2444,6 +2473,7 @@ async function checkCpuReactions(discarderIdx, tile, isKakan = false) {
 
 // 🏆 自分のツモ番で「ツモ」を宣言してアガリ処理を行う関数
 async function execTsumo() {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return;
     isProc = true;
@@ -2483,6 +2513,7 @@ async function execTsumo() {
 
 // 🏆 他家の捨て牌（または加槓）に対して「ロン」を宣言してアガリ処理を行う関数
 async function execRon(isChankan = false) {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return;
 
@@ -2548,6 +2579,7 @@ async function execRon(isChankan = false) {
 
 // 🗣️ 他家の捨て牌に対して「ポン」や「明槓」を実行する関数
 async function execMeld(type) {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
@@ -2598,6 +2630,7 @@ async function execMeld(type) {
 
 // 🗣️ 自分のツモ番で「暗槓」や「加槓」を実行する関数
 async function execSelfMeld(type, t, s, isHidden = false) {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return; isProc = true;
     resetActionBtnPool(); // 🌟 修正
@@ -2664,6 +2697,7 @@ async function execSelfMeld(type, t, s, isHidden = false) {
 
 // 🃏 他家の花槓から四季牌(Joker)を正規の牌と交換して強奪する関数
 async function execJokerSwap(t, season, targetIdx) {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return; isProc = true;
     resetActionBtnPool(); // 🌟 修正
@@ -2691,6 +2725,7 @@ async function execJokerSwap(t, season, targetIdx) {
 
 // ⏭️ 鳴きやロンの権利をスルーして、次の人の処理へ進める関数
 function skipAction() {
+    if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
     stopTimer();
     if (isProc) return; isProc = true;
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");

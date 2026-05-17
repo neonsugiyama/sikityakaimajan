@@ -3513,6 +3513,52 @@ body.lang-en .en {
 }
 
 /* =====================================================================
+    💡 レッスンメッセージ用トースト通知システム
+===================================================================== */
+#lesson-toast {
+    position: fixed;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-250%) scale(var(--game-scale, 1));
+    transform-origin: top center;
+    padding: 20px 40px;
+    border-radius: 12px;
+    color: white;
+    font-weight: bold;
+    font-size: 26px;
+    z-index: 200000;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+    width: max-content;
+    max-width: none; /* 🌟 画面幅による強制改行を防止 */
+    /* white-space: nowrap; は削除してください！ */
+
+    line-height: 1.4;
+}
+
+#lesson-toast-icon {
+    font-size: 36px;
+}
+
+#lesson-toast.show {
+    transform: translateX(-50%) translateY(0) scale(var(--game-scale, 1));
+}
+
+.toast-hint {
+    background: linear-gradient(135deg, #1f4068, #162447) !important;
+    border: 3px solid #0071e3 !important;
+}
+
+.toast-warn {
+    background: linear-gradient(135deg, #7b1fa2, #e91e63) !important;
+    border: 3px solid #ff1744 !important;
+}
+
+/* =====================================================================
     📚 全画面スクリーン遷移システム (100% CSS制御)
 ===================================================================== */
 /* すべての全画面スクリーンの共通ベーススタイル */

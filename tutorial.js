@@ -691,6 +691,10 @@ async function startLesson(lessonId) {
             document.getElementById('tut-dark-overlay').style.display = "none";
             document.getElementById('ingame-tutorial-nav').style.display = "none";
             document.getElementById('tutorial-review-container').style.display = "none";
+
+            // 🌟 ここに追加！退出時にポップアップを確実に引っ込める！
+            if (window.hideLessonToast) window.hideLessonToast();
+
             if (originalReturn) originalReturn();
         };
         window.tutExitHooked = true;
@@ -888,7 +892,7 @@ async function startLesson(lessonId) {
 
         case 9:
             lessonTitle = "レッスン⑨：乗算の複合【無花果、槓上開花、花天月地】";
-            lessonIntro = `手牌の中に四季牌が無い和了「無花果（ウーファーグオ）」。<br>カンをしたときの補充牌で和了「槓上開花（ガンシャンカイホァ）」。<br>海底牌での和了「花天月地（ホァティエンユエディ）」<br>これらが複合したときは乗算が重なるので恐ろしくインフレします。
+            lessonIntro = `手牌の中に四季牌が無い和了「無花果（ウーファーグオ）」は×3。<br>カンをしたときの補充牌で和了「槓上開花（ガンシャンカイホァ）」×2。<br>海底牌での和了「花天月地（ホァティエンユエディ）」×2。<br>これらが複合したときは乗算が重なるので恐ろしくインフレします。
             <div style="margin-top: 15px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; text-align: center;">
                 <span style="color:#bdc3c7; font-size: 16px;">乗算の複合例：</span><br>
                 無花果の状態で「槓上開花」で6倍の和了になります！
@@ -1045,6 +1049,14 @@ function renderLessonPage() {
             playSE('start');
             navPanel.style.display = 'none';
             document.getElementById('tutorial-review-container').style.display = "block";
+
+            // 🌟 ここに仕込む！
+            // 各メッセージの「shown（表示済み）」状態をリセットしてからスタート
+            if (LESSON_MESSAGES[window.currentLessonId]) {
+                LESSON_MESSAGES[window.currentLessonId].forEach(m => m.shown = false);
+            }
+            checkLessonMessage('start');
+
             isProc = false;
             checkT();
         };
@@ -1169,3 +1181,116 @@ function reviewTutorial() {
         navPanel.style.display = 'block';
     }
 }
+
+// =====================================================================
+// 📚 各レッスンの状況に応じたアドバイスメッセージ定義（ルールブック）
+// trigger種類: 'start'(局開始), 'draw'(自分がツモ), 'discard'(他家が打牌)
+// =====================================================================
+const LESSON_MESSAGES = {
+    1: [
+        { trigger: 'discard', tile: '1p', from: 1, shown: false, type: 'warn', text: "碰（ポン）すると全単の特殊形和了が出来ないよ！" },
+        { trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint', text: "5pで和了でもいいけど……<br>四季牌を切ると無花果になって、待ちを減らさずに2点から6点に打点上昇するよ！" }
+    ],
+    2: [
+        { trigger: 'draw', tile: '6s', shown: false, type: 'warn', text: "点対称な牌の順子を崩さないように！" },
+        { trigger: 'draw', tile: '白', shown: false, type: 'hint', text: "唯一点対称な字牌の白を大事にしよう！" }
+    ],
+    4: [
+        { trigger: 'start', shown: false, type: 'hint', text: "今回は1色で完成しそう！" },
+        { trigger: 'discard', tile: '9p', shown: false, type: 'warn', text: "関係のない牌を碰（ポン）し過ぎると三節高にならないよ！" },
+        { trigger: 'discard', tile: '4p', shown: false, type: 'hint', text: "これは関係のある牌だから碰（ポン）しよう！" }
+    ],
+    6: [
+        { trigger: 'start', shown: false, type: 'hint', text: "副露できるものは全部してみよう！" }
+    ],
+    7: [
+        { trigger: 'start', shown: false, type: 'hint', text: "分からなくなったらミッション確認を見てみよう！" }
+    ],
+    8: [
+        { trigger: 'start', shown: false, type: 'warn', text: "一色四歩高は碰（ポン）ができないよ！" }
+    ],
+    9: [
+        { trigger: 'draw', tile: '2s', shown: false, type: 'hint', text: "和了後も四季牌が手牌になければ暗槓ができるよ！" }
+    ]
+};
+
+let lessonToastTimeout;
+
+/**
+ * 🌟 レッスンのゲーム進行状況をチェックしてトーストを出すメイン関数
+ * @param {string} eventType - 'start' | 'draw' | 'discard'
+ * @param {string|null} tile - 発生した牌のID (例: '1p', '白')
+ * @param {number} fromPlayer - 打牌したプレイヤー番号 (0:自分, 1:下家, 2:対面, 3:上家)
+ */
+function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
+    // レッスンモードではない、または現在のレッスンIDが未定義なら即座に終了
+    if (typeof currentGameMode === 'undefined' || currentGameMode !== 'lesson') return;
+    const lessonId = window.currentLessonId;
+    if (!lessonId || !LESSON_MESSAGES[lessonId]) return;
+
+    console.log(`[DEBUG レッスン監視] イベント検知 -> タイプ: ${eventType}, 牌: ${tile}, プレイヤー: ${fromPlayer}`);
+
+    const messages = LESSON_MESSAGES[lessonId];
+
+    messages.forEach((msg, idx) => {
+        if (msg.shown) return; // すでに表示済みのメッセージはスルー
+        if (msg.trigger !== eventType) return; // トリガー条件が一致しない場合はスルー
+
+        let isMatch = true;
+
+        // 1. 牌の種類指定チェック
+        if (msg.tile && msg.tile !== tile) isMatch = false;
+
+        // 2. 誰が捨てたかのチェック（下家から1p、など）
+        if (msg.from !== undefined && msg.from !== fromPlayer) isMatch = false;
+
+        // 3. 特殊条件：手牌の中にその牌が「n回目（n枚）」入ってきたかどうかのチェック（レッスン1の5p用）
+        if (eventType === 'draw' && msg.count) {
+            // 自分の手牌配列（myHand）から該当する牌の枚数を数える
+            if (typeof myHand !== 'undefined' && Array.isArray(myHand)) {
+                const currentCount = myHand.filter(t => t === msg.tile).length;
+                console.log(`[DEBUG レッスン監視] 手牌の ${msg.tile} の枚数チェック: 現在 ${currentCount} 枚 (必要: ${msg.count}枚)`);
+                if (currentCount < msg.count) isMatch = false;
+            } else {
+                isMatch = false;
+            }
+        }
+
+        // 🎯 すべての条件が完全に一致した場合、トーストを画面内に降臨させる
+        if (isMatch) {
+            msg.shown = true; // 表示済みフラグをON
+            console.log(`[DEBUG レッスン通知発動] レッスン ${lessonId} - アイテム番号 [${idx}] の条件が成立しました。内容: "${msg.text}"`);
+
+            const toast = document.getElementById('lesson-toast');
+            const icon = document.getElementById('lesson-toast-icon');
+            const text = document.getElementById('lesson-toast-text');
+
+            if (toast && icon && text) {
+                if (msg.type === 'warn') {
+                    toast.className = 'toast-warn';
+                    icon.innerText = '⚠️';
+                } else {
+                    toast.className = 'toast-hint';
+                    icon.innerText = '💡';
+                }
+                text.innerHTML = msg.text; // 🌟 念のため改行タグ等も効くように innerHTML に変更
+
+                toast.classList.add('show');
+                if (typeof playSE === 'function') playSE('click');
+
+                // 🚨🚨 修正：ここにあった「7秒後に自動で隠す setTimeout」を完全削除しました！
+            }
+        }
+    });
+}
+
+// =========================================================
+// 🌟 新規追加：プレイヤーが行動を起こした瞬間にトーストを引っ込める関数
+window.hideLessonToast = function () {
+    const toast = document.getElementById('lesson-toast');
+    if (toast && toast.classList.contains('show')) {
+        toast.classList.remove('show');
+        console.log("[DEBUG レッスン通知終了] プレイヤーのアクションを検知したため、トーストを格納しました。");
+    }
+};
+// =========================================================
