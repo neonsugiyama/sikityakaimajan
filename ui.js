@@ -36,9 +36,26 @@ function closeAllModals() {
     });
 }
 
+// 🌟 画面内のスクロール位置を強制リセットし、ログを出す共通関数
+function resetScrollAreas(parentId, contextName) {
+    const parent = document.getElementById(parentId);
+    if (!parent) return;
+
+    // スクロールバーが出うる要素をクラス名やstyle属性から一斉に探し出す
+    const scrollAreas = parent.querySelectorAll('.modal-scroll-area, .settings-content, .rate-help-desc, [style*="overflow-y: auto"]');
+    scrollAreas.forEach(area => {
+        area.scrollTop = 0;
+        console.log(`[DEBUG スクロール初期化] ${contextName} (${parentId}) のスクロール位置を一番上(0)に戻しました。`);
+    });
+}
+
 function openModal(modalId) {
     closeAllModals();
     show(modalId, 'flex');
+
+    // 🌟 追加：開いた画面のスクロールを一番上に戻す
+    resetScrollAreas(modalId, "共通モーダル展開");
+
     if (typeof playSE === 'function') playSE('click');
 }
 
@@ -157,20 +174,26 @@ function openAchievements() {
     if (typeof closeAllModals === 'function') closeAllModals();
     if (typeof renderAchievements === 'function') renderAchievements();
 
+    // 🌟 1. まず画面を「存在」させる（※この時点ではCSSの設定でまだ透明です）
     targetScreen.style.display = 'flex';
 
+    // 🌟 2. 画面が存在してからスクロールを一番上に戻す！（順番が命です）
+    const scrollContainer = document.getElementById('achievement-list-container');
+    if (scrollContainer) {
+        scrollContainer.scrollTop = 0;
+        console.log(`[DEBUG スクロール初期化] 実績画面のスクロール位置を一番上(0)に戻しました。現在の scrollTop = ${scrollContainer.scrollTop}`);
+    }
+
+    // 🌟 3. フワッと表示させるアニメーションを開始
     setTimeout(() => {
         targetScreen.classList.add('screen-active');
 
-        // 🌟 ご指示通り、戻るボタンが「本当に画面に描画されているか」をログに出力します
+        // 戻るボタンが描画されているかのログ確認
         const backBtn = document.getElementById('btn-achieve-back');
         if (backBtn) {
             const computedStyle = window.getComputedStyle(backBtn);
-            console.log(`[DEBUG 画面遷移] 戻るボタンの最終的な display 状態: ${computedStyle.display} (※ block または flex なら正常、none ならCSSに殺されています)`);
-        } else {
-            console.error("[DEBUG 画面遷移] 🚨 戻るボタンの要素自体がHTML内に存在しません！");
+            console.log(`[DEBUG 画面遷移] 戻るボタンの最終的な display 状態: ${computedStyle.display}`);
         }
-
     }, 10);
 
     if (typeof playSE === 'function') playSE('click');
@@ -204,6 +227,10 @@ function closeLearningMenu() { closeModal('learning-modal'); }
 
 function openRateHelp() {
     show('rate-help-modal', 'flex');
+
+    // 🌟 追加：レート説明画面のスクロールを一番上に戻す
+    resetScrollAreas('rate-help-modal', "レート説明画面");
+
     if (typeof playSE === 'function') playSE('click');
 }
 function closeRateHelp() {
@@ -284,6 +311,9 @@ function openReplayList() {
     }
 
     document.getElementById('replay-modal').style.display = 'flex';
+
+    // 🌟 追加：牌譜一覧のスクロールを一番上に戻す
+    resetScrollAreas('replay-modal', "牌譜一覧画面");
 }
 
 function closeReplayList() {
@@ -843,11 +873,30 @@ window.renderReplayResult = function (pIdx) {
         <button id="btn-replay-screenshot" class="btn-act btn-blue" onclick="takeResultScreenshot()">📸 撮影</button>
         <button id="btn-replay-prev" class="btn-act btn-gray" onclick="prevReplayResult()">⏮️ 前へ</button>
         <button id="btn-replay-next" class="btn-act btn-blue" onclick="nextReplayResult()">次へ ⏭️</button>
-        <button id="btn-replay-close" class="btn-act btn-red" onclick="closeReplayResult()">❌ 閉じて盤面を見る</button>
+        <div id="btn-replay-peek" class="btn-act btn-red" style="cursor: help; user-select: none;">盤面を見る</div>
     `;
 
     document.getElementById('overlay').scrollTop = 0;
     document.getElementById('overlay').style.display = "flex";
+
+    const peekBtn = document.getElementById('btn-replay-peek');
+    const overlay = document.getElementById('overlay');
+    const replayControls = document.getElementById('replay-controls');
+
+    if (peekBtn) {
+        // マウスが乗った時
+        peekBtn.onmouseenter = () => {
+            console.log("[DEBUG 盤面プレビュー] ホバー検知: リザルト画面を透過し、牌譜操作パネルを非表示にします。");
+            overlay.classList.add('peek-mode');
+            if (replayControls) replayControls.classList.add('peek-hidden');
+        };
+        // マウスが外れた時
+        peekBtn.onmouseleave = () => {
+            console.log("[DEBUG 盤面プレビュー] ホバー解除: リザルト画面と牌譜操作パネルの表示を元に戻しました。");
+            overlay.classList.remove('peek-mode');
+            if (replayControls) replayControls.classList.remove('peek-hidden');
+        };
+    }
 };
 
 // 🌟 新規：リザルト画面で「次へ」を押した時

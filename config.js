@@ -483,6 +483,15 @@ function switchSettingsTab(evt, tabId) {
     evt.currentTarget.classList.add("active");
 
     if (typeof playSE === 'function') playSE('click');
+
+    // 🌟 ここに追加：タブ切り替え時にスクロール位置を一番上（0）に戻し、ログを出す
+    const container = document.querySelector('.settings-content');
+    if (container) {
+        container.scrollTop = 0;
+        console.log(`[DEBUG タブ切り替え] 設定タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
+    } else {
+        console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の '.settings-content' が見つかりません。`);
+    }
 }
 
 function secretClick() {

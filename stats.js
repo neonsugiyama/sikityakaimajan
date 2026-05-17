@@ -393,6 +393,15 @@ function switchAchieveTab(evt, tabId) {
     for (let i = 0; i < tabLinks.length; i++) tabLinks[i].classList.remove("active");
     document.getElementById(tabId).style.display = "block";
     evt.currentTarget.classList.add("active");
+
+    // 🌟 ここに追加：タブ切り替え時にスクロール位置を一番上（0）に戻す
+    const container = document.getElementById('achievement-list-container');
+    if (container) {
+        container.scrollTop = 0;
+        console.log(`[DEBUG タブ切り替え] 表示タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
+    } else {
+        console.error("[DEBUG タブ切り替え] 🚨 スクロール対象の 'achievement-list-container' が見つかりません。");
+    }
 }
 
 function getYakuRankClass(yakuName, count) {

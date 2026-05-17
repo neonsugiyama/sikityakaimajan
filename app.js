@@ -298,8 +298,14 @@ function switchYakuTab(evt, tabId) {
     if (target) target.style.display = "block";
     evt.currentTarget.classList.add("active");
 
+    // 🌟 修正：既存のスクロールリセットにログ出力を追加
     const container = document.getElementById('yaku-list-container');
-    if (container) container.scrollTop = 0;
+    if (container) {
+        container.scrollTop = 0;
+        console.log(`[DEBUG タブ切り替え] 役一覧タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
+    } else {
+        console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の 'yaku-list-container' が見つかりません。`);
+    }
 }
 
 function getYakuTierClass(yakuName) {

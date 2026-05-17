@@ -3065,6 +3065,22 @@ async function handleRoundEnd(isReplayingResult = false) {
             document.getElementById('overlay').scrollTop = 0;
             document.getElementById('overlay').style.display = "flex";
 
+            // =========================================================
+            // 🌟 ここに追加：CPU戦用の盤面覗き見（ホバー透過）処理
+            const cpuPeekBtn = document.getElementById('btn-cpu-peek');
+            const overlayElement = document.getElementById('overlay');
+            if (cpuPeekBtn && overlayElement) {
+                cpuPeekBtn.onmouseenter = () => {
+                    console.log("[DEBUG CPU戦プレビュー] ホバー検知: リザルト画面を100%透過します。");
+                    overlayElement.classList.add('peek-mode');
+                };
+                cpuPeekBtn.onmouseleave = () => {
+                    console.log("[DEBUG CPU戦プレビュー] ホバー解除: リザルト画面を元に戻します。");
+                    overlayElement.classList.remove('peek-mode');
+                };
+            }
+            // =========================================================
+
             updateStampVisibility();
 
             if (!isReplayingResult) playSE('score');

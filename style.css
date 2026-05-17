@@ -4391,59 +4391,142 @@ body.lang-en .en {
 }
 
 /* =====================================================================
-   🎯 ボタン個別のサイズと位置指定 (CPU戦と牌譜で完全分離！)
+    🎯 ボタン個別のサイズと位置指定 & 完全立体化統一システム
 ===================================================================== */
 
-/* 🎮 【CPU戦用】 ボタン2つ (大きくバランス良く配置) */
+/* 🎮 【CPU戦用】 ボタン3つ */
 #btn-cpu-screenshot {
     top: -350px !important;
     left: 0px !important;
     width: 300px !important;
     height: 80px !important;
+    /* 🌟 立体化：濃い青の影を追加 */
+    box-shadow: 0 5px #1f618d !important;
+    border: none !important;
+}
+
+#btn-cpu-peek {
+    position: absolute !important;
+    top: 70px !important;
+    left: 630px !important;
+    width: 400px !important;
+    height: 100px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+    /* 🌟 立体化：濃い紫の影 */
+    box-shadow: 0 5px #732d91 !important;
+    border: none !important;
 }
 
 #btn-cpu-next {
-    top: 80px !important;
+    top: 70px !important;
     left: 1250px !important;
     width: 400px !important;
     height: 100px !important;
+    /* 🌟 立体化：濃い赤の影を追加 */
+    box-shadow: 0 5px #943126 !important;
+    border: none !important;
 }
 
-/* 📼 【牌譜リプレイ用】 ボタン4つ (杉山様の調整した位置・サイズを反映) */
+
+/* 📼 【牌譜リプレイ用】 ボタン4つ */
 #btn-replay-screenshot {
     top: -350px !important;
     left: 0px !important;
     width: 300px !important;
     height: 80px !important;
+    /* 🌟 立体化：濃い青の影 */
+    box-shadow: 0 5px #1f618d !important;
+    border: none !important;
 }
 
 #btn-replay-prev {
-    top: 80px !important;
+    top: 70px !important;
     left: 0px !important;
     width: 400px !important;
     height: 100px !important;
+    /* 🌟 立体化：濃いグレーの影を追加 */
+    box-shadow: 0 5px #515a5a !important;
+    border: none !important;
 }
 
 #btn-replay-next {
-    top: 80px !important;
+    top: 70px !important;
     left: 1250px !important;
     width: 400px !important;
     height: 100px !important;
+    /* 🌟 立体化：濃い青の影 */
+    box-shadow: 0 5px #1f618d !important;
+    border: none !important;
 }
 
-#btn-replay-close {
-    top: 80px !important;
+#btn-replay-peek {
+    position: absolute !important;
+    top: 70px !important;
     left: 630px !important;
     width: 400px !important;
     height: 100px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+    /* 🌟 立体化：濃い紫の影 */
+    box-shadow: 0 5px #732d91 !important;
+    border: none !important;
 }
 
-/* タイマーの文字設定 */
+
+/* 👥 【共通仕様】 ホバー時とクリック（アクティブ）時の立体連動演出 */
+#btn-cpu-screenshot:hover, #btn-replay-screenshot:hover,
+#btn-replay-prev:hover, #btn-cpu-next:hover, #btn-replay-next:hover {
+    /* 覗き見ボタンに合わせて、ホバー時に少しだけ大きくしてフワッと浮かせます */
+    transform: scale(1.03);
+}
+
+/* 🌟 ボタンを押した（クリックした）瞬間に、下に沈み込む完璧なリアル演出 */
+#btn-cpu-screenshot:active, #btn-replay-screenshot:active,
+#btn-replay-prev:active, #btn-cpu-next:active, #btn-replay-next:active,
+#btn-cpu-peek:active, #btn-replay-peek:active {
+    /* 影の厚みを減らし、ボタン自体を下に押し下げることで「ポチッ」とした立体的な打鍵感を出します */
+    transform: translateY(4px) scale(1) !important;
+    box-shadow: 0 1px rgba(0,0,0,0.5) !important;
+}
+
+
+/* ⚙️ タイマーや覗き見専用カラーの設定（その他の仕様はそのまま維持） */
 #result-timer-text {
     font-size: inherit !important;
     font-weight: bold !important;
     color: inherit !important;
     margin-right: 5px !important;
+}
+
+#btn-cpu-peek, #btn-replay-peek {
+    background: #8e44ad !important;
+    border-color: #732d91 !important;
+}
+
+    #btn-cpu-peek:hover, #btn-replay-peek:hover {
+        background: #9b59b6 !important;
+        transform: scale(1.05);
+    }
+
+/* 🌟 プレビュー中はリザルト画面全体を100%透過（完全に透明）にする */
+#overlay.peek-mode {
+    opacity: 0 !important;
+    background: transparent !important;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+/* プレビュー中は牌譜の操作コントロールを隠して押せないようにする */
+#replay-controls.peek-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease;
 }
 
 /* =====================================================================
