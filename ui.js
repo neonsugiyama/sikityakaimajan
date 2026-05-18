@@ -333,6 +333,8 @@ let charlestonPhaseState = 0;
 let replayResultPlayerIdx = 0; // 🌟 追加：リザルト画面で現在見ているプレイヤー
 
 window.startReplay = function (id) {
+    if (window.cleanupTutorialUI) window.cleanupTutorialUI();
+
     let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
     replayDataObj = savedReplays.find(r => r.id === id);
     if (!replayDataObj || !replayDataObj.rounds || replayDataObj.rounds.length === 0) {
@@ -822,7 +824,9 @@ window.renderReplayResult = function (pIdx) {
         let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
         scoreText = `${diffStr} 点`;
 
-        let resultLabel = diff < 0 ? "失点 (振込み等)" : ((calcData.results || []).length === 0 ? "流局" : "ー");
+        // 🌟 修正：こちらも同様に条件分岐を完全に削除して「ー」で固定
+        let resultLabel = "ー";
+
         yakuHtml = `
             <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
                 ${resultLabel}
@@ -1123,6 +1127,15 @@ window.exitReplay = function () {
 
     const btnAuto = document.getElementById('btn-auto-play');
     if (btnAuto) btnAuto.style.display = 'block';
+
+    // =========================================================
+    // 🌟 ここを追加！：隠していた退出ボタンの設定を解除し元に戻す
+    const topExitBtn = document.getElementById('quick-exit-btn');
+    const menuExitBtn = document.getElementById('sidebar-exit');
+    if (topExitBtn) topExitBtn.style.removeProperty('display');
+    if (menuExitBtn) menuExitBtn.style.removeProperty('display');
+    console.log("[DEBUG 牌譜退出] 非表示にしていた退出ボタンのスタイルを解除しました。");
+    // =========================================================
 
     // 🌟 リザルト画面のボタンをCPU戦用の元の状態に戻す
     const resultControls = document.getElementById('result-controls');

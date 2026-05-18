@@ -391,10 +391,33 @@ html, body {
     border: 2px solid #2ecc71;
     color: #2ecc71;
     text-align: center;
-    transition: transform 0.2s;
+    /* 🌟 ここを修正：最初からGPUレイヤー(translateZ)に配置し、
+       重い "all" をやめて必要なプロパティだけを滑らかに動かします */
+    transform: scale(1) translateZ(0);
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
     white-space: nowrap;
     width: 130px;
     box-sizing: border-box;
+}
+
+/* 🌟 新規追加：JSのラグに影響されない、GPU直結の完全独立アニメーション */
+@keyframes scorePopAnim {
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.score-pop-effect {
+    /* JSの処理落ちを無視して、ブラウザの描画エンジンが強制的に滑らかに動かします */
+    animation: scorePopAnim 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
 
 .dealer-mark {
@@ -1350,8 +1373,8 @@ html, body {
     background: rgba(0, 0, 0, 0.75) !important;
     border: 2px solid #f1c40f !important;
     box-shadow: 0 0 15px rgba(241, 196, 15, 0.8) !important;
-    transform: scale(1.1);
-    transition: all 0.3s ease;
+    transform: scale(1.1) translateZ(0) !important;
+    /* 🌟 修正：アニメーション設定は①のベース側に任せるため、ここにあった transition は削除します */
     z-index: 100;
 }
 
@@ -4056,6 +4079,7 @@ body.lang-en .en {
     z-index: 8000;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     text-align: center;
+    transform: translate(-50%, -50%) !important;
 }
 
 .tut-nav-text {

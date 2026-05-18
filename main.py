@@ -2060,6 +2060,22 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["南","西","北","白","發","中","1m","9m","1s","9s","1p","9p","2p"]
         game.wall = ["春", "西"]
 
+    elif scenario == "auto_jokerswap":
+        game.dealer = 0
+        game.turn = 0
+        game.is_first_turn = [False]*4
+        game.melds[0] = [
+            {"type": "pong", "tiles": ["1p", "1p", "1p"]},
+            {"type": "pong", "tiles": ["3p", "3p", "3p"]},
+            {"type": "pong", "tiles": ["5p", "5p", "5p"]},
+            {"type": "pong", "tiles": ["7p", "7p", "7p"]}
+        ]
+        game.hands[0] = ["夏"]
+        game.hands[1] = ["4p","6p","8p","4s","6s","8s","東","南","西","北","白","發","中"]
+        game.hands[2] = ["4p","6p","8p","4s","6s","8s","東","南","西","北","白","發","中"]
+        game.hands[3] = ["4p","6p","8p","4s","6s","8s","東","南","西","北","白","發","中"]
+        game.wall = ["1p", "2p", "3p", "2p", "1p", "2p", "3p", "2p", "1p", "春"]
+
     elif scenario == "syabomachi":
         game.dealer = 0
         game.turn = 3 
@@ -2433,6 +2449,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         "haitei_pon_test", 
         "haitei_pon_test2", 
         "random_4jokers",
+        "auto_jokerswap",
         "lesson_1",
         "lesson_2",
         "lesson_3",

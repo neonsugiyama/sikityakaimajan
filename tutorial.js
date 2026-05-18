@@ -3,10 +3,92 @@
 // ==========================================
 let isIngameTutorial = false;
 
+// =========================================================
+// 🌟 新規追加：全モード共通の「チュートリアルUI完全お掃除関数」
+// =========================================================
+window.cleanupTutorialUI = function () {
+    // 1. レッスンのポップアップトーストを隠す
+    if (window.hideLessonToast) window.hideLessonToast();
+
+    // 2. パネルと暗転膜を完全に非表示にする
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    if (navPanel) navPanel.style.display = 'none';
+
+    const reviewPanel = document.getElementById('tutorial-review-container');
+    if (reviewPanel) reviewPanel.style.display = 'none';
+
+    const overlay = document.getElementById('tut-dark-overlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // 3. 指差し矢印を全削除
+    document.querySelectorAll('.tut-dynamic-arrow').forEach(e => {
+        clearInterval(e.dataset.animInterval);
+        e.remove();
+    });
+
+    // 4. ハイライト用のインラインスタイル（Z-indexや光など）を完全消去
+    document.querySelectorAll('.tut-highlight').forEach(el => {
+        el.classList.remove('tut-highlight');
+        el.style.removeProperty('z-index');
+        el.style.removeProperty('box-shadow');
+        el.style.removeProperty('border-radius');
+        if (el.dataset.tutPosModified) {
+            el.style.removeProperty('position');
+            delete el.dataset.tutPosModified;
+        }
+        el.style.filter = 'none';
+    });
+
+    // 5. 物理的に暗くされていたUIの明るさを元に戻す
+    const backgroundUI = [
+        'center-info', 'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
+        'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
+        'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
+    ];
+    backgroundUI.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // 🚨 修正：アニメーションを殺す 'none' の直書きをやめ、CSSに主導権を返す！
+            el.style.removeProperty('filter');
+            el.style.removeProperty('transition');
+        }
+    });
+
+    // =========================================================
+    // 🌟 ここを追加！：牌譜モードなどの残骸で消えている退出ボタンを強制復活させる
+    const topExitBtn = document.getElementById('quick-exit-btn');
+    const menuExitBtn = document.getElementById('sidebar-exit');
+    if (topExitBtn) topExitBtn.style.removeProperty('display');
+    if (menuExitBtn) menuExitBtn.style.removeProperty('display');
+    // =========================================================
+
+    // 7. グローバル変数のリセット
+    isIngameTutorial = false;
+    window.currentLessonId = null;
+
+    // 🌟 これを1つ追加（チュートリアルのロック状態も確実に解除）
+    if (typeof tutLock !== 'undefined') tutLock = false;
+
+    console.log("[DEBUG] チュートリアルとレッスンのUIを完全にクリーンアップしました。");
+};
+
+// 🌟 新規追加：退出ボタンが押された時の処理をここで「1回だけ」確実に登録！
+if (!window.tutExitHooked) {
+    const originalReturn = window.returnToHomeGracefully;
+    window.returnToHomeGracefully = function () {
+        window.cleanupTutorialUI(); // 退出時にお掃除を自動実行！
+        if (originalReturn) originalReturn();
+    };
+    window.tutExitHooked = true;
+}
+// =========================================================
+
 // 🎮 実戦形式のチュートリアルを開始する関数
 async function startTutorial() {
     closeAllModals();
     playSE('start');
+
+    window.cleanupTutorialUI();
 
     // 🚨 修正1：全モーダル画面のIDを明示的に指定し、チュートリアルパネルよりも確実に手前に来るようZ-indexを固定
     if (!document.getElementById('tut-zindex-fix')) {
@@ -18,63 +100,6 @@ async function startTutorial() {
             #sidebar-menu { z-index: 99999 !important; }
         `;
         document.head.appendChild(style);
-    }
-
-    // 🚨 修正：退出時にチュートリアルパネルや暗転設定が残らないよう、完全にお掃除する
-    if (!window.tutExitHooked) {
-        // 🚨 追加：本編の正常な「交換関数」をバックアップしておく
-        window.originalExecExchange = window.execExchange;
-
-        const originalReturn = window.returnToHomeGracefully;
-        window.returnToHomeGracefully = () => {
-            if (originalReturn) originalReturn();
-
-            // 1. パネルと暗転膜を隠す
-            const navPanel = document.getElementById('ingame-tutorial-nav');
-            if (navPanel) navPanel.style.display = 'none';
-            const overlay = document.getElementById('tut-dark-overlay');
-            if (overlay) overlay.style.display = 'none';
-
-            // 2. 指差し矢印を全削除
-            document.querySelectorAll('.tut-dynamic-arrow').forEach(e => {
-                clearInterval(e.dataset.animInterval);
-                e.remove();
-            });
-
-            // 3. ハイライト用のインラインスタイル（Z-indexや光など）を完全消去
-            document.querySelectorAll('.tut-highlight').forEach(el => {
-                el.classList.remove('tut-highlight');
-                el.style.removeProperty('z-index');
-                el.style.removeProperty('box-shadow');
-                el.style.removeProperty('border-radius');
-                if (el.dataset.tutPosModified) {
-                    el.style.removeProperty('position');
-                    delete el.dataset.tutPosModified;
-                }
-            });
-
-            // 4. brightness(0.2) で物理的に暗くされていたUIの明るさを元に戻す
-            const backgroundUI = [
-                'center-info', 'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
-                'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
-                'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
-            ];
-            backgroundUI.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.style.filter = 'none';
-                    el.style.transition = 'none';
-                }
-            });
-
-            // 🚨 追加：チュートリアル用に書き換えた「交換関数」を本編の正常な処理に戻す！
-            if (window.originalExecExchange) {
-                window.execExchange = window.originalExecExchange;
-            }
-
-            isIngameTutorial = false;
-        };
-        window.tutExitHooked = true;
     }
 
     // 🌟 実際のゲーム画面（雀卓）へ遷移
@@ -184,12 +209,12 @@ async function startTutorial() {
                 const el = document.getElementById(id);
                 if (el) {
                     if (enable && !el.classList.contains('tut-highlight')) {
-                        el.style.transition = 'filter 0.3s ease';
                         el.style.filter = 'brightness(0.2)';
                     } else {
-                        el.style.transition = 'filter 0.3s ease';
-                        el.style.filter = 'none';
+                        el.style.removeProperty('filter');
                     }
+                    // 🚨 修正：ここでもアニメーション殺しの元凶を削除！
+                    el.style.removeProperty('transition');
                 }
             });
         }, 10);
@@ -313,7 +338,9 @@ async function startTutorial() {
                 document.getElementById('btn-exchange').style.display = "none";
                 setOverlay(true); hlIds(['charleston-ui'], true, true);
 
-                window.execExchange = async () => {
+                // 🚨 修正前： window.execExchange = async () => {
+                // 🌟 修正後： 本編を上書きせず、チュートリアル専用の関数として定義する！
+                window.tutExecExchange = async () => {
                     tutLock = true;
                     if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false);
@@ -437,7 +464,7 @@ async function startTutorial() {
                 }
 
                 if (navPanel) {
-                    navPanel.style.top = "60%";
+                    navPanel.style.top = "58%";
                 }
 
                 setOverlay(true);
@@ -670,6 +697,8 @@ async function startLesson(lessonId) {
     closeAllModals();
     playSE('start');
 
+    window.cleanupTutorialUI();
+
     if (!document.getElementById('tut-zindex-fix')) {
         const style = document.createElement('style');
         style.id = 'tut-zindex-fix';
@@ -680,24 +709,6 @@ async function startLesson(lessonId) {
             .quiz-option-btn:hover { background: #34495e !important; box-shadow: 0 0 15px rgba(52, 152, 219, 0.8) !important; }
         `;
         document.head.appendChild(style);
-    }
-
-    if (!window.tutExitHooked) {
-        window.originalExecExchange = window.execExchange;
-        const originalReturn = window.returnToHomeGracefully;
-        window.returnToHomeGracefully = function () {
-            isIngameTutorial = false;
-            window.currentLessonId = null;
-            document.getElementById('tut-dark-overlay').style.display = "none";
-            document.getElementById('ingame-tutorial-nav').style.display = "none";
-            document.getElementById('tutorial-review-container').style.display = "none";
-
-            // 🌟 ここに追加！退出時にポップアップを確実に引っ込める！
-            if (window.hideLessonToast) window.hideLessonToast();
-
-            if (originalReturn) originalReturn();
-        };
-        window.tutExitHooked = true;
     }
 
     isIngameTutorial = true;
@@ -959,12 +970,23 @@ async function startLesson(lessonId) {
 
     // 🌟 4. 紙芝居パネル（UI）の設定と表示
     const navPanel = document.getElementById('ingame-tutorial-nav');
+
+    // =====================================================================
+    // 🚨 追加：レッスン時もパネルの所属をゲーム画面内部（#game-container）へ強制移動！
+    // これにより配置基準が麻雀卓と完全に同期し、画面比率を変えても絶対に位置がズレなくなります。
+    const gameContainer = document.getElementById('game-container');
+    if (navPanel && gameContainer && navPanel.parentNode !== gameContainer) {
+        console.log("[DEBUG レッスンUI調整] 役紹介パネルの配置基準をゲーム卓内部（#game-container）へ同期しました。");
+        gameContainer.appendChild(navPanel);
+    }
+    // =====================================================================
+
     navPanel.style.setProperty('width', '950px', 'important');
     navPanel.style.setProperty('padding', '25px', 'important');
     navPanel.style.setProperty('z-index', '95000', 'important');
     navPanel.style.top = '50%';
     navPanel.style.left = '50%';
-    navPanel.style.transform = 'translate(-50%, -50%) scale(var(--game-scale, 1))';
+    navPanel.style.transform = 'translate(-50%, -50%)';
     navPanel.style.display = 'block';
 
     currentLessonPage = 0;
@@ -1145,7 +1167,7 @@ function reviewTutorial() {
 
     navPanel.style.top = '50%';
     navPanel.style.left = '50%';
-    navPanel.style.transform = 'translate(-50%, -50%) scale(var(--game-scale, 1))';
+    navPanel.style.transform = 'translate(-50%, -50%)';
     if (navPanel.dataset) navPanel.dataset.returnTop = "";
 
     if (window.currentLessonId) {
@@ -1304,3 +1326,18 @@ window.hideLessonToast = function () {
     }
 };
 // =========================================================
+
+// =====================================================================
+// 🛠️ 原因特定用：リサイズ時に裏で二重縮小の命令が走っていないか監視するログ
+// =====================================================================
+window.addEventListener('resize', () => {
+    const navPanel = document.getElementById('ingame-tutorial-nav');
+    if (navPanel) {
+        const computedStyle = window.getComputedStyle(navPanel);
+        console.log(`[DEBUG リサイズ検証ログ] 
+            元の指定値(top): ${navPanel.style.top} 
+            現在の生のtransform属性: "${navPanel.style.transform}" 
+            ブラウザが最終計算した実質位置(computed top): ${computedStyle.top}
+            ※CSSの !important 制御により、二重縮小（scale）は完全にガードされています。`);
+    }
+});

@@ -1018,6 +1018,8 @@ function switchDebugTab(evt, tabId) {
 
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
 async function init() {
+    if (window.cleanupTutorialUI) window.cleanupTutorialUI();
+
     logMsg("=== ゲーム起動 ===");
     await apiCall('/start', { cpu_level: confCpuLevel });
     sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
@@ -1128,6 +1130,11 @@ function toggleExchange(idx) {
 
 // 📤 選んだ3枚の牌をサーバーに送り、交換を実行する関数（第2交換の決定も兼ねる）
 async function execExchange() {
+    // 🌟 🚨 これを追加！：チュートリアル中の場合は、専用の関数に処理を委譲してここで終了する
+    if (currentGameMode === 'tutorial' && typeof window.tutExecExchange === 'function') {
+        return window.tutExecExchange();
+    }
+
     stopTimer();
 
     if (charlestonCount === 1) {
@@ -1862,12 +1869,21 @@ let currentValidMelds = [];
 
 // 🔍 自分のツモ番で可能な鳴き（暗槓・加槓など）があるかサーバーにデータだけ確認する関数
 async function checkSelfMelds() {
-    if (wallCount === 0) return false;
+    // 🌟 修正：海底で JokerSwap が巻き添えで消えてしまう元凶だった 1 行を削除！
+    // if (wallCount === 0) return false; 
+
     try {
         const data = await apiCall('/get_valid_self_melds', { player_idx: 0 });
         if (data.valid_melds && data.valid_melds.length > 0) {
-            currentValidMelds = data.valid_melds;
-            return true; // 鳴きが可能なら true を返す
+
+            // 🌟 追加：山札が0枚の時は暗槓・加槓を除外し、JokerSwapのみを許可してボタンを出す！
+            if (wallCount === 0) {
+                currentValidMelds = data.valid_melds.filter(vm => vm.type === "JokerSwap");
+            } else {
+                currentValidMelds = data.valid_melds;
+            }
+
+            return currentValidMelds.length > 0; // 可能なアクションが1つでも残っていれば true を返す
         }
     } catch (e) {
         console.error("Self meld validation failed:", e);
@@ -3054,7 +3070,9 @@ async function handleRoundEnd(isReplayingResult = false) {
                 scoreText = `${diffStr} 点`;
                 scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
 
-                let resultLabel = diff < 0 ? "失点 (振込み等)" : ((calcData.results || []).length === 0 ? "流局" : "ー");
+                // 🌟 修正：失点の概念がないため、条件分岐を完全に削除して「ー」で固定
+                let resultLabel = "ー";
+
                 yakuHtml = `
                     <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
                         ${resultLabel}
@@ -3284,8 +3302,16 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                 let scoreEl = document.getElementById(`player-score-${targetIdx}`);
                 scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
-                scoreEl.style.transform = "scale(1.2)";
-                setTimeout(() => scoreEl.style.transform = "scale(1)", 200);
+
+                // 🌟 修正：JSのタイマーによる直接操作を完全撤廃し、CSSアニメーションに任せる。
+                scoreEl.style.transform = ""; // 過去の負の遺産(インラインスタイル)を破壊
+                scoreEl.classList.remove('score-pop-effect'); // 一旦クラスを外す
+                void scoreEl.offsetWidth; // ブラウザに「クラスが外れた」ことを強制認識させる（リセット）
+                scoreEl.classList.add('score-pop-effect'); // 再度クラスを付与してアニメーション起動
+
+                console.log(`[DEBUG アニメーション] プレイヤー${targetIdx}の点数加算アニメーションをCSSネイティブで実行しました。`);
+
+                // 🚨🚨 ここにあった setTimeout による縮小処理はまるごと削除してください 🚨🚨
             }
 
             await sleep(3500);
