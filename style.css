@@ -3516,11 +3516,14 @@ body.lang-en .en {
     💡 レッスンメッセージ用トースト通知システム
 ===================================================================== */
 #lesson-toast {
-    position: fixed;
-    top: 25px;
+    position: absolute; /* 🌟 fixed から absolute に変更し、ゲーム画面と100%連動させます */
+    top: 160px;
     left: 50%;
-    transform: translateX(-50%) translateY(-250%) scale(var(--game-scale, 1));
-    transform-origin: top center;
+    /* 🌟 待機状態：画面比率によるズレや削れを防ぐため、中央で少し小さく透明にして待機 */
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0 !important;
+    pointer-events: none;
+    transform-origin: center center;
     padding: 20px 40px;
     border-radius: 12px;
     color: white;
@@ -3535,8 +3538,6 @@ body.lang-en .en {
     box-shadow: 0 8px 25px rgba(0,0,0,0.7);
     width: max-content;
     max-width: none; /* 🌟 画面幅による強制改行を防止 */
-    /* white-space: nowrap; は削除してください！ */
-
     line-height: 1.4;
 }
 
@@ -3545,7 +3546,9 @@ body.lang-en .en {
 }
 
 #lesson-toast.show {
-    transform: translateX(-50%) translateY(0) scale(var(--game-scale, 1));
+    transform: translateX(-50%) translateY(0);
+    opacity: 1 !important;
+    pointer-events: auto;
 }
 
 .toast-hint {

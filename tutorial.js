@@ -1228,6 +1228,16 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
     const lessonId = window.currentLessonId;
     if (!lessonId || !LESSON_MESSAGES[lessonId]) return;
 
+    // =====================================================================
+    // 🌟 追加：比率ズレを防ぐため、ポップアップの所属をゲーム画面内部(#game-container)へ強制移動
+    const toast = document.getElementById('lesson-toast');
+    const gameContainer = document.getElementById('game-container');
+    if (toast && gameContainer && toast.parentNode !== gameContainer) {
+        console.log("[DEBUG レッスンUI調整] ポップアップの配置基準をブラウザ画面からゲーム卓内部（#game-container）へ同期しました。");
+        gameContainer.appendChild(toast);
+    }
+    // =====================================================================
+
     console.log(`[DEBUG レッスン監視] イベント検知 -> タイプ: ${eventType}, 牌: ${tile}, プレイヤー: ${fromPlayer}`);
 
     const messages = LESSON_MESSAGES[lessonId];
