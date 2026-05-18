@@ -1183,12 +1183,6 @@ html, body {
         cursor: default !important;
     }
 
-    /* 交換UI内のボタンホバーエフェクト */
-    #charleston-ui button:hover, #charleston-confirm-ui button:hover {
-        transform: translateY(-5px) scale(1.05) !important;
-        box-shadow: 0 10px 15px rgba(0,0,0,0.7), 0 0 10px rgba(241, 196, 15, 0.4) !important;
-    }
-
 /* --- 鳴き・アガリ文字演出 --- */
 .call-wrap-0 {
     position: absolute;
