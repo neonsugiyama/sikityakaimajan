@@ -1972,6 +1972,20 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
     });
 }
 
+// 🌟 game.js の適当な場所に追加
+function renderReactionSubMenu(tile, seasons) {
+    resetActionBtnPool(); // ボタン全消去
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
+
+    // 戻るボタン：元の鳴き判定状態に戻る
+    setupActionBtn(`◀ 戻る`, 'btn-gray', () => checkHumanReaction(lastDiscardPlayer, lastT));
+
+    seasons.forEach(s => {
+        // ツモ番と同じく execMeld を呼ぶ（内部で season 分解処理済み）
+        setupActionBtn(`花槓 ${getImg(tile)}${getImg(s)}`, 'btn-flower', () => execMeld(`花槓:${s}`));
+    });
+}
+
 // 🎛️ 暗槓の際、「完全に伏せる」か「両端だけ裏返す」かを選ぶメニューを描画する関数
 function renderAnkanSubMenu(tile) {
     resetActionBtnPool();
@@ -2324,20 +2338,20 @@ async function checkHumanReaction(discarderIdx, tile) {
             btn.style.gap = "5px";
             showAny = true;
         }
-        if (count >= 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
-            const btn = document.getElementById('btn-hanakan');
-            btn.className = 'btn-act btn-flower';
-            btn.innerHTML = `花槓 ${getImg(tile)}`;
-            btn.style.display = "flex";
-            btn.style.alignItems = "center";
-            btn.style.gap = "5px";
-            showAny = true;
+        // 🌟 修正：ここを「ツモ番の仕組み」に合わせる
+        const seasonsInHand = myHand.filter(t => ["春", "夏", "秋", "冬"].includes(t));
+        if (count >= 2 && seasonsInHand.length > 0 && !isSeasonDiscard && wallCount > 0) {
 
-            // 🌟 追加：他家からの花槓ボタンのクラスと色をログに出す
-            //console.log(`[DEBUG] 他家鳴き 花槓ボタン表示: 現在のクラス = '${btn.className}'`);
-            setTimeout(() => {
-                //console.log(`[DEBUG] 👆 花槓ボタンの最終的な背景色 =`, window.getComputedStyle(btn).backgroundColor);
-            }, 50);
+            // 1. ツモ番と同様に「種類」でグループ化
+            let group = { type: "花槓", tile: tile, seasons: seasonsInHand };
+
+            // 2. 1枚なら直接決定、複数ならメニューへ
+            if (group.seasons.length === 1) {
+                setupActionBtn(`花槓 ${getImg(tile)}${getImg(group.seasons[0])}`, 'btn-flower', () => execMeld(`花槓:${group.seasons[0]}`));
+            } else {
+                setupActionBtn(`花槓 ${getImg(tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-flower', () => renderReactionSubMenu(tile, group.seasons));
+            }
+            showAny = true;
         }
     }
 
@@ -2625,7 +2639,23 @@ async function execMeld(type) {
     let targetDiscarder = lastDiscardPlayer;
     let targetTile = lastT;
 
-    const data = await apiCall('/meld', { player_idx: 0, type: type, tile: targetTile, discarder: targetDiscarder });
+    // 🌟 追加：typeから四季牌を分離する
+    let meldType = type;
+    let season = "";
+    if (type.includes(":")) {
+        const parts = type.split(":");
+        meldType = parts[0];
+        season = parts[1];
+    }
+
+    // 🌟 修正：seasonを追加してサーバーへ送信
+    const data = await apiCall('/meld', {
+        player_idx: 0,
+        type: meldType,
+        season: season, // 👈 これを追加
+        tile: targetTile,
+        discarder: targetDiscarder
+    });
 
     if (data.intercepted && data.type === "ron") {
         showCallout(data.player, "胡");
