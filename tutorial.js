@@ -578,7 +578,7 @@ async function startTutorial() {
             }
         },
         { // 17: 点差パネル2
-            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>このように、<span style='color:#f1c40f;'>他プレイヤーとの点差</span>をサッと確認できます！<br>（画面をクリックするか、数秒で自然に消えます）",
+            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>このように、<span style='color:#f1c40f;'>他プレイヤーとの点差</span>をサッと確認できます！<br>（「持ち点」をもう一度クリックするか、数秒で自然に消えます）",
             setup: () => {
                 setupDummyRivers();
                 if (navPanel) navPanel.style.top = "26%";
