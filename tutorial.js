@@ -1001,7 +1001,7 @@ async function startLesson(lessonId) {
     // これにより配置基準が麻雀卓と完全に同期し、画面比率を変えても絶対に位置がズレなくなります。
     const gameContainer = document.getElementById('game-container');
     if (navPanel && gameContainer && navPanel.parentNode !== gameContainer) {
-        console.log("[DEBUG レッスンUI調整] 役紹介パネルの配置基準をゲーム卓内部（#game-container）へ同期しました。");
+        //console.log("[DEBUG レッスンUI調整] 役紹介パネルの配置基準をゲーム卓内部（#game-container）へ同期しました。");
         gameContainer.appendChild(navPanel);
     }
     // =====================================================================
@@ -1300,12 +1300,12 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
     const toast = document.getElementById('lesson-toast');
     const gameContainer = document.getElementById('game-container');
     if (toast && gameContainer && toast.parentNode !== gameContainer) {
-        console.log("[DEBUG レッスンUI調整] ポップアップの配置基準をブラウザ画面からゲーム卓内部（#game-container）へ同期しました。");
+        //console.log("[DEBUG レッスンUI調整] ポップアップの配置基準をブラウザ画面からゲーム卓内部（#game-container）へ同期しました。");
         gameContainer.appendChild(toast);
     }
     // =====================================================================
 
-    console.log(`[DEBUG レッスン監視] イベント検知 -> タイプ: ${eventType}, 牌: ${tile}, プレイヤー: ${fromPlayer}`);
+    //console.log(`[DEBUG レッスン監視] イベント検知 -> タイプ: ${eventType}, 牌: ${tile}, プレイヤー: ${fromPlayer}`);
 
     const messages = LESSON_MESSAGES[lessonId];
 
@@ -1326,7 +1326,7 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
             if (typeof myHand !== 'undefined' && Array.isArray(myHand)) {
                 const currentCount = myHand.filter(t => t === msg.tile).length;
                 if (currentCount < msg.count) {
-                    console.log(`[DEBUG レッスン監視] 条件不一致: ${msg.tile} の枚数が足りません (${currentCount}/${msg.count})`);
+                    //console.log(`[DEBUG レッスン監視] 条件不一致: ${msg.tile} の枚数が足りません (${currentCount}/${msg.count})`);
                     isMatch = false;
                 }
             } else {
@@ -1350,7 +1350,7 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
                 tempHand.splice(tidx, 1); // 重複牌チェックのために抜く
             }
             if (!hasAll) {
-                console.log(`[DEBUG レッスン監視] 条件不一致: 必須手牌 [${msg.requireTiles.join(',')}] が揃っていません。`);
+                //console.log(`[DEBUG レッスン監視] 条件不一致: 必須手牌 [${msg.requireTiles.join(',')}] が揃っていません。`);
                 isMatch = false;
             }
         }
@@ -1361,7 +1361,7 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
         // =====================================================================
         if (isMatch && msg.condition && typeof msg.condition === 'function') {
             if (!msg.condition()) {
-                console.log(`[DEBUG レッスン監視] 条件不一致: カスタム条件(condition)が false を返しました。`);
+                //console.log(`[DEBUG レッスン監視] 条件不一致: カスタム条件(condition)が false を返しました。`);
                 isMatch = false;
             }
         }
@@ -1400,7 +1400,7 @@ window.hideLessonToast = function () {
     const toast = document.getElementById('lesson-toast');
     if (toast && toast.classList.contains('show')) {
         toast.classList.remove('show');
-        console.log("[DEBUG レッスン通知終了] プレイヤーのアクションを検知したため、トーストを格納しました。");
+        //console.log("[DEBUG レッスン通知終了] プレイヤーのアクションを検知したため、トーストを格納しました。");
     }
 };
 // =========================================================
@@ -1412,10 +1412,10 @@ window.addEventListener('resize', () => {
     const navPanel = document.getElementById('ingame-tutorial-nav');
     if (navPanel) {
         const computedStyle = window.getComputedStyle(navPanel);
-        console.log(`[DEBUG リサイズ検証ログ] 
+        /*console.log(`[DEBUG リサイズ検証ログ] 
             元の指定値(top): ${navPanel.style.top} 
             現在の生のtransform属性: "${navPanel.style.transform}" 
             ブラウザが最終計算した実質位置(computed top): ${computedStyle.top}
-            ※CSSの !important 制御により、二重縮小（scale）は完全にガードされています。`);
+            ※CSSの !important 制御により、二重縮小（scale）は完全にガードされています。`);*/
     }
 });

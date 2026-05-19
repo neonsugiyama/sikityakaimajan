@@ -201,7 +201,7 @@ function updateHomeStats() {
 }
 
 function updateStatsModalUI(targetStats) {
-    console.log("[DEBUG] 📊 updateStatsModalUI 開始 (絶対アニメーション発動版)");
+    //console.log("[DEBUG] 📊 updateStatsModalUI 開始 (絶対アニメーション発動版)");
 
     // --- 指標計算 ---
     let totalG = targetStats.totalGamesPlayed || 0;
@@ -341,7 +341,7 @@ function updateStatsModalUI(targetStats) {
             legendDiv.innerHTML = html;
         }
     }
-    console.log("[DEBUG] 🏁 updateStatsModalUI 終了");
+    //console.log("[DEBUG] 🏁 updateStatsModalUI 終了");
 }
 
 function updateNameCounter(val) {
@@ -398,9 +398,9 @@ function switchAchieveTab(evt, tabId) {
     const container = document.getElementById('achievement-list-container');
     if (container) {
         container.scrollTop = 0;
-        console.log(`[DEBUG タブ切り替え] 表示タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
+        //console.log(`[DEBUG タブ切り替え] 表示タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
     } else {
-        console.error("[DEBUG タブ切り替え] 🚨 スクロール対象の 'achievement-list-container' が見つかりません。");
+        //console.error("[DEBUG タブ切り替え] 🚨 スクロール対象の 'achievement-list-container' が見つかりません。");
     }
 }
 

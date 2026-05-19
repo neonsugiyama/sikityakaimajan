@@ -52,14 +52,14 @@ async function takeResultScreenshot() {
     btn.disabled = true;
 
     try {
-        console.log("[DEBUG 撮影] クローンを作成して撮影準備を開始します...");
+        //console.log("[DEBUG 撮影] クローンを作成して撮影準備を開始します...");
         const clone = resultWrapper.cloneNode(true);
         document.body.appendChild(clone);
 
         // 🌟 役リストの実際の高さを取得し、見切れないようにキャンバスの高さを計算
         const winYakuOrig = document.getElementById('win-yaku');
         const neededHeight = winYakuOrig ? Math.max(940, winYakuOrig.scrollHeight + 100) : 940;
-        console.log(`[DEBUG 撮影] 撮影サイズ設定: Width = 1750px, Height = ${neededHeight}px`);
+        //console.log(`[DEBUG 撮影] 撮影サイズ設定: Width = 1750px, Height = ${neededHeight}px`);
 
         // 🌟 幅1750pxを強制し、不要なpaddingなどを削除して絶対配置のズレを防ぐ
         clone.style.cssText = `
@@ -105,7 +105,7 @@ async function takeResultScreenshot() {
 
         await new Promise(r => setTimeout(r, 200));
 
-        console.log("[DEBUG 撮影] html2canvasによる描画を開始します...");
+        //console.log("[DEBUG 撮影] html2canvasによる描画を開始します...");
         const canvas = await html2canvas(clone, {
             backgroundColor: "#0a0a0a",
             scale: 2,
@@ -118,7 +118,7 @@ async function takeResultScreenshot() {
         });
 
         clone.remove();
-        console.log("[DEBUG 撮影] 描画完了。画像を出力します。");
+        //console.log("[DEBUG 撮影] 描画完了。画像を出力します。");
 
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (!blob) throw new Error("画像データの生成に失敗しました");
@@ -135,10 +135,10 @@ async function takeResultScreenshot() {
         link.click();
 
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        console.log("[DEBUG 撮影] 正常に保存が完了しました。");
+        //console.log("[DEBUG 撮影] 正常に保存が完了しました。");
 
     } catch (e) {
-        console.error("[DEBUG 撮影エラー] Screenshot Error:", e);
+        //console.error("[DEBUG 撮影エラー] Screenshot Error:", e);
         alert("スクリーンショットの保存に失敗しました。\n" + e.message);
     } finally {
         btn.innerText = originalText;
@@ -147,7 +147,7 @@ async function takeResultScreenshot() {
 }
 
 async function returnToHomeGracefully() {
-    console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
+    //console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
 
     // 🌟 追加：途中で退出した時は、実績のストック状態を強制リセットして元に戻す
     if (window.originalShowAchievementUnlock) {
@@ -156,9 +156,9 @@ async function returnToHomeGracefully() {
     }
 
     if (typeof fetchAndSaveReplay === 'function') {
-        console.log("[App] 📼 牌譜の保存処理を開始します...");
+        //console.log("[App] 📼 牌譜の保存処理を開始します...");
         await fetchAndSaveReplay();
-        console.log("[App] 📼 牌譜の保存処理が完了しました");
+        //console.log("[App] 📼 牌譜の保存処理が完了しました");
     }
 
     if (typeof isReplayMode !== 'undefined') isReplayMode = false;
@@ -274,7 +274,7 @@ async function returnToHomeGracefully() {
     updateStampVisibility();
 
     if (typeof applyBGMVolume === 'function') applyBGMVolume();
-    console.log("[App] 🏠 タイトル画面への帰還処理完了");
+    //console.log("[App] 🏠 タイトル画面への帰還処理完了");
 }
 
 function quitGame() {
@@ -302,9 +302,9 @@ function switchYakuTab(evt, tabId) {
     const container = document.getElementById('yaku-list-container');
     if (container) {
         container.scrollTop = 0;
-        console.log(`[DEBUG タブ切り替え] 役一覧タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
+        //console.log(`[DEBUG タブ切り替え] 役一覧タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
     } else {
-        console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の 'yaku-list-container' が見つかりません。`);
+        //console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の 'yaku-list-container' が見つかりません。`);
     }
 }
 
@@ -592,7 +592,7 @@ async function showModeSelect() {
                     localStorage.removeItem('shiki_mahjong_game_mode');
                 }
             } catch (e) {
-                console.log("[再開ロジック] ❌ エラー発生:", e);
+                //console.log("[再開ロジック] ❌ エラー発生:", e);
             }
         }
     }
@@ -728,14 +728,14 @@ document.addEventListener('contextmenu', (e) => {
 
     // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
     if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
-        console.log("[DEBUG 操作] 右クリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
+        //console.log("[DEBUG 操作] 右クリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
         btnRyukyoku.click();
         return;
     }
 
     // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
     if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
-        console.log("[DEBUG 操作] 右クリックを検知: #btn-skip をクリックしてスルーします。");
+        //console.log("[DEBUG 操作] 右クリックを検知: #btn-skip をクリックしてスルーします。");
         btnSkip.click();
         return;
     }
@@ -763,7 +763,7 @@ if (gameTable) {
 
         // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
         if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
-            console.log("[DEBUG 操作] ダブルクリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
+            //console.log("[DEBUG 操作] ダブルクリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
             btnRyukyoku.click();
             window.getSelection().removeAllRanges();
             return;
@@ -771,7 +771,7 @@ if (gameTable) {
 
         // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
         if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
-            console.log("[DEBUG 操作] ダブルクリックを検知: #btn-skip をクリックしてスルーします。");
+            //console.log("[DEBUG 操作] ダブルクリックを検知: #btn-skip をクリックしてスルーします。");
             btnSkip.click();
             window.getSelection().removeAllRanges();
             return;
@@ -943,7 +943,7 @@ async function lockScreen() {
             await screen.orientation.lock("landscape");
         }
     } catch (e) {
-        console.log("フルスクリーン/画面ロックがブロックされました:", e);
+        //console.log("フルスクリーン/画面ロックがブロックされました:", e);
     }
 }
 

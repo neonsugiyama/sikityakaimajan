@@ -1638,31 +1638,31 @@ body.lang-en .en {
     flex-grow: 1;
 }
 
-    .modal-scroll-area::-webkit-scrollbar {
+    /* 共通スクロールバー設定（黒背景＋オレンジつまみに統一） */
+    .modal-scroll-area::-webkit-scrollbar,
+    .settings-content::-webkit-scrollbar,
+    .rate-help-box::-webkit-scrollbar,
+    .learning-content::-webkit-scrollbar,
+    .screen-body::-webkit-scrollbar {
         width: 8px;
     }
 
-    .modal-scroll-area::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.2);
+    .modal-scroll-area::-webkit-scrollbar-track,
+    .settings-content::-webkit-scrollbar-track,
+    .rate-help-box::-webkit-scrollbar-track,
+    .learning-content::-webkit-scrollbar-track,
+    .screen-body::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3) !important;
         border-radius: 4px;
     }
 
-    .modal-scroll-area::-webkit-scrollbar-thumb {
-        background: #f39c12;
+    .modal-scroll-area::-webkit-scrollbar-thumb,
+    .settings-content::-webkit-scrollbar-thumb,
+    .rate-help-box::-webkit-scrollbar-thumb,
+    .learning-content::-webkit-scrollbar-thumb,
+    .screen-body::-webkit-scrollbar-thumb {
+        background: #e67e22 !important;
         border-radius: 4px;
-    }
-
-    .modal-scroll-area h3 {
-        color: #3498db;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 5px;
-        margin-top: 25px;
-    }
-
-    .modal-scroll-area p {
-        line-height: 1.6;
-        font-size: 16px;
-        color: #ecf0f1;
     }
 
 /* --- タイトル画面 --- */
@@ -2719,6 +2719,20 @@ body.lang-en .en {
     overflow-y: auto;
 }
 
+.rate-help-desc::-webkit-scrollbar {
+    width: 8px;
+}
+
+.rate-help-desc::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+}
+
+.rate-help-desc::-webkit-scrollbar-thumb {
+    background: #e67e22 !important;
+    border-radius: 4px;
+}
+
 .rate-help-title {
     margin-top: 0;
     color: #f1c40f;
@@ -3283,13 +3297,28 @@ body.lang-en .en {
 
 .settings-content {
     flex-grow: 1;
-    padding: 30px 40px 90px 40px;
+    padding: 30px 40px; /* 🌟 90pxを削除して上下左右30px(左右40px)に統一 */
     overflow-y: auto;
     position: relative;
     background: #2c3e50;
 }
 
+#settings-modal .settings-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#settings-modal .settings-content::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+}
+
+#settings-modal .settings-content::-webkit-scrollbar-thumb {
+    background: #e67e22 !important;
+    border-radius: 4px;
+}
+
 .settings-tab-pane {
+    padding-bottom: 90px; /* 🌟 余白をここに移動 */
     animation: fadeInTab 0.2s ease-out;
 }
 
@@ -3435,6 +3464,20 @@ body.lang-en .en {
     padding: 30px;
     max-height: 750px;
     overflow-y: auto;
+}
+
+#learning-modal .learning-content > div[style*="overflow-y: auto"]::-webkit-scrollbar {
+    width: 8px;
+}
+
+#learning-modal .learning-content > div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+}
+
+#learning-modal .learning-content > div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+    background: #e67e22 !important;
+    border-radius: 4px;
 }
 
 .learning-title {

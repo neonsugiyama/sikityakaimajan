@@ -102,9 +102,9 @@ async function fetchAndSaveReplay() {
             if (savedReplays.length > 30) savedReplays.shift();
 
             localStorage.setItem('shiki_mahjong_replays', JSON.stringify(savedReplays));
-            console.log(`📼 牌譜 (${formattedTime}) をローカルストレージに保存しました！`);
+            //console.log(`📼 牌譜 (${formattedTime}) をローカルストレージに保存しました！`);
         }
     } catch (e) {
-        console.error("牌譜の取得・保存に失敗:", e);
+        //console.error("牌譜の取得・保存に失敗:", e);
     }
 }
