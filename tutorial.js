@@ -71,6 +71,7 @@ window.cleanupTutorialUI = function () {
     if (menuExitBtn) menuExitBtn.style.removeProperty('display');
 
     // 7. グローバル変数のリセット
+    selectedTileIndex = -1; // 🌟 ここに追加
     isIngameTutorial = false;
     currentGameMode = 'cpu'; // 🌟 これを追加：強制的に通常モードに戻す
     window.currentLessonId = null;
@@ -93,6 +94,7 @@ window.cleanupTutorialUI = function () {
 if (!window.tutExitHooked) {
     const originalReturn = window.returnToHomeGracefully;
     window.returnToHomeGracefully = function () {
+        selectedTileIndex = -1;
         window.cleanupTutorialUI(); // 退出時にお掃除を自動実行！
         if (originalReturn) originalReturn();
     };
@@ -105,6 +107,7 @@ async function startTutorial() {
     closeAllModals();
     playSE('start');
 
+    selectedTileIndex = -1; // 🌟 ここに追加
     window.cleanupTutorialUI();
     currentWaits = [];
     currentNanikiru = null;
@@ -398,7 +401,7 @@ async function startTutorial() {
             setup: () => {
                 myHand = [...hand_hanakanPre]; myMelds = [];
                 setOverlay(true);
-                setupActionBtn(`花槓 ${getImg('5s')}${getImg('春')}`, 'btn-blue', async () => {
+                setupActionBtn(`花槓 ${getImg('5s')}${getImg('春')}`, 'btn-flower', async () => {
                     tutLock = true;
                     if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false); clearArrows(); playSE('kan_0');
@@ -716,6 +719,7 @@ async function startLesson(lessonId) {
     closeAllModals();
     playSE('start');
 
+    selectedTileIndex = -1; // 🌟 ここに追加
     window.cleanupTutorialUI();
     currentWaits = [];
     currentNanikiru = null;

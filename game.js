@@ -1035,6 +1035,7 @@ function switchDebugTab(evt, tabId) {
 
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
 async function init() {
+    selectedTileIndex = -1;
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
     logMsg("=== ゲーム起動 ===");
