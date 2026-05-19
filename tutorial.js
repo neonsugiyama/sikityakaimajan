@@ -54,17 +54,34 @@ window.cleanupTutorialUI = function () {
         }
     });
 
-    // =========================================================
-    // 🌟 ここを追加！：牌譜モードなどの残骸で消えている退出ボタンを強制復活させる
+    // 🌟 追加：待ち牌ボタンのイベントを「本編の標準動作」に完全リセット！
+    const waitsBtn = document.getElementById('btn-show-waits');
+    if (waitsBtn) {
+        waitsBtn.onclick = () => {
+            const wp = document.getElementById('waits-panel');
+            if (wp.style.display === 'block') hideWaitsPanel();
+            else showWaitsPanel();
+        };
+    }
+
+    // 6. 退出ボタンの復活
     const topExitBtn = document.getElementById('quick-exit-btn');
     const menuExitBtn = document.getElementById('sidebar-exit');
     if (topExitBtn) topExitBtn.style.removeProperty('display');
     if (menuExitBtn) menuExitBtn.style.removeProperty('display');
-    // =========================================================
 
     // 7. グローバル変数のリセット
     isIngameTutorial = false;
+    currentGameMode = 'cpu'; // 🌟 これを追加：強制的に通常モードに戻す
     window.currentLessonId = null;
+
+    // 8. 🌟 追加：グローバルなゲーム状態を強制リセット（ここで前の対局の残骸を消す！）
+    currentWaits = [];
+    currentNanikiru = null;
+    isAlreadyTenpai = false;
+    myHand = [];
+    myMelds = [];
+    myWinTiles = [];
 
     // 🌟 これを1つ追加（チュートリアルのロック状態も確実に解除）
     if (typeof tutLock !== 'undefined') tutLock = false;
@@ -89,6 +106,8 @@ async function startTutorial() {
     playSE('start');
 
     window.cleanupTutorialUI();
+    currentWaits = [];
+    currentNanikiru = null;
 
     // 🚨 修正1：全モーダル画面のIDを明示的に指定し、チュートリアルパネルよりも確実に手前に来るようZ-indexを固定
     if (!document.getElementById('tut-zindex-fix')) {
@@ -698,6 +717,8 @@ async function startLesson(lessonId) {
     playSE('start');
 
     window.cleanupTutorialUI();
+    currentWaits = [];
+    currentNanikiru = null;
 
     if (!document.getElementById('tut-zindex-fix')) {
         const style = document.createElement('style');
@@ -1210,8 +1231,18 @@ function reviewTutorial() {
 // =====================================================================
 const LESSON_MESSAGES = {
     1: [
-        { trigger: 'discard', tile: '1p', from: 1, shown: false, type: 'warn', text: "碰（ポン）すると全単の特殊形和了が出来ないよ！" },
-        { trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint', text: "5pで和了でもいいけど……<br>四季牌を切ると無花果になって、待ちを減らさずに2点から6点に打点上昇するよ！" }
+        {
+            trigger: 'discard', tile: '1p', from: 1, shown: false, type: 'warn',
+            // 🌟 【requireTiles の例】 手牌に 1p が対子で残っている（想定通りの手牌）時だけ鳴き警告を出す
+            requireTiles: ["1p", "1p"],
+            text: "碰（ポン）すると全単の特殊形和了が出来ないよ！"
+        },
+        {
+            trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint',
+            // 🌟 【condition の例】 まだ副露（ポン・カン）を一度もしていない場合だけ出す
+            condition: () => myMelds.length === 0,
+            text: "5pで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
+        }
     ],
     2: [
         { trigger: 'draw', tile: '6s', shown: false, type: 'warn', text: "点対称な牌の順子を崩さないように！" },
@@ -1219,8 +1250,18 @@ const LESSON_MESSAGES = {
     ],
     4: [
         { trigger: 'start', shown: false, type: 'hint', text: "今回は1色で完成しそう！" },
-        { trigger: 'discard', tile: '9p', shown: false, type: 'warn', text: "関係のない牌を碰（ポン）し過ぎると三節高にならないよ！" },
-        { trigger: 'discard', tile: '4p', shown: false, type: 'hint', text: "これは関係のある牌だから碰（ポン）しよう！" }
+        {
+            trigger: 'discard', tile: '9p', shown: false, type: 'warn',
+            // 🌟 筒子以外の鳴きをしてしまっているなど、すでに手牌が崩壊している場合は出さない
+            condition: () => myHand.filter(t => !t.includes('p')).length <= 3,
+            text: "関係のない牌を碰（ポン）し過ぎると三節高にならないよ！"
+        },
+        {
+            trigger: 'discard', tile: '4p', shown: false, type: 'hint',
+            // 🌟 手牌に 4p が対子で残っている（ポンできる状態の）時だけヒントを出す
+            requireTiles: ["4p", "4p"],
+            text: "これは関係のある牌だから碰（ポン）しよう！"
+        }
     ],
     6: [
         { trigger: 'start', shown: false, type: 'hint', text: "副露できるものは全部してみよう！" }
@@ -1273,17 +1314,50 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
         // 1. 牌の種類指定チェック
         if (msg.tile && msg.tile !== tile) isMatch = false;
 
-        // 2. 誰が捨てたかのチェック（下家から1p、など）
+        // 2. 誰が捨てたかのチェック
         if (msg.from !== undefined && msg.from !== fromPlayer) isMatch = false;
 
-        // 3. 特殊条件：手牌の中にその牌が「n回目（n枚）」入ってきたかどうかのチェック（レッスン1の5p用）
+        // 3. 手牌の枚数チェック
         if (eventType === 'draw' && msg.count) {
-            // 自分の手牌配列（myHand）から該当する牌の枚数を数える
             if (typeof myHand !== 'undefined' && Array.isArray(myHand)) {
                 const currentCount = myHand.filter(t => t === msg.tile).length;
-                console.log(`[DEBUG レッスン監視] 手牌の ${msg.tile} の枚数チェック: 現在 ${currentCount} 枚 (必要: ${msg.count}枚)`);
-                if (currentCount < msg.count) isMatch = false;
+                if (currentCount < msg.count) {
+                    console.log(`[DEBUG レッスン監視] 条件不一致: ${msg.tile} の枚数が足りません (${currentCount}/${msg.count})`);
+                    isMatch = false;
+                }
             } else {
+                isMatch = false;
+            }
+        }
+
+        // =====================================================================
+        // 🌟 追加1: 必須手牌チェック (requireTiles)
+        // プレイヤーが想定外の打牌をして手牌が崩れている場合は誤爆を防ぐ
+        // =====================================================================
+        if (isMatch && msg.requireTiles && typeof myHand !== 'undefined') {
+            let tempHand = [...myHand];
+            let hasAll = true;
+            for (let reqTile of msg.requireTiles) {
+                let tidx = tempHand.indexOf(reqTile);
+                if (tidx === -1) {
+                    hasAll = false;
+                    break;
+                }
+                tempHand.splice(tidx, 1); // 重複牌チェックのために抜く
+            }
+            if (!hasAll) {
+                console.log(`[DEBUG レッスン監視] 条件不一致: 必須手牌 [${msg.requireTiles.join(',')}] が揃っていません。`);
+                isMatch = false;
+            }
+        }
+
+        // =====================================================================
+        // 🌟 追加2: 究極のカスタム条件関数 (condition)
+        // 「テンパイしているか」「ポンしていないか」など、どんな条件でも自由に指定可能
+        // =====================================================================
+        if (isMatch && msg.condition && typeof msg.condition === 'function') {
+            if (!msg.condition()) {
+                console.log(`[DEBUG レッスン監視] 条件不一致: カスタム条件(condition)が false を返しました。`);
                 isMatch = false;
             }
         }

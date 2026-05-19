@@ -714,7 +714,7 @@ let currentNanikiru = null;
 
 // 🀄 現在の待ち牌（または何切る）を計算し、「待ち確認」ボタンの状態を更新する関数
 async function updateWaitsButton() {
-    // 🌟 追加：リプレイ中は待ち牌の計算（サーバー通信）をスキップし、ボタンも隠す
+    // リプレイ中は非表示
     if (typeof isReplayMode !== 'undefined' && isReplayMode) {
         const btn = document.getElementById('btn-show-waits');
         if (btn) btn.style.display = 'none';
@@ -724,22 +724,38 @@ async function updateWaitsButton() {
     const waitsBtn = document.getElementById('btn-show-waits');
     if (!waitsBtn) return;
 
+    // 🌟 修正：明示的に通常モード（CPU戦・オンライン）とそれ以外（Tutorial/Lesson）を分ける
+    if (currentGameMode === 'tutorial') {
+        const isTenpai = (currentWaits && currentWaits.length > 0);
+        waitsBtn.style.display = 'block';
+        waitsBtn.disabled = !isTenpai;
+        waitsBtn.innerText = isTenpai ? "待ち牌確認" : "ノーテン";
+        if (isTenpai) applyEffectiveHint();
+        return;
+    }
+
+    // --- ここから下が通常対局（CPU戦・オンライン）の処理 ---
+    if (!currentSessionRoomId) {
+        waitsBtn.style.display = 'none';
+        return;
+    }
+
     if (!confWaitsHint) {
         waitsBtn.style.display = 'none';
         hideWaitsPanel();
         return;
     } else {
-        waitsBtn.style.display = 'block'; // ONなら表示
+        waitsBtn.style.display = 'block';
     }
 
-    if (charlestonPhase) {
+    // charlestonPhaseチェックは通常戦では不要なはずですが、念のため維持
+    if (typeof charlestonPhase !== 'undefined' && charlestonPhase) {
         waitsBtn.disabled = true;
         waitsBtn.innerText = "ノーテン";
         return;
     }
 
     try {
-        // 🌟 apiCallだと無限ループになるため、fetchに戻しつつ「room_id」を手動で付ける！
         const res = await fetch(`/get_waits?player_idx=0&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`, { cache: 'no-store' });
         const data = await res.json();
 
@@ -902,17 +918,18 @@ function showWaitsPanel() {
 // 👁️ 「待ち牌確認」パネルを隠す関数
 function hideWaitsPanel() {
     const wp = document.getElementById('waits-panel');
-    if (wp) wp.style.display = 'none';
+    if (wp) {
+        wp.style.display = 'none';
+        // 🌟 どんな時でも残骸（ハイライト）を消す
+        wp.classList.remove('tut-highlight');
+        wp.style.removeProperty('z-index');
+    }
 
-    // 🌟 チュートリアル中の場合、避難させていたメッセージパネルを「記憶した元の位置」に戻す
+    // 🌟 チュートリアル中に限り、メッセージパネルの位置を元に戻す処理を行う
     if (typeof isIngameTutorial !== 'undefined' && isIngameTutorial) {
         const navPanel = document.getElementById('ingame-tutorial-nav');
         if (navPanel && navPanel.dataset.returnTop) {
-            navPanel.style.top = navPanel.dataset.returnTop; // 記憶から復元
-        }
-        if (wp) {
-            wp.classList.remove('tut-highlight');
-            wp.style.removeProperty('z-index');
+            navPanel.style.top = navPanel.dataset.returnTop;
         }
     }
 }
@@ -3362,14 +3379,63 @@ async function handleRoundEnd(isReplayingResult = false) {
             }
 
             await sleep(500);
-            alert(clearMsg);
 
             if (currentSessionRoomId) {
                 await fetch(`/exit_room?room_id=${currentSessionRoomId}`);
                 currentSessionRoomId = "";
                 localStorage.removeItem('shiki_mahjong_room_id');
             }
-            returnToHomeGracefully();
+
+            if (isCleared) {
+                // クリア時は今まで通りアラートを出してホームへ戻す
+                alert(clearMsg);
+                returnToHomeGracefully();
+            } else {
+                // 🌟 修正：失敗時は confirm を使って再挑戦するか尋ねる
+                if (confirm(clearMsg + "\n\nもう一度このレッスンに挑戦しますか？")) {
+                    if (typeof playSE === 'function') playSE('click');
+
+                    let retryId = window.currentLessonId;
+
+                    // 1. お掃除関数でUIをリセット
+                    if (typeof window.cleanupTutorialUI === 'function') {
+                        window.cleanupTutorialUI();
+                    }
+
+                    // 2. リザルト画面のオーバーレイを非表示にする
+                    const overlay = document.getElementById('overlay');
+                    if (overlay) overlay.style.display = 'none';
+
+                    // 3. 画面上に残った「ポン」「胡」などの文字や点数エフェクトの残骸を消去
+                    for (let i = 0; i < 4; i++) {
+                        let callText = document.getElementById(`call-text-${i}`);
+                        if (callText) {
+                            callText.className = "call-text";
+                            callText.innerText = "";
+                        }
+                        let roundScore = document.getElementById(`player-round-score-${i}`);
+                        if (roundScore) {
+                            roundScore.className = "player-round-score";
+                        }
+                    }
+                    const msgEl = document.getElementById('msg');
+                    if (msgEl) {
+                        msgEl.innerText = "";
+                        msgEl.className = "";
+                    }
+
+                    // 4. 少しだけ待ってから同じレッスンIDで再スタート！
+                    setTimeout(() => {
+                        if (typeof startLesson === 'function') {
+                            startLesson(retryId);
+                        }
+                    }, 100);
+                } else {
+                    // キャンセルした場合はホームへ戻る
+                    if (typeof playSE === 'function') playSE('click');
+                    returnToHomeGracefully();
+                }
+            }
             return;
         }
 
