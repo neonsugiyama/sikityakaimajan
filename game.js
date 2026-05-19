@@ -1937,10 +1937,10 @@ function renderSelfMeldsMenu() {
 
     Object.values(groups).forEach(g => {
         if (g.type === "暗槓") {
-            setupActionBtn(`槓 ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile));
+            setupActionBtn(`暗槓 ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile));
         } else if (g.type === "加槓" || g.type === "JokerSwap") {
             let btnClass = g.type.includes("槓") ? 'btn-blue' : 'btn-purple';
-            let label = g.type === "JokerSwap" ? "Joker Swap" : "槓";
+            let label = g.type === "JokerSwap" ? "Joker Swap" : "明槓"; // ここを「明槓」に
             setupActionBtn(`${label} ${getImg(g.tile)}`, btnClass, () => {
                 if (g.type === "JokerSwap") execJokerSwap(g.tile, g.original.season, g.original.target_idx);
                 else execSelfMeld(g.type, g.tile, '');
@@ -1979,9 +1979,9 @@ function renderAnkanSubMenu(tile) {
 
     setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
 
-    setupActionBtn(`完全に伏せる ${getImg('ura')}${getImg('ura')}${getImg('ura')}${getImg('ura')}`, 'btn-purple', () => execSelfMeld('暗槓', tile, '', true));
+    setupActionBtn(`伏せる ${getImg('ura')}${getImg('ura')}${getImg('ura')}${getImg('ura')}`, 'btn-purple', () => execSelfMeld('暗槓', tile, '', true));
 
-    setupActionBtn(`通常通り ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
+    setupActionBtn(`見せる ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
 }
 
 // 🏆 現在の手牌でアガれるか（役があるか）をサーバーにデータだけ確認する関数
@@ -2318,13 +2318,13 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (count >= 3 && wallCount > 0) {
             const btn = document.getElementById('btn-kan');
             btn.className = 'btn-act btn-blue';
-            btn.innerHTML = `槓 ${getImg(tile)}`;
+            btn.innerHTML = `明槓 ${getImg(tile)}`;
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
             showAny = true;
         }
-        if (count === 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
+        if (count >= 2 && hasSeason && !isSeasonDiscard && wallCount > 0) {
             const btn = document.getElementById('btn-hanakan');
             btn.className = 'btn-act btn-flower';
             btn.innerHTML = `花槓 ${getImg(tile)}`;
