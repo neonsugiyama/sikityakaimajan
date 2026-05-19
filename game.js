@@ -1975,6 +1975,14 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
 // 🌟 game.js の適当な場所に追加
 function renderReactionSubMenu(tile, seasons) {
     resetActionBtnPool(); // ボタン全消去
+    // 🌟 修正：自分ターンの花槓サブメニューと同じ見た目にするため、
+    // プールボタン以外の固定ボタン（碰・明槓・スキップ）も一旦隠す。
+    // ◀戻るを押すと checkHumanReaction が再実行され、必要なボタンが復元される。
+    ['btn-pon', 'btn-kan', 'btn-skip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
     // 戻るボタン：元の鳴き判定状態に戻る
