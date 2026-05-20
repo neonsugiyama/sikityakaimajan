@@ -1976,9 +1976,9 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
 function renderReactionSubMenu(tile, seasons) {
     resetActionBtnPool(); // ボタン全消去
     // 🌟 修正：自分ターンの花槓サブメニューと同じ見た目にするため、
-    // プールボタン以外の固定ボタン（碰・明槓・スキップ）も一旦隠す。
+    // プールボタン以外の固定ボタン（胡・碰・明槓・スキップ）も一旦隠す。
     // ◀戻るを押すと checkHumanReaction が再実行され、必要なボタンが復元される。
-    ['btn-pon', 'btn-kan', 'btn-skip'].forEach(id => {
+    ['btn-pon', 'btn-kan', 'btn-hanakan', 'btn-skip'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -2346,18 +2346,21 @@ async function checkHumanReaction(discarderIdx, tile) {
             btn.style.gap = "5px";
             showAny = true;
         }
-        // 🌟 修正：ここを「ツモ番の仕組み」に合わせる
+        // 🌟 修正：花槓はプールボタンではなく固定の btn-hanakan を使い、DOM順通り（明槓の後）に表示する
         const seasonsInHand = myHand.filter(t => ["春", "夏", "秋", "冬"].includes(t));
         if (count >= 2 && seasonsInHand.length > 0 && !isSeasonDiscard && wallCount > 0) {
+            const btnHanakan = document.getElementById('btn-hanakan');
+            btnHanakan.className = 'btn-act btn-flower';
+            btnHanakan.style.display = 'flex';
+            btnHanakan.style.alignItems = 'center';
+            btnHanakan.style.gap = '5px';
 
-            // 1. ツモ番と同様に「種類」でグループ化
-            let group = { type: "花槓", tile: tile, seasons: seasonsInHand };
-
-            // 2. 1枚なら直接決定、複数ならメニューへ
-            if (group.seasons.length === 1) {
-                setupActionBtn(`花槓 ${getImg(tile)}${getImg(group.seasons[0])}`, 'btn-flower', () => execMeld(`花槓:${group.seasons[0]}`));
+            if (seasonsInHand.length === 1) {
+                btnHanakan.innerHTML = `花槓 ${getImg(tile)}${getImg(seasonsInHand[0])}`;
+                btnHanakan.onclick = () => execMeld(`花槓:${seasonsInHand[0]}`);
             } else {
-                setupActionBtn(`花槓 ${getImg(tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-flower', () => renderReactionSubMenu(tile, group.seasons));
+                btnHanakan.innerHTML = `花槓 ${getImg(tile)} <span style="font-size:14px;">(選択)</span>`;
+                btnHanakan.onclick = () => renderReactionSubMenu(tile, seasonsInHand);
             }
             showAny = true;
         }
