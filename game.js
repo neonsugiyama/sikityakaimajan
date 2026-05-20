@@ -1976,7 +1976,7 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
 function renderReactionSubMenu(tile, seasons) {
     resetActionBtnPool(); // ボタン全消去
     // 🌟 修正：自分ターンの花槓サブメニューと同じ見た目にするため、
-    // プールボタン以外の固定ボタン（胡・碰・明槓・スキップ）も一旦隠す。
+    // プールボタン以外の固定ボタン（碰・明槓・スキップ）も一旦隠す。
     // ◀戻るを押すと checkHumanReaction が再実行され、必要なボタンが復元される。
     ['btn-pon', 'btn-kan', 'btn-hanakan', 'btn-skip'].forEach(id => {
         const el = document.getElementById(id);
@@ -2277,6 +2277,12 @@ async function cpu() {
 // 👁️ 他家が牌を捨てた時、自分が鳴けるか・ロンできるか判定してボタンを出す関数
 async function checkHumanReaction(discarderIdx, tile) {
     resetActionBtnPool(); // 🌟 修正
+    // 🌟 修正：await中に胡・スルーが一瞬表示されるバグを防ぐ。
+    // 固定ボタンも全て隠してからAPIを叩き、全await完了後にまとめて正しい状態で出す。
+    ['btn-win', 'btn-pon', 'btn-kan', 'btn-hanakan', 'btn-skip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 
     const count = myHand.filter(t => t === tile).length;
     const hasSeason = myHand.some(t => ["春", "夏", "秋", "冬"].includes(t));
