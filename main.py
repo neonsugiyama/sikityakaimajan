@@ -2325,7 +2325,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
 
         #碰してもしなくても和了は可能
         game.wall = [
-            "7s", "8p", "9p",
+            "7p", "7s", "8p", "9p",
             "8s", "東", "南", "西",
             "1s"
         ]
@@ -2373,7 +2373,7 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[3] = ["1p", "2p", "3p", "1s", "9m", "9m", "9m", "發", "中", "東", "南", "西", "北"]
 
         game.wall = [
-            "6s", "1s", "9m", "2p", "2s",
+            "發", "東", "1s", "1s", "9m", "1p", "3s",
             "白", # C1ツモ -> ポン
             "春", # P0ツモ 
             "1m", # C3ツモ -> カン

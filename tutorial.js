@@ -1244,7 +1244,15 @@ const LESSON_MESSAGES = {
         {
             trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint',
             meldCount: { max: 0 }, // 副露ゼロのときだけ発動
+            requireNotTiles: ["北", "發"],
             text: "5pで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
+        },
+        {
+            trigger: 'discard', tile: '3s', from: 1, shown: false, type: 'hint',
+            meldCount: { max: 0 }, // 副露ゼロのときだけ発動
+            requireNotTiles: ["北", "發"],
+            requireTiles: ["冬"],
+            text: "3sで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
         }
     ],
     2: [
@@ -1252,10 +1260,10 @@ const LESSON_MESSAGES = {
         { trigger: 'draw', tile: '白', shown: false, type: 'hint', text: "唯一点対称な字牌の白を大事にしよう！" }
     ],
     4: [
-        { trigger: 'start', shown: false, type: 'hint', text: "今回は1色で完成しそう！" },
+        { trigger: 'start', shown: false, type: 'hint', text: "今回は2,3,4の筒子で完成しそう！" },
         {
             trigger: 'discard', tile: '9p', shown: false, type: 'warn',
-            condition: () => myHand.filter(t => !t.includes('p')).length <= 3, // 筒子以外の無関係牌が3枚以下のときだけ発動
+            requireTiles: ["9p", "9p"],
             text: "関係のない牌を碰（ポン）し過ぎると三節高にならないよ！"
         },
         {
