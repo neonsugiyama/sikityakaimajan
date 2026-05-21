@@ -1243,8 +1243,7 @@ const LESSON_MESSAGES = {
         },
         {
             trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint',
-            // 🌟 【condition の例】 まだ副露（ポン・カン）を一度もしていない場合だけ出す
-            condition: () => myMelds.length === 0,
+            meldCount: { max: 0 }, // 副露ゼロのときだけ発動
             text: "5pで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
         }
     ],
@@ -1256,8 +1255,7 @@ const LESSON_MESSAGES = {
         { trigger: 'start', shown: false, type: 'hint', text: "今回は1色で完成しそう！" },
         {
             trigger: 'discard', tile: '9p', shown: false, type: 'warn',
-            // 🌟 筒子以外の鳴きをしてしまっているなど、すでに手牌が崩壊している場合は出さない
-            condition: () => myHand.filter(t => !t.includes('p')).length <= 3,
+            condition: () => myHand.filter(t => !t.includes('p')).length <= 3, // 筒子以外の無関係牌が3枚以下のときだけ発動
             text: "関係のない牌を碰（ポン）し過ぎると三節高にならないよ！"
         },
         {
@@ -1335,35 +1333,70 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
         }
 
         // =====================================================================
-        // 🌟 追加1: 必須手牌チェック (requireTiles)
-        // プレイヤーが想定外の打牌をして手牌が崩れている場合は誤爆を防ぐ
+        // 🌟 条件1: 必須手牌チェック (requireTiles)
+        // 手牌にこれらの牌が全て含まれている必要がある（重複対応）
+        // 例: requireTiles: ["1p", "1p"] → 1pが2枚以上手牌にあるときだけ発動
         // =====================================================================
         if (isMatch && msg.requireTiles && typeof myHand !== 'undefined') {
             let tempHand = [...myHand];
             let hasAll = true;
             for (let reqTile of msg.requireTiles) {
                 let tidx = tempHand.indexOf(reqTile);
-                if (tidx === -1) {
-                    hasAll = false;
+                if (tidx === -1) { hasAll = false; break; }
+                tempHand.splice(tidx, 1);
+            }
+            if (!hasAll) isMatch = false;
+        }
+
+        // =====================================================================
+        // 🌟 条件2: 禁止手牌チェック (requireNotTiles)
+        // 手牌にこれらの牌が1枚でも含まれていたら発動しない（requireTilesの逆）
+        // 例: requireNotTiles: ["3p"] → 3pをまだ切っていない（手牌に残っている）場合は出さない
+        // =====================================================================
+        if (isMatch && msg.requireNotTiles && typeof myHand !== 'undefined') {
+            for (let forbidTile of msg.requireNotTiles) {
+                if (myHand.indexOf(forbidTile) !== -1) {
+                    isMatch = false;
                     break;
                 }
-                tempHand.splice(tidx, 1); // 重複牌チェックのために抜く
-            }
-            if (!hasAll) {
-                //console.log(`[DEBUG レッスン監視] 条件不一致: 必須手牌 [${msg.requireTiles.join(',')}] が揃っていません。`);
-                isMatch = false;
             }
         }
 
         // =====================================================================
-        // 🌟 追加2: 究極のカスタム条件関数 (condition)
-        // 「テンパイしているか」「ポンしていないか」など、どんな条件でも自由に指定可能
+        // 🌟 条件3: 副露数チェック (meldCount)
+        // { min, max } で副露数の範囲を指定。片方だけでも可。
+        // 例: meldCount: { max: 0 } → 一度も鳴いていないときだけ発動
+        // 例: meldCount: { min: 1 }  → 1回以上鳴いているときだけ発動
+        // =====================================================================
+        if (isMatch && msg.meldCount && typeof myMelds !== 'undefined') {
+            const n = myMelds.length;
+            if (msg.meldCount.min !== undefined && n < msg.meldCount.min) isMatch = false;
+            if (msg.meldCount.max !== undefined && n > msg.meldCount.max) isMatch = false;
+        }
+
+        // =====================================================================
+        // 🌟 条件4: 副露内容チェック (requireMelds)
+        // 副露の中に指定した牌群が含まれている必要がある（配列の配列で複数指定可）
+        // 例: requireMelds: [["1p","1p","1p"]] → 1pをポンしているときだけ発動
+        // =====================================================================
+        if (isMatch && msg.requireMelds && typeof myMelds !== 'undefined') {
+            for (let reqMeld of msg.requireMelds) {
+                const reqSorted = [...reqMeld].sort().join(',');
+                const found = myMelds.some(meld => {
+                    const meldTiles = Array.isArray(meld) ? meld : (meld.tiles || []);
+                    return [...meldTiles].sort().join(',') === reqSorted;
+                });
+                if (!found) { isMatch = false; break; }
+            }
+        }
+
+        // =====================================================================
+        // 🌟 条件5: カスタム条件関数 (condition)
+        // 上記フィールドで表現できない複雑な条件を自由に書ける最終手段
+        // 例: condition: () => myMelds.length === 0
         // =====================================================================
         if (isMatch && msg.condition && typeof msg.condition === 'function') {
-            if (!msg.condition()) {
-                //console.log(`[DEBUG レッスン監視] 条件不一致: カスタム条件(condition)が false を返しました。`);
-                isMatch = false;
-            }
+            if (!msg.condition()) isMatch = false;
         }
 
         // 🎯 すべての条件が完全に一致した場合、トーストを画面内に降臨させる
