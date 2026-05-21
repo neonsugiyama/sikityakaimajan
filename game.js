@@ -1180,11 +1180,20 @@ async function execExchange() {
         showCharlestonStatus(0, true);
         render();
 
-        hideCpuTiles = [0, 3, 3, 3];
-        for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
-        renderCPU();
-
-        const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+        let data;
+        if (currentGameMode === 'friend') {
+            // 友人戦：WSで自分の選択を送信し、サーバーが4人全員揃ったら charleston_complete を返してくる
+            const waitPromise = new Promise(resolve => { pendingFriendCharlestonResolver = resolve; });
+            friendWsSend('charleston', { tiles: [t1, t2, t3] });
+            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
+            data = await waitPromise;
+            document.getElementById('msg').innerText = "";
+        } else {
+            hideCpuTiles = [0, 3, 3, 3];
+            for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+            renderCPU();
+            data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+        }
 
         if (isWelcomeHomeTest) {
             myHand = oldHandStr.split(',');
@@ -1217,6 +1226,7 @@ async function execExchange() {
         isProc = true;
         document.getElementById('charleston-ui').style.display = "none";
         let willDo = exchangeSelection.length === 3;
+        let chosenTiles = [];
 
         if (willDo) {
             let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
@@ -1226,6 +1236,7 @@ async function execExchange() {
                 displayHand[exchangeSelection[1]],
                 displayHand[exchangeSelection[2]]
             ];
+            chosenTiles = [...humanSecondCharlestonTiles];
             exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
             myHand = displayHand;
         } else {
@@ -1234,7 +1245,20 @@ async function execExchange() {
 
         exchangeSelection = [];
         render(); // 3枚出した後の手牌を描画
-        processAskSecondCharleston(0, willDo); // 即座に自分の前に牌（またはスタンプ）を出す
+
+        if (currentGameMode === 'friend') {
+            // 友人戦：自分の判断をWSで送信。processAskSecondCharleston は broadcast 受信時に呼ばれる
+            friendWsSend('second_charleston_turn', { participate: willDo, tiles: chosenTiles });
+            // 即座にローカル表示も更新（broadcast を待たずUI反応を出す）
+            secondCharlestonParticipating[0] = willDo;
+            showCharlestonStatus(0, willDo);
+            playSE('dahai');
+            // askedCount はサーバーからの broadcast で進める。ここでは進めない。
+            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
+            isProc = true;
+        } else {
+            processAskSecondCharleston(0, willDo); // 即座に自分の前に牌（またはスタンプ）を出す
+        }
     }
 }
 
@@ -1247,6 +1271,11 @@ async function askNextSecondCharleston() {
         charlestonPhase = true; // 🌟 選択できるようにフェーズを戻す
         charlestonCount = 2;    // 🌟 第2交換モードに設定
         humanSecondCharlestonTiles = [];
+
+        // 🌟 友人戦：4人並列で意思決定するため、専用フローへ
+        if (currentGameMode === 'friend') {
+            return startFriendSecondCharleston();
+        }
     }
 
     if (askedCount === 4) {
@@ -1305,37 +1334,117 @@ async function askNextSecondCharleston() {
     }
 }
 
+// 🌟 友人戦：どのプレイヤーの第2交換回答が既に記録済みかを追跡（重複加算防止）
+let friendSecondCharlestonRecorded = [false, false, false, false];
+
 // 🧠 参加/不参加の回答を記録し、即座に演出を出して次の人に回す関数
 function processAskSecondCharleston(askerIdx, willDo) {
+    // 🌟 友人戦：重複呼び出し（自分の楽観更新後にbroadcastが来た等）をガード
+    if (currentGameMode === 'friend') {
+        if (askerIdx < 0 || askerIdx > 3) return;
+        if (friendSecondCharlestonRecorded[askerIdx]) return;
+        friendSecondCharlestonRecorded[askerIdx] = true;
+    }
+
     secondCharlestonParticipating[askerIdx] = willDo;
     playSE('dahai'); // 決定した瞬間に音を鳴らす
 
     showCharlestonStatus(askerIdx, willDo);
 
     if (askerIdx !== 0 && willDo) {
-        hideCpuTiles[askerIdx] = 3;
+        // 友人戦ではサーバーが既に手牌を減らしているため hideCpuTiles 加算は不要
+        if (currentGameMode !== 'friend') {
+            hideCpuTiles[askerIdx] = 3;
+        }
         renderCPU();
     }
 
     askedCount++;
 
+    // 🌟 友人戦：4人並列で進めるため、早期終了や再帰呼び出しは行わない
+    if (currentGameMode === 'friend') {
+        return;
+    }
+
     // 🌟 追加：早期終了の判定（不成立の確定）
-    // 「既に参加決定した人数」＋「これから回答する残り人数」が1人以下なら、
-    // ペア（2人以上）が作れる可能性がゼロになったため、その場で不成立として終了する
     let currentYesCount = secondCharlestonParticipating.filter(p => p).length;
     let remainingAskers = 4 - askedCount;
 
     if (currentYesCount + remainingAskers <= 1) {
         logMsg("参加者不足が確定したため、早期終了します。");
-        // 0.8秒ほど待ってから終了（最後のCPUの「過」スタンプが見えるようにするため）
         setTimeout(() => {
             finishAskSecondCharleston();
         }, 800 / speedMult);
-        return; // 次の人へは回さずに終了
+        return;
     }
 
-    isProc = true; // 次の人の処理までブロック
+    isProc = true;
     askNextSecondCharleston();
+}
+
+// 🌟 友人戦：第2チャールストンの並列フロー
+async function startFriendSecondCharleston() {
+    friendSecondCharlestonRecorded = [false, false, false, false];
+    secondCharlestonParticipating = [false, false, false, false];
+    askedCount = 0;
+
+    // 自分の判断UIを表示
+    document.getElementById('msg').innerText = "交換";
+    const cUi = document.getElementById('charleston-ui');
+    const cTitle = document.getElementById('c-title');
+    cTitle.innerText = "第2交換 (Second Charleston)";
+    cTitle.style.color = "#f1c40f";
+    cUi.style.zIndex = "9999";
+    cUi.style.display = "block";
+
+    exchangeSelection = [];
+    const btn = document.getElementById('btn-exchange');
+    btn.style.display = "block";
+    btn.innerHTML = "⏭️ スルー (過)";
+    btn.className = "btn-act btn-gray";
+
+    render();
+    isProc = false;
+
+    // サーバーの complete/skip broadcast を待つ Promise を準備
+    const resultPromise = new Promise(resolve => {
+        pendingFriendSecondCharlestonResolver = resolve;
+    });
+
+    startTimer(timeExchange, () => {
+        exchangeSelection = [];
+        execExchange();
+    });
+
+    // 結果が届くまで待機（UI操作はイベントループで継続）
+    const result = await resultPromise;
+
+    document.getElementById('charleston-ui').style.display = "none";
+    document.getElementById('msg').innerText = "";
+
+    if (result.skipped) {
+        // 参加者不足だった場合、隠した手牌を戻す（サーバー側もrestore済みだが、broadcast の state で同期される）
+        showCenterMessage(`参加者不足<br><span style="color:#e74c3c;font-size:24px;">第2交換はスキップされます</span>`);
+        await sleep(2000);
+        hideCenterMessage();
+    } else {
+        await showDiceAnimation(result.dice, result.direction);
+        await playExchangeAnimation(result.direction, secondCharlestonParticipating);
+    }
+
+    hideCpuTiles = [0, 0, 0, 0];
+    sessionStorage.setItem(`charleston_done_${currentSessionRoomId}`, "true");
+    clearCharlestonStatus();
+    humanSecondCharlestonTiles = [];
+
+    render(); renderCPU();
+
+    charlestonPhase = false;
+    isProc = false;
+
+    // 友人戦の対局本体は未実装のため、ここで一旦停止
+    document.getElementById('msg').innerText = "Charleston完了！（本対局は未実装）";
+    logMsg("[友人戦] Charleston完了。対局本体は未実装のため待機します。");
 }
 
 // 🏁 全員の回答が出揃った後、第2チャールストンを実行するかスキップするか判定する関数

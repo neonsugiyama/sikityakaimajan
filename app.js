@@ -654,6 +654,74 @@ function cancelCpuGame() {
 let currentRoomId = "";
 let lobbyWs = null;
 
+// 🌟 友人戦：サーバーからの応答を await できるようにする Promise リゾルバ
+let pendingFriendCharlestonResolver = null;
+let pendingFriendSecondCharlestonResolver = null;
+
+// 🌟 友人戦：WebSocket 経由でアクションを送信するヘルパー
+function friendWsSend(action, params = {}) {
+    if (!lobbyWs || lobbyWs.readyState !== WebSocket.OPEN) {
+        console.error("[WS] 接続が切断されているため送信できません: ", action);
+        return false;
+    }
+    const payload = Object.assign({
+        type: "action",
+        action: action,
+        player_idx: myPlayerIdx
+    }, params);
+    lobbyWs.send(JSON.stringify(payload));
+    //console.log("[WS送信]", payload);
+    return true;
+}
+
+// 🌟 友人戦：サーバーからの update を受信したときの統合ハンドラ
+function handleFriendUpdate(data) {
+    const ev = data.event;
+    const state = data.state;
+
+    // 状態を反映（手牌、ターン、点数など）
+    if (state && typeof safeUpdate === 'function') {
+        safeUpdate(state);
+    }
+
+    if (!ev) return;
+    const action = ev.action;
+    //console.log("[WS受信] event:", action, ev);
+
+    if (action === "charleston_player_ready") {
+        // 自分以外のプレイヤーが選択を確定 → 中央に裏3枚（手牌はサーバー側で既に減っている）
+        const p = ev.player_idx;
+        if (p !== 0) {
+            if (typeof showCharlestonStatus === 'function') showCharlestonStatus(p, true);
+            if (typeof renderCPU === 'function') renderCPU();
+        }
+    } else if (action === "charleston_complete") {
+        // 全員の選択完了。execExchange 側が await している Promise を解放
+        if (pendingFriendCharlestonResolver) {
+            const r = pendingFriendCharlestonResolver;
+            pendingFriendCharlestonResolver = null;
+            r({ dice: ev.dice, direction: ev.direction });
+        }
+    } else if (action === "second_charleston_player_done") {
+        // 第2交換：誰かが回答 → processAskSecondCharleston に集約
+        if (typeof processAskSecondCharleston === 'function') {
+            processAskSecondCharleston(ev.player_idx, !!ev.participate);
+        }
+    } else if (action === "second_charleston_complete" || action === "second_charleston_skip") {
+        if (pendingFriendSecondCharlestonResolver) {
+            const r = pendingFriendSecondCharlestonResolver;
+            pendingFriendSecondCharlestonResolver = null;
+            r({
+                action: action,
+                dice: ev.dice,
+                direction: ev.direction || ev.message,
+                active_players: ev.active_players || [],
+                skipped: action === "second_charleston_skip"
+            });
+        }
+    }
+}
+
 function createRoom() {
     if (typeof playSE === 'function') playSE('click');
     const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -674,6 +742,10 @@ function joinRoom() {
 
 function enterWaitingRoom(roomId) {
     currentRoomId = roomId;
+    // 🌟 友人戦中も sessionStorage キーに使うので、セッションIDを部屋IDで上書き
+    if (typeof currentSessionRoomId !== 'undefined') {
+        currentSessionRoomId = "friend_" + roomId;
+    }
     const selectEl = document.getElementById('friend-menu-select');
     if (selectEl) selectEl.style.display = 'none';
     const waitingEl = document.getElementById('friend-menu-waiting');
@@ -683,7 +755,9 @@ function enterWaitingRoom(roomId) {
     const countEl = document.getElementById('room-player-count');
     if (countEl) countEl.innerText = "1";
 
-    const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
+    // wss / ws をページプロトコルから自動判定
+    const wsProto = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProto}//${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
     lobbyWs.onmessage = (event) => {
@@ -691,23 +765,43 @@ function enterWaitingRoom(roomId) {
         if (data.type === "lobby_update") {
             const countEl = document.getElementById('room-player-count');
             if (countEl) countEl.innerText = data.player_count;
-
-            if (data.player_count === 4) {
-                setTimeout(() => {
-                }, 500);
-            }
         }
         if (data.type === "game_start") {
             myPlayerIdx = data.player_idx;
             friendInitialState = data.state;
             currentGameMode = 'friend';
             closeFriendMatch(); // ui.js に既存の関数（WSは閉じない）
+
+            // タイトル/モード選択画面を隠して卓を表示
+            const ts = document.getElementById('title-screen');
+            const ms = document.getElementById('mode-select-screen');
+            if (ts) ts.style.display = 'none';
+            if (ms) ms.style.display = 'none';
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) gameContainer.style.opacity = '1';
+            const tableEl = document.querySelector('.table');
+            if (tableEl) tableEl.style.opacity = '1';
+
             if (typeof init === 'function') init();
+            if (typeof resizeGame === 'function') resizeGame();
+        }
+        if (data.type === "update") {
+            handleFriendUpdate(data);
         }
     };
 
     lobbyWs.onclose = () => {
         console.log("ロビーから切断されました");
+        // 友人戦中に切断されたら警告
+        if (currentGameMode === 'friend') {
+            alert("サーバーとの接続が切れました。タイトル画面に戻ります。");
+            if (typeof returnToHomeGracefully === 'function') returnToHomeGracefully();
+            currentGameMode = 'cpu';
+        }
+    };
+
+    lobbyWs.onerror = (err) => {
+        console.error("[WS] エラー:", err);
     };
 }
 

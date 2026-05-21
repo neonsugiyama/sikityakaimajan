@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(node --check app.js)",
+      "Bash(node --check game.js)",
+      "Bash(node --check ui.js)"
+    ]
+  }
+}
