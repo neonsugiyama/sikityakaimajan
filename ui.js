@@ -146,7 +146,8 @@ function openFriendMatch() {
 }
 function closeFriendMatch() {
     closeModal('friend-match-modal');
-    if (typeof lobbyWs !== 'undefined' && lobbyWs) {
+    // ↓ friend モードへ遷移するときはWSを維持する。それ以外（キャンセル）のみ閉じる
+    if (currentGameMode !== 'friend' && typeof lobbyWs !== 'undefined' && lobbyWs) {
         lobbyWs.close();
         lobbyWs = null;
     }

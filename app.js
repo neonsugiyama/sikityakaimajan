@@ -6,6 +6,8 @@
 let resultWaitResolver = null;
 let resultTimerInterval = null;
 let currentGameMode = 'cpu'; // 'cpu' または 'online'
+let myPlayerIdx = 0;
+let friendInitialState = null;
 
 function waitWithTimerAndSkip(seconds) {
     const controls = document.getElementById('result-controls');
@@ -692,9 +694,15 @@ function enterWaitingRoom(roomId) {
 
             if (data.player_count === 4) {
                 setTimeout(() => {
-                    alert("4人揃いました！ゲームを開始します！\n（※対局への遷移処理はこれから作ります）");
                 }, 500);
             }
+        }
+        if (data.type === "game_start") {
+            myPlayerIdx = data.player_idx;
+            friendInitialState = data.state;
+            currentGameMode = 'friend';
+            closeFriendMatch(); // ui.js に既存の関数（WSは閉じない）
+            if (typeof init === 'function') init();
         }
     };
 

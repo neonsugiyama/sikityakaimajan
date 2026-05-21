@@ -1039,7 +1039,12 @@ async function init() {
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
     logMsg("=== ゲーム起動 ===");
-    await apiCall('/start', { cpu_level: confCpuLevel });
+
+    if (currentGameMode === 'friend') {
+        safeUpdate(friendInitialState); // WS受信済みのstateを直接反映
+    } else {
+        await apiCall('/start', { cpu_level: confCpuLevel });
+    }
     sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
 
     // 🌟 追加：以前のゲームのリザルト状態が残っているとスキップされる原因になるため、確実に消去する
