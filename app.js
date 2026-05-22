@@ -194,7 +194,16 @@ async function returnToHomeGracefully() {
         sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
         sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
 
-        fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
+        // 🌟 友人戦は HTTP の active_rooms に部屋を持たないので exit_room を呼ばない
+        const wasFriend = (currentGameMode === 'friend');
+        if (!wasFriend) {
+            fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
+        }
+        // 友人戦は WS を閉じてクリーンアップ
+        if (wasFriend && typeof lobbyWs !== 'undefined' && lobbyWs) {
+            try { lobbyWs.close(); } catch (e) { }
+            lobbyWs = null;
+        }
         currentSessionRoomId = "";
         localStorage.removeItem('shiki_mahjong_room_id');
         localStorage.removeItem('shiki_mahjong_game_mode');

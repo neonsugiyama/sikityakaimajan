@@ -570,9 +570,12 @@ function updateInfoUI() {
         let titleColor = playerRatings[i] >= 2000 ? "#e74c3c" : (playerRatings[i] >= 1800 ? "#f1c40f" : "#3498db");
         let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
 
+        // 🌟 友人戦時は「Player N」表記（オンラインの他プレイヤー）
+        const isFriend = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend');
+        let opponentLabel = isFriend ? `Player ${i}` : `CPU ${i}`;
         let name = i === 0 ?
             `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${escapeHTML(playerStats.playerName)}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>CPU ${i}`;
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${opponentLabel}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
         let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
@@ -731,6 +734,13 @@ async function updateWaitsButton() {
         waitsBtn.disabled = !isTenpai;
         waitsBtn.innerText = isTenpai ? "待ち牌確認" : "ノーテン";
         if (isTenpai) applyEffectiveHint();
+        return;
+    }
+
+    // 🌟 友人戦：HTTP の /get_waits は friend 用の卓を持たないため 400 になる。スキップして非表示にする
+    if (currentGameMode === 'friend') {
+        waitsBtn.style.display = 'none';
+        hideWaitsPanel();
         return;
     }
 
@@ -1039,9 +1049,18 @@ async function init() {
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
     logMsg("=== ゲーム起動 ===");
+    console.log("[init] currentGameMode =", currentGameMode, "myPlayerIdx =", typeof myPlayerIdx !== 'undefined' ? myPlayerIdx : 'undef');
 
     if (currentGameMode === 'friend') {
-        safeUpdate(friendInitialState); // WS受信済みのstateを直接反映
+        console.log("[init friend] friendInitialState keys =", Object.keys(friendInitialState || {}));
+        console.log("[init friend] all_hands lengths =", (friendInitialState?.all_hands || []).map(h => h?.length));
+        try {
+            safeUpdate(friendInitialState); // WS受信済みのstateを直接反映
+            logMsg("[friend] safeUpdate成功 myAllHands=" + JSON.stringify(myAllHands.map(h => h.length)));
+        } catch (e) {
+            console.error("[init friend] safeUpdate failed:", e);
+            logMsg("[friend ERROR] safeUpdate失敗: " + e.message, true);
+        }
     } else {
         await apiCall('/start', { cpu_level: confCpuLevel });
     }
@@ -1073,8 +1092,10 @@ async function init() {
     if (menuExitBtn) menuExitBtn.style.removeProperty('display');
 
     charlestonCount = 1;
+    console.log("[init] starting charleston selection. myHand.length=" + myHand.length + ", myAllHands.lens=" + JSON.stringify((myAllHands || []).map(h => h?.length)));
     startCharlestonSelection();
     render(); renderCPU();
+    console.log("[init] DONE. handsDisplayed=" + JSON.stringify([0,1,2,3].map(i => document.getElementById('hand-'+i)?.children.length)));
 }
 
 // 🧱 画面左上の「山: 〇枚」の表示を更新する関数
@@ -1121,7 +1142,9 @@ function startCharlestonSelection() {
 
 // 👆 チャールストンで交換に出す牌の選択/解除を切り替える関数
 function toggleExchange(idx) {
-    if (charlestonCount === 2 && isProc) return; // 🌟 順番待ち中はクリックを無効化
+    // 🌟 友人戦 第2交換：他人の番でも事前に3枚選んでおけるようにする（isProc ブロックを除外）
+    const isFriendWaiting = (currentGameMode === 'friend' && charlestonCount === 2 && !friendSelfAsker);
+    if (charlestonCount === 2 && isProc && !isFriendWaiting) return; // 🌟 順番待ち中はクリックを無効化
 
     const pos = exchangeSelection.indexOf(idx);
     if (pos > -1) exchangeSelection.splice(pos, 1);
@@ -1139,6 +1162,11 @@ function toggleExchange(idx) {
             btn.style.display = "none";
         }
     } else {
+        // 🌟 第2交換：友人戦で自分の番でなければボタンは隠したまま（事前選択のみ許可）
+        if (isFriendWaiting) {
+            btn.style.display = "none";
+            return;
+        }
         // 🌟 第2交換：常にボタンを表示し、3枚選んだら決定ボタンに化ける
         btn.style.display = "block";
         if (exchangeSelection.length === 3) {
@@ -1336,6 +1364,8 @@ async function askNextSecondCharleston() {
 
 // 🌟 友人戦：どのプレイヤーの第2交換回答が既に記録済みかを追跡（重複加算防止）
 let friendSecondCharlestonRecorded = [false, false, false, false];
+// 🌟 友人戦：今が自分の番か（決定/スルー操作可能か）
+let friendSelfAsker = false;
 
 // 🧠 参加/不参加の回答を記録し、即座に演出を出して次の人に回す関数
 function processAskSecondCharleston(askerIdx, willDo) {
@@ -1361,8 +1391,20 @@ function processAskSecondCharleston(askerIdx, willDo) {
 
     askedCount++;
 
-    // 🌟 友人戦：4人並列で進めるため、早期終了や再帰呼び出しは行わない
+    // 🌟 友人戦：順番制 - askedCount < 4 なら次の番に進む。4 なら complete/skip 待ち
     if (currentGameMode === 'friend') {
+        if (askedCount < 4) {
+            advanceFriendSecondCharlestonTurn();
+        } else {
+            // 全員回答済み。サーバーの complete/skip broadcast を待つ
+            const cUi = document.getElementById('charleston-ui');
+            if (cUi) cUi.style.display = "none";
+            const btn = document.getElementById('btn-exchange');
+            if (btn) btn.style.display = "none";
+            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
+            isProc = true;
+            stopTimer();
+        }
         return;
     }
 
@@ -1382,38 +1424,77 @@ function processAskSecondCharleston(askerIdx, willDo) {
     askNextSecondCharleston();
 }
 
-// 🌟 友人戦：第2チャールストンの並列フロー
+// 🌟 友人戦：第2交換の現在の番を反映する関数（自分の番なら panel 表示、他人の番なら hide）
+function advanceFriendSecondCharlestonTurn() {
+    if (askedCount >= 4) return;
+
+    const currentAsker = (dealer + askedCount) % 4;
+    friendSelfAsker = (currentAsker === 0);
+
+    const cUi = document.getElementById('charleston-ui');
+    const cTitle = document.getElementById('c-title');
+    const btn = document.getElementById('btn-exchange');
+    const msgEl = document.getElementById('msg');
+
+    if (friendSelfAsker) {
+        // 🌟 自分の番：パネルとボタンを表示
+        if (cTitle) {
+            cTitle.innerText = "第2交換 (Second Charleston)";
+            cTitle.style.color = "#f1c40f";
+        }
+        if (cUi) {
+            cUi.style.zIndex = "9999";
+            cUi.style.display = "block";
+        }
+        if (btn) {
+            btn.style.display = "block";
+            if (exchangeSelection.length === 3) {
+                btn.innerHTML = "📤 決定 (3枚交換)";
+                btn.className = "btn-act btn-blue";
+            } else {
+                btn.innerHTML = "⏭️ スルー (過)";
+                btn.className = "btn-act btn-gray";
+            }
+        }
+        if (msgEl) {
+            msgEl.innerText = "あなたの番です";
+            msgEl.className = "blink-text";
+        }
+        isProc = false; // 操作許可
+        startTimer(timeExchange, () => {
+            exchangeSelection = [];
+            execExchange();
+        });
+    } else {
+        // 🌟 他のプレイヤーの番：パネルとボタンを隠す（事前の3枚選択はクリックで可能）
+        if (cUi) cUi.style.display = "none";
+        if (btn) btn.style.display = "none";
+        if (msgEl) {
+            msgEl.innerText = `Player ${currentAsker} 選択中...`;
+            msgEl.className = "";
+        }
+        isProc = true; // ボタン経由の決定は不可（pre-select は toggleExchange で許可）
+        stopTimer();
+    }
+}
+
+// 🌟 友人戦：第2チャールストンの順番制フロー
 async function startFriendSecondCharleston() {
     friendSecondCharlestonRecorded = [false, false, false, false];
     secondCharlestonParticipating = [false, false, false, false];
     askedCount = 0;
-
-    // 自分の判断UIを表示
-    document.getElementById('msg').innerText = "交換";
-    const cUi = document.getElementById('charleston-ui');
-    const cTitle = document.getElementById('c-title');
-    cTitle.innerText = "第2交換 (Second Charleston)";
-    cTitle.style.color = "#f1c40f";
-    cUi.style.zIndex = "9999";
-    cUi.style.display = "block";
-
+    friendSelfAsker = false;
     exchangeSelection = [];
-    const btn = document.getElementById('btn-exchange');
-    btn.style.display = "block";
-    btn.innerHTML = "⏭️ スルー (過)";
-    btn.className = "btn-act btn-gray";
+    humanSecondCharlestonTiles = [];
 
-    render();
-    isProc = false;
+    render(); // クリック可能な状態に再描画
+
+    // 順番制で 親 から開始
+    advanceFriendSecondCharlestonTurn();
 
     // サーバーの complete/skip broadcast を待つ Promise を準備
     const resultPromise = new Promise(resolve => {
         pendingFriendSecondCharlestonResolver = resolve;
-    });
-
-    startTimer(timeExchange, () => {
-        exchangeSelection = [];
-        execExchange();
     });
 
     // 結果が届くまで待機（UI操作はイベントループで継続）

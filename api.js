@@ -72,6 +72,8 @@ async function apiCall(endpoint, params = {}) {
 // 🌟 牌譜データをサーバーから取得してローカルストレージに保存する
 async function fetchAndSaveReplay() {
     if (!currentSessionRoomId) return;
+    // 🌟 友人戦は対局本体が HTTP 側 active_rooms に存在しないため牌譜取得をスキップ
+    if (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend') return;
     try {
         const res = await fetch(`/get_replay_data?room_id=${currentSessionRoomId}`);
         const data = await res.json();

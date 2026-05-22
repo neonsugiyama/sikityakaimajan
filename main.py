@@ -167,48 +167,55 @@ def get_safe_state(game: GameState, player_idx=0, extra_data=None):
 # 🌐 画面表示用のAPI（フロントエンド配信）
 # ==========================================
 
+# 🌟 開発中はキャッシュを無効化（ブラウザに古いJSを掴ませない）
+NOCACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
 # 🏠 トップページ（HTML）をブラウザに返す
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    return FileResponse("index.html", headers=NOCACHE_HEADERS)
 
 # 🎨 デザイン（CSS）をブラウザに返す
 @app.get("/style.css")
 def read_css():
-    return FileResponse("style.css")
+    return FileResponse("style.css", headers=NOCACHE_HEADERS)
 
 # 🧠 フロントエンドの動き（JS）をブラウザに返す
 @app.get("/game.js")
 def read_js():
-    return FileResponse("game.js")
+    return FileResponse("game.js", headers=NOCACHE_HEADERS)
 
 @app.get("/audio.js")
 async def get_audio_js():
-    return FileResponse("audio.js")
+    return FileResponse("audio.js", headers=NOCACHE_HEADERS)
 
 @app.get("/api.js")
 async def get_api_js():
-    return FileResponse("api.js")
+    return FileResponse("api.js", headers=NOCACHE_HEADERS)
 
 @app.get("/stats.js")
 async def get_stats_js():
-    return FileResponse("stats.js")
+    return FileResponse("stats.js", headers=NOCACHE_HEADERS)
 
 @app.get("/tutorial.js")
 async def get_tutorial_js():
-    return FileResponse("tutorial.js")
+    return FileResponse("tutorial.js", headers=NOCACHE_HEADERS)
 
 @app.get("/ui.js")
 async def get_ui_js():
-    return FileResponse("ui.js")
+    return FileResponse("ui.js", headers=NOCACHE_HEADERS)
 
 @app.get("/config.js")
 async def get_config_js():
-    return FileResponse("config.js")
+    return FileResponse("config.js", headers=NOCACHE_HEADERS)
 
 @app.get("/app.js")
 async def get_app_js():
-    return FileResponse("app.js")
+    return FileResponse("app.js", headers=NOCACHE_HEADERS)
 
 from fastapi.responses import FileResponse
 
