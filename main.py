@@ -303,10 +303,107 @@ def get_friend_safe_state(room_game, player_idx, extra_data=None):
         "second_charleston_done": getattr(room_game, 'second_charleston_done', False),
         "cpu_personalities": [0, 0, 0, 0],
         "cpu_targets": ["", "", "", ""],
-        "just_drawn": -1,
-        "last_drawn": [""] * 4,
-        "last_discard_info": {"player": -1, "tile": ""},
     }
+
+    # 🌟 ツモ情報を回転：自分のツモ牌だけ実際の牌、他者は空文字で隠す
+    just_drawn = -1
+    if getattr(room_game, 'just_drawn', -1) >= 0:
+        just_drawn = (room_game.just_drawn - player_idx + n) % n
+    last_drawn_arr = []
+    for i in range(n):
+        actual_seat = (player_idx + i) % n
+        if i == 0:
+            last_drawn_arr.append(room_game.last_drawn[actual_seat])
+        else:
+            last_drawn_arr.append("")
+    state["just_drawn"] = just_drawn
+    state["last_drawn"] = last_drawn_arr
+
+    # 🌟 直前打牌情報の回転
+    ldi = getattr(room_game, 'last_discard_info', {"player": -1, "tile": ""})
+    if ldi.get("player", -1) >= 0:
+        state["last_discard_info"] = {
+            "player": (ldi["player"] - player_idx + n) % n,
+            "tile": ldi["tile"]
+        }
+    else:
+        state["last_discard_info"] = {"player": -1, "tile": ""}
+
+    # 🌟 友人戦：自模可能フラグ（受信者が今ツモった人で、和了形になっているか）
+    can_tsumo = False
+    if getattr(room_game, 'just_drawn', -1) == player_idx and not room_game.win_tiles[player_idx]:
+        last_tile = room_game.last_drawn[player_idx]
+        if last_tile:
+            temp_hand = list(room_game.hands[player_idx])
+            if last_tile in temp_hand:
+                temp_hand.remove(last_tile)
+            win_ctx = {
+                "winning_tile": last_tile,
+                "is_tsumo": True,
+                "is_haitei": len(room_game.wall) == 0,
+                "is_joker_swap": False,
+                "is_rinshan": False,
+                "is_first_turn": room_game.is_first_turn[player_idx],
+                "any_meld_occurred": room_game.any_meld_occurred,
+                "is_dealer": room_game.dealer == player_idx,
+                "discards_count": room_game.discards_count,
+            }
+            check_data = {
+                "closed_tiles": " ".join(temp_hand),
+                "melds": room_game.melds[player_idx],
+                "win_context": win_ctx
+            }
+            try:
+                if is_agari(check_data):
+                    can_tsumo = True
+            except Exception as e:
+                print(f"[DEBUG] can_tsumo check error: {e}")
+    state["can_tsumo"] = can_tsumo
+
+    # 🌟 友人戦：ロン/ポン/カン可能フラグ（他者の打牌に対して）
+    can_ron = False
+    can_pon = False
+    can_kan = False
+    pending_call = getattr(room_game, 'pending_call', None)
+    if pending_call and pending_call.get("discarder", -1) != player_idx:
+        discarder = pending_call["discarder"]
+        tile = pending_call["tile"]
+        # ロン判定
+        if not room_game.win_tiles[player_idx]:
+            win_ctx = {
+                "winning_tile": tile,
+                "is_tsumo": False,
+                "is_haitei": len(room_game.wall) == 0,
+                "is_joker_swap": False,
+                "is_rinshan": False,
+                "is_chankan": False,
+                "is_first_turn": room_game.is_first_turn[player_idx],
+                "any_meld_occurred": room_game.any_meld_occurred,
+                "is_dealer": room_game.dealer == player_idx,
+                "discards_count": room_game.discards_count,
+            }
+            check_data = {
+                "closed_tiles": " ".join(room_game.hands[player_idx]),
+                "melds": room_game.melds[player_idx],
+                "win_context": win_ctx
+            }
+            try:
+                total_tiles = len(room_game.hands[player_idx]) + 1 + len(room_game.melds[player_idx]) * 3
+                if total_tiles == 14 and is_agari(check_data):
+                    can_ron = True
+            except Exception as e:
+                print(f"[DEBUG] can_ron check error: {e}")
+        # ポン判定（手牌に同じ牌が2枚以上）
+        if room_game.hands[player_idx].count(tile) >= 2 and tile not in SEASON_TILES:
+            can_pon = True
+        # 明槓判定（手牌に同じ牌が3枚）
+        if room_game.hands[player_idx].count(tile) >= 3 and tile not in SEASON_TILES:
+            can_kan = True
+    state["can_ron"] = can_ron
+    state["can_pon"] = can_pon
+    state["can_kan"] = can_kan
+    state["pending_call"] = bool(pending_call)
+
     if extra_data:
         state.update(extra_data)
     return state
@@ -336,6 +433,99 @@ async def broadcast_friend_update(room_id: str, room_game, event_log: dict):
             })
         except Exception as ex:
             print(f"[DEBUG ERROR] broadcast_friend_update 送信失敗: {ex}")
+
+# 🌟 友人戦：呼び出し待機の解決処理
+async def _resolve_pending_call(room_id, room_game):
+    """pending_call の応答を集計して、優先順位（ロン > ポン > 明槓 > スキップ）で解決"""
+    pc = getattr(room_game, 'pending_call', None)
+    if not pc:
+        return None
+    discarder = pc["discarder"]
+    tile = pc["tile"]
+    responses = pc["responses"]
+
+    # 優先順位探索
+    ron_claimers = [p for p, r in responses.items() if r == "ron"]
+    pon_claimers = [p for p, r in responses.items() if r == "pon"]
+    kan_claimers = [p for p, r in responses.items() if r == "kan"]
+
+    event_log = None
+
+    if ron_claimers:
+        # 打牌者の下家から優先（複数いる場合は最も近い人=頭跳ね）
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        winner = next((p for p in order if p in ron_claimers), ron_claimers[0])
+        # ロン適用
+        win_ctx = {
+            "winning_tile": tile, "is_tsumo": False,
+            "is_haitei": len(room_game.wall) == 0,
+            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
+            "is_first_turn": room_game.is_first_turn[winner],
+            "any_meld_occurred": room_game.any_meld_occurred,
+            "is_dealer": room_game.dealer == winner,
+            "discards_count": room_game.discards_count,
+        }
+        check_data = {
+            "closed_tiles": " ".join(room_game.hands[winner]),
+            "melds": room_game.melds[winner],
+            "win_context": win_ctx
+        }
+        if is_agari(check_data):
+            # 河から打牌牌を取り除く（ロン牌は手牌に組み込まれる）
+            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
+                room_game.discards[discarder].pop()
+            room_game.win_records[winner].append(win_ctx)
+            room_game.win_tiles[winner].append(tile)
+            room_game.last_discard_info = {"player": -1, "tile": ""}
+            room_game.round_calculated = True
+            effects = get_special_effects(room_game, winner, win_ctx)
+            event_log = {"action": "win", "win_type": "ron", "player_idx": winner, "tile": tile, "from_player": discarder, "yaku": effects}
+        else:
+            print(f"[DEBUG] ron claim invalid for player {winner}")
+
+    elif pon_claimers:
+        # ポン適用：打牌者の下家から優先（同時はあり得ないが念のため）
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        claimer = next((p for p in order if p in pon_claimers), pon_claimers[0])
+        # 手牌から同種2枚を取り除き、副露としてpongを記録
+        if room_game.hands[claimer].count(tile) >= 2:
+            room_game.hands[claimer].remove(tile)
+            room_game.hands[claimer].remove(tile)
+            room_game.melds[claimer].append({"type": "pong", "tiles": [tile, tile, tile], "from_player": discarder})
+            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
+                room_game.discards[discarder].pop()
+            room_game.any_meld_occurred = True
+            room_game.is_first_turn[claimer] = False
+            room_game.turn = claimer  # ポンしたプレイヤーのターンへ
+            room_game.just_drawn = -1
+            room_game.last_discard_info = {"player": -1, "tile": ""}
+            event_log = {"action": "meld", "meld_type": "pong", "player_idx": claimer, "tile": tile, "from_player": discarder}
+
+    elif kan_claimers:
+        # 明槓適用
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        claimer = next((p for p in order if p in kan_claimers), kan_claimers[0])
+        if room_game.hands[claimer].count(tile) >= 3:
+            for _ in range(3):
+                room_game.hands[claimer].remove(tile)
+            room_game.melds[claimer].append({"type": "minkan", "tiles": [tile, tile, tile, tile], "from_player": discarder})
+            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
+                room_game.discards[discarder].pop()
+            room_game.any_meld_occurred = True
+            room_game.is_first_turn[claimer] = False
+            room_game.turn = claimer
+            room_game.last_discard_info = {"player": -1, "tile": ""}
+            # 嶺上ツモ
+            if room_game.wall:
+                rinshan = room_game.wall.pop()
+                room_game.hands[claimer].append(rinshan)
+                room_game.last_drawn[claimer] = rinshan
+                room_game.just_drawn = claimer
+            room_game.hands[claimer] = room_game.sort_hand(room_game.hands[claimer])
+            event_log = {"action": "meld", "meld_type": "minkan", "player_idx": claimer, "tile": tile, "from_player": discarder}
+
+    room_game.pending_call = None
+    return event_log
 
 # 📡 ロビー用のWebSocket通信口
 @app.websocket("/ws/lobby/{room_id}")
@@ -397,17 +587,162 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                     continue
                 
                 try:
+                    # --- 自摸和了 ---
+                    if action == "win_tsumo":
+                        if room_game.turn != p_idx or room_game.just_drawn != p_idx:
+                            print(f"[DEBUG LOG] win_tsumo: ターン/ツモ違反")
+                            continue
+                        last_tile = room_game.last_drawn[p_idx]
+                        if not last_tile:
+                            continue
+                        temp_hand = list(room_game.hands[p_idx])
+                        if last_tile in temp_hand:
+                            temp_hand.remove(last_tile)
+                        win_ctx = {
+                            "winning_tile": last_tile, "is_tsumo": True,
+                            "is_haitei": len(room_game.wall) == 0,
+                            "is_joker_swap": False, "is_rinshan": False,
+                            "is_first_turn": room_game.is_first_turn[p_idx],
+                            "any_meld_occurred": room_game.any_meld_occurred,
+                            "is_dealer": room_game.dealer == p_idx,
+                            "discards_count": room_game.discards_count,
+                        }
+                        check_data = {
+                            "closed_tiles": " ".join(temp_hand),
+                            "melds": room_game.melds[p_idx],
+                            "win_context": win_ctx
+                        }
+                        if not is_agari(check_data):
+                            print(f"[DEBUG LOG] win_tsumo: 和了形ではない")
+                            continue
+                        room_game.win_records[p_idx].append(win_ctx)
+                        room_game.win_tiles[p_idx].append(last_tile)
+                        room_game.last_discard_info = {"player": -1, "tile": ""}
+                        room_game.is_first_turn[p_idx] = False
+                        effects = get_special_effects(room_game, p_idx, win_ctx)
+                        room_game.round_calculated = True
+                        event_log = {"action": "win", "win_type": "tsumo", "player_idx": p_idx, "tile": last_tile, "yaku": effects}
+
+                    # --- ⓪ ツモ処理（友人戦：山から1枚引く）---
+                    elif action == "draw":
+                        if room_game.turn != p_idx:
+                            print(f"[DEBUG LOG] draw: プレイヤー {p_idx} のターンではない (現在 turn={room_game.turn})。無視。")
+                            continue
+                        if not room_game.wall:
+                            print(f"[DEBUG LOG] draw: 山札なし → 流局")
+                            event_log = {"action": "ryukyoku"}
+                        else:
+                            tile = room_game.wall.pop()
+                            room_game.hands[p_idx].append(tile)
+                            room_game.last_drawn[p_idx] = tile
+                            room_game.hands[p_idx] = room_game.sort_hand(room_game.hands[p_idx])
+                            room_game.just_drawn = p_idx
+                            room_game.last_discard_info = {"player": -1, "tile": ""}
+                            print(f"[DEBUG LOG] draw: プレイヤー {p_idx} が {tile} をツモ（残り山={len(room_game.wall)}）")
+                            event_log = {"action": "draw", "player_idx": p_idx}
+
                     # --- ① 打牌処理 ---
-                    if action == "discard":
+                    elif action == "discard":
                         tile = data.get("tile")
                         print(f"[DEBUG LOG] プレイヤー {p_idx} が {tile} を打牌しました。")
+                        if room_game.turn != p_idx:
+                            print(f"[DEBUG LOG] discard: ターン違反 (現在 turn={room_game.turn})。無視。")
+                            continue
+                        if tile not in room_game.hands[p_idx]:
+                            print(f"[DEBUG LOG] discard: 牌 {tile} が手牌にない。無視。")
+                            continue
                         room_game.hands[p_idx].remove(tile)
                         room_game.hands[p_idx] = room_game.sort_hand(room_game.hands[p_idx])
-                        room_game.turn = (p_idx + 1) % 4
-                        room_game.discards[p_idx].append(tile)  
+                        room_game.discards[p_idx].append(tile)
                         room_game.discards_count += 1
                         room_game.is_first_turn[p_idx] = False
+                        room_game.just_drawn = -1
+                        room_game.last_discard_info = {"player": p_idx, "tile": tile}
+
+                        # 🌟 友人戦：呼び出し待機フェーズを開始
+                        room_game.pending_call = {"discarder": p_idx, "tile": tile, "responses": {}}
+                        # 各非打牌者が呼び出し可能かを判定
+                        for ndp in range(4):
+                            if ndp == p_idx:
+                                continue
+                            # 既に和了済みのプレイヤーは呼び出し不可
+                            if room_game.win_tiles[ndp]:
+                                room_game.pending_call["responses"][ndp] = "skip"
+                                continue
+                            # ロン・ポン・明槓どれかが可能かチェック
+                            has_action = False
+                            if room_game.hands[ndp].count(tile) >= 2 and tile not in SEASON_TILES:
+                                has_action = True
+                            if not has_action:
+                                # ロンチェック
+                                win_ctx = {
+                                    "winning_tile": tile, "is_tsumo": False,
+                                    "is_haitei": len(room_game.wall) == 0,
+                                    "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
+                                    "is_first_turn": room_game.is_first_turn[ndp],
+                                    "any_meld_occurred": room_game.any_meld_occurred,
+                                    "is_dealer": room_game.dealer == ndp,
+                                    "discards_count": room_game.discards_count,
+                                }
+                                check_data = {
+                                    "closed_tiles": " ".join(room_game.hands[ndp]),
+                                    "melds": room_game.melds[ndp],
+                                    "win_context": win_ctx
+                                }
+                                try:
+                                    total_tiles = len(room_game.hands[ndp]) + 1 + len(room_game.melds[ndp]) * 3
+                                    if total_tiles == 14 and is_agari(check_data):
+                                        has_action = True
+                                except Exception:
+                                    pass
+                            if not has_action:
+                                room_game.pending_call["responses"][ndp] = "skip"
+
+                        # ターンは仮で次の人にしておく（呼び出しがあれば後で上書き）
+                        room_game.turn = (p_idx + 1) % 4
                         event_log = {"action": "discard", "player_idx": p_idx, "tile": tile}
+
+                        # 全員がskip済み（呼び出し対象者がいない）→ 即解決
+                        if len(room_game.pending_call["responses"]) >= 3:
+                            print(f"[DEBUG LOG] discard: 呼び出し可能者なし。即進行。")
+                            room_game.pending_call = None
+                        # それ以外: broadcast 後に各クライアントが claim_call / skip_call で応答
+
+                    # --- 🌟 呼び出し処理 ---
+                    elif action == "claim_call":
+                        call_type = data.get("call_type", "skip")
+                        pc = getattr(room_game, 'pending_call', None)
+                        if not pc:
+                            print(f"[DEBUG LOG] claim_call: 待機なし。無視。")
+                            continue
+                        if pc["discarder"] == p_idx or p_idx in pc["responses"]:
+                            continue
+                        pc["responses"][p_idx] = call_type
+                        print(f"[DEBUG LOG] claim_call: P{p_idx} が {call_type} を選択。")
+                        # 3人揃ったかチェック
+                        if len(pc["responses"]) >= 3:
+                            event_log = await _resolve_pending_call(room_id, room_game)
+                            if not event_log:
+                                # 解決なし → 通常の打牌進行
+                                event_log = {"action": "call_resolved", "player_idx": -1, "result": "none"}
+                        else:
+                            # まだ待機 → broadcast せず継続
+                            continue
+
+                    elif action == "skip_call":
+                        pc = getattr(room_game, 'pending_call', None)
+                        if not pc:
+                            continue
+                        if pc["discarder"] == p_idx or p_idx in pc["responses"]:
+                            continue
+                        pc["responses"][p_idx] = "skip"
+                        print(f"[DEBUG LOG] skip_call: P{p_idx} がスキップ。")
+                        if len(pc["responses"]) >= 3:
+                            event_log = await _resolve_pending_call(room_id, room_game)
+                            if not event_log:
+                                event_log = {"action": "call_resolved", "player_idx": -1, "result": "none"}
+                        else:
+                            continue
 
                     # --- 🌟 鳴き・アガリ・スキップ同期アクション ---
                     elif action == "play_callout":

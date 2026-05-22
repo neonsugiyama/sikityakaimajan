@@ -666,6 +666,10 @@ let lobbyWs = null;
 // 🌟 友人戦：サーバーからの応答を await できるようにする Promise リゾルバ
 let pendingFriendCharlestonResolver = null;
 let pendingFriendSecondCharlestonResolver = null;
+// 🌟 友人戦：呼び出し待機状態フラグ（safeUpdate で state.pending_call から更新）
+let friendPendingCall = false;
+// 🌟 友人戦：自分が呼び出し応答済みフラグ（pending リセット時にfalseへ）
+let friendCallResponded = false;
 
 // 🌟 友人戦：WebSocket 経由でアクションを送信するヘルパー
 function friendWsSend(action, params = {}) {
@@ -697,7 +701,76 @@ function handleFriendUpdate(data) {
     const action = ev.action;
     //console.log("[WS受信] event:", action, ev);
 
-    if (action === "charleston_player_ready") {
+    // pending_call フラグを state から拾う
+    friendPendingCall = !!(state && state.pending_call);
+
+    if (action === "draw") {
+        // 🌟 友人戦：誰かがツモを実行（state は既に safeUpdate で反映済み）
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        // 自分のツモなら打牌待ち状態へ、他者ならまだ待機
+        if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
+        // ツモ和了が可能なら自摸ボタンを表示
+        if (state && state.can_tsumo && typeof showFriendTsumoButton === 'function') {
+            showFriendTsumoButton();
+        }
+    } else if (action === "discard") {
+        // 🌟 友人戦：誰かが打牌した。state.discards で河は更新済み
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        // 呼び出し待機なら call ボタンを出す、そうでなければターン進行
+        friendCallResponded = false;
+        if (friendPendingCall && (state.can_ron || state.can_pon || state.can_kan)) {
+            if (typeof showFriendCallButtons === 'function') {
+                showFriendCallButtons(state.can_ron, state.can_pon, state.can_kan, ev.tile);
+            }
+        } else if (typeof friendStartGameTurn === 'function') {
+            friendStartGameTurn();
+        }
+    } else if (action === "call_resolved") {
+        // 呼び出し未発生で終了 → 通常のターン進行
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
+    } else if (action === "win") {
+        // 🌟 友人戦：誰かが和了した（ツモ/ロン）
+        window.friendRoundEnded = true;
+        if (typeof isProc !== 'undefined') isProc = true;
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+        const btnWin = document.getElementById('btn-win');
+        if (btnWin) btnWin.style.display = "none";
+
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        const winLabel = ev.win_type === "tsumo" ? "自摸" : "胡";
+        if (typeof showCallout === 'function') showCallout(ev.player_idx, winLabel);
+        const msgEl = document.getElementById('msg');
+        if (msgEl) {
+            msgEl.innerText = `Player ${ev.player_idx} 和了 (${winLabel})`;
+            msgEl.className = "";
+        }
+        // 役表示
+        if (ev.yaku && ev.yaku.length > 0 && typeof showCenterMessage === 'function') {
+            setTimeout(() => {
+                showCenterMessage(`<span style="font-size:32px;color:#f1c40f;">${ev.yaku.join(' / ')}</span>`);
+                setTimeout(() => { if (typeof hideCenterMessage === 'function') hideCenterMessage(); }, 3000);
+            }, 800);
+        }
+    } else if (action === "meld") {
+        // 🌟 友人戦：誰かが副露（ポン/明槓）した
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        const meldLabel = ev.meld_type === "pong" ? "碰" : (ev.meld_type === "minkan" ? "明槓" : "槓");
+        if (typeof showCallout === 'function') showCallout(ev.player_idx, meldLabel);
+        // ターン進行（ポン/カンしたプレイヤーが打牌へ）
+        setTimeout(() => {
+            if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
+        }, 1200);
+    } else if (action === "ryukyoku") {
+        // 🌟 友人戦：流局
+        if (typeof showCenterMessage === 'function') showCenterMessage(`<span style="color:#e74c3c;font-size:28px;">流局</span>`);
+        document.getElementById('msg').innerText = "流局";
+    } else if (action === "charleston_player_ready") {
         // 自分以外のプレイヤーが選択を確定 → 中央に裏3枚（手牌はサーバー側で既に減っている）
         const p = ev.player_idx;
         if (p !== 0) {

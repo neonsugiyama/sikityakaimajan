@@ -1522,10 +1522,131 @@ async function startFriendSecondCharleston() {
 
     charlestonPhase = false;
     isProc = false;
+    friendSelfAsker = false;
+    window.friendRoundEnded = false; // 🌟 局終了フラグをリセット
 
-    // 友人戦の対局本体は未実装のため、ここで一旦停止
-    document.getElementById('msg').innerText = "Charleston完了！（本対局は未実装）";
-    logMsg("[友人戦] Charleston完了。対局本体は未実装のため待機します。");
+    // 🌟 友人戦：本対局のツモ・打牌ループ開始
+    logMsg("[友人戦] Charleston完了。本対局を開始します。");
+    friendStartGameTurn();
+}
+
+// 🌟 友人戦：対局中のターン管理。自分の番なら draw を送信、他者の番なら待機
+function friendStartGameTurn() {
+    if (currentGameMode !== 'friend') return;
+    // round が確定済み（誰かが和了済み）なら何もしない
+    if (typeof window.friendRoundEnded !== 'undefined' && window.friendRoundEnded) return;
+
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+
+    // 親マーク・アクティブ枠
+    for (let i = 0; i < 4; i++) {
+        const scoreEl = document.getElementById(`player-score-${i}`);
+        if (scoreEl) scoreEl.classList.remove('active-turn');
+    }
+    const activeScoreEl = document.getElementById(`player-score-${turn}`);
+    if (activeScoreEl) activeScoreEl.classList.add('active-turn');
+
+    const msgEl = document.getElementById('msg');
+
+    // 呼び出し待機中はターン進行を保留
+    if (typeof friendPendingCall !== 'undefined' && friendPendingCall) {
+        if (msgEl) { msgEl.innerText = "呼び出し判定中..."; msgEl.className = ""; }
+        isProc = true;
+        return;
+    }
+
+    if (turn === 0) {
+        // 自分の番。手牌枚数で「ツモが必要か / 打牌段階か」を判定
+        const handCount = myHand.length + (myMelds.length * 3);
+        const needDraw = (handCount % 3 === 1); // 13枚相当 → ツモが必要
+
+        if (needDraw) {
+            if (msgEl) { msgEl.innerText = "ツモ中..."; msgEl.className = ""; }
+            isProc = true;
+            // サーバーに draw を送信
+            friendWsSend('draw', {});
+        } else {
+            // 既に14枚 → 打牌待ち
+            if (msgEl) { msgEl.innerText = "↓打牌↓"; msgEl.className = "blink-text"; }
+            isProc = false;
+            render();
+        }
+    } else {
+        // 他のプレイヤーの番。待機
+        if (msgEl) { msgEl.innerText = `Player ${turn} の番`; msgEl.className = ""; }
+        isProc = true;
+    }
+}
+
+// 🌟 友人戦：自摸ボタンを表示
+function showFriendTsumoButton() {
+    const btnWin = document.getElementById('btn-win');
+    if (!btnWin) return;
+    let winTile = drawnTile !== "" ? drawnTile : (myHand.length > 0 ? myHand[myHand.length - 1] : '');
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+    btnWin.className = 'btn-act btn-red';
+    btnWin.innerHTML = `自摸 ${winTile ? getImg(winTile) : ''}`;
+    btnWin.onclick = () => friendExecTsumo();
+    btnWin.style.display = "flex";
+    if (typeof playSE === 'function') playSE('alert');
+}
+
+// 🌟 友人戦：自摸を実行
+function friendExecTsumo() {
+    if (isProc) return;
+    isProc = true;
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) btnWin.style.display = "none";
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    friendWsSend('win_tsumo', {});
+}
+
+// 🌟 友人戦：他家の打牌に対する呼び出しボタンを表示
+function showFriendCallButtons(canRon, canPon, canKan, tile) {
+    if (typeof resetActionBtnPool === 'function') resetActionBtnPool();
+    document.getElementById('msg').innerText = "呼び出し可能！";
+
+    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
+
+    if (canRon) {
+        const btnWin = document.getElementById('btn-win');
+        if (btnWin) {
+            btnWin.className = 'btn-act btn-red';
+            btnWin.innerHTML = `胡 ${getImg(tile)}`;
+            btnWin.onclick = () => friendClaimCall('ron');
+            btnWin.style.display = "flex";
+        }
+    }
+    if (typeof setupActionBtn === 'function') {
+        if (canPon) {
+            setupActionBtn(`碰 ${getImg(tile)}`, 'btn-yellow', () => friendClaimCall('pon'));
+        }
+        if (canKan) {
+            setupActionBtn(`明槓 ${getImg(tile)}`, 'btn-blue', () => friendClaimCall('kan'));
+        }
+        setupActionBtn('過 (スキップ)', 'btn-gray', () => friendSkipCall());
+    }
+    if (typeof playSE === 'function') playSE('alert');
+}
+
+// 🌟 友人戦：呼び出しを実行
+function friendClaimCall(callType) {
+    if (friendCallResponded) return;
+    friendCallResponded = true;
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) btnWin.style.display = "none";
+    friendWsSend('claim_call', { call_type: callType });
+}
+
+// 🌟 友人戦：呼び出しをスキップ
+function friendSkipCall() {
+    if (friendCallResponded) return;
+    friendCallResponded = true;
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) btnWin.style.display = "none";
+    friendWsSend('skip_call', {});
 }
 
 // 🏁 全員の回答が出揃った後、第2チャールストンを実行するかスキップするか判定する関数
@@ -1768,17 +1889,17 @@ function renderCPU() {
             img.style.margin = '0';
 
             if (i === 1) {
-                // 下家：手牌の「下（彼らにとっての右）」に配置
-                img.style.top = 'calc(100% + 10px)';
+                // 下家(東席、西を向く)：本人の右=北側 → 画面では上方向
+                img.style.bottom = 'calc(100% + 10px)';
                 img.style.left = '0';
             } else if (i === 2) {
-                // 対面：手牌の「右（彼らにとっての右）」に配置
-                img.style.left = 'calc(100% + 15px)';
+                // 対面(北席、南を向く)：本人の右=西側 → 画面では左方向
+                img.style.right = 'calc(100% + 15px)';
                 img.style.top = '0';
                 img.style.transform = 'rotate(180deg)';
             } else if (i === 3) {
-                // 上家：手牌の「上（彼らにとっての右）」に配置
-                img.style.bottom = 'calc(100% + 10px)';
+                // 上家(西席、東を向く)：本人の右=南側 → 画面では下方向
+                img.style.top = 'calc(100% + 10px)';
                 img.style.left = '0';
             }
             c.appendChild(img);
@@ -2288,6 +2409,19 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
 
     // 🌟 3. 余韻（隙間が見える時間）を作る
     await sleep(250);
+
+    // 🌟 友人戦：WS 経由で打牌を送信し、ブロードキャストでターン進行
+    if (currentGameMode === 'friend') {
+        // 楽観的にローカル状態を更新（broadcast で確定される）
+        const handIdx = myHand.indexOf(t);
+        if (handIdx >= 0) myHand.splice(handIdx, 1);
+        drawnTile = "";
+        lastDiscardPlayer = 0;
+        friendWsSend('discard', { tile: t });
+        render(); renderCPU();
+        // broadcast 受信時に friendStartGameTurn が呼ばれて次のターンへ
+        return;
+    }
 
     // 🌟 4. サーバーに通信してデータを確定させる
     await apiCall('/discard', { player_idx: 0, tile: t });
