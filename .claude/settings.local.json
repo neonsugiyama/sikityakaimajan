@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(node --check app.js)",
+      "Bash(node --check game.js)",
+      "Bash(node --check ui.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8765/)",
+      "Bash(curl -s http://127.0.0.1:8765/app.js)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(curl -s http://127.0.0.1:8765/game.js)",
+      "Bash(curl -s http://127.0.0.1:8765/tutorial.js)",
+      "Bash(curl -s \"http://127.0.0.1:8765/game.js?v=14\")",
+      "Bash(taskkill /F /IM python.exe /T)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8765)",
+      "Bash(taskkill /F /PID 11280)",
+      "PowerShell(Stop-Process *)",
+      "Bash(curl -s \"http://127.0.0.1:8765/game.js\")",
+      "Bash(curl -s -I \"http://127.0.0.1:8765/game.js\")",
+      "Bash(curl -s -D - -o /dev/null \"http://127.0.0.1:8765/game.js\")",
+      "Bash(findstr LISTENING)",
+      "Bash(curl -s \"http://127.0.0.1:8765/app.js\")",
+      "Bash(curl -s \"http://127.0.0.1:8765/main.py\")"
+    ]
+  }
+}

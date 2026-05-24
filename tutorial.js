@@ -73,7 +73,10 @@ window.cleanupTutorialUI = function () {
     // 7. グローバル変数のリセット
     selectedTileIndex = -1; // 🌟 ここに追加
     isIngameTutorial = false;
-    currentGameMode = 'cpu'; // 🌟 これを追加：強制的に通常モードに戻す
+    // 🌟 修正：tutorial/lesson から来た時だけ 'cpu' に戻す。friend モードを破壊しないように。
+    if (currentGameMode === 'tutorial' || currentGameMode === 'lesson') {
+        currentGameMode = 'cpu';
+    }
     window.currentLessonId = null;
 
     // 8. 🌟 追加：グローバルなゲーム状態を強制リセット（ここで前の対局の残骸を消す！）
