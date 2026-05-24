@@ -684,16 +684,25 @@ function enterWaitingRoom(roomId) {
     const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
+    // 🌟 接続直後にプレイヤー名を送信（main.py側でロビーWSが最初に名前を待つ）
+    lobbyWs.onopen = () => {
+        const myName = (typeof playerStats !== 'undefined' && playerStats.playerName)
+            ? playerStats.playerName : "Player";
+        lobbyWs.send(JSON.stringify({ name: myName }));
+    };
+
     lobbyWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === "lobby_update") {
             const countEl = document.getElementById('room-player-count');
             if (countEl) countEl.innerText = data.player_count;
-
-            if (data.player_count === 4) {
-                setTimeout(() => {
-                    alert("4人揃いました！ゲームを開始します！\n（※対局への遷移処理はこれから作ります）");
-                }, 500);
+        }
+        if (data.type === "game_start") {
+            // 🤝 友人戦の本対局開始 → friend.js に処理を委譲
+            if (typeof startFriendGame === 'function') {
+                startFriendGame(data);
+            } else {
+                console.error("friend.js が読み込まれていません");
             }
         }
     };
