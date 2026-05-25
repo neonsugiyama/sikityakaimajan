@@ -2173,10 +2173,9 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
 
     // 🌟 6. 少し待ってからCPUの反応判定へ
     await sleep(250);
-    // 🌟 友人戦: 副露機能は未実装。即 checkT() で turn 進行
+    // 🌟 友人戦: 副露猶予はサーバー側で管理。call_resolved (WS) を待つので checkT() は呼ばない
     if (currentGameMode === 'friend') {
-        isProc = false;
-        checkT();
+        // isProc は true のまま（call_resolved 受信時に false にして checkT 起動）
         return;
     }
     checkCpuReactions(0, t);
@@ -2409,7 +2408,9 @@ async function checkHumanReaction(discarderIdx, tile) {
     // ----------------------------------------------------
     // 2. 鳴き判定
     // ----------------------------------------------------
-    if (myWinTiles.length === 0) {
+    // 🌟 友人戦 5b: ポン/カン/花槓 はまだ実装していない → スキップ
+    const skipMeldUI = (currentGameMode === 'friend');
+    if (myWinTiles.length === 0 && !skipMeldUI) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.className = 'btn-act btn-green';
@@ -2452,6 +2453,12 @@ async function checkHumanReaction(discarderIdx, tile) {
     // 3. アクション表示・自動進行制御
     // ----------------------------------------------------
     if (!showAny) {
+        // 🌟 友人戦: ボタンを出すべきものが無い → skipを送ってcall_resolved待ち
+        if (currentGameMode === 'friend') {
+            if (typeof sendFriendCallAction === 'function') sendFriendCallAction("skip");
+            isProc = true;
+            return;
+        }
         return checkCpuReactions(discarderIdx, tile);
     }
 
@@ -2487,9 +2494,15 @@ async function checkHumanReaction(discarderIdx, tile) {
     }
 
     const skipAction = () => {
-        if (window.hideLessonToast) window.hideLessonToast(); // 🌟 ここに追加！
+        if (window.hideLessonToast) window.hideLessonToast();
         stopTimer();
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+        // 🌟 友人戦: サーバーへ skip を送信して call_resolved 待ち
+        if (currentGameMode === 'friend') {
+            if (typeof sendFriendCallAction === 'function') sendFriendCallAction("skip");
+            isProc = true; // call_resolved/friend_win の broadcast 待ち
+            return;
+        }
         checkCpuReactions(discarderIdx, tile);
     };
 
@@ -2626,7 +2639,15 @@ async function execTsumo() {
 
     let currentDrawnTile = drawnTile;
 
-    const data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
+    // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_win broadcast）
+    let data;
+    if (currentGameMode === 'friend') {
+        await apiCall('/friend/win_tsumo', { player_idx: myPlayerIdx, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
+        // 以降の演出やターン進行は friend_win ブロードキャスト受信時の handleFriendWin が担当
+        return;
+    }
+
+    data = await apiCall('/win_tsumo', { player_idx: 0, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
 
     // 🌟 修正：文字が出る「前」に牌が動かないよう、描画(render)をスリープの後に移動！
     showCallout(0, "自摸");
@@ -2663,6 +2684,12 @@ async function execRon(isChankan = false) {
 
     // 🌟 追加：透過箱を即座に消す
     const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
+
+    // 🌟 友人戦: サーバーに ron を送信して friend_win イベント待ち（実際の和了処理はサーバー側で集約）
+    if (currentGameMode === 'friend') {
+        if (typeof sendFriendCallAction === 'function') sendFriendCallAction("ron");
+        return; // 以降は WS の friend_win 受信で handleFriendWin が処理
+    }
 
     // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
     let targetDiscarder = lastDiscardPlayer;

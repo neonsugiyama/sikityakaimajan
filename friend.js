@@ -413,13 +413,123 @@ function handleFriendEvent(data) {
         if (typeof renderCPU === 'function') renderCPU();
         // ターンは進めない（打牌するまでは tsumo 中の表示）
     } else if (type === "friend_discard") {
-        // 他人が打牌した → state を反映 → 自分が次のターンか判定
+        // 他人が打牌した → state を反映
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
-        // turn は新しい打牌者の「次」を示しているので、checkT() で自分のターンか判定
+
+        // 🌟 演出中は checkT を呼ばない（演出後の handleFriendWin が責任を持って checkT する）
+        if (friendWinAnimating) {
+            console.log("[FRIEND] 和了演出中 → checkT 抑制");
+            return;
+        }
+
+        const canRon = !!data.can_ron;
+        const canMeld = !!(data.can_pon || data.can_kan || data.can_hanakan);
+
+        if (canRon) {
+            const discarderRel = (data.player_idx - myPlayerIdx + 4) % 4;
+            if (typeof checkHumanReaction === 'function') {
+                lastDiscardPlayer = discarderRel;
+                lastT = data.tile;
+                checkHumanReaction(discarderRel, data.tile);
+            }
+            if (typeof isProc !== 'undefined') isProc = true;
+        } else if (canMeld) {
+            console.log("[FRIEND] 副露可能だがステップ5bでは未実装 → 自動 skip");
+            sendFriendCallAction("skip");
+            if (typeof isProc !== 'undefined') isProc = true;
+        } else {
+            // 反応不可 → 即 checkT
+            if (typeof isProc !== 'undefined') isProc = false;
+            if (typeof checkT === 'function') checkT();
+        }
+    } else if (type === "call_resolved") {
+        // 副露猶予の結果通知 → state 反映して checkT
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+
+        // 🌟 演出中は checkT を呼ばない
+        if (friendWinAnimating) {
+            console.log("[FRIEND] 和了演出中 → call_resolved の checkT 抑制");
+            return;
+        }
+
         if (typeof isProc !== 'undefined') isProc = false;
+        // 既存のボタン群を念のため非表示にする
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+        const btnWin = document.getElementById('btn-win');
+        if (btnWin) btnWin.style.display = "none";
         if (typeof checkT === 'function') checkT();
+    } else if (type === "friend_win") {
+        // 誰かが和了した（ロン or ツモ）
+        handleFriendWin(data);
+    }
+}
+
+// ==========================================
+// 和了演出
+// ==========================================
+// 🌟 演出中フラグ: 和了アニメーション中は他のイベントが checkT を呼ぶのを抑制
+let friendWinAnimating = false;
+
+async function handleFriendWin(data) {
+    console.log("[FRIEND] 和了:", data);
+
+    // 既に演出中なら state だけ反映して終了（多重実行防止）
+    if (friendWinAnimating) {
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        return;
+    }
+    friendWinAnimating = true;
+
+    try {
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+
+        // ボタン群を非表示
+        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+        const btnWin = document.getElementById('btn-win');
+        if (btnWin) btnWin.style.display = "none";
+
+        // 演出: 勝者位置に「胡」「自摸」表示
+        const winnerRel = (data.player_idx - myPlayerIdx + 4) % 4;
+        const winText = (data.win_type === "ron") ? "胡" : "自摸";
+        if (typeof showCallout === 'function') showCallout(winnerRel, winText);
+        await new Promise(r => setTimeout(r, 1500));
+
+        // 役表示
+        if (data.yaku && data.yaku.length > 0) {
+            for (const y of data.yaku) {
+                if (typeof showCallout === 'function') showCallout(winnerRel, y);
+                await new Promise(r => setTimeout(r, 1200));
+            }
+        }
+    } finally {
+        friendWinAnimating = false;
+    }
+
+    // アガリ放題: ターンを進めて続行
+    if (typeof isProc !== 'undefined') isProc = false;
+    if (typeof checkT === 'function') checkT();
+}
+
+// ==========================================
+// 副露猶予への応答送信
+// ==========================================
+async function sendFriendCallAction(action) {
+    try {
+        const url = `/friend/call_action?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&action=${action}&_t=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const result = await res.json();
+        console.log("[FRIEND] call_action 結果:", result);
+    } catch (e) {
+        console.error("[FRIEND] call_action 失敗:", e);
     }
 }
 

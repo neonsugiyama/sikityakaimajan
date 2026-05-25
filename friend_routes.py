@@ -394,8 +394,59 @@ async def friend_draw(room_id: str, player_idx: int):
 # ==========================================
 # REST: 打牌
 # ==========================================
+def _check_reaction_possible(game, responder_idx: int, tile: str) -> dict:
+    """指定プレイヤーが、打牌された tile に対してロン/ポン/カン/花槓のいずれかができるか判定"""
+    from main import SEASON_TILES, is_agari
+    can_ron = False
+    can_pon = False
+    can_kan = False
+    can_hanakan = False
+
+    # 既に和了済みのプレイヤーは反応不可
+    if game.win_tiles[responder_idx]:
+        return {"ron": False, "pon": False, "kan": False, "hanakan": False}
+
+    is_haitei = (len(game.wall) == 0)
+
+    # ロン判定
+    try:
+        win_ctx = {
+            "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
+            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
+            "is_first_turn": game.is_first_turn[responder_idx],
+            "any_meld_occurred": game.any_meld_occurred,
+            "is_dealer": game.dealer == responder_idx,
+            "discards_count": game.discards_count,
+        }
+        # 🌟 ロン判定: closed_tiles は手牌そのまま（13枚 - 副露3枚×N）、winning_tile は別途
+        check_data = {
+            "closed_tiles": " ".join(game.hands[responder_idx]),
+            "melds": game.melds[responder_idx],
+            "win_context": win_ctx
+        }
+        total_tiles = len(game.hands[responder_idx]) + 1 + len(game.melds[responder_idx]) * 3
+        if total_tiles == 14 and is_agari(check_data):
+            can_ron = True
+    except Exception:
+        pass
+
+    # ポン・明槓・花槓判定（季節牌が捨てられた場合はNG）
+    if tile not in SEASON_TILES:
+        cnt = game.hands[responder_idx].count(tile)
+        if cnt >= 2:
+            can_pon = True
+            if any(t in SEASON_TILES for t in game.hands[responder_idx]):
+                can_hanakan = True
+        if cnt >= 3:
+            can_kan = True
+
+    return {"ron": can_ron, "pon": can_pon, "kan": can_kan, "hanakan": can_hanakan}
+
+
 @router.get("/discard")
 async def friend_discard(room_id: str, player_idx: int, tile: str):
+    """打牌処理: 副露猶予を設けてから turn 進行"""
+    import asyncio
     from main import lobby_manager
     if room_id not in lobby_manager.games:
         raise HTTPException(status_code=404, detail="対局が見つかりません")
@@ -404,31 +455,256 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
     if tile not in game.hands[player_idx]:
         return {"error": "通信エラー: 牌が見つかりません"}
 
+    # 打牌処理
     game.hands[player_idx].remove(tile)
     game.discards[player_idx].append(tile)
     game.discards_count += 1
-    game.turn = (player_idx + 1) % 4
     game.just_drawn = -1
     game.last_discard_info = {"player": player_idx, "tile": tile}
     game.is_first_turn[player_idx] = False
     game.append_log("discard", player=player_idx, tile=tile,
                     tsumogiri=(tile == game.last_drawn[player_idx]))
 
-    # 自分には返り値を返す
-    my_state = get_friend_state_for_player(game, player_idx)
-
-    # 他プレイヤーには WS で「discard」イベントを送る
+    # 反応可能なプレイヤーを集計
+    reactions = {}
+    responders = []
     for p in range(4):
         if p == player_idx:
             continue
+        r = _check_reaction_possible(game, p, tile)
+        reactions[p] = r
+        if any(r.values()):
+            responders.append(p)
+
+    # 反応可能なプレイヤーがいない → 即 turn 進行
+    if not responders:
+        game.turn = (player_idx + 1) % 4
+        # 全員に friend_discard を送る + 打牌者には call_resolved を送って checkT させる
+        for p in range(4):
+            if p == player_idx:
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "call_resolved",
+                    "resolution": "skip",
+                    "state": state
+                })
+                continue
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_discard",
+                "player_idx": player_idx,
+                "tile": tile,
+                "can_ron": False, "can_pon": False, "can_kan": False, "can_hanakan": False,
+                "state": state
+            })
+        return get_friend_state_for_player(game, player_idx)
+
+    # 副露猶予を開始
+    game.pending_call = {
+        "discarder": player_idx,
+        "tile": tile,
+        "responders": list(responders),
+        "responses": {},
+        "resolved": False
+    }
+
+    # 各プレイヤーに WS で「discard」イベント + 反応可能フラグを送る
+    for p in range(4):
+        if p == player_idx:
+            continue
+        r = reactions[p]
         state = get_friend_state_for_player(game, p)
         await friend_connections.send_to(room_id, p, {
             "type": "friend_discard",
             "player_idx": player_idx,
             "tile": tile,
+            "can_ron": r["ron"], "can_pon": r["pon"], "can_kan": r["kan"], "can_hanakan": r["hanakan"],
             "state": state
         })
-    return my_state
+
+    # 全 responder の応答を待つ（最大 12秒）
+    TIMEOUT = 12.0
+    POLL = 0.1
+    elapsed = 0.0
+    while elapsed < TIMEOUT:
+        pc = getattr(game, 'pending_call', None)
+        if not pc or pc.get("resolved"):
+            break
+        if len(pc["responses"]) >= len(pc["responders"]):
+            break
+        await asyncio.sleep(POLL)
+        elapsed += POLL
+
+    pc = getattr(game, 'pending_call', None)
+    if pc and not pc.get("resolved"):
+        # タイムアウト: 未応答者は skip 扱い
+        for r in pc["responders"]:
+            if r not in pc["responses"]:
+                pc["responses"][r] = "skip"
+        # 副露判定
+        await _resolve_friend_call(room_id, game)
+
+    return get_friend_state_for_player(game, player_idx)
+
+
+async def _resolve_friend_call(room_id: str, game):
+    """副露猶予の応答を集計して優先順位で実行。
+    優先順位: ron > kan > pon > hanakan > skip
+    ron は同時宣言時に「頭ハネ」(discarder の次から時計回りで近い人) で1人だけ勝つ。
+    ステップ5b では ron のみ実装。pon/kan/hanakan は次以降のステップ。
+    """
+    from main import is_agari, get_special_effects, SEASON_TILES
+    pc = getattr(game, 'pending_call', None)
+    if not pc or pc.get("resolved"):
+        return
+    pc["resolved"] = True
+
+    discarder = pc["discarder"]
+    tile = pc["tile"]
+    responses = pc["responses"]
+    is_haitei = (len(game.wall) == 0)
+
+    # ===== ロン宣言の処理（頭ハネ） =====
+    ron_claimers = [p for p, r in responses.items() if r == "ron"]
+    if ron_claimers:
+        # 頭ハネ: discarder の次から時計回りで最も近い人
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        winner = next((p for p in order if p in ron_claimers), ron_claimers[0])
+
+        # 河から打牌牌を取り除く
+        if game.discards[discarder] and game.discards[discarder][-1] == tile:
+            game.discards[discarder].pop()
+
+        # 和了処理
+        ctx = {
+            "winning_tile": tile,
+            "is_tsumo": False,
+            "is_haitei": is_haitei,
+            "is_joker_swap": False,
+            "is_rinshan": False,
+            "is_chankan": False,
+            "is_first_turn": game.is_first_turn[winner],
+            "any_meld_occurred": game.any_meld_occurred,
+            "is_dealer": game.dealer == winner,
+            "discards_count": game.discards_count,
+        }
+        game.win_records[winner].append(ctx)
+        game.win_tiles[winner].append(tile)
+        game.is_first_turn[winner] = False
+        game.last_discard_info = {"player": -1, "tile": ""}
+
+        effects = get_special_effects(game, winner, ctx)
+        game.append_log("win", player=winner, method="ron", tile=tile, from_player=discarder)
+
+        # アガリ放題: ターンは打牌者の次に進む（勝者ではない）
+        # ただし山が空（海底ロン後）なら局終了は後のステップで実装
+        game.turn = (discarder + 1) % 4
+        game.pending_call = None
+
+        # 全プレイヤーに win イベントを broadcast
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_win",
+                "win_type": "ron",
+                "player_idx": winner,
+                "from_player": discarder,
+                "tile": tile,
+                "yaku": effects,
+                "state": state
+            })
+        return
+
+    # ===== 全員スキップ → turn 進行 =====
+    game.turn = (discarder + 1) % 4
+    game.pending_call = None
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "call_resolved",
+            "resolution": "skip",
+            "state": state
+        })
+
+
+@router.get("/call_action")
+async def friend_call_action(room_id: str, player_idx: int, action: str):
+    """プレイヤーの副露猶予への応答を記録。action: skip / pon / kan / ron / hanakan
+    ステップ5aでは "skip" のみ受け付ける（他は将来のステップで処理）。"""
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        return {"error": "対局が見つかりません"}
+    game = lobby_manager.games[room_id]
+    pc = getattr(game, 'pending_call', None)
+    if not pc or pc.get("resolved"):
+        return {"status": "no_pending"}
+    if player_idx not in pc.get("responders", []):
+        return {"status": "not_responder"}
+
+    pc["responses"][player_idx] = action
+
+    # 全員の応答が揃ったら即座に解決
+    if len(pc["responses"]) >= len(pc["responders"]):
+        await _resolve_friend_call(room_id, game)
+
+    return {"status": "ok", "responded": len(pc["responses"]), "needed": len(pc["responders"])}
+
+
+
+# ==========================================
+# REST: ツモ和了
+# ==========================================
+@router.get("/win_tsumo")
+async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "false", is_rinshan: str = "false"):
+    """ツモ和了処理。アガリ放題なので局は終わらず、ターンが次に進む。"""
+    from main import lobby_manager, get_special_effects
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    try:
+        tile = game.last_drawn[player_idx]
+        if tile in game.hands[player_idx]:
+            game.hands[player_idx].remove(tile)
+
+        ctx = {
+            "winning_tile": tile,
+            "is_tsumo": True,
+            "is_haitei": len(game.wall) == 0,
+            "is_joker_swap": is_joker_swap.lower() == "true",
+            "is_rinshan": is_rinshan.lower() == "true",
+            "is_first_turn": game.is_first_turn[player_idx],
+            "any_meld_occurred": game.any_meld_occurred,
+            "is_dealer": game.dealer == player_idx,
+            "discards_count": game.discards_count
+        }
+        game.win_records[player_idx].append(ctx)
+        game.win_tiles[player_idx].append(tile)
+        game.last_discard_info = {"player": -1, "tile": ""}
+        game.is_first_turn[player_idx] = False
+        game.just_drawn = -1
+        # アガリ放題: ターンを次に進める
+        game.turn = (player_idx + 1) % 4
+
+        effects = get_special_effects(game, player_idx, ctx)
+        game.append_log("win", player=player_idx, method="tsumo", tile=tile)
+
+        # 全プレイヤーに friend_win を broadcast
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_win",
+                "win_type": "tsumo",
+                "player_idx": player_idx,
+                "tile": tile,
+                "yaku": effects,
+                "state": state
+            })
+
+        return get_friend_state_for_player(game, player_idx)
+    except Exception as e:
+        traceback.print_exc()
+        return {"error": str(e)}
 
 
 # ==========================================
