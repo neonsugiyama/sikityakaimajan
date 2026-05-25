@@ -167,55 +167,48 @@ def get_safe_state(game: GameState, player_idx=0, extra_data=None):
 # 🌐 画面表示用のAPI（フロントエンド配信）
 # ==========================================
 
-# 🌟 開発中はキャッシュを無効化（ブラウザに古いJSを掴ませない）
-NOCACHE_HEADERS = {
-    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-    "Pragma": "no-cache",
-    "Expires": "0",
-}
-
 # 🏠 トップページ（HTML）をブラウザに返す
 @app.get("/")
 def read_root():
-    return FileResponse("index.html", headers=NOCACHE_HEADERS)
+    return FileResponse("index.html")
 
 # 🎨 デザイン（CSS）をブラウザに返す
 @app.get("/style.css")
 def read_css():
-    return FileResponse("style.css", headers=NOCACHE_HEADERS)
+    return FileResponse("style.css")
 
 # 🧠 フロントエンドの動き（JS）をブラウザに返す
 @app.get("/game.js")
 def read_js():
-    return FileResponse("game.js", headers=NOCACHE_HEADERS)
+    return FileResponse("game.js")
 
 @app.get("/audio.js")
 async def get_audio_js():
-    return FileResponse("audio.js", headers=NOCACHE_HEADERS)
+    return FileResponse("audio.js")
 
 @app.get("/api.js")
 async def get_api_js():
-    return FileResponse("api.js", headers=NOCACHE_HEADERS)
+    return FileResponse("api.js")
 
 @app.get("/stats.js")
 async def get_stats_js():
-    return FileResponse("stats.js", headers=NOCACHE_HEADERS)
+    return FileResponse("stats.js")
 
 @app.get("/tutorial.js")
 async def get_tutorial_js():
-    return FileResponse("tutorial.js", headers=NOCACHE_HEADERS)
+    return FileResponse("tutorial.js")
 
 @app.get("/ui.js")
 async def get_ui_js():
-    return FileResponse("ui.js", headers=NOCACHE_HEADERS)
+    return FileResponse("ui.js")
 
 @app.get("/config.js")
 async def get_config_js():
-    return FileResponse("config.js", headers=NOCACHE_HEADERS)
+    return FileResponse("config.js")
 
 @app.get("/app.js")
 async def get_app_js():
-    return FileResponse("app.js", headers=NOCACHE_HEADERS)
+    return FileResponse("app.js")
 
 @app.get("/friend.js")
 async def get_friend_js():
@@ -271,264 +264,6 @@ class ConnectionManager:
 
 lobby_manager = ConnectionManager()
 
-# 🌟 友人戦用：各プレイヤーの視点で「自分が常に席0」に見えるよう state を回転させて返すヘルパー
-def get_friend_safe_state(room_game, player_idx, extra_data=None):
-    n = 4
-    def rotate(arr):
-        return [arr[(player_idx + i) % n] for i in range(n)]
-    placeholder_hands = []
-    for i in range(n):
-        actual_seat = (player_idx + i) % n
-        if i == 0:
-            placeholder_hands.append(list(room_game.hands[actual_seat]))
-        else:
-            placeholder_hands.append(["ura"] * len(room_game.hands[actual_seat]))
-    rotated_discards = rotate(room_game.discards)
-    state = {
-        "status": "success",
-        "player_hand": list(room_game.hands[player_idx]),
-        "player_melds": list(room_game.melds[player_idx]),
-        "player_win_tiles": list(room_game.win_tiles[player_idx]),
-        "all_hands": placeholder_hands,
-        "all_melds": rotate(room_game.melds),
-        "all_win_tiles": rotate(room_game.win_tiles),
-        "discards": [list(d) for d in rotated_discards],
-        "turn": (room_game.turn - player_idx + n) % n,
-        "dealer": (room_game.dealer - player_idx + n) % n,
-        "current_round": room_game.current_round,
-        "scores": rotate(room_game.scores),
-        "total_scores": rotate(room_game.total_scores),
-        "wall_count": len(room_game.wall),
-        "discards_count": room_game.discards_count,
-        "any_meld_occurred": room_game.any_meld_occurred,
-        "charleston_done": getattr(room_game, 'charleston_done', False),
-        "second_charleston_done": getattr(room_game, 'second_charleston_done', False),
-        "cpu_personalities": [0, 0, 0, 0],
-        "cpu_targets": ["", "", "", ""],
-    }
-
-    # 🌟 ツモ情報を回転：自分のツモ牌だけ実際の牌、他者は空文字で隠す
-    just_drawn = -1
-    if getattr(room_game, 'just_drawn', -1) >= 0:
-        just_drawn = (room_game.just_drawn - player_idx + n) % n
-    last_drawn_arr = []
-    for i in range(n):
-        actual_seat = (player_idx + i) % n
-        if i == 0:
-            last_drawn_arr.append(room_game.last_drawn[actual_seat])
-        else:
-            last_drawn_arr.append("")
-    state["just_drawn"] = just_drawn
-    state["last_drawn"] = last_drawn_arr
-
-    # 🌟 直前打牌情報の回転
-    ldi = getattr(room_game, 'last_discard_info', {"player": -1, "tile": ""})
-    if ldi.get("player", -1) >= 0:
-        state["last_discard_info"] = {
-            "player": (ldi["player"] - player_idx + n) % n,
-            "tile": ldi["tile"]
-        }
-    else:
-        state["last_discard_info"] = {"player": -1, "tile": ""}
-
-    # 🌟 友人戦：自模可能フラグ（受信者が今ツモった人で、和了形になっているか）
-    can_tsumo = False
-    if getattr(room_game, 'just_drawn', -1) == player_idx and not room_game.win_tiles[player_idx]:
-        last_tile = room_game.last_drawn[player_idx]
-        if last_tile:
-            temp_hand = list(room_game.hands[player_idx])
-            if last_tile in temp_hand:
-                temp_hand.remove(last_tile)
-            win_ctx = {
-                "winning_tile": last_tile,
-                "is_tsumo": True,
-                "is_haitei": len(room_game.wall) == 0,
-                "is_joker_swap": False,
-                "is_rinshan": False,
-                "is_first_turn": room_game.is_first_turn[player_idx],
-                "any_meld_occurred": room_game.any_meld_occurred,
-                "is_dealer": room_game.dealer == player_idx,
-                "discards_count": room_game.discards_count,
-            }
-            check_data = {
-                "closed_tiles": " ".join(temp_hand),
-                "melds": room_game.melds[player_idx],
-                "win_context": win_ctx
-            }
-            try:
-                if is_agari(check_data):
-                    can_tsumo = True
-            except Exception as e:
-                print(f"[DEBUG] can_tsumo check error: {e}")
-    state["can_tsumo"] = can_tsumo
-
-    # 🌟 友人戦：ロン/ポン/カン可能フラグ（他者の打牌に対して）
-    can_ron = False
-    can_pon = False
-    can_kan = False
-    pending_call = getattr(room_game, 'pending_call', None)
-    if pending_call and pending_call.get("discarder", -1) != player_idx:
-        discarder = pending_call["discarder"]
-        tile = pending_call["tile"]
-        # ロン判定
-        if not room_game.win_tiles[player_idx]:
-            win_ctx = {
-                "winning_tile": tile,
-                "is_tsumo": False,
-                "is_haitei": len(room_game.wall) == 0,
-                "is_joker_swap": False,
-                "is_rinshan": False,
-                "is_chankan": False,
-                "is_first_turn": room_game.is_first_turn[player_idx],
-                "any_meld_occurred": room_game.any_meld_occurred,
-                "is_dealer": room_game.dealer == player_idx,
-                "discards_count": room_game.discards_count,
-            }
-            check_data = {
-                "closed_tiles": " ".join(room_game.hands[player_idx]),
-                "melds": room_game.melds[player_idx],
-                "win_context": win_ctx
-            }
-            try:
-                total_tiles = len(room_game.hands[player_idx]) + 1 + len(room_game.melds[player_idx]) * 3
-                if total_tiles == 14 and is_agari(check_data):
-                    can_ron = True
-            except Exception as e:
-                print(f"[DEBUG] can_ron check error: {e}")
-        # ポン判定（手牌に同じ牌が2枚以上）
-        if room_game.hands[player_idx].count(tile) >= 2 and tile not in SEASON_TILES:
-            can_pon = True
-        # 明槓判定（手牌に同じ牌が3枚）
-        if room_game.hands[player_idx].count(tile) >= 3 and tile not in SEASON_TILES:
-            can_kan = True
-    state["can_ron"] = can_ron
-    state["can_pon"] = can_pon
-    state["can_kan"] = can_kan
-    state["pending_call"] = bool(pending_call)
-
-    if extra_data:
-        state.update(extra_data)
-    return state
-
-# 🌟 イベント内の絶対席インデックスを、受信プレイヤー視点（自分=0）に回転させる
-def translate_event_for(event, player_idx):
-    if not event:
-        return event
-    n = 4
-    e = dict(event)
-    if 'player_idx' in e and isinstance(e['player_idx'], int):
-        e['player_idx'] = (e['player_idx'] - player_idx + n) % n
-    if 'active_players' in e and isinstance(e['active_players'], list):
-        e['active_players'] = [(p - player_idx + n) % n for p in e['active_players']]
-    return e
-
-async def broadcast_friend_update(room_id: str, room_game, event_log: dict):
-    """各クライアントへ視点回転済みの状態とイベントを送信する"""
-    if room_id not in lobby_manager.active_connections:
-        return
-    for i, connection in enumerate(lobby_manager.active_connections[room_id]):
-        try:
-            await connection.send_json({
-                "type": "update",
-                "event": translate_event_for(event_log, i),
-                "state": get_friend_safe_state(room_game, i)
-            })
-        except Exception as ex:
-            print(f"[DEBUG ERROR] broadcast_friend_update 送信失敗: {ex}")
-
-# 🌟 友人戦：呼び出し待機の解決処理
-async def _resolve_pending_call(room_id, room_game):
-    """pending_call の応答を集計して、優先順位（ロン > ポン > 明槓 > スキップ）で解決"""
-    pc = getattr(room_game, 'pending_call', None)
-    if not pc:
-        return None
-    discarder = pc["discarder"]
-    tile = pc["tile"]
-    responses = pc["responses"]
-
-    # 優先順位探索
-    ron_claimers = [p for p, r in responses.items() if r == "ron"]
-    pon_claimers = [p for p, r in responses.items() if r == "pon"]
-    kan_claimers = [p for p, r in responses.items() if r == "kan"]
-
-    event_log = None
-
-    if ron_claimers:
-        # 打牌者の下家から優先（複数いる場合は最も近い人=頭跳ね）
-        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
-        winner = next((p for p in order if p in ron_claimers), ron_claimers[0])
-        # ロン適用
-        win_ctx = {
-            "winning_tile": tile, "is_tsumo": False,
-            "is_haitei": len(room_game.wall) == 0,
-            "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
-            "is_first_turn": room_game.is_first_turn[winner],
-            "any_meld_occurred": room_game.any_meld_occurred,
-            "is_dealer": room_game.dealer == winner,
-            "discards_count": room_game.discards_count,
-        }
-        check_data = {
-            "closed_tiles": " ".join(room_game.hands[winner]),
-            "melds": room_game.melds[winner],
-            "win_context": win_ctx
-        }
-        if is_agari(check_data):
-            # 河から打牌牌を取り除く（ロン牌は手牌に組み込まれる）
-            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
-                room_game.discards[discarder].pop()
-            room_game.win_records[winner].append(win_ctx)
-            room_game.win_tiles[winner].append(tile)
-            room_game.last_discard_info = {"player": -1, "tile": ""}
-            room_game.round_calculated = True
-            effects = get_special_effects(room_game, winner, win_ctx)
-            event_log = {"action": "win", "win_type": "ron", "player_idx": winner, "tile": tile, "from_player": discarder, "yaku": effects}
-        else:
-            print(f"[DEBUG] ron claim invalid for player {winner}")
-
-    elif pon_claimers:
-        # ポン適用：打牌者の下家から優先（同時はあり得ないが念のため）
-        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
-        claimer = next((p for p in order if p in pon_claimers), pon_claimers[0])
-        # 手牌から同種2枚を取り除き、副露としてpongを記録
-        if room_game.hands[claimer].count(tile) >= 2:
-            room_game.hands[claimer].remove(tile)
-            room_game.hands[claimer].remove(tile)
-            room_game.melds[claimer].append({"type": "pong", "tiles": [tile, tile, tile], "from_player": discarder})
-            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
-                room_game.discards[discarder].pop()
-            room_game.any_meld_occurred = True
-            room_game.is_first_turn[claimer] = False
-            room_game.turn = claimer  # ポンしたプレイヤーのターンへ
-            room_game.just_drawn = -1
-            room_game.last_discard_info = {"player": -1, "tile": ""}
-            event_log = {"action": "meld", "meld_type": "pong", "player_idx": claimer, "tile": tile, "from_player": discarder}
-
-    elif kan_claimers:
-        # 明槓適用
-        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
-        claimer = next((p for p in order if p in kan_claimers), kan_claimers[0])
-        if room_game.hands[claimer].count(tile) >= 3:
-            for _ in range(3):
-                room_game.hands[claimer].remove(tile)
-            room_game.melds[claimer].append({"type": "minkan", "tiles": [tile, tile, tile, tile], "from_player": discarder})
-            if room_game.discards[discarder] and room_game.discards[discarder][-1] == tile:
-                room_game.discards[discarder].pop()
-            room_game.any_meld_occurred = True
-            room_game.is_first_turn[claimer] = False
-            room_game.turn = claimer
-            room_game.last_discard_info = {"player": -1, "tile": ""}
-            # 嶺上ツモ
-            if room_game.wall:
-                rinshan = room_game.wall.pop()
-                room_game.hands[claimer].append(rinshan)
-                room_game.last_drawn[claimer] = rinshan
-                room_game.just_drawn = claimer
-            room_game.hands[claimer] = room_game.sort_hand(room_game.hands[claimer])
-            event_log = {"action": "meld", "meld_type": "minkan", "player_idx": claimer, "tile": tile, "from_player": discarder}
-
-    room_game.pending_call = None
-    return event_log
-
 # 📡 ロビー用のWebSocket通信口
 # ==========================================
 # 🤝 友人戦のロビーWS: 4人揃うまで待機して game_start を送るだけ
@@ -582,7 +317,9 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                     await connection.send_json({
                         "type": "game_start",
                         "player_idx": i,
-                        "state": get_friend_safe_state(room_game, i)
+                        "room_id": room_id,
+                        "player_names": list(lobby_manager.player_names[room_id]),
+                        "dealer": room_game.dealer
                     })
                 print(f"[LOBBY] game_start を全員に送信完了")
 
@@ -593,310 +330,8 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         # 接続維持ループ（このWSは「ロビー専用」なので、ゲーム中のアクションは受け取らない）
         while True:
             data = await websocket.receive_json()
-            print(f"[DEBUG LOG] 受信データ: {data}")
-            
-            if data.get("type") == "action":
-                action = data.get("action")
-                p_idx = data.get("player_idx")
-                event_log = None
-                room_game = lobby_manager.games.get(room_id)
-
-                if not room_game: 
-                    print(f"[DEBUG ERROR] Room {room_id} の game データがありません！")
-                    continue
-                
-                try:
-                    # --- 自摸和了 ---
-                    if action == "win_tsumo":
-                        if room_game.turn != p_idx or room_game.just_drawn != p_idx:
-                            print(f"[DEBUG LOG] win_tsumo: ターン/ツモ違反")
-                            continue
-                        last_tile = room_game.last_drawn[p_idx]
-                        if not last_tile:
-                            continue
-                        temp_hand = list(room_game.hands[p_idx])
-                        if last_tile in temp_hand:
-                            temp_hand.remove(last_tile)
-                        win_ctx = {
-                            "winning_tile": last_tile, "is_tsumo": True,
-                            "is_haitei": len(room_game.wall) == 0,
-                            "is_joker_swap": False, "is_rinshan": False,
-                            "is_first_turn": room_game.is_first_turn[p_idx],
-                            "any_meld_occurred": room_game.any_meld_occurred,
-                            "is_dealer": room_game.dealer == p_idx,
-                            "discards_count": room_game.discards_count,
-                        }
-                        check_data = {
-                            "closed_tiles": " ".join(temp_hand),
-                            "melds": room_game.melds[p_idx],
-                            "win_context": win_ctx
-                        }
-                        if not is_agari(check_data):
-                            print(f"[DEBUG LOG] win_tsumo: 和了形ではない")
-                            continue
-                        room_game.win_records[p_idx].append(win_ctx)
-                        room_game.win_tiles[p_idx].append(last_tile)
-                        room_game.last_discard_info = {"player": -1, "tile": ""}
-                        room_game.is_first_turn[p_idx] = False
-                        effects = get_special_effects(room_game, p_idx, win_ctx)
-                        room_game.round_calculated = True
-                        event_log = {"action": "win", "win_type": "tsumo", "player_idx": p_idx, "tile": last_tile, "yaku": effects}
-
-                    # --- ⓪ ツモ処理（友人戦：山から1枚引く）---
-                    elif action == "draw":
-                        if room_game.turn != p_idx:
-                            print(f"[DEBUG LOG] draw: プレイヤー {p_idx} のターンではない (現在 turn={room_game.turn})。無視。")
-                            continue
-                        if not room_game.wall:
-                            print(f"[DEBUG LOG] draw: 山札なし → 流局")
-                            event_log = {"action": "ryukyoku"}
-                        else:
-                            tile = room_game.wall.pop()
-                            room_game.hands[p_idx].append(tile)
-                            room_game.last_drawn[p_idx] = tile
-                            room_game.hands[p_idx] = room_game.sort_hand(room_game.hands[p_idx])
-                            room_game.just_drawn = p_idx
-                            room_game.last_discard_info = {"player": -1, "tile": ""}
-                            print(f"[DEBUG LOG] draw: プレイヤー {p_idx} が {tile} をツモ（残り山={len(room_game.wall)}）")
-                            event_log = {"action": "draw", "player_idx": p_idx}
-
-                    # --- ① 打牌処理 ---
-                    elif action == "discard":
-                        tile = data.get("tile")
-                        print(f"[DEBUG LOG] プレイヤー {p_idx} が {tile} を打牌しました。")
-                        if room_game.turn != p_idx:
-                            print(f"[DEBUG LOG] discard: ターン違反 (現在 turn={room_game.turn})。無視。")
-                            continue
-                        if tile not in room_game.hands[p_idx]:
-                            print(f"[DEBUG LOG] discard: 牌 {tile} が手牌にない。無視。")
-                            continue
-                        room_game.hands[p_idx].remove(tile)
-                        room_game.hands[p_idx] = room_game.sort_hand(room_game.hands[p_idx])
-                        room_game.discards[p_idx].append(tile)
-                        room_game.discards_count += 1
-                        room_game.is_first_turn[p_idx] = False
-                        room_game.just_drawn = -1
-                        room_game.last_discard_info = {"player": p_idx, "tile": tile}
-
-                        # 🌟 友人戦：呼び出し待機フェーズを開始
-                        room_game.pending_call = {"discarder": p_idx, "tile": tile, "responses": {}}
-                        # 各非打牌者が呼び出し可能かを判定
-                        for ndp in range(4):
-                            if ndp == p_idx:
-                                continue
-                            # 既に和了済みのプレイヤーは呼び出し不可
-                            if room_game.win_tiles[ndp]:
-                                room_game.pending_call["responses"][ndp] = "skip"
-                                continue
-                            # ロン・ポン・明槓どれかが可能かチェック
-                            has_action = False
-                            if room_game.hands[ndp].count(tile) >= 2 and tile not in SEASON_TILES:
-                                has_action = True
-                            if not has_action:
-                                # ロンチェック
-                                win_ctx = {
-                                    "winning_tile": tile, "is_tsumo": False,
-                                    "is_haitei": len(room_game.wall) == 0,
-                                    "is_joker_swap": False, "is_rinshan": False, "is_chankan": False,
-                                    "is_first_turn": room_game.is_first_turn[ndp],
-                                    "any_meld_occurred": room_game.any_meld_occurred,
-                                    "is_dealer": room_game.dealer == ndp,
-                                    "discards_count": room_game.discards_count,
-                                }
-                                check_data = {
-                                    "closed_tiles": " ".join(room_game.hands[ndp]),
-                                    "melds": room_game.melds[ndp],
-                                    "win_context": win_ctx
-                                }
-                                try:
-                                    total_tiles = len(room_game.hands[ndp]) + 1 + len(room_game.melds[ndp]) * 3
-                                    if total_tiles == 14 and is_agari(check_data):
-                                        has_action = True
-                                except Exception:
-                                    pass
-                            if not has_action:
-                                room_game.pending_call["responses"][ndp] = "skip"
-
-                        # ターンは仮で次の人にしておく（呼び出しがあれば後で上書き）
-                        room_game.turn = (p_idx + 1) % 4
-                        event_log = {"action": "discard", "player_idx": p_idx, "tile": tile}
-
-                        # 全員がskip済み（呼び出し対象者がいない）→ 即解決
-                        if len(room_game.pending_call["responses"]) >= 3:
-                            print(f"[DEBUG LOG] discard: 呼び出し可能者なし。即進行。")
-                            room_game.pending_call = None
-                        # それ以外: broadcast 後に各クライアントが claim_call / skip_call で応答
-
-                    # --- 🌟 呼び出し処理 ---
-                    elif action == "claim_call":
-                        call_type = data.get("call_type", "skip")
-                        pc = getattr(room_game, 'pending_call', None)
-                        if not pc:
-                            print(f"[DEBUG LOG] claim_call: 待機なし。無視。")
-                            continue
-                        if pc["discarder"] == p_idx or p_idx in pc["responses"]:
-                            continue
-                        pc["responses"][p_idx] = call_type
-                        print(f"[DEBUG LOG] claim_call: P{p_idx} が {call_type} を選択。")
-                        # 3人揃ったかチェック
-                        if len(pc["responses"]) >= 3:
-                            event_log = await _resolve_pending_call(room_id, room_game)
-                            if not event_log:
-                                # 解決なし → 通常の打牌進行
-                                event_log = {"action": "call_resolved", "player_idx": -1, "result": "none"}
-                        else:
-                            # まだ待機 → broadcast せず継続
-                            continue
-
-                    elif action == "skip_call":
-                        pc = getattr(room_game, 'pending_call', None)
-                        if not pc:
-                            continue
-                        if pc["discarder"] == p_idx or p_idx in pc["responses"]:
-                            continue
-                        pc["responses"][p_idx] = "skip"
-                        print(f"[DEBUG LOG] skip_call: P{p_idx} がスキップ。")
-                        if len(pc["responses"]) >= 3:
-                            event_log = await _resolve_pending_call(room_id, room_game)
-                            if not event_log:
-                                event_log = {"action": "call_resolved", "player_idx": -1, "result": "none"}
-                        else:
-                            continue
-
-                    # --- 🌟 鳴き・アガリ・スキップ同期アクション ---
-                    elif action == "play_callout":
-                        print(f"[DEBUG LOG] プレイヤー {p_idx} が発声しました: {data.get('call_text')}")
-                        event_log = {"action": "play_callout", "player_idx": p_idx, "call_text": data.get("call_text")}
-                    
-                    elif action == "skip":
-                        print(f"[DEBUG LOG] プレイヤー {p_idx} がスキップしました。")
-                        event_log = {"action": "skip", "player_idx": p_idx}
-                    
-                    elif action == "sync":
-                        print(f"[DEBUG LOG] プレイヤー {p_idx} が盤面の同期を要求しました。")
-                        event_log = {"action": "sync", "player_idx": p_idx}
-                        
-                    # --- ② 第1チャールストン ---
-                    elif action == "charleston":
-                        print(f"[DEBUG LOG] 第1交換: プレイヤー {p_idx} が牌を選びました。")
-                        if room_id not in lobby_manager.charleston_selections:
-                            lobby_manager.charleston_selections[room_id] = {}
-
-                        # 二重送信ガード：すでに送信済みのプレイヤーは無視
-                        if p_idx in lobby_manager.charleston_selections[room_id]:
-                            print(f"[DEBUG LOG] 第1交換: プレイヤー {p_idx} は既に送信済み。無視します。")
-                            continue
-
-                        tiles = data.get("tiles")
-                        lobby_manager.charleston_selections[room_id][p_idx] = tiles
-
-                        for t in tiles:
-                            if t in room_game.hands[p_idx]: room_game.hands[p_idx].remove(t)
-
-                        # まず「このプレイヤーが選択を終えた」イベントをブロードキャスト
-                        ready_event = {"action": "charleston_player_ready", "player_idx": p_idx}
-                        await broadcast_friend_update(room_id, room_game, ready_event)
-
-                        # 4人揃ったら交換を実行
-                        if len(lobby_manager.charleston_selections[room_id]) == 4:
-                            print("[DEBUG LOG] 第1交換: 全員の牌が出揃いました。交換処理を実行します。")
-                            selections = lobby_manager.charleston_selections[room_id]
-                            dice = random.randint(1, 6)
-                            if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
-                            elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
-                            else: offset, msg = 1, "上家(左)へ交換"
-                            for i in range(4):
-                                giver_idx = (i + offset) % 4
-                                room_game.hands[i].extend(selections[giver_idx])
-                                room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
-                            lobby_manager.charleston_selections[room_id] = {}
-                            room_game.charleston_done = True
-                            event_log = {"action": "charleston_complete", "dice": dice, "direction": msg}
-                        else:
-                            # 4人揃っていない場合は ready_event 送信済みなので追加ブロードキャストはスキップ
-                            event_log = None
-
-                    # --- ③ 第2チャールストン ---
-                    elif action == "second_charleston_turn":
-                        print(f"[DEBUG LOG] 第2交換: プレイヤー {p_idx} から選択を受信しました。")
-                        if room_id not in lobby_manager.second_charleston_selections:
-                            lobby_manager.second_charleston_selections[room_id] = {}
-                            lobby_manager.second_charleston_confirms[room_id] = {}
-
-                        # 二重送信ガード
-                        if p_idx in lobby_manager.second_charleston_selections[room_id]:
-                            print(f"[DEBUG LOG] 第2交換: プレイヤー {p_idx} は既に送信済み。無視します。")
-                            continue
-
-                        participate = data.get("participate")
-                        tiles = data.get("tiles", [])
-
-                        lobby_manager.second_charleston_confirms[room_id][p_idx] = participate
-                        lobby_manager.second_charleston_selections[room_id][p_idx] = tiles
-
-                        for t in tiles:
-                            if t in room_game.hands[p_idx]: room_game.hands[p_idx].remove(t)
-
-                        # まず「このプレイヤーが回答した」イベントをブロードキャスト
-                        ready_event = {"action": "second_charleston_player_done", "player_idx": p_idx, "participate": participate}
-                        await broadcast_friend_update(room_id, room_game, ready_event)
-                        event_log = None
-
-                        if len(lobby_manager.second_charleston_selections[room_id]) == 4:
-                            print("[DEBUG LOG] 第2交換: 4人全員の選択が出揃いました。集計を開始します。")
-                            selections = lobby_manager.second_charleston_selections[room_id]
-                            confirms = lobby_manager.second_charleston_confirms[room_id]
-                            active = [i for i in range(4) if confirms.get(i, False) or confirms.get(str(i), False)]
-
-                            if len(active) <= 1:
-                                print("[DEBUG LOG] 第2交換: 参加者不足によりスキップします。")
-                                for i in active:
-                                    room_game.hands[i].extend(selections[i])
-                                    room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
-                                lobby_manager.second_charleston_confirms[room_id] = {}
-                                lobby_manager.second_charleston_selections[room_id] = {}
-                                room_game.second_charleston_done = True
-                                event_log = {"action": "second_charleston_skip", "message": "参加者不足"}
-                            else:
-                                print("[DEBUG LOG] 第2交換: 牌の移動を実行します。")
-                                passed_tiles = {i: selections[i] for i in range(4)}
-                                dice = random.randint(1, 6)
-                                msg = ""
-                                if len(active) == 4:
-                                    if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
-                                    elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
-                                    else: offset, msg = 1, "上家(左)へ交換"
-                                    for i in range(4):
-                                        giver_idx = (i + offset) % 4
-                                        room_game.hands[i].extend(passed_tiles[giver_idx])
-                                elif len(active) == 3:
-                                    if dice in [1, 2, 3]: offset_idx, msg = -1, "参加者間で右回り(下家方向)に交換"
-                                    else: offset_idx, msg = 1, "参加者間で左回り(上家方向)に交換"
-                                    for idx, player in enumerate(active):
-                                        giver_idx = active[(idx + offset_idx) % len(active)]
-                                        room_game.hands[player].extend(passed_tiles[giver_idx])
-                                elif len(active) == 2:
-                                    dice, msg = 0, "2人で直接交換"
-                                    pA, pB = active[0], active[1]
-                                    room_game.hands[pA].extend(passed_tiles[pB])
-                                    room_game.hands[pB].extend(passed_tiles[pA])
-                                    
-                                for i in range(4): room_game.hands[i] = room_game.sort_hand(room_game.hands[i])
-                                lobby_manager.second_charleston_confirms[room_id] = {}
-                                lobby_manager.second_charleston_selections[room_id] = {}
-                                room_game.second_charleston_done = True
-                                event_log = {"action": "second_charleston_complete", "dice": dice, "direction": msg, "active_players": active}
-
-                    # 最新の盤面を全員に配る（視点回転済みのリッチな state を送信）
-                    if event_log:
-                        print(f"[DEBUG LOG] ブロードキャスト送信: {event_log.get('action')}")
-                        await broadcast_friend_update(room_id, room_game, event_log)
-                
-                except Exception as action_err:
-                    print(f"\n[FATAL ERROR 💥] アクションの処理中にエラーが発生しました！")
-                    print(f"エラー詳細: {action_err}")
-                    traceback.print_exc()
-                    print(f"==============================================================\n")
+            # ロビーWSでは何も処理しない（ゲーム中は /friend/ws/... が担当）
+            print(f"[LOBBY] 受信（無視）: {data}")
 
     except WebSocketDisconnect:
         lobby_manager.disconnect(websocket, room_id)

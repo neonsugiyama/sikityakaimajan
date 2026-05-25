@@ -6,8 +6,6 @@
 let resultWaitResolver = null;
 let resultTimerInterval = null;
 let currentGameMode = 'cpu'; // 'cpu' または 'online'
-let myPlayerIdx = 0;
-let friendInitialState = null;
 
 function waitWithTimerAndSkip(seconds) {
     const controls = document.getElementById('result-controls');
@@ -194,16 +192,7 @@ async function returnToHomeGracefully() {
         sessionStorage.removeItem(`result_end_time_${currentSessionRoomId}`);
         sessionStorage.removeItem(`result_phase_start_${currentSessionRoomId}`);
 
-        // 🌟 友人戦は HTTP の active_rooms に部屋を持たないので exit_room を呼ばない
-        const wasFriend = (currentGameMode === 'friend');
-        if (!wasFriend) {
-            fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
-        }
-        // 友人戦は WS を閉じてクリーンアップ
-        if (wasFriend && typeof lobbyWs !== 'undefined' && lobbyWs) {
-            try { lobbyWs.close(); } catch (e) { }
-            lobbyWs = null;
-        }
+        fetch(`/exit_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`).catch(e => console.log(e));
         currentSessionRoomId = "";
         localStorage.removeItem('shiki_mahjong_room_id');
         localStorage.removeItem('shiki_mahjong_game_mode');
@@ -663,147 +652,6 @@ function cancelCpuGame() {
 let currentRoomId = "";
 let lobbyWs = null;
 
-// 🌟 友人戦：サーバーからの応答を await できるようにする Promise リゾルバ
-let pendingFriendCharlestonResolver = null;
-let pendingFriendSecondCharlestonResolver = null;
-// 🌟 友人戦：呼び出し待機状態フラグ（safeUpdate で state.pending_call から更新）
-let friendPendingCall = false;
-// 🌟 友人戦：自分が呼び出し応答済みフラグ（pending リセット時にfalseへ）
-let friendCallResponded = false;
-
-// 🌟 友人戦：WebSocket 経由でアクションを送信するヘルパー
-function friendWsSend(action, params = {}) {
-    if (!lobbyWs || lobbyWs.readyState !== WebSocket.OPEN) {
-        console.error("[WS] 接続が切断されているため送信できません: ", action);
-        return false;
-    }
-    const payload = Object.assign({
-        type: "action",
-        action: action,
-        player_idx: myPlayerIdx
-    }, params);
-    lobbyWs.send(JSON.stringify(payload));
-    //console.log("[WS送信]", payload);
-    return true;
-}
-
-// 🌟 友人戦：サーバーからの update を受信したときの統合ハンドラ
-function handleFriendUpdate(data) {
-    const ev = data.event;
-    const state = data.state;
-
-    // 状態を反映（手牌、ターン、点数など）
-    if (state && typeof safeUpdate === 'function') {
-        safeUpdate(state);
-    }
-
-    if (!ev) return;
-    const action = ev.action;
-    //console.log("[WS受信] event:", action, ev);
-
-    // pending_call フラグを state から拾う
-    friendPendingCall = !!(state && state.pending_call);
-
-    if (action === "draw") {
-        // 🌟 友人戦：誰かがツモを実行（state は既に safeUpdate で反映済み）
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
-        // 自分のツモなら打牌待ち状態へ、他者ならまだ待機
-        if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
-        // ツモ和了が可能なら自摸ボタンを表示
-        if (state && state.can_tsumo && typeof showFriendTsumoButton === 'function') {
-            showFriendTsumoButton();
-        }
-    } else if (action === "discard") {
-        // 🌟 友人戦：誰かが打牌した。state.discards で河は更新済み
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
-        // 呼び出し待機なら call ボタンを出す、そうでなければターン進行
-        friendCallResponded = false;
-        if (friendPendingCall && (state.can_ron || state.can_pon || state.can_kan)) {
-            if (typeof showFriendCallButtons === 'function') {
-                showFriendCallButtons(state.can_ron, state.can_pon, state.can_kan, ev.tile);
-            }
-        } else if (typeof friendStartGameTurn === 'function') {
-            friendStartGameTurn();
-        }
-    } else if (action === "call_resolved") {
-        // 呼び出し未発生で終了 → 通常のターン進行
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
-        if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
-    } else if (action === "win") {
-        // 🌟 友人戦：誰かが和了した（ツモ/ロン）
-        window.friendRoundEnded = true;
-        if (typeof isProc !== 'undefined') isProc = true;
-        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-        const btnWin = document.getElementById('btn-win');
-        if (btnWin) btnWin.style.display = "none";
-
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
-        const winLabel = ev.win_type === "tsumo" ? "自摸" : "胡";
-        if (typeof showCallout === 'function') showCallout(ev.player_idx, winLabel);
-        const msgEl = document.getElementById('msg');
-        if (msgEl) {
-            msgEl.innerText = `Player ${ev.player_idx} 和了 (${winLabel})`;
-            msgEl.className = "";
-        }
-        // 役表示
-        if (ev.yaku && ev.yaku.length > 0 && typeof showCenterMessage === 'function') {
-            setTimeout(() => {
-                showCenterMessage(`<span style="font-size:32px;color:#f1c40f;">${ev.yaku.join(' / ')}</span>`);
-                setTimeout(() => { if (typeof hideCenterMessage === 'function') hideCenterMessage(); }, 3000);
-            }, 800);
-        }
-    } else if (action === "meld") {
-        // 🌟 友人戦：誰かが副露（ポン/明槓）した
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
-        const meldLabel = ev.meld_type === "pong" ? "碰" : (ev.meld_type === "minkan" ? "明槓" : "槓");
-        if (typeof showCallout === 'function') showCallout(ev.player_idx, meldLabel);
-        // ターン進行（ポン/カンしたプレイヤーが打牌へ）
-        setTimeout(() => {
-            if (typeof friendStartGameTurn === 'function') friendStartGameTurn();
-        }, 1200);
-    } else if (action === "ryukyoku") {
-        // 🌟 友人戦：流局
-        if (typeof showCenterMessage === 'function') showCenterMessage(`<span style="color:#e74c3c;font-size:28px;">流局</span>`);
-        document.getElementById('msg').innerText = "流局";
-    } else if (action === "charleston_player_ready") {
-        // 自分以外のプレイヤーが選択を確定 → 中央に裏3枚（手牌はサーバー側で既に減っている）
-        const p = ev.player_idx;
-        if (p !== 0) {
-            if (typeof showCharlestonStatus === 'function') showCharlestonStatus(p, true);
-            if (typeof renderCPU === 'function') renderCPU();
-        }
-    } else if (action === "charleston_complete") {
-        // 全員の選択完了。execExchange 側が await している Promise を解放
-        if (pendingFriendCharlestonResolver) {
-            const r = pendingFriendCharlestonResolver;
-            pendingFriendCharlestonResolver = null;
-            r({ dice: ev.dice, direction: ev.direction });
-        }
-    } else if (action === "second_charleston_player_done") {
-        // 第2交換：誰かが回答 → processAskSecondCharleston に集約
-        if (typeof processAskSecondCharleston === 'function') {
-            processAskSecondCharleston(ev.player_idx, !!ev.participate);
-        }
-    } else if (action === "second_charleston_complete" || action === "second_charleston_skip") {
-        if (pendingFriendSecondCharlestonResolver) {
-            const r = pendingFriendSecondCharlestonResolver;
-            pendingFriendSecondCharlestonResolver = null;
-            r({
-                action: action,
-                dice: ev.dice,
-                direction: ev.direction || ev.message,
-                active_players: ev.active_players || [],
-                skipped: action === "second_charleston_skip"
-            });
-        }
-    }
-}
-
 function createRoom() {
     if (typeof playSE === 'function') playSE('click');
     const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -824,10 +672,6 @@ function joinRoom() {
 
 function enterWaitingRoom(roomId) {
     currentRoomId = roomId;
-    // 🌟 友人戦中も sessionStorage キーに使うので、セッションIDを部屋IDで上書き
-    if (typeof currentSessionRoomId !== 'undefined') {
-        currentSessionRoomId = "friend_" + roomId;
-    }
     const selectEl = document.getElementById('friend-menu-select');
     if (selectEl) selectEl.style.display = 'none';
     const waitingEl = document.getElementById('friend-menu-waiting');
@@ -837,9 +681,7 @@ function enterWaitingRoom(roomId) {
     const countEl = document.getElementById('room-player-count');
     if (countEl) countEl.innerText = "1";
 
-    // wss / ws をページプロトコルから自動判定
-    const wsProto = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProto}//${window.location.host}/ws/lobby/${roomId}`;
+    const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
     // 🌟 接続直後にプレイヤー名を送信（main.py側でロビーWSが最初に名前を待つ）
@@ -856,41 +698,17 @@ function enterWaitingRoom(roomId) {
             if (countEl) countEl.innerText = data.player_count;
         }
         if (data.type === "game_start") {
-            myPlayerIdx = data.player_idx;
-            friendInitialState = data.state;
-            currentGameMode = 'friend';
-            closeFriendMatch(); // ui.js に既存の関数（WSは閉じない）
-
-            // タイトル/モード選択画面を隠して卓を表示
-            const ts = document.getElementById('title-screen');
-            const ms = document.getElementById('mode-select-screen');
-            if (ts) ts.style.display = 'none';
-            if (ms) ms.style.display = 'none';
-            const gameContainer = document.getElementById('game-container');
-            if (gameContainer) gameContainer.style.opacity = '1';
-            const tableEl = document.querySelector('.table');
-            if (tableEl) tableEl.style.opacity = '1';
-
-            if (typeof init === 'function') init();
-            if (typeof resizeGame === 'function') resizeGame();
-        }
-        if (data.type === "update") {
-            handleFriendUpdate(data);
+            // 🤝 友人戦の本対局開始 → friend.js に処理を委譲
+            if (typeof startFriendGame === 'function') {
+                startFriendGame(data);
+            } else {
+                console.error("friend.js が読み込まれていません");
+            }
         }
     };
 
     lobbyWs.onclose = () => {
         console.log("ロビーから切断されました");
-        // 友人戦中に切断されたら警告
-        if (currentGameMode === 'friend') {
-            alert("サーバーとの接続が切れました。タイトル画面に戻ります。");
-            if (typeof returnToHomeGracefully === 'function') returnToHomeGracefully();
-            currentGameMode = 'cpu';
-        }
-    };
-
-    lobbyWs.onerror = (err) => {
-        console.error("[WS] エラー:", err);
     };
 }
 

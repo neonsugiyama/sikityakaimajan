@@ -148,6 +148,88 @@ def get_friend_state_for_player(game, player_idx: int) -> dict:
 
 
 
+
+# ==========================================
+# REST: 第1交換（チャールストン）の3枚提出
+# ==========================================
+@router.get("/charleston_submit")
+async def friend_charleston_submit(room_id: str, player_idx: int, t1: str, t2: str, t3: str):
+    """4人全員が3枚提出するまで蓄積し、揃ったら交換実行 → WSでbroadcast。"""
+    import random
+    from main import lobby_manager, SEASON_TILES
+
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    # 既に第1交換完了済みなら無視
+    if getattr(game, 'charleston_done', False):
+        return {"status": "already_done"}
+
+    # 選択を記録
+    if room_id not in lobby_manager.charleston_selections:
+        lobby_manager.charleston_selections[room_id] = {}
+    selections = lobby_manager.charleston_selections[room_id]
+    selections[player_idx] = [t1, t2, t3]
+
+    # この時点で「player_idx は選択済み」を全員に通知
+    await friend_connections.broadcast(room_id, {
+        "type": "charleston_player_ready",
+        "player_idx": player_idx
+    })
+
+    # 全員揃ったかチェック
+    if len(selections) < 4:
+        return {"status": "waiting", "submitted": len(selections)}
+
+    # === 全員揃った: 実行 ===
+    print(f"[FRIEND] Room {room_id}: 第1交換 4人全員揃った。実行します")
+
+    # 各プレイヤーの手牌から提出した牌を抜く
+    all_passed = [selections[i] for i in range(4)]
+    for i in range(4):
+        for t in all_passed[i]:
+            if t in game.hands[i]:
+                game.hands[i].remove(t)
+
+    # サイコロを振って方向決定
+    dice = random.randint(1, 6)
+    if dice in [1, 2]:
+        offset, msg = -1, "下家(右)へ交換"
+    elif dice in [3, 4]:
+        offset, msg = -2, "対面(正面)へ交換"
+    else:
+        offset, msg = 1, "上家(左)へ交換"
+
+    # 交換実行
+    received_tiles = [[] for _ in range(4)]
+    for i in range(4):
+        giver_idx = (i + offset) % 4
+        game.hands[i].extend(all_passed[giver_idx])
+        received_tiles[i] = all_passed[giver_idx]
+        game.hands[i] = game.sort_hand(game.hands[i])
+
+    game.just_drawn = -1
+    game.last_discard_info = {"player": -1, "tile": ""}
+    game.charleston_done = True
+
+    # 各プレイヤーに視点回転済みstate + dice/direction を送信
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "charleston_complete",
+            "dice": dice,
+            "direction": msg,
+            "offset": offset,
+            "state": state
+        })
+
+    # 選択辞書をクリア（メモリ節約・次局のため）
+    del lobby_manager.charleston_selections[room_id]
+
+    return {"status": "complete", "dice": dice, "direction": msg}
+
+
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================
