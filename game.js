@@ -14,6 +14,7 @@ let humanSecondCharlestonTiles = [];
 let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
+let myDevAllHands = []; // 🌟 友人戦の開発者モード用：全員の実手牌（視点回転済み）
 // 🌟 追加：引く前からテンパイしていたかを記憶するフラグ
 let isAlreadyTenpai = false;
 let isAutoPlay = false;
@@ -514,7 +515,15 @@ function safeUpdate(data) {
     if (data.charleston_done !== undefined) charlestonDoneServer = data.charleston_done;
     if (data.second_charleston_done !== undefined) secondCharlestonDoneServer = data.second_charleston_done;
 
-    if (data.all_hands !== undefined) myAllHands = data.all_hands;
+    if (data.all_hands !== undefined) {
+        myAllHands = data.all_hands;
+        // 🌟 友人戦の開発者モード: dev_all_hands（全員の実手牌）を myAllHands に上書き
+        if (currentGameMode === 'friend' && typeof isDevMode !== 'undefined' && isDevMode && data.dev_all_hands) {
+            myAllHands = data.dev_all_hands;
+        }
+    }
+    // 🌟 友人戦の開発者モード切り替え時に参照するため別変数で保持
+    if (data.dev_all_hands !== undefined) myDevAllHands = data.dev_all_hands;
     if (data.all_melds !== undefined) myAllMelds = data.all_melds;
     if (data.all_win_tiles !== undefined) myAllWinTiles = data.all_win_tiles;
     if (data.cpu_targets !== undefined) cpuTargets = data.cpu_targets;
@@ -570,12 +579,16 @@ function updateInfoUI() {
         let titleColor = playerRatings[i] >= 2000 ? "#e74c3c" : (playerRatings[i] >= 1800 ? "#f1c40f" : "#3498db");
         let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
 
-        // 🌟 友人戦時は「Player N」表記（オンラインの他プレイヤー）
-        const isFriend = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend');
-        let opponentLabel = isFriend ? `Player ${i}` : `CPU ${i}`;
+        // 🌟 友人戦時は友人戦の名前リストを使用
+        let opponentName;
+        if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+            opponentName = escapeHTML(getFriendPlayerName(i));
+        } else {
+            opponentName = `CPU ${i}`;
+        }
         let name = i === 0 ?
             `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${escapeHTML(playerStats.playerName)}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${opponentLabel}`;
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${opponentName}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
         let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
@@ -734,13 +747,6 @@ async function updateWaitsButton() {
         waitsBtn.disabled = !isTenpai;
         waitsBtn.innerText = isTenpai ? "待ち牌確認" : "ノーテン";
         if (isTenpai) applyEffectiveHint();
-        return;
-    }
-
-    // 🌟 友人戦：HTTP の /get_waits は friend 用の卓を持たないため 400 になる。スキップして非表示にする
-    if (currentGameMode === 'friend') {
-        waitsBtn.style.display = 'none';
-        hideWaitsPanel();
         return;
     }
 
@@ -1049,21 +1055,7 @@ async function init() {
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
     logMsg("=== ゲーム起動 ===");
-    console.log("[init] currentGameMode =", currentGameMode, "myPlayerIdx =", typeof myPlayerIdx !== 'undefined' ? myPlayerIdx : 'undef');
-
-    if (currentGameMode === 'friend') {
-        console.log("[init friend] friendInitialState keys =", Object.keys(friendInitialState || {}));
-        console.log("[init friend] all_hands lengths =", (friendInitialState?.all_hands || []).map(h => h?.length));
-        try {
-            safeUpdate(friendInitialState); // WS受信済みのstateを直接反映
-            logMsg("[friend] safeUpdate成功 myAllHands=" + JSON.stringify(myAllHands.map(h => h.length)));
-        } catch (e) {
-            console.error("[init friend] safeUpdate failed:", e);
-            logMsg("[friend ERROR] safeUpdate失敗: " + e.message, true);
-        }
-    } else {
-        await apiCall('/start', { cpu_level: confCpuLevel });
-    }
+    await apiCall('/start', { cpu_level: confCpuLevel });
     sessionStorage.removeItem(`charleston_done_${currentSessionRoomId}`);
 
     // 🌟 追加：以前のゲームのリザルト状態が残っているとスキップされる原因になるため、確実に消去する
@@ -1092,10 +1084,8 @@ async function init() {
     if (menuExitBtn) menuExitBtn.style.removeProperty('display');
 
     charlestonCount = 1;
-    console.log("[init] starting charleston selection. myHand.length=" + myHand.length + ", myAllHands.lens=" + JSON.stringify((myAllHands || []).map(h => h?.length)));
     startCharlestonSelection();
     render(); renderCPU();
-    console.log("[init] DONE. handsDisplayed=" + JSON.stringify([0,1,2,3].map(i => document.getElementById('hand-'+i)?.children.length)));
 }
 
 // 🧱 画面左上の「山: 〇枚」の表示を更新する関数
@@ -1142,9 +1132,7 @@ function startCharlestonSelection() {
 
 // 👆 チャールストンで交換に出す牌の選択/解除を切り替える関数
 function toggleExchange(idx) {
-    // 🌟 友人戦 第2交換：他人の番でも事前に3枚選んでおけるようにする（isProc ブロックを除外）
-    const isFriendWaiting = (currentGameMode === 'friend' && charlestonCount === 2 && !friendSelfAsker);
-    if (charlestonCount === 2 && isProc && !isFriendWaiting) return; // 🌟 順番待ち中はクリックを無効化
+    if (charlestonCount === 2 && isProc) return; // 🌟 順番待ち中はクリックを無効化
 
     const pos = exchangeSelection.indexOf(idx);
     if (pos > -1) exchangeSelection.splice(pos, 1);
@@ -1162,11 +1150,6 @@ function toggleExchange(idx) {
             btn.style.display = "none";
         }
     } else {
-        // 🌟 第2交換：友人戦で自分の番でなければボタンは隠したまま（事前選択のみ許可）
-        if (isFriendWaiting) {
-            btn.style.display = "none";
-            return;
-        }
         // 🌟 第2交換：常にボタンを表示し、3枚選んだら決定ボタンに化ける
         btn.style.display = "block";
         if (exchangeSelection.length === 3) {
@@ -1208,20 +1191,19 @@ async function execExchange() {
         showCharlestonStatus(0, true);
         render();
 
-        let data;
+        hideCpuTiles = [0, 3, 3, 3];
+        for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+        renderCPU();
+
+        // 🌟 友人戦: サーバーに3枚提出して全員揃うまで待つ
         if (currentGameMode === 'friend') {
-            // 友人戦：WSで自分の選択を送信し、サーバーが4人全員揃ったら charleston_complete を返してくる
-            const waitPromise = new Promise(resolve => { pendingFriendCharlestonResolver = resolve; });
-            friendWsSend('charleston', { tiles: [t1, t2, t3] });
-            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
-            data = await waitPromise;
-            document.getElementById('msg').innerText = "";
-        } else {
-            hideCpuTiles = [0, 3, 3, 3];
-            for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
-            renderCPU();
-            data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
+            if (typeof friendSubmitCharleston === 'function') {
+                await friendSubmitCharleston(t1, t2, t3);
+            }
+            return; // 以降は WS で charleston_complete を受信して処理
         }
+
+        const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
 
         if (isWelcomeHomeTest) {
             myHand = oldHandStr.split(',');
@@ -1254,7 +1236,6 @@ async function execExchange() {
         isProc = true;
         document.getElementById('charleston-ui').style.display = "none";
         let willDo = exchangeSelection.length === 3;
-        let chosenTiles = [];
 
         if (willDo) {
             let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
@@ -1264,7 +1245,6 @@ async function execExchange() {
                 displayHand[exchangeSelection[1]],
                 displayHand[exchangeSelection[2]]
             ];
-            chosenTiles = [...humanSecondCharlestonTiles];
             exchangeSelection.sort((a, b) => b - a).forEach(idx => displayHand.splice(idx, 1));
             myHand = displayHand;
         } else {
@@ -1274,19 +1254,18 @@ async function execExchange() {
         exchangeSelection = [];
         render(); // 3枚出した後の手牌を描画
 
+        // 🌟 友人戦: 自分の回答をサーバーに送って待機
         if (currentGameMode === 'friend') {
-            // 友人戦：自分の判断をWSで送信。processAskSecondCharleston は broadcast 受信時に呼ばれる
-            friendWsSend('second_charleston_turn', { participate: willDo, tiles: chosenTiles });
-            // 即座にローカル表示も更新（broadcast を待たずUI反応を出す）
-            secondCharlestonParticipating[0] = willDo;
-            showCharlestonStatus(0, willDo);
-            playSE('dahai');
-            // askedCount はサーバーからの broadcast で進める。ここでは進めない。
-            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
-            isProc = true;
-        } else {
-            processAskSecondCharleston(0, willDo); // 即座に自分の前に牌（またはスタンプ）を出す
+            if (typeof friendSubmitSecondCharleston === 'function') {
+                const t1 = humanSecondCharlestonTiles[0] || "";
+                const t2 = humanSecondCharlestonTiles[1] || "";
+                const t3 = humanSecondCharlestonTiles[2] || "";
+                await friendSubmitSecondCharleston(willDo, t1, t2, t3);
+            }
+            return;
         }
+
+        processAskSecondCharleston(0, willDo); // 即座に自分の前に牌（またはスタンプ）を出す
     }
 }
 
@@ -1299,11 +1278,6 @@ async function askNextSecondCharleston() {
         charlestonPhase = true; // 🌟 選択できるようにフェーズを戻す
         charlestonCount = 2;    // 🌟 第2交換モードに設定
         humanSecondCharlestonTiles = [];
-
-        // 🌟 友人戦：4人並列で意思決定するため、専用フローへ
-        if (currentGameMode === 'friend') {
-            return startFriendSecondCharleston();
-        }
     }
 
     if (askedCount === 4) {
@@ -1362,291 +1336,37 @@ async function askNextSecondCharleston() {
     }
 }
 
-// 🌟 友人戦：どのプレイヤーの第2交換回答が既に記録済みかを追跡（重複加算防止）
-let friendSecondCharlestonRecorded = [false, false, false, false];
-// 🌟 友人戦：今が自分の番か（決定/スルー操作可能か）
-let friendSelfAsker = false;
-
 // 🧠 参加/不参加の回答を記録し、即座に演出を出して次の人に回す関数
 function processAskSecondCharleston(askerIdx, willDo) {
-    // 🌟 友人戦：重複呼び出し（自分の楽観更新後にbroadcastが来た等）をガード
-    if (currentGameMode === 'friend') {
-        if (askerIdx < 0 || askerIdx > 3) return;
-        if (friendSecondCharlestonRecorded[askerIdx]) return;
-        friendSecondCharlestonRecorded[askerIdx] = true;
-    }
-
     secondCharlestonParticipating[askerIdx] = willDo;
     playSE('dahai'); // 決定した瞬間に音を鳴らす
 
     showCharlestonStatus(askerIdx, willDo);
 
     if (askerIdx !== 0 && willDo) {
-        // 友人戦ではサーバーが既に手牌を減らしているため hideCpuTiles 加算は不要
-        if (currentGameMode !== 'friend') {
-            hideCpuTiles[askerIdx] = 3;
-        }
+        hideCpuTiles[askerIdx] = 3;
         renderCPU();
     }
 
     askedCount++;
 
-    // 🌟 友人戦：順番制 - askedCount < 4 なら次の番に進む。4 なら complete/skip 待ち
-    if (currentGameMode === 'friend') {
-        if (askedCount < 4) {
-            advanceFriendSecondCharlestonTurn();
-        } else {
-            // 全員回答済み。サーバーの complete/skip broadcast を待つ
-            const cUi = document.getElementById('charleston-ui');
-            if (cUi) cUi.style.display = "none";
-            const btn = document.getElementById('btn-exchange');
-            if (btn) btn.style.display = "none";
-            document.getElementById('msg').innerText = "他のプレイヤー待ち...";
-            isProc = true;
-            stopTimer();
-        }
-        return;
-    }
-
     // 🌟 追加：早期終了の判定（不成立の確定）
+    // 「既に参加決定した人数」＋「これから回答する残り人数」が1人以下なら、
+    // ペア（2人以上）が作れる可能性がゼロになったため、その場で不成立として終了する
     let currentYesCount = secondCharlestonParticipating.filter(p => p).length;
     let remainingAskers = 4 - askedCount;
 
     if (currentYesCount + remainingAskers <= 1) {
         logMsg("参加者不足が確定したため、早期終了します。");
+        // 0.8秒ほど待ってから終了（最後のCPUの「過」スタンプが見えるようにするため）
         setTimeout(() => {
             finishAskSecondCharleston();
         }, 800 / speedMult);
-        return;
+        return; // 次の人へは回さずに終了
     }
 
-    isProc = true;
+    isProc = true; // 次の人の処理までブロック
     askNextSecondCharleston();
-}
-
-// 🌟 友人戦：第2交換の現在の番を反映する関数（自分の番なら panel 表示、他人の番なら hide）
-function advanceFriendSecondCharlestonTurn() {
-    if (askedCount >= 4) return;
-
-    const currentAsker = (dealer + askedCount) % 4;
-    friendSelfAsker = (currentAsker === 0);
-
-    const cUi = document.getElementById('charleston-ui');
-    const cTitle = document.getElementById('c-title');
-    const btn = document.getElementById('btn-exchange');
-    const msgEl = document.getElementById('msg');
-
-    if (friendSelfAsker) {
-        // 🌟 自分の番：パネルとボタンを表示
-        if (cTitle) {
-            cTitle.innerText = "第2交換 (Second Charleston)";
-            cTitle.style.color = "#f1c40f";
-        }
-        if (cUi) {
-            cUi.style.zIndex = "9999";
-            cUi.style.display = "block";
-        }
-        if (btn) {
-            btn.style.display = "block";
-            if (exchangeSelection.length === 3) {
-                btn.innerHTML = "📤 決定 (3枚交換)";
-                btn.className = "btn-act btn-blue";
-            } else {
-                btn.innerHTML = "⏭️ スルー (過)";
-                btn.className = "btn-act btn-gray";
-            }
-        }
-        if (msgEl) {
-            msgEl.innerText = "あなたの番です";
-            msgEl.className = "blink-text";
-        }
-        isProc = false; // 操作許可
-        startTimer(timeExchange, () => {
-            exchangeSelection = [];
-            execExchange();
-        });
-    } else {
-        // 🌟 他のプレイヤーの番：パネルとボタンを隠す（事前の3枚選択はクリックで可能）
-        if (cUi) cUi.style.display = "none";
-        if (btn) btn.style.display = "none";
-        if (msgEl) {
-            msgEl.innerText = `Player ${currentAsker} 選択中...`;
-            msgEl.className = "";
-        }
-        isProc = true; // ボタン経由の決定は不可（pre-select は toggleExchange で許可）
-        stopTimer();
-    }
-}
-
-// 🌟 友人戦：第2チャールストンの順番制フロー
-async function startFriendSecondCharleston() {
-    friendSecondCharlestonRecorded = [false, false, false, false];
-    secondCharlestonParticipating = [false, false, false, false];
-    askedCount = 0;
-    friendSelfAsker = false;
-    exchangeSelection = [];
-    humanSecondCharlestonTiles = [];
-
-    render(); // クリック可能な状態に再描画
-
-    // 順番制で 親 から開始
-    advanceFriendSecondCharlestonTurn();
-
-    // サーバーの complete/skip broadcast を待つ Promise を準備
-    const resultPromise = new Promise(resolve => {
-        pendingFriendSecondCharlestonResolver = resolve;
-    });
-
-    // 結果が届くまで待機（UI操作はイベントループで継続）
-    const result = await resultPromise;
-
-    document.getElementById('charleston-ui').style.display = "none";
-    document.getElementById('msg').innerText = "";
-
-    if (result.skipped) {
-        // 参加者不足だった場合、隠した手牌を戻す（サーバー側もrestore済みだが、broadcast の state で同期される）
-        showCenterMessage(`参加者不足<br><span style="color:#e74c3c;font-size:24px;">第2交換はスキップされます</span>`);
-        await sleep(2000);
-        hideCenterMessage();
-    } else {
-        await showDiceAnimation(result.dice, result.direction);
-        await playExchangeAnimation(result.direction, secondCharlestonParticipating);
-    }
-
-    hideCpuTiles = [0, 0, 0, 0];
-    sessionStorage.setItem(`charleston_done_${currentSessionRoomId}`, "true");
-    clearCharlestonStatus();
-    humanSecondCharlestonTiles = [];
-
-    render(); renderCPU();
-
-    charlestonPhase = false;
-    isProc = false;
-    friendSelfAsker = false;
-    window.friendRoundEnded = false; // 🌟 局終了フラグをリセット
-
-    // 🌟 友人戦：本対局のツモ・打牌ループ開始
-    logMsg("[友人戦] Charleston完了。本対局を開始します。");
-    friendStartGameTurn();
-}
-
-// 🌟 友人戦：対局中のターン管理。自分の番なら draw を送信、他者の番なら待機
-function friendStartGameTurn() {
-    if (currentGameMode !== 'friend') return;
-    // round が確定済み（誰かが和了済み）なら何もしない
-    if (typeof window.friendRoundEnded !== 'undefined' && window.friendRoundEnded) return;
-
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-
-    // 親マーク・アクティブ枠
-    for (let i = 0; i < 4; i++) {
-        const scoreEl = document.getElementById(`player-score-${i}`);
-        if (scoreEl) scoreEl.classList.remove('active-turn');
-    }
-    const activeScoreEl = document.getElementById(`player-score-${turn}`);
-    if (activeScoreEl) activeScoreEl.classList.add('active-turn');
-
-    const msgEl = document.getElementById('msg');
-
-    // 呼び出し待機中はターン進行を保留
-    if (typeof friendPendingCall !== 'undefined' && friendPendingCall) {
-        if (msgEl) { msgEl.innerText = "呼び出し判定中..."; msgEl.className = ""; }
-        isProc = true;
-        return;
-    }
-
-    if (turn === 0) {
-        // 自分の番。手牌枚数で「ツモが必要か / 打牌段階か」を判定
-        const handCount = myHand.length + (myMelds.length * 3);
-        const needDraw = (handCount % 3 === 1); // 13枚相当 → ツモが必要
-
-        if (needDraw) {
-            if (msgEl) { msgEl.innerText = "ツモ中..."; msgEl.className = ""; }
-            isProc = true;
-            // サーバーに draw を送信
-            friendWsSend('draw', {});
-        } else {
-            // 既に14枚 → 打牌待ち
-            if (msgEl) { msgEl.innerText = "↓打牌↓"; msgEl.className = "blink-text"; }
-            isProc = false;
-            render();
-        }
-    } else {
-        // 他のプレイヤーの番。待機
-        if (msgEl) { msgEl.innerText = `Player ${turn} の番`; msgEl.className = ""; }
-        isProc = true;
-    }
-}
-
-// 🌟 友人戦：自摸ボタンを表示
-function showFriendTsumoButton() {
-    const btnWin = document.getElementById('btn-win');
-    if (!btnWin) return;
-    let winTile = drawnTile !== "" ? drawnTile : (myHand.length > 0 ? myHand[myHand.length - 1] : '');
-    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
-    btnWin.className = 'btn-act btn-red';
-    btnWin.innerHTML = `自摸 ${winTile ? getImg(winTile) : ''}`;
-    btnWin.onclick = () => friendExecTsumo();
-    btnWin.style.display = "flex";
-    if (typeof playSE === 'function') playSE('alert');
-}
-
-// 🌟 友人戦：自摸を実行
-function friendExecTsumo() {
-    if (isProc) return;
-    isProc = true;
-    const btnWin = document.getElementById('btn-win');
-    if (btnWin) btnWin.style.display = "none";
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    friendWsSend('win_tsumo', {});
-}
-
-// 🌟 友人戦：他家の打牌に対する呼び出しボタンを表示
-function showFriendCallButtons(canRon, canPon, canKan, tile) {
-    if (typeof resetActionBtnPool === 'function') resetActionBtnPool();
-    document.getElementById('msg').innerText = "呼び出し可能！";
-
-    const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
-
-    if (canRon) {
-        const btnWin = document.getElementById('btn-win');
-        if (btnWin) {
-            btnWin.className = 'btn-act btn-red';
-            btnWin.innerHTML = `胡 ${getImg(tile)}`;
-            btnWin.onclick = () => friendClaimCall('ron');
-            btnWin.style.display = "flex";
-        }
-    }
-    if (typeof setupActionBtn === 'function') {
-        if (canPon) {
-            setupActionBtn(`碰 ${getImg(tile)}`, 'btn-yellow', () => friendClaimCall('pon'));
-        }
-        if (canKan) {
-            setupActionBtn(`明槓 ${getImg(tile)}`, 'btn-blue', () => friendClaimCall('kan'));
-        }
-        setupActionBtn('過 (スキップ)', 'btn-gray', () => friendSkipCall());
-    }
-    if (typeof playSE === 'function') playSE('alert');
-}
-
-// 🌟 友人戦：呼び出しを実行
-function friendClaimCall(callType) {
-    if (friendCallResponded) return;
-    friendCallResponded = true;
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    const btnWin = document.getElementById('btn-win');
-    if (btnWin) btnWin.style.display = "none";
-    friendWsSend('claim_call', { call_type: callType });
-}
-
-// 🌟 友人戦：呼び出しをスキップ
-function friendSkipCall() {
-    if (friendCallResponded) return;
-    friendCallResponded = true;
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    const btnWin = document.getElementById('btn-win');
-    if (btnWin) btnWin.style.display = "none";
-    friendWsSend('skip_call', {});
 }
 
 // 🏁 全員の回答が出揃った後、第2チャールストンを実行するかスキップするか判定する関数
@@ -1850,7 +1570,10 @@ function render() {
 function renderCPU() {
     for (let i = 1; i <= 3; i++) {
         const c = document.getElementById(`hand-${i}`); c.innerHTML = "";
-        let cpuHand = [...(myAllHands[i] || [])]; // 元データを壊さないようコピー
+        // 🌟 友人戦の開発者モード: 実手牌を別保持 myDevAllHands から取得
+        let sourceHands = (currentGameMode === 'friend' && isDevMode && myDevAllHands && myDevAllHands[i])
+            ? myDevAllHands : myAllHands;
+        let cpuHand = [...(sourceHands[i] || [])]; // 元データを壊さないようコピー
 
         let limit = cpuHand.length - (hideCpuTiles[i] || 0);
         let tilesToRender = cpuHand.slice(0, limit);
@@ -1870,7 +1593,7 @@ function renderCPU() {
         tilesToRender.forEach(t => {
             const img = document.createElement('img');
             img.className = 'tile';
-            img.src = isDevMode ? `images/${t}.png` : 'images/ura.png';
+            img.src = (isDevMode && t !== "ura") ? `images/${t}.png` : 'images/ura.png';
 
             // 🌟 修正：対面(i=2)のみ向きを上下逆（180度回転）にする
             if (i === 2) {
@@ -1884,22 +1607,22 @@ function renderCPU() {
         if (drawnTileImg) {
             const img = document.createElement('img');
             img.className = 'tile';
-            img.src = isDevMode ? `images/${drawnTileImg}.png` : 'images/ura.png';
+            img.src = (isDevMode && drawnTileImg !== "ura") ? `images/${drawnTileImg}.png` : 'images/ura.png';
             img.style.position = 'absolute';
             img.style.margin = '0';
 
             if (i === 1) {
-                // 下家(東席、西を向く)：本人の右=北側 → 画面では上方向
-                img.style.bottom = 'calc(100% + 10px)';
+                // 下家：手牌の「下（彼らにとっての右）」に配置
+                img.style.top = 'calc(100% + 10px)';
                 img.style.left = '0';
             } else if (i === 2) {
-                // 対面(北席、南を向く)：本人の右=西側 → 画面では左方向
-                img.style.right = 'calc(100% + 15px)';
+                // 対面：手牌の「右（彼らにとっての右）」に配置
+                img.style.left = 'calc(100% + 15px)';
                 img.style.top = '0';
                 img.style.transform = 'rotate(180deg)';
             } else if (i === 3) {
-                // 上家(西席、東を向く)：本人の右=南側 → 画面では下方向
-                img.style.top = 'calc(100% + 10px)';
+                // 上家：手牌の「上（彼らにとっての右）」に配置
+                img.style.bottom = 'calc(100% + 10px)';
                 img.style.left = '0';
             }
             c.appendChild(img);
@@ -2409,19 +2132,6 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
 
     // 🌟 3. 余韻（隙間が見える時間）を作る
     await sleep(250);
-
-    // 🌟 友人戦：WS 経由で打牌を送信し、ブロードキャストでターン進行
-    if (currentGameMode === 'friend') {
-        // 楽観的にローカル状態を更新（broadcast で確定される）
-        const handIdx = myHand.indexOf(t);
-        if (handIdx >= 0) myHand.splice(handIdx, 1);
-        drawnTile = "";
-        lastDiscardPlayer = 0;
-        friendWsSend('discard', { tile: t });
-        render(); renderCPU();
-        // broadcast 受信時に friendStartGameTurn が呼ばれて次のターンへ
-        return;
-    }
 
     // 🌟 4. サーバーに通信してデータを確定させる
     await apiCall('/discard', { player_idx: 0, tile: t });
