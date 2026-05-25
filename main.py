@@ -368,9 +368,12 @@ active_rooms: Dict[str, GameState] = {}
 
 # 🌟 通信が来るたびに、自動的に「その人の卓データ(game)」を取り出す魔法の関数
 def get_current_game(room_id: str = "") -> GameState:
-    if not room_id or room_id not in active_rooms:
-        raise HTTPException(status_code=400, detail="ルームが見つかりません。画面をリロードしてください。")
-    return active_rooms[room_id]
+    if room_id and room_id in active_rooms:
+        return active_rooms[room_id]
+    # 🌟 友人戦: lobby_manager.games もチェック
+    if room_id and room_id in lobby_manager.games:
+        return lobby_manager.games[room_id]
+    raise HTTPException(status_code=400, detail="ルームが見つかりません。画面をリロードしてください。")
 
 # 📦 フロントエンド（JS）に送付するための、安全な盤面データをまとめる関数
 def get_safe_state(game: GameState, player_idx=0, extra_data=None):

@@ -772,7 +772,9 @@ async function updateWaitsButton() {
     }
 
     try {
-        const res = await fetch(`/get_waits?player_idx=0&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`, { cache: 'no-store' });
+        // 🌟 友人戦時は自分の絶対座席番号を渡す
+        const pIdx = (currentGameMode === 'friend' && typeof myPlayerIdx !== 'undefined') ? myPlayerIdx : 0;
+        const res = await fetch(`/get_waits?player_idx=${pIdx}&room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`, { cache: 'no-store' });
         const data = await res.json();
 
         currentWaits = (data.waits || []).filter(w => !["春", "夏", "秋", "冬"].includes(w));
@@ -1132,7 +1134,9 @@ function startCharlestonSelection() {
 
 // 👆 チャールストンで交換に出す牌の選択/解除を切り替える関数
 function toggleExchange(idx) {
-    if (charlestonCount === 2 && isProc) return; // 🌟 順番待ち中はクリックを無効化
+    // 🌟 友人戦の第2交換: 順番待ち中でも牌選択は可能（ボタンだけ非表示）
+    const isFriendWaiting = (currentGameMode === 'friend' && charlestonCount === 2 && typeof friendIsMyTurnNow === 'function' && !friendIsMyTurnNow());
+    if (charlestonCount === 2 && isProc && !isFriendWaiting) return; // 🌟 順番待ち中はクリックを無効化（友人戦以外）
 
     const pos = exchangeSelection.indexOf(idx);
     if (pos > -1) exchangeSelection.splice(pos, 1);
@@ -1140,6 +1144,13 @@ function toggleExchange(idx) {
     render();
 
     const btn = document.getElementById('btn-exchange');
+
+    // 🌟 友人戦で「まだ自分の番じゃない」場合はボタンを出さない
+    if (isFriendWaiting) {
+        if (btn) btn.style.display = "none";
+        return;
+    }
+
     if (charlestonCount === 1) {
         // 🌟 第1交換：3枚選んだ時だけ「決定」ボタンを表示（スルーはさせない）
         if (exchangeSelection.length === 3) {
@@ -1191,17 +1202,19 @@ async function execExchange() {
         showCharlestonStatus(0, true);
         render();
 
-        hideCpuTiles = [0, 3, 3, 3];
-        for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
-        renderCPU();
-
-        // 🌟 友人戦: サーバーに3枚提出して全員揃うまで待つ
+        // 🌟 友人戦: 自分以外の状態表示は WS イベント (charleston_player_ready) 受信時に行う
+        // 既に他プレイヤーが先に提出済みの場合 hideCpuTiles に値が入っているので、リセットしない
         if (currentGameMode === 'friend') {
+            renderCPU();
             if (typeof friendSubmitCharleston === 'function') {
                 await friendSubmitCharleston(t1, t2, t3);
             }
-            return; // 以降は WS で charleston_complete を受信して処理
+            return;
         }
+
+        hideCpuTiles = [0, 3, 3, 3];
+        for (let i = 1; i <= 3; i++) showCharlestonStatus(i, true);
+        renderCPU();
 
         const data = await apiCall('/charleston', { player_idx: 0, t1: t1, t2: t2, t3: t3 });
 
@@ -1857,6 +1870,15 @@ async function checkT() {
             }, 500 / speedMult);
         }
     } else {
+        // 🌟 友人戦: 他人のターン → CPU処理ではなく WS の discard イベント待ち
+        if (currentGameMode === 'friend') {
+            const otherName = (typeof getFriendPlayerName === 'function') ? getFriendPlayerName(turn) : `Player ${turn}`;
+            document.getElementById('msg').className = "";
+            document.getElementById('msg').innerText = `${otherName} ...`;
+            isProc = true;
+            return;
+        }
+
         document.getElementById('msg').className = "";
         document.getElementById('msg').innerText = `CPU ${turn}...`;
 
@@ -2061,7 +2083,12 @@ async function draw() {
     stopTimer();
     if (isProc) return; isProc = true;
     try {
-        await apiCall('/draw', { player_idx: 0 });
+        // 🌟 友人戦: 専用エンドポイント
+        if (currentGameMode === 'friend') {
+            await apiCall('/friend/draw', { player_idx: myPlayerIdx });
+        } else {
+            await apiCall('/draw', { player_idx: 0 });
+        }
 
         playSE('tsumo');
 
@@ -2134,7 +2161,11 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
     await sleep(250);
 
     // 🌟 4. サーバーに通信してデータを確定させる
-    await apiCall('/discard', { player_idx: 0, tile: t });
+    if (currentGameMode === 'friend') {
+        await apiCall('/friend/discard', { player_idx: myPlayerIdx, tile: t });
+    } else {
+        await apiCall('/discard', { player_idx: 0, tile: t });
+    }
     drawnTile = ""; lastDiscardPlayer = 0; justPonged = false;
 
     // 🌟 5. 理牌して再描画（ここでツモ牌も手牌に吸収され、隙間が詰まる）
@@ -2142,6 +2173,12 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
 
     // 🌟 6. 少し待ってからCPUの反応判定へ
     await sleep(250);
+    // 🌟 友人戦: 副露機能は未実装。即 checkT() で turn 進行
+    if (currentGameMode === 'friend') {
+        isProc = false;
+        checkT();
+        return;
+    }
     checkCpuReactions(0, t);
 }
 

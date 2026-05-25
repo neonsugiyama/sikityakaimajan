@@ -354,6 +354,83 @@ async def friend_second_charleston_submit(
     return {"status": "complete", "dice": dice, "direction": msg}
 
 
+
+# ==========================================
+# REST: ツモ
+# ==========================================
+@router.get("/draw")
+async def friend_draw(room_id: str, player_idx: int):
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+    if not game.wall:
+        return {"error": "流局"}
+    tile = game.wall.pop()
+    game.hands[player_idx].append(tile)
+    game.last_drawn[player_idx] = tile
+    game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
+    game.just_drawn = player_idx
+    game.last_discard_info = {"player": -1, "tile": ""}
+    game.append_log("draw", player=player_idx, tile=tile)
+
+    # 自分（呼び出し元）には実際の牌を含むstateを返す
+    my_state = get_friend_state_for_player(game, player_idx)
+    my_state["drawn_tile"] = tile
+
+    # 他プレイヤーには WS で「draw」イベント + 視点回転済みstateを送る
+    for p in range(4):
+        if p == player_idx:
+            continue
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_draw",
+            "player_idx": player_idx,
+            "state": state
+        })
+    return my_state
+
+
+# ==========================================
+# REST: 打牌
+# ==========================================
+@router.get("/discard")
+async def friend_discard(room_id: str, player_idx: int, tile: str):
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    if tile not in game.hands[player_idx]:
+        return {"error": "通信エラー: 牌が見つかりません"}
+
+    game.hands[player_idx].remove(tile)
+    game.discards[player_idx].append(tile)
+    game.discards_count += 1
+    game.turn = (player_idx + 1) % 4
+    game.just_drawn = -1
+    game.last_discard_info = {"player": player_idx, "tile": tile}
+    game.is_first_turn[player_idx] = False
+    game.append_log("discard", player=player_idx, tile=tile,
+                    tsumogiri=(tile == game.last_drawn[player_idx]))
+
+    # 自分には返り値を返す
+    my_state = get_friend_state_for_player(game, player_idx)
+
+    # 他プレイヤーには WS で「discard」イベントを送る
+    for p in range(4):
+        if p == player_idx:
+            continue
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_discard",
+            "player_idx": player_idx,
+            "tile": tile,
+            "state": state
+        })
+    return my_state
+
+
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================

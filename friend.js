@@ -25,6 +25,12 @@ function startFriendGame(initData) {
     currentGameMode = 'friend';
     localStorage.setItem('shiki_mahjong_game_mode', 'friend');
 
+    // 🌟 api.js の apiCall が使う currentSessionRoomId に同期
+    if (typeof currentSessionRoomId !== 'undefined') {
+        currentSessionRoomId = friendRoomId;
+    }
+    localStorage.setItem('shiki_mahjong_room_id', friendRoomId);
+
     // モーダルを閉じる
     if (typeof closeFriendMatch === 'function') {
         closeFriendMatch();
@@ -186,9 +192,34 @@ function friendStartSecondCharleston() {
 
     if (typeof charlestonPhase !== 'undefined') charlestonPhase = true;
     if (typeof charlestonCount !== 'undefined') charlestonCount = 2;
+    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
     if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
 
+    // 🌟 全員、開始時点でチャールストンUI（タイトル）と手牌選択を有効化する
+    // ただしボタンは自分の番が来るまで非表示
+    const cUi = document.getElementById('charleston-ui');
+    const cTitle = document.getElementById('c-title');
+    if (cTitle) {
+        cTitle.innerText = "第2交換 (Second Charleston)";
+        cTitle.style.color = "#f1c40f";
+    }
+    if (cUi) {
+        cUi.style.zIndex = "9999";
+        cUi.style.display = "block";
+    }
+    const btn = document.getElementById('btn-exchange');
+    if (btn) btn.style.display = "none";
+
+    if (typeof render === 'function') render();
+
     friendAskNextPlayer();
+}
+
+// 自分が現在の質問対象かどうか
+function friendIsMyTurnNow() {
+    if (friendSecondAskedCount >= 4) return false;
+    if (typeof dealer === 'undefined') return false;
+    return ((dealer + friendSecondAskedCount) % 4) === 0;
 }
 
 // 次のプレイヤー（親から順）の番を進める
@@ -218,39 +249,31 @@ function friendAskNextPlayer() {
     }
 }
 
-// 自分の番が来た時のUI表示
+// 自分の番が来た時: ボタンを表示し、現在の選択状態に応じたラベルにする
 function friendShowSecondCharlestonUI() {
-    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
-
     const msgEl = document.getElementById('msg');
     if (msgEl) { msgEl.innerText = "交換"; msgEl.className = "blink-text"; }
 
-    const cUi = document.getElementById('charleston-ui');
-    const cTitle = document.getElementById('c-title');
-    if (cTitle) {
-        cTitle.innerText = "第2交換 (Second Charleston)";
-        cTitle.style.color = "#f1c40f";
-    }
-    if (cUi) {
-        cUi.style.zIndex = "9999";
-        cUi.style.display = "block";
-    }
-
+    // 現在の選択状態に応じてボタン表示（toggleExchange と同じロジック）
     const btn = document.getElementById('btn-exchange');
     if (btn) {
         btn.style.display = "block";
-        btn.innerHTML = "⏭️ スルー (過)";
-        btn.className = "btn-act btn-gray";
+        if (typeof exchangeSelection !== 'undefined' && exchangeSelection.length === 3) {
+            btn.innerHTML = "📤 決定 (3枚交換)";
+            btn.className = "btn-act btn-blue";
+        } else {
+            btn.innerHTML = "⏭️ スルー (過)";
+            btn.className = "btn-act btn-gray";
+        }
     }
 
     if (typeof render === 'function') render();
     if (typeof isProc !== 'undefined') isProc = false; // 操作可能
 
-    // タイマー（時間切れはスルー）
+    // タイマー（時間切れはスルー or 3枚選択していたら決定）
     if (typeof startTimer === 'function' && typeof timeExchange !== 'undefined') {
         startTimer(timeExchange, () => {
-            if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
-            // game.js の execExchange を呼ぶ（第2交換のスルー処理が走る）
+            // 時間切れ: 選択されたものをそのまま提出（3枚なら交換、それ以外はスルー）
             if (typeof execExchange === 'function') execExchange();
         });
     }
@@ -337,11 +360,9 @@ async function handleSecondCharlestonComplete(data) {
     if (typeof render === 'function') render();
     if (typeof renderCPU === 'function') renderCPU();
 
-    const msgEl = document.getElementById('msg');
-    if (msgEl) {
-        msgEl.innerText = "ステップ3 完了。次のステップで対局を開始します";
-        msgEl.className = "";
-    }
+    // 🌟 対局開始: checkT() で親から順にツモ・打牌が進む
+    if (typeof isProc !== 'undefined') isProc = false;
+    if (typeof checkT === 'function') checkT();
 }
 
 // ==========================================
@@ -352,11 +373,17 @@ function handleFriendEvent(data) {
     console.log("[FRIEND] イベント受信:", type, data);
 
     if (type === "charleston_player_ready") {
-        // 他のプレイヤーが3枚提出した → 中央に裏向き3枚を表示
+        // 他のプレイヤーが3枚提出した → 中央に裏向き3枚を表示 + 手牌から3枚隠す
         const absIdx = data.player_idx;
         const relIdx = (absIdx - myPlayerIdx + 4) % 4;
-        if (relIdx !== 0 && typeof showCharlestonStatus === 'function') {
-            showCharlestonStatus(relIdx, true);
+        if (relIdx !== 0) {
+            if (typeof showCharlestonStatus === 'function') {
+                showCharlestonStatus(relIdx, true);
+            }
+            // 手牌から3枚分隠す（13→10枚に見せる）
+            if (typeof hideCpuTiles !== 'undefined') {
+                hideCpuTiles[relIdx] = 3;
+            }
             if (typeof renderCPU === 'function') renderCPU();
         }
     } else if (type === "charleston_complete") {
@@ -379,6 +406,20 @@ function handleFriendEvent(data) {
         friendAskNextPlayer();
     } else if (type === "second_charleston_complete") {
         handleSecondCharlestonComplete(data);
+    } else if (type === "friend_draw") {
+        // 他人がツモした → state を反映して描画（手牌枚数 +1, 山牌 -1）
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        // ターンは進めない（打牌するまでは tsumo 中の表示）
+    } else if (type === "friend_discard") {
+        // 他人が打牌した → state を反映 → 自分が次のターンか判定
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        // turn は新しい打牌者の「次」を示しているので、checkT() で自分のターンか判定
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof checkT === 'function') checkT();
     }
 }
 

@@ -22,6 +22,13 @@ async function apiCall(endpoint, params = {}) {
             params.room_id = currentSessionRoomId;
         }
 
+        // 🌟 友人戦: player_idx=0 を実際の座席番号に置き換える（サーバーは絶対座席で扱うため）
+        if (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend'
+            && typeof myPlayerIdx !== 'undefined' && myPlayerIdx >= 0
+            && params.player_idx === 0) {
+            params.player_idx = myPlayerIdx;
+        }
+
         if (Object.keys(params).length > 0) {
             const query = new URLSearchParams(params).toString();
             url += `?${query}`;
@@ -72,8 +79,6 @@ async function apiCall(endpoint, params = {}) {
 // 🌟 牌譜データをサーバーから取得してローカルストレージに保存する
 async function fetchAndSaveReplay() {
     if (!currentSessionRoomId) return;
-    // 🌟 友人戦は対局本体が HTTP 側 active_rooms に存在しないため牌譜取得をスキップ
-    if (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend') return;
     try {
         const res = await fetch(`/get_replay_data?room_id=${currentSessionRoomId}`);
         const data = await res.json();
