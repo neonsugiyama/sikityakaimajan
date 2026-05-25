@@ -496,17 +496,17 @@ async function handleFriendWin(data) {
         const btnWin = document.getElementById('btn-win');
         if (btnWin) btnWin.style.display = "none";
 
-        // 演出: 勝者位置に「胡」「自摸」表示
+        // 演出: 勝者位置に「胡」「自摸」表示（テンポ重視で短め）
         const winnerRel = (data.player_idx - myPlayerIdx + 4) % 4;
         const winText = (data.win_type === "ron") ? "胡" : "自摸";
         if (typeof showCallout === 'function') showCallout(winnerRel, winText);
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 500));
 
         // 役表示
         if (data.yaku && data.yaku.length > 0) {
             for (const y of data.yaku) {
                 if (typeof showCallout === 'function') showCallout(winnerRel, y);
-                await new Promise(r => setTimeout(r, 1200));
+                await new Promise(r => setTimeout(r, 600));
             }
         }
     } finally {

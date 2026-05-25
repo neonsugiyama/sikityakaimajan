@@ -402,9 +402,8 @@ def _check_reaction_possible(game, responder_idx: int, tile: str) -> dict:
     can_kan = False
     can_hanakan = False
 
-    # 既に和了済みのプレイヤーは反応不可
-    if game.win_tiles[responder_idx]:
-        return {"ron": False, "pon": False, "kan": False, "hanakan": False}
+    # 🌟 アガリ放題ルール: 既に和了済みでも追加で和了できる。ガードしない
+    # （ポン・カン・花槓は和了後にツモ切りしかできない制約があるので別途判定）
 
     is_haitei = (len(game.wall) == 0)
 
