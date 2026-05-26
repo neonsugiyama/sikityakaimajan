@@ -136,26 +136,25 @@ async function friendSubmitCharleston(t1, t2, t3) {
     console.log("[FRIEND] 第1交換 提出:", t1, t2, t3);
     try {
         const url = `/friend/charleston_submit?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&t1=${encodeURIComponent(t1)}&t2=${encodeURIComponent(t2)}&t3=${encodeURIComponent(t3)}&_t=${Date.now()}`;
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-        const result = await res.json();
-        console.log("[FRIEND] 提出結果:", result);
-        // 自分が選択完了の表示（CPU戦の動作に合わせる）
-        if (typeof showCharlestonStatus === 'function') showCharlestonStatus(0, true);
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
         // 待機メッセージ
         const msgEl = document.getElementById('msg');
         if (msgEl) {
             msgEl.innerText = "他のプレイヤーを待っています...";
             msgEl.className = "";
         }
+        // 🌟 fetch は await しない（最後に決定した人の場合、レスポンスより前に
+        // WS の charleston_complete が届くべきなのに、レスポンス完了が先になって
+        // render が走り手牌が見えてしまうのを防ぐ）
+        fetch(url, { cache: 'no-store' })
+            .then(res => res.json())
+            .then(result => console.log("[FRIEND] 提出結果:", result))
+            .catch(e => {
+                console.error("[FRIEND] 第1交換 提出失敗:", e);
+                alert("交換の送信に失敗しました: " + e.message);
+            });
         // 以降は WS で charleston_complete を待つ
     } catch (e) {
         console.error("[FRIEND] 第1交換 提出失敗:", e);
-        alert("交換の送信に失敗しました: " + e.message);
     }
 }
 
@@ -323,10 +322,14 @@ async function friendSubmitSecondCharleston(participate, t1, t2, t3) {
             t1: t1 || "", t2: t2 || "", t3: t3 || "",
             _t: Date.now()
         });
-        const res = await fetch(`/friend/second_charleston_submit?${params}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const result = await res.json();
-        console.log("[FRIEND] 第2交換 提出結果:", result);
+        // 🌟 fire-and-forget でレスポンスを待たない（WS broadcast を優先するため）
+        fetch(`/friend/second_charleston_submit?${params}`, { cache: 'no-store' })
+            .then(res => res.json())
+            .then(result => console.log("[FRIEND] 第2交換 提出結果:", result))
+            .catch(e => {
+                console.error("[FRIEND] 第2交換 提出失敗:", e);
+                alert("第2交換の送信に失敗しました: " + e.message);
+            });
     } catch (e) {
         console.error("[FRIEND] 第2交換 提出失敗:", e);
         alert("第2交換の送信に失敗しました: " + e.message);
