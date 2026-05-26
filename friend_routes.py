@@ -521,6 +521,7 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
             "state": state
         })
 
+    # 全 responder の応答を待つ（最大 12秒）
     # 🌟 副露猶予のタイムアウト: ホストが設定した time_call + マージン
     from main import lobby_manager
     room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {})
@@ -855,6 +856,38 @@ async def friend_self_meld(room_id: str, player_idx: int, type: str, tile: str, 
             "type": "friend_self_meld",
             "player_idx": player_idx,
             "meld_type": type,
+            "tile": tile,
+            "season": season,
+            "state": state
+        })
+
+    return get_friend_state_for_player(game, player_idx)
+
+
+
+# ==========================================
+# REST: JokerSwap（季節牌と他家の花槓の本体牌を交換）
+# ==========================================
+@router.get("/joker_swap")
+async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: str, target_idx: int):
+    """CPU戦の process_joker_swap ロジックを再利用し、結果を WS broadcast する。"""
+    from main import lobby_manager, process_joker_swap
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    result = process_joker_swap(player_idx=player_idx, tile=tile, season=season, target_idx=target_idx, game=game)
+
+    if isinstance(result, dict) and result.get("error"):
+        return result
+
+    # 全プレイヤーに friend_joker_swap を broadcast
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_joker_swap",
+            "player_idx": player_idx,
+            "target_idx": target_idx,
             "tile": tile,
             "season": season,
             "state": state

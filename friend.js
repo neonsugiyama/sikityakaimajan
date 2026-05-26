@@ -481,7 +481,29 @@ function handleFriendEvent(data) {
     } else if (type === "friend_self_meld") {
         // 自分のターンの暗槓・暗花槓
         handleFriendSelfMeld(data);
+    } else if (type === "friend_joker_swap") {
+        // JokerSwap 成立
+        handleFriendJokerSwap(data);
     }
+}
+
+// ==========================================
+// JokerSwap イベント
+// ==========================================
+async function handleFriendJokerSwap(data) {
+    console.log("[FRIEND] JokerSwap:", data);
+    if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+
+    if (typeof render === 'function') render();
+    if (typeof renderCPU === 'function') renderCPU();
+
+    // 演出: 実行者位置に「JokerSwap」表示
+    const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
+    if (typeof showCallout === 'function') showCallout(claimerRel, "JokerSwap");
+    await new Promise(r => setTimeout(r, 800));
+
+    if (typeof isProc !== 'undefined') isProc = false;
+    if (typeof checkT === 'function') checkT();
 }
 
 // ==========================================

@@ -2909,6 +2909,14 @@ async function execJokerSwap(t, season, targetIdx) {
 
     // 🌟 追加：透過箱を即座に消す
     const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
+
+    // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_joker_swap broadcast）
+    if (currentGameMode === 'friend') {
+        await apiCall('/friend/joker_swap', { player_idx: myPlayerIdx, tile: t, season: season, target_idx: targetIdx });
+        // 以降は friend_joker_swap 受信時の handleFriendJokerSwap が処理
+        return;
+    }
+
     await apiCall('/joker_swap', { player_idx: 0, tile: t, season: season, target_idx: targetIdx });
     render(); renderCPU();
 
