@@ -280,6 +280,13 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         try:
             name_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
             player_name = name_msg.get("name", "Player")
+            # 🌟 ホスト（1人目）から設定値を受信
+            host_settings = name_msg.get("settings")
+            if host_settings:
+                if not hasattr(lobby_manager, 'room_settings'):
+                    lobby_manager.room_settings = {}
+                lobby_manager.room_settings[room_id] = host_settings
+                print(f"[LOBBY] Room {room_id} のホスト設定: {host_settings}")
         except Exception:
             player_name = "Player"
 
@@ -313,13 +320,17 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                 lobby_manager.second_charleston_selections[room_id] = {}
 
                 # 各プレイヤーに「ゲーム画面に遷移してね + 自分の player_idx」を通知
+                room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {
+                    "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
+                })
                 for i, connection in enumerate(lobby_manager.active_connections[room_id]):
                     await connection.send_json({
                         "type": "game_start",
                         "player_idx": i,
                         "room_id": room_id,
                         "player_names": list(lobby_manager.player_names[room_id]),
-                        "dealer": room_game.dealer
+                        "dealer": room_game.dealer,
+                        "settings": room_settings
                     })
                 print(f"[LOBBY] game_start を全員に送信完了")
 

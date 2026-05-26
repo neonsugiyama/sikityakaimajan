@@ -236,6 +236,46 @@
         </div>
     </div>
 
+    <!-- 🤝 友人戦用ホスト設定モーダル -->
+    <div id="friend-settings-screen" class="modal-overlay" style="display: none;">
+        <div class="modal-content match-settings-content">
+            <h2 class="modal-title">FRIEND MATCH SETTINGS</h2>
+            <div style="text-align: center; margin-bottom: 12px; color: #ccc; font-size: 14px;">
+                ルームID: <span id="friend-settings-room-id" style="color: #f1c40f; font-weight: bold; letter-spacing: 2px;">----</span>
+            </div>
+
+            <div class="match-settings-box">
+                <div class="ms-row">
+                    <label class="ms-label-flex">
+                        <span>⏱️ 打牌時間</span>
+                        <span><span id="val-friend-discard" class="ms-val">60</span> 秒</span>
+                    </label>
+                    <input type="range" id="set-friend-discard" class="ms-range" min="5" max="300" step="5" value="60" oninput="document.getElementById('val-friend-discard').innerText=this.value">
+                </div>
+                <div class="ms-row">
+                    <label class="ms-label-flex">
+                        <span>⏱️ 鳴き時間</span>
+                        <span><span id="val-friend-call" class="ms-val">20</span> 秒</span>
+                    </label>
+                    <input type="range" id="set-friend-call" class="ms-range" min="5" max="300" step="5" value="20" oninput="document.getElementById('val-friend-call').innerText=this.value">
+                </div>
+                <div class="ms-row">
+                    <label class="ms-label-flex">
+                        <span>⏱️ 交換時間</span>
+                        <span><span id="val-friend-exchange" class="ms-val">60</span> 秒</span>
+                    </label>
+                    <input type="range" id="set-friend-exchange" class="ms-range" min="5" max="300" step="5" value="60" oninput="document.getElementById('val-friend-exchange').innerText=this.value">
+                </div>
+            </div>
+
+            <div class="ms-btn-wrap">
+                <button onclick="cancelFriendSettings()" class="btn-act btn-gray ms-btn-back">◀ 戻る</button>
+                <button class="btn-start ms-btn-start" onclick="applyFriendSettingsAndCreate()">設定完了</button>
+                <button onclick="resetFriendSettingsUI()" class="btn-reset-light">↺ 初期化</button>
+            </div>
+        </div>
+    </div>
+
     <div id="friend-match-modal" class="modal-overlay" style="display: none;">
         <div class="friend-modal-box" style="position: relative;">
             <button class="modal-close-top" onclick="closeFriendMatch()">×</button>

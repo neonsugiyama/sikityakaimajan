@@ -521,9 +521,12 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
             "state": state
         })
 
-    # 全 responder の応答を待つ（最大 12秒）
-    # 副露猶予のタイムアウト: フロントの timeCall (デフォルト 300秒) と合わせる
-    TIMEOUT = 300.0
+    # 🌟 副露猶予のタイムアウト: ホストが設定した time_call + マージン
+    from main import lobby_manager
+    room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {})
+    user_time_call = room_settings.get('timeCall', 20)
+    # ユーザータイマーより少し長めに設定（クライアントのタイマー切れ → skip 送信のためのマージン）
+    TIMEOUT = float(user_time_call) + 5.0
     POLL = 0.1
     elapsed = 0.0
     while elapsed < TIMEOUT:

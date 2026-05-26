@@ -378,7 +378,7 @@ function resizeGame() {
         '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
         /* 🚨 古い achievement-modal は削除しました */
         '#mypage-modal > div', '#friend-match-modal > div',
-        '#settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
+        '#settings-screen > div', '#friend-settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
         '#rate-help-modal > div', '#replay-modal > div'
     ];
     modalElements.forEach(selector => {
@@ -652,10 +652,90 @@ function cancelCpuGame() {
 let currentRoomId = "";
 let lobbyWs = null;
 
+// 🌟 ホストが作成中のルームID（設定画面 → 待機画面で使う）
+let pendingHostRoomId = "";
+
 function createRoom() {
     if (typeof playSE === 'function') playSE('click');
-    const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-    enterWaitingRoom(randomId);
+    // 🌟 ルームIDを先に発行
+    pendingHostRoomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+    // 友人戦のホスト設定画面を表示
+    showFriendSettings();
+}
+
+// 🌟 友人戦のホスト設定画面を表示
+function showFriendSettings() {
+    // 友人戦モーダルを閉じる
+    const friendModal = document.getElementById('friend-match-modal');
+    if (friendModal) friendModal.style.display = 'none';
+    // 設定画面を表示
+    const settingsModal = document.getElementById('friend-settings-screen');
+    if (settingsModal) settingsModal.style.display = 'flex';
+
+    // ルームIDを設定画面に表示
+    const roomIdEl = document.getElementById('friend-settings-room-id');
+    if (roomIdEl) roomIdEl.innerText = pendingHostRoomId;
+
+    // 前回の値を localStorage から復元
+    const saved = JSON.parse(localStorage.getItem('shiki_mahjong_friend_settings') || '{}');
+    if (saved.timeDiscard !== undefined) {
+        document.getElementById('set-friend-discard').value = saved.timeDiscard;
+        document.getElementById('val-friend-discard').innerText = saved.timeDiscard;
+    }
+    if (saved.timeCall !== undefined) {
+        document.getElementById('set-friend-call').value = saved.timeCall;
+        document.getElementById('val-friend-call').innerText = saved.timeCall;
+    }
+    if (saved.timeExchange !== undefined) {
+        document.getElementById('set-friend-exchange').value = saved.timeExchange;
+        document.getElementById('val-friend-exchange').innerText = saved.timeExchange;
+    }
+}
+
+// 🌟 戻るボタン
+function cancelFriendSettings() {
+    if (typeof playSE === 'function') playSE('click');
+    pendingHostRoomId = ""; // ルームIDをクリア
+    const settingsModal = document.getElementById('friend-settings-screen');
+    if (settingsModal) settingsModal.style.display = 'none';
+    // 友人戦モーダルを再表示
+    const friendModal = document.getElementById('friend-match-modal');
+    if (friendModal) friendModal.style.display = 'flex';
+}
+
+// 🌟 初期化ボタン
+function resetFriendSettingsUI() {
+    if (typeof playSE === 'function') playSE('click');
+    document.getElementById('set-friend-discard').value = 60;
+    document.getElementById('val-friend-discard').innerText = 60;
+    document.getElementById('set-friend-call').value = 20;
+    document.getElementById('val-friend-call').innerText = 20;
+    document.getElementById('set-friend-exchange').value = 60;
+    document.getElementById('val-friend-exchange').innerText = 60;
+}
+
+// 🌟 設定完了ボタン: 設定値を保存してルーム作成 + 待機画面へ
+function applyFriendSettingsAndCreate() {
+    if (typeof playSE === 'function') playSE('click');
+    const timeDiscard = parseInt(document.getElementById('set-friend-discard').value, 10);
+    const timeCall = parseInt(document.getElementById('set-friend-call').value, 10);
+    const timeExchange = parseInt(document.getElementById('set-friend-exchange').value, 10);
+
+    const settings = { timeDiscard, timeCall, timeExchange };
+    localStorage.setItem('shiki_mahjong_friend_settings', JSON.stringify(settings));
+
+    // 設定画面を閉じる
+    const settingsModal = document.getElementById('friend-settings-screen');
+    if (settingsModal) settingsModal.style.display = 'none';
+
+    // 友人戦モーダルを再表示（待機画面用）
+    const friendModal = document.getElementById('friend-match-modal');
+    if (friendModal) friendModal.style.display = 'flex';
+
+    // 既に発行済みのルームIDで接続（ホストとして）
+    const roomId = pendingHostRoomId || Math.random().toString(36).substring(2, 6).toUpperCase();
+    pendingHostRoomId = "";
+    enterWaitingRoom(roomId, settings);
 }
 
 function joinRoom() {
@@ -670,7 +750,7 @@ function joinRoom() {
     enterWaitingRoom(inputVal);
 }
 
-function enterWaitingRoom(roomId) {
+function enterWaitingRoom(roomId, hostSettings = null) {
     currentRoomId = roomId;
     const selectEl = document.getElementById('friend-menu-select');
     if (selectEl) selectEl.style.display = 'none';
@@ -684,11 +764,15 @@ function enterWaitingRoom(roomId) {
     const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
-    // 🌟 接続直後にプレイヤー名を送信（main.py側でロビーWSが最初に名前を待つ）
+    // 🌟 接続直後にプレイヤー名と（ホストなら）設定値を送信
     lobbyWs.onopen = () => {
         const myName = (typeof playerStats !== 'undefined' && playerStats.playerName)
             ? playerStats.playerName : "Player";
-        lobbyWs.send(JSON.stringify({ name: myName }));
+        const payload = { name: myName };
+        if (hostSettings) {
+            payload.settings = hostSettings;
+        }
+        lobbyWs.send(JSON.stringify(payload));
     };
 
     lobbyWs.onmessage = (event) => {
@@ -1019,7 +1103,7 @@ window.addEventListener('DOMContentLoaded', () => {
 function startOnlineGame(roomType) {
     if (typeof playSE === 'function') playSE('click');
     let roomName = "";
-    if (roomType === "free") roomName = "🎪 フリー乱交卓";
+    if (roomType === "free") roomName = "🎪 フリー卓";
     if (roomType === "standard") roomName = "⚔️ 一般卓";
     if (roomType === "advanced") roomName = "👹 上級卓";
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);

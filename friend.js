@@ -21,6 +21,20 @@ function startFriendGame(initData) {
     friendRoomId = initData.room_id;
     friendPlayerNames = initData.player_names || [];
 
+    // 🌟 ホストの設定値を CPU戦のグローバル変数に上書き（友人戦中だけ有効）
+    if (initData.settings) {
+        if (typeof timeDiscard !== 'undefined') {
+            timeDiscard = initData.settings.timeDiscard || 60;
+        }
+        if (typeof timeCall !== 'undefined') {
+            timeCall = initData.settings.timeCall || 20;
+        }
+        if (typeof timeExchange !== 'undefined') {
+            timeExchange = initData.settings.timeExchange || 60;
+        }
+        console.log("[FRIEND] タイマー設定:", initData.settings);
+    }
+
     // ゲームモードを切り替え
     currentGameMode = 'friend';
     localStorage.setItem('shiki_mahjong_game_mode', 'friend');
