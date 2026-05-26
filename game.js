@@ -2408,9 +2408,7 @@ async function checkHumanReaction(discarderIdx, tile) {
     // ----------------------------------------------------
     // 2. 鳴き判定
     // ----------------------------------------------------
-    // 🌟 友人戦 5b: ポン/カン/花槓 はまだ実装していない → スキップ
-    const skipMeldUI = (currentGameMode === 'friend');
-    if (myWinTiles.length === 0 && !skipMeldUI) {
+    if (myWinTiles.length === 0) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.className = 'btn-act btn-green';
@@ -2768,6 +2766,23 @@ async function execMeld(type) {
         season = parts[1];
     }
 
+    // 🌟 友人戦: /friend/call_action で応答を送信し、friend_meld 受信待ち
+    if (currentGameMode === 'friend') {
+        // meldType を pon/kan/hanakan に変換
+        const actionMap = { "ポン": "pon", "カン": "kan", "明槓": "kan", "花槓": "hanakan" };
+        const action = actionMap[meldType] || meldType.toLowerCase();
+        if (typeof sendFriendCallAction === 'function') {
+            // hanakan の場合は season も送る
+            const url = `/friend/call_action?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&action=${action}&season=${encodeURIComponent(season)}&_t=${Date.now()}`;
+            try {
+                await fetch(url, { cache: 'no-store' });
+            } catch (e) {
+                console.error("[FRIEND] call_action(meld) 失敗:", e);
+            }
+        }
+        return; // 以降は friend_meld 受信時の handleFriendMeld が処理
+    }
+
     // 🌟 修正：seasonを追加してサーバーへ送信
     const data = await apiCall('/meld', {
         player_idx: 0,
@@ -2828,6 +2843,12 @@ async function execSelfMeld(type, t, s, isHidden = false) {
         playerStats.hanakanCount++;
         checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
         saveGameData();
+    }
+
+    // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_self_meld broadcast）
+    if (currentGameMode === 'friend') {
+        await apiCall('/friend/self_meld', { player_idx: myPlayerIdx, type: type, tile: t, season: s, is_hidden: isHidden });
+        return; // 以降は friend_self_meld 受信時の handleFriendSelfMeld が処理
     }
 
     const data = await apiCall('/self_meld', { player_idx: 0, type: type, tile: t, season: s, is_hidden: isHidden });

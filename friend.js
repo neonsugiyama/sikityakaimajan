@@ -424,20 +424,16 @@ function handleFriendEvent(data) {
             return;
         }
 
-        const canRon = !!data.can_ron;
-        const canMeld = !!(data.can_pon || data.can_kan || data.can_hanakan);
+        const canAny = !!(data.can_ron || data.can_pon || data.can_kan || data.can_hanakan);
 
-        if (canRon) {
+        if (canAny) {
+            // 🌟 反応可能 → checkHumanReaction でボタン表示
             const discarderRel = (data.player_idx - myPlayerIdx + 4) % 4;
             if (typeof checkHumanReaction === 'function') {
                 lastDiscardPlayer = discarderRel;
                 lastT = data.tile;
                 checkHumanReaction(discarderRel, data.tile);
             }
-            if (typeof isProc !== 'undefined') isProc = true;
-        } else if (canMeld) {
-            console.log("[FRIEND] 副露可能だがステップ5bでは未実装 → 自動 skip");
-            sendFriendCallAction("skip");
             if (typeof isProc !== 'undefined') isProc = true;
         } else {
             // 反応不可 → 即 checkT
@@ -465,7 +461,60 @@ function handleFriendEvent(data) {
     } else if (type === "friend_win") {
         // 誰かが和了した（ロン or ツモ）
         handleFriendWin(data);
+    } else if (type === "friend_meld") {
+        // 副露成立（ポン・カン・花槓）
+        handleFriendMeld(data);
+    } else if (type === "friend_self_meld") {
+        // 自分のターンの暗槓・暗花槓
+        handleFriendSelfMeld(data);
     }
+}
+
+// ==========================================
+// 副露成立イベント（他人の捨て牌をポン/カン/花槓した）
+// ==========================================
+async function handleFriendMeld(data) {
+    console.log("[FRIEND] 副露:", data);
+    if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+
+    // ボタン群を非表示
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) btnWin.style.display = "none";
+
+    if (typeof render === 'function') render();
+    if (typeof renderCPU === 'function') renderCPU();
+
+    // 演出: 副露プレイヤー位置に表示
+    const meldLabels = { pong: "碰", minkan: "明槓", hanakan: "花槓" };
+    const label = meldLabels[data.meld_type] || data.meld_type;
+    const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
+    if (typeof showCallout === 'function') showCallout(claimerRel, label);
+    await new Promise(r => setTimeout(r, 800));
+
+    if (typeof isProc !== 'undefined') isProc = false;
+    if (typeof checkT === 'function') checkT();
+}
+
+// ==========================================
+// 自分のターンの暗槓・暗花槓イベント
+// ==========================================
+async function handleFriendSelfMeld(data) {
+    console.log("[FRIEND] 自家副露:", data);
+    if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+
+    if (typeof render === 'function') render();
+    if (typeof renderCPU === 'function') renderCPU();
+
+    // 演出
+    const labels = { "暗槓": "暗槓", "暗花槓": "花槓", "加槓": "加槓", "加花槓": "花槓" };
+    const label = labels[data.meld_type] || data.meld_type;
+    const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
+    if (typeof showCallout === 'function') showCallout(claimerRel, label);
+    await new Promise(r => setTimeout(r, 800));
+
+    if (typeof isProc !== 'undefined') isProc = false;
+    if (typeof checkT === 'function') checkT();
 }
 
 // ==========================================
@@ -500,7 +549,7 @@ async function handleFriendWin(data) {
         const winnerRel = (data.player_idx - myPlayerIdx + 4) % 4;
         const winText = (data.win_type === "ron") ? "胡" : "自摸";
         if (typeof showCallout === 'function') showCallout(winnerRel, winText);
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 800));
 
         // 役表示
         if (data.yaku && data.yaku.length > 0) {

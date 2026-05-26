@@ -522,7 +522,8 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
         })
 
     # 全 responder の応答を待つ（最大 12秒）
-    TIMEOUT = 12.0
+    # 副露猶予のタイムアウト: フロントの timeCall (デフォルト 300秒) と合わせる
+    TIMEOUT = 300.0
     POLL = 0.1
     elapsed = 0.0
     while elapsed < TIMEOUT:
@@ -614,6 +615,117 @@ async def _resolve_friend_call(room_id: str, game):
             })
         return
 
+    # ===== 明槓（kan） =====
+    kan_claimers = [p for p, r in responses.items() if r == "kan"]
+    if kan_claimers:
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        claimer = next((p for p in order if p in kan_claimers), kan_claimers[0])
+        if game.hands[claimer].count(tile) >= 3:
+            for _ in range(3): game.hands[claimer].remove(tile)
+            game.melds[claimer].append({"type": "minkan", "tiles": [tile]*4, "from_player": discarder})
+            if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                game.discards[discarder].pop()
+            game.any_meld_occurred = True
+            game.is_first_turn[claimer] = False
+            game.last_discard_info = {"player": -1, "tile": ""}
+            game.turn = claimer
+            # 嶺上ツモ
+            drawn = ""
+            if game.wall:
+                drawn = game.wall.pop()
+                game.hands[claimer].append(drawn)
+                game.last_drawn[claimer] = drawn
+                game.just_drawn = claimer
+            game.hands[claimer] = game.sort_hand(game.hands[claimer])
+            game.append_log("meld", player=claimer, meld_type="minkan", tile=tile, from_player=discarder)
+            game.pending_call = None
+            for p in range(4):
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_meld",
+                    "meld_type": "minkan",
+                    "player_idx": claimer,
+                    "from_player": discarder,
+                    "tile": tile,
+                    "state": state
+                })
+            return
+
+    # ===== 花槓（hanakan: 2枚+季節牌1枚） =====
+    hk_claimers = [p for p, r in responses.items() if r == "hanakan"]
+    if hk_claimers:
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        claimer = next((p for p in order if p in hk_claimers), hk_claimers[0])
+        # 季節牌を選ぶ
+        season_tile = pc.get("hanakan_season")
+        if not season_tile:
+            from main import SEASON_TILES
+            for s in SEASON_TILES:
+                if s in game.hands[claimer]:
+                    season_tile = s
+                    break
+        if season_tile and game.hands[claimer].count(tile) >= 2 and season_tile in game.hands[claimer]:
+            for _ in range(2): game.hands[claimer].remove(tile)
+            game.hands[claimer].remove(season_tile)
+            game.melds[claimer].append({"type": "hanakan", "tiles": [tile, season_tile, tile, tile], "from_player": discarder})
+            if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                game.discards[discarder].pop()
+            game.any_meld_occurred = True
+            game.is_first_turn[claimer] = False
+            game.last_discard_info = {"player": -1, "tile": ""}
+            game.turn = claimer
+            # 嶺上ツモ
+            drawn = ""
+            if game.wall:
+                drawn = game.wall.pop()
+                game.hands[claimer].append(drawn)
+                game.last_drawn[claimer] = drawn
+                game.just_drawn = claimer
+            game.hands[claimer] = game.sort_hand(game.hands[claimer])
+            game.append_log("meld", player=claimer, meld_type="hanakan", tile=tile, season=season_tile, from_player=discarder)
+            game.pending_call = None
+            for p in range(4):
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_meld",
+                    "meld_type": "hanakan",
+                    "player_idx": claimer,
+                    "from_player": discarder,
+                    "tile": tile,
+                    "season": season_tile,
+                    "state": state
+                })
+            return
+
+    # ===== ポン =====
+    pon_claimers = [p for p, r in responses.items() if r == "pon"]
+    if pon_claimers:
+        order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
+        claimer = next((p for p in order if p in pon_claimers), pon_claimers[0])
+        if game.hands[claimer].count(tile) >= 2:
+            for _ in range(2): game.hands[claimer].remove(tile)
+            game.melds[claimer].append({"type": "pong", "tiles": [tile]*3, "from_player": discarder})
+            if game.discards[discarder] and game.discards[discarder][-1] == tile:
+                game.discards[discarder].pop()
+            game.any_meld_occurred = True
+            game.is_first_turn[claimer] = False
+            game.last_discard_info = {"player": -1, "tile": ""}
+            game.turn = claimer
+            game.hands[claimer] = game.sort_hand(game.hands[claimer])
+            game.append_log("meld", player=claimer, meld_type="pong", tile=tile, from_player=discarder)
+            game.pending_call = None
+            for p in range(4):
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_meld",
+                    "meld_type": "pong",
+                    "player_idx": claimer,
+                    "from_player": discarder,
+                    "tile": tile,
+                    "state": state
+                })
+            return
+
     # ===== 全員スキップ → turn 進行 =====
     game.turn = (discarder + 1) % 4
     game.pending_call = None
@@ -627,9 +739,9 @@ async def _resolve_friend_call(room_id: str, game):
 
 
 @router.get("/call_action")
-async def friend_call_action(room_id: str, player_idx: int, action: str):
+async def friend_call_action(room_id: str, player_idx: int, action: str, season: str = ""):
     """プレイヤーの副露猶予への応答を記録。action: skip / pon / kan / ron / hanakan
-    ステップ5aでは "skip" のみ受け付ける（他は将来のステップで処理）。"""
+    hanakan の場合は使用する季節牌を season で指定。"""
     from main import lobby_manager
     if room_id not in lobby_manager.games:
         return {"error": "対局が見つかりません"}
@@ -641,6 +753,9 @@ async def friend_call_action(room_id: str, player_idx: int, action: str):
         return {"status": "not_responder"}
 
     pc["responses"][player_idx] = action
+    # hanakan の場合は季節牌情報を保存
+    if action == "hanakan" and season:
+        pc["hanakan_season"] = season
 
     # 全員の応答が揃ったら即座に解決
     if len(pc["responses"]) >= len(pc["responders"]):
@@ -704,6 +819,45 @@ async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
+
+
+
+# ==========================================
+# REST: 自分のターンでの暗槓・暗花槓・加槓・加花槓
+# ==========================================
+@router.get("/self_meld")
+async def friend_self_meld(room_id: str, player_idx: int, type: str, tile: str, season: str = "", is_hidden: str = "false"):
+    """CPU戦の process_self_meld ロジックを再利用し、結果を WS broadcast する。"""
+    from main import lobby_manager, process_self_meld
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    # CPU戦のロジックを直接呼び出す（dependency が機能しないので game を渡す）
+    # ※ process_self_meld 内で player_idx を使う絶対座席ベースなので、そのまま渡せばOK
+    result = process_self_meld(player_idx=player_idx, type=type, tile=tile, season=season, is_hidden=is_hidden, game=game)
+
+    if isinstance(result, dict) and result.get("error"):
+        return result
+
+    # 槍槓（chankan）発生時は special 処理（5cでは未対応・後のステップで対応）
+    if isinstance(result, dict) and result.get("chankan_occurred"):
+        # TODO: 槍槓は次のステップ
+        pass
+
+    # 全プレイヤーに friend_self_meld を broadcast
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_self_meld",
+            "player_idx": player_idx,
+            "meld_type": type,
+            "tile": tile,
+            "season": season,
+            "state": state
+        })
+
+    return get_friend_state_for_player(game, player_idx)
 
 
 # ==========================================
