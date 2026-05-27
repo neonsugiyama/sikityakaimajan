@@ -924,17 +924,27 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
 # ==========================================
 # REST: 次局へ進める
 # ==========================================
-@router.get("/next_round")
-async def friend_next_round(room_id: str, player_idx: int):
-    """次の局に進む。4局終了なら全体終了。各プレイヤーへ視点回転済み state broadcast。"""
+# ==========================================
+# REST: リザルト演出完了通知 → 4人揃ったら自動で次局へ
+# ==========================================
+@router.get("/round_ready")
+async def friend_round_ready(room_id: str, player_idx: int):
+    """各プレイヤーがリザルト演出完了を通知。4人揃ったらサーバーが next_round を実行して broadcast。"""
     from main import lobby_manager, next_round
     if room_id not in lobby_manager.games:
         raise HTTPException(status_code=404, detail="対局が見つかりません")
     game = lobby_manager.games[room_id]
 
-    # 🌟 二重実行防止: 最初に呼んだ人が処理し、後続は state を返すだけ
-    if not getattr(game, 'next_round_processing', False):
+    if not hasattr(game, 'round_ready'):
+        game.round_ready = set()
+    game.round_ready.add(player_idx)
+
+    print(f"[FRIEND] Room {room_id} round_ready: {len(game.round_ready)}/4 (player {player_idx})")
+
+    # 4人揃った時点で次局へ進める
+    if len(game.round_ready) >= 4 and not getattr(game, 'next_round_processing', False):
         game.next_round_processing = True
+        game.round_ready = set()  # クリア
 
         # 4局終了判定
         if game.current_round >= 4:
@@ -947,7 +957,6 @@ async def friend_next_round(room_id: str, player_idx: int):
 
         # 次局へ
         next_round(game=game)
-        # フラグリセット（reset_round で round_calculated を false にしているはず）
         game.next_round_processing = False
 
         # 各プレイヤーに視点回転済み state を broadcast
@@ -958,7 +967,7 @@ async def friend_next_round(room_id: str, player_idx: int):
                 "state": state
             })
 
-    return get_friend_state_for_player(game, player_idx)
+    return {"status": "ok", "ready_count": len(game.round_ready)}
 
 
 # ==========================================

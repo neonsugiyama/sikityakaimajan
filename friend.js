@@ -487,22 +487,43 @@ function handleFriendEvent(data) {
     } else if (type === "friend_joker_swap") {
         // JokerSwap 成立
         handleFriendJokerSwap(data);
-    } else if (type === "friend_round_end") {
-        // 他プレイヤーが /friend/calculate_round_scores を叩いた → 結果を同期
-        // ただし自分が呼んだ場合は apiCall の戻り値で既に処理済みなので、何もしない
-        // （handleRoundEnd は各プレイヤーが自走している）
-        console.log("[FRIEND] 局終了 broadcast:", data);
     } else if (type === "friend_next_round") {
         // 次局へ: state を反映 → リザルト画面を閉じて新局の初期化
+        console.log("[FRIEND] 次局へ broadcast");
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
-        console.log("[FRIEND] 次局へ broadcast");
-        // 各プレイヤーの handleRoundEnd / nextRound は自走しているので、何もしない
-        // （/friend/next_round の戻り値は呼んだ本人だけが apiCall で受け取る）
+
+        // リザルト画面と各種オーバーレイを閉じる
+        const overlays = ['result-overlay', 'result-screen', 'achievement-toast-container'];
+        overlays.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+
+        // 河 / 副露 / 和了ゾーンをクリア
+        for (let i = 0; i < 4; i++) {
+            const river = document.getElementById(`river-${i}`);
+            if (river) river.innerHTML = "";
+            const meld = document.getElementById(`meld-${i}`);
+            if (meld) meld.innerHTML = "";
+            const winZone = document.getElementById(`win-zone-${i}`);
+            if (winZone) {
+                winZone.innerHTML = "";
+                winZone.style.display = "none";
+            }
+        }
+
+        // チャールストン開始
+        if (typeof charlestonCount !== 'undefined') charlestonCount = 1;
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof startCharlestonSelection === 'function') startCharlestonSelection();
     } else if (type === "friend_game_end") {
-        // 4局終了 → 全体終了
+        // 4局終了 → 全体終了 → ホーム画面へ
         console.log("[FRIEND] ゲーム終了:", data.total_scores);
+        if (typeof returnToHomeGracefully === 'function') {
+            returnToHomeGracefully();
+        }
     }
 }
 

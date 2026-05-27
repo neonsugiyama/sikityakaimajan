@@ -3190,15 +3190,15 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (isNaN(elapsed)) elapsed = 0;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            // if (elapsed >= (i + 1) * 8) continue; 
+            if (elapsed >= (i + 1) * 8) continue;
 
             // 🌟 UI調整用に600秒にします。
-            let currentWaitTime = 600;
+            //let currentWaitTime = 600;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            // let currentWaitTime = 8 - (elapsed - (i * 8));
-            // if (currentWaitTime > 8) currentWaitTime = 8;
-            // if (currentWaitTime < 0) currentWaitTime = 0;
+            let currentWaitTime = 8 - (elapsed - (i * 8));
+            if (currentWaitTime > 8) currentWaitTime = 8;
+            if (currentWaitTime < 0) currentWaitTime = 0;
 
             let isWinner = false;
             let winData = null;
@@ -3218,7 +3218,15 @@ async function handleRoundEnd(isReplayingResult = false) {
             let scoreColor = "";
 
             if (isWinner && winData) {
-                titleText = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
+                // 🌟 友人戦時は友人戦の名前リストを使用
+                let displayName;
+                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                    const relIdx = (i - myPlayerIdx + 4) % 4;
+                    displayName = (relIdx === 0) ? "あなたの和了！" : `${getFriendPlayerName(relIdx)} の和了！`;
+                } else {
+                    displayName = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
+                }
+                titleText = displayName;
                 scoreText = `${winData.total_score} 点`;
                 scoreColor = "#2ecc71";
 
@@ -3270,7 +3278,15 @@ async function handleRoundEnd(isReplayingResult = false) {
                         </div>`;
                 }
             } else {
-                titleText = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
+                // 🌟 友人戦時は友人戦の名前リストを使用
+                let displayName;
+                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                    const relIdx = (i - myPlayerIdx + 4) % 4;
+                    displayName = (relIdx === 0) ? "あなたの結果" : `${getFriendPlayerName(relIdx)} の結果`;
+                } else {
+                    displayName = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
+                }
+                titleText = displayName;
                 let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
                 scoreText = `${diffStr} 点`;
                 scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
@@ -3779,7 +3795,15 @@ async function handleRoundEnd(isReplayingResult = false) {
             let resultMsg = "【ゲーム終了！最終結果】\n\n";
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
-                let name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
+                // 🌟 友人戦時は友人戦の名前リストを使用
+                let name;
+                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                    // pIdx は絶対座席なので、自分視点に変換してから getFriendPlayerName へ
+                    const relIdx = (pIdx - myPlayerIdx + 4) % 4;
+                    name = getFriendPlayerName(relIdx);
+                } else {
+                    name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
+                }
                 resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
 
                 if (currentGameMode === 'online' || currentGameMode === 'cpu') {
@@ -3809,20 +3833,22 @@ async function handleRoundEnd(isReplayingResult = false) {
             alert(resultMsg);
 
             if (currentGameMode === 'friend') {
-                await apiCall('/friend/next_round', { player_idx: myPlayerIdx });
-            } else {
-                await apiCall('/next_round');
+                // 🌟 友人戦: 完了通知を送るだけ。実際の終了処理は friend_game_end 受信時に friend.js で行う
+                await fetch(`/friend/round_ready?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`, { cache: 'no-store' });
+                return; // 待機（friend_game_end 受信で returnToHomeGracefully）
             }
+            await apiCall('/next_round');
             returnToHomeGracefully();
             return;
         }
 
         currentRoundSeasonDiscardCount = 0;
         if (currentGameMode === 'friend') {
-            await apiCall('/friend/next_round', { player_idx: myPlayerIdx });
-        } else {
-            await apiCall('/next_round');
+            // 🌟 友人戦: 完了通知を送るだけ。次局への進行は friend_next_round 受信時に friend.js で行う
+            await fetch(`/friend/round_ready?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`, { cache: 'no-store' });
+            return; // 待機（friend_next_round 受信で画面初期化）
         }
+        await apiCall('/next_round');
 
         for (let i = 0; i < 4; i++) {
             document.getElementById(`river-${i}`).innerHTML = "";
