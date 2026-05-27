@@ -2640,7 +2640,13 @@ async function execTsumo() {
     // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_win broadcast）
     let data;
     if (currentGameMode === 'friend') {
-        await apiCall('/friend/win_tsumo', { player_idx: myPlayerIdx, is_joker_swap: pendingIsJokerSwap, is_rinshan: pendingIsRinshan });
+        // 🌟 apiCall ではなく fetch で叩く（apiCall は safeUpdate を呼んでしまうので、
+        //    レスポンスより先に WS broadcast の handleFriendWin が走ってほしいケースを考慮）
+        try {
+            await fetch(`/friend/win_tsumo?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&is_joker_swap=${pendingIsJokerSwap}&is_rinshan=${pendingIsRinshan}&_t=${Date.now()}`, { cache: 'no-store' });
+        } catch (e) {
+            console.error("[FRIEND] /friend/win_tsumo 失敗:", e);
+        }
         // 以降の演出やターン進行は friend_win ブロードキャスト受信時の handleFriendWin が担当
         return;
     }
@@ -2847,8 +2853,17 @@ async function execSelfMeld(type, t, s, isHidden = false) {
 
     // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_self_meld broadcast）
     if (currentGameMode === 'friend') {
-        await apiCall('/friend/self_meld', { player_idx: myPlayerIdx, type: type, tile: t, season: s, is_hidden: isHidden });
-        return; // 以降は friend_self_meld 受信時の handleFriendSelfMeld が処理
+        try {
+            const params = new URLSearchParams({
+                room_id: friendRoomId, player_idx: myPlayerIdx,
+                type: type, tile: t, season: s, is_hidden: String(isHidden),
+                _t: Date.now()
+            });
+            await fetch(`/friend/self_meld?${params}`, { cache: 'no-store' });
+        } catch (e) {
+            console.error("[FRIEND] /friend/self_meld 失敗:", e);
+        }
+        return;
     }
 
     const data = await apiCall('/self_meld', { player_idx: 0, type: type, tile: t, season: s, is_hidden: isHidden });
@@ -2912,8 +2927,16 @@ async function execJokerSwap(t, season, targetIdx) {
 
     // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_joker_swap broadcast）
     if (currentGameMode === 'friend') {
-        await apiCall('/friend/joker_swap', { player_idx: myPlayerIdx, tile: t, season: season, target_idx: targetIdx });
-        // 以降は friend_joker_swap 受信時の handleFriendJokerSwap が処理
+        try {
+            const params = new URLSearchParams({
+                room_id: friendRoomId, player_idx: myPlayerIdx,
+                tile: t, season: season, target_idx: targetIdx,
+                _t: Date.now()
+            });
+            await fetch(`/friend/joker_swap?${params}`, { cache: 'no-store' });
+        } catch (e) {
+            console.error("[FRIEND] /friend/joker_swap 失敗:", e);
+        }
         return;
     }
 
@@ -3190,15 +3213,15 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (isNaN(elapsed)) elapsed = 0;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            if (elapsed >= (i + 1) * 8) continue;
+            // if (elapsed >= (i + 1) * 8) continue; 
 
             // 🌟 UI調整用に600秒にします。
-            //let currentWaitTime = 600;
+            let currentWaitTime = 600;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            let currentWaitTime = 8 - (elapsed - (i * 8));
-            if (currentWaitTime > 8) currentWaitTime = 8;
-            if (currentWaitTime < 0) currentWaitTime = 0;
+            // let currentWaitTime = 8 - (elapsed - (i * 8));
+            // if (currentWaitTime > 8) currentWaitTime = 8;
+            // if (currentWaitTime < 0) currentWaitTime = 0;
 
             let isWinner = false;
             let winData = null;
