@@ -2992,18 +2992,26 @@ async function handleRoundEnd(isReplayingResult = false) {
             btnAuto.classList.add('auto-off');
         }
 
-        const calcData = await apiCall('/calculate_round_scores');
+        // 🌟 友人戦: 専用エンドポイントを叩く（最初に呼んだ人がサーバー側で計算、全員に broadcast）
+        let calcData;
+        if (currentGameMode === 'friend') {
+            calcData = await apiCall('/friend/calculate_round_scores', { player_idx: myPlayerIdx });
+        } else {
+            calcData = await apiCall('/calculate_round_scores');
+        }
 
+        // 🌟 友人戦時は自分の player_idx を使用（CPU戦時は 0）
+        const selfIdx = (currentGameMode === 'friend' && typeof myPlayerIdx !== 'undefined') ? myPlayerIdx : 0;
         let iWon = false;
         for (let res of (calcData.results || [])) {
-            if (res.player === 0) {
+            if (res.player === selfIdx) {
                 iWon = true;
 
                 if (!isReplayingResult && currentGameMode !== 'lesson' && currentGameMode !== 'tutorial') {
                     playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1;
                     if (calcData.results.length > 0) {
-                        if (calcData.results[0].player === 0) playerStats._tempFirstWin = true;
-                        if (calcData.results[calcData.results.length - 1].player === 0) playerStats._tempLastWin = true;
+                        if (calcData.results[0].player === selfIdx) playerStats._tempFirstWin = true;
+                        if (calcData.results[calcData.results.length - 1].player === selfIdx) playerStats._tempLastWin = true;
                     }
 
                     let hasMenzen = myMelds.filter(m => m.type !== "ankan").length === 0;
@@ -3800,13 +3808,21 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             alert(resultMsg);
 
-            await apiCall('/next_round');
+            if (currentGameMode === 'friend') {
+                await apiCall('/friend/next_round', { player_idx: myPlayerIdx });
+            } else {
+                await apiCall('/next_round');
+            }
             returnToHomeGracefully();
             return;
         }
 
         currentRoundSeasonDiscardCount = 0;
-        await apiCall('/next_round');
+        if (currentGameMode === 'friend') {
+            await apiCall('/friend/next_round', { player_idx: myPlayerIdx });
+        } else {
+            await apiCall('/next_round');
+        }
 
         for (let i = 0; i < 4; i++) {
             document.getElementById(`river-${i}`).innerHTML = "";

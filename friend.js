@@ -487,6 +487,22 @@ function handleFriendEvent(data) {
     } else if (type === "friend_joker_swap") {
         // JokerSwap 成立
         handleFriendJokerSwap(data);
+    } else if (type === "friend_round_end") {
+        // 他プレイヤーが /friend/calculate_round_scores を叩いた → 結果を同期
+        // ただし自分が呼んだ場合は apiCall の戻り値で既に処理済みなので、何もしない
+        // （handleRoundEnd は各プレイヤーが自走している）
+        console.log("[FRIEND] 局終了 broadcast:", data);
+    } else if (type === "friend_next_round") {
+        // 次局へ: state を反映 → リザルト画面を閉じて新局の初期化
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        console.log("[FRIEND] 次局へ broadcast");
+        // 各プレイヤーの handleRoundEnd / nextRound は自走しているので、何もしない
+        // （/friend/next_round の戻り値は呼んだ本人だけが apiCall で受け取る）
+    } else if (type === "friend_game_end") {
+        // 4局終了 → 全体終了
+        console.log("[FRIEND] ゲーム終了:", data.total_scores);
     }
 }
 

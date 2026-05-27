@@ -896,6 +896,71 @@ async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: st
     return get_friend_state_for_player(game, player_idx)
 
 
+
+# ==========================================
+# REST: 1局終了時の点数計算
+# ==========================================
+@router.get("/calculate_round_scores")
+async def friend_calculate_round_scores(room_id: str, player_idx: int):
+    """CPU戦の calculate_round_scores を呼び出して結果を全員に broadcast。"""
+    from main import lobby_manager, calculate_round_scores
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    result = calculate_round_scores(game=game)
+
+    # 全プレイヤーに broadcast（最初に呼んだ人だけが実行、後の人は同じ結果を返す）
+    for p in range(4):
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_round_end",
+            "results": result.get("results", []),
+            "scores": result.get("scores", []),
+            "ranking_points": result.get("ranking_points", [])
+        })
+    return result
+
+
+# ==========================================
+# REST: 次局へ進める
+# ==========================================
+@router.get("/next_round")
+async def friend_next_round(room_id: str, player_idx: int):
+    """次の局に進む。4局終了なら全体終了。各プレイヤーへ視点回転済み state broadcast。"""
+    from main import lobby_manager, next_round
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+
+    # 🌟 二重実行防止: 最初に呼んだ人が処理し、後続は state を返すだけ
+    if not getattr(game, 'next_round_processing', False):
+        game.next_round_processing = True
+
+        # 4局終了判定
+        if game.current_round >= 4:
+            for p in range(4):
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_game_end",
+                    "total_scores": game.total_scores
+                })
+            return {"status": "game_end", "total_scores": game.total_scores}
+
+        # 次局へ
+        next_round(game=game)
+        # フラグリセット（reset_round で round_calculated を false にしているはず）
+        game.next_round_processing = False
+
+        # 各プレイヤーに視点回転済み state を broadcast
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_next_round",
+                "state": state
+            })
+
+    return get_friend_state_for_player(game, player_idx)
+
+
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================
