@@ -314,6 +314,9 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                 room_game = lobby_manager.games[room_id]
                 room_game.reset_round()
                 room_game.friend_player_names = list(lobby_manager.player_names[room_id])
+                # 🌟 牌譜（リプレイ）データにも実際のプレイヤー名を反映
+                room_game.replay_data["player_names"] = list(lobby_manager.player_names[room_id])
+                room_game.replay_data["room_id"] = room_id
 
                 lobby_manager.charleston_selections[room_id] = {}
                 lobby_manager.second_charleston_confirms[room_id] = {}

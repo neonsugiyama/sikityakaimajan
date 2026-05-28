@@ -962,15 +962,34 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
 
     result = calculate_round_scores(game=game)
 
-    # 全プレイヤーに broadcast（最初に呼んだ人だけが実行、後の人は同じ結果を返す）
+    abs_scores = result.get("scores", [0, 0, 0, 0])
+    abs_ranking = result.get("ranking_points", [0, 0, 0, 0])
+    abs_results = result.get("results", [])
+
+    def rotate_result_for(p):
+        rotated_scores = rotate_for_player(abs_scores, p) if len(abs_scores) == 4 else abs_scores
+        rotated_ranking = rotate_for_player(abs_ranking, p) if len(abs_ranking) == 4 else abs_ranking
+        rotated_results = []
+        for r in abs_results:
+            r2 = dict(r)
+            if "player" in r2:
+                r2["player"] = (r2["player"] - p + 4) % 4
+            rotated_results.append(r2)
+        return {
+            "results": rotated_results,
+            "scores": rotated_scores,
+            "ranking_points": rotated_ranking
+        }
+
+    # 各プレイヤーに視点回転済みのデータを broadcast
     for p in range(4):
+        payload = rotate_result_for(p)
         await friend_connections.send_to(room_id, p, {
             "type": "friend_round_end",
-            "results": result.get("results", []),
-            "scores": result.get("scores", []),
-            "ranking_points": result.get("ranking_points", [])
+            **payload
         })
-    return result
+    # 呼び出した本人にも視点回転済みの結果を返す
+    return rotate_result_for(player_idx)
 
 
 # ==========================================

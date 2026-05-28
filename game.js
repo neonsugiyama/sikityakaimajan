@@ -3051,7 +3051,8 @@ async function handleRoundEnd(isReplayingResult = false) {
         }
 
         // 🌟 友人戦時は自分の player_idx を使用（CPU戦時は 0）
-        const selfIdx = (currentGameMode === 'friend' && typeof myPlayerIdx !== 'undefined') ? myPlayerIdx : 0;
+        // 🌟 friend モードでも results は視点回転済み（自分=player 0）なので selfIdx は常に 0
+        const selfIdx = 0;
         let iWon = false;
         for (let res of (calcData.results || [])) {
             if (res.player === selfIdx) {
@@ -3240,7 +3241,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (isNaN(elapsed)) elapsed = 0;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            if (elapsed >= (i + 1) * 8) continue; 
+            if (elapsed >= (i + 1) * 8) continue;
 
             // 🌟 UI調整用に600秒にします。
             //let currentWaitTime = 600;
@@ -3268,11 +3269,10 @@ async function handleRoundEnd(isReplayingResult = false) {
             let scoreColor = "";
 
             if (isWinner && winData) {
-                // 🌟 友人戦時は友人戦の名前リストを使用
+                // 🌟 友人戦時は友人戦の名前リストを使用（i は既に自分視点の相対インデックス）
                 let displayName;
                 if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
-                    const relIdx = (i - myPlayerIdx + 4) % 4;
-                    displayName = (relIdx === 0) ? "あなたの和了！" : `${getFriendPlayerName(relIdx)} の和了！`;
+                    displayName = (i === 0) ? "あなたの和了！" : `${getFriendPlayerName(i)} の和了！`;
                 } else {
                     displayName = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
                 }
@@ -3328,11 +3328,10 @@ async function handleRoundEnd(isReplayingResult = false) {
                         </div>`;
                 }
             } else {
-                // 🌟 友人戦時は友人戦の名前リストを使用
+                // 🌟 友人戦時は友人戦の名前リストを使用（i は既に自分視点の相対インデックス）
                 let displayName;
                 if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
-                    const relIdx = (i - myPlayerIdx + 4) % 4;
-                    displayName = (relIdx === 0) ? "あなたの結果" : `${getFriendPlayerName(relIdx)} の結果`;
+                    displayName = (i === 0) ? "あなたの結果" : `${getFriendPlayerName(i)} の結果`;
                 } else {
                     displayName = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
                 }
@@ -3762,56 +3761,49 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
 
                 // ==========================================
-                // 🌟 ここから下が修正・追加されたレート計算ロジック
+                // 🌟 レート計算ロジック（友人戦のみ実レート変動。自分=index0のみ計算）
                 // ==========================================
                 let avgScore = totalScores.reduce((a, b) => a + b, 0) / 4;
-                let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
 
-                if (currentGameMode === 'online' || currentGameMode === 'cpu') {
+                if (currentGameMode === 'friend') {
+                    // 🌟 友人戦: 自分（視点回転後 index 0）の順位とレートだけ変動させる
                     let oldMyRate = playerRatings[0];
+                    let myRate = playerRatings[0];
+                    // 自分の順位（0始まり）。上の myRank は 1始まりなので別途算出
+                    let myRank0 = sortedIndices.indexOf(0);
 
-                    for (let rank = 0; rank < 4; rank++) {
-                        let pIdx = sortedIndices[rank];
-                        let myRate = playerRatings[pIdx];
-
-                        // 1. 順位点の決定（案Aを適用）
-                        let placementPoints = [0, 0, 0, 0];
-                        if (myRate < 1600) {
-                            placementPoints = [30, 10, 0, -20]; // 🔰 初心者帯（3位は減らない）
-                        } else if (myRate < 1800) {
-                            placementPoints = [20, 5, -5, -20]; // ⚔️ 一般帯（ゼロサム）
-                        } else {
-                            placementPoints = [15, 0, -10, -30]; // 👹 上級帯（ラスが致命傷）
-                        }
-
-                        // 2. 素点ボーナス（切り上げ ＆ ±20キャップ）
-                        let scoreBonus = Math.ceil((totalScores[pIdx] - avgScore) / 100);
-                        scoreBonus = Math.max(-20, Math.min(20, scoreBonus));
-
-                        // 3. レート差補正
-                        let rateDiff = avgTableRate - myRate;
-                        let rateCorrection = Math.round(rateDiff / 40);
-
-                        // 最終変動値の計算
-                        let change = placementPoints[rank] + scoreBonus + rateCorrection;
-
-                        // 1位と4位の最低保証
-                        if (rank === 0 && change <= 0) change = 1;
-                        if (rank === 3 && change >= 0) change = -1;
-
-                        rateChanges[pIdx] = change;
-                        playerRatings[pIdx] += change;
-
-                        // 🌟 絶対下限1400の適用
-                        if (playerRatings[pIdx] < 1400) playerRatings[pIdx] = 1400;
+                    // 1. 順位点
+                    let placementPoints = [0, 0, 0, 0];
+                    if (myRate < 1600) {
+                        placementPoints = [30, 10, 0, -20];
+                    } else if (myRate < 1800) {
+                        placementPoints = [20, 5, -5, -20];
+                    } else {
+                        placementPoints = [15, 0, -10, -30];
                     }
+
+                    // 2. 素点ボーナス（自分の点数 - 平均）
+                    let scoreBonus = Math.ceil((totalScores[0] - avgScore) / 100);
+                    scoreBonus = Math.max(-20, Math.min(20, scoreBonus));
+
+                    // 3. レート差補正（友人戦では他人のレート不明なので省略 = 0）
+                    let change = placementPoints[myRank0] + scoreBonus;
+
+                    // 1位と4位の最低保証
+                    if (myRank0 === 0 && change <= 0) change = 1;
+                    if (myRank0 === 3 && change >= 0) change = -1;
+
+                    rateChanges[0] = change;
+                    playerRatings[0] += change;
+                    if (playerRatings[0] < 1400) playerRatings[0] = 1400;
 
                     checkTieredAchievement("rating", "レートの階段", "📈", oldMyRate, playerRatings[0], [1600, 1700, 1800, 1900]);
                     if (oldMyRate < 2000 && playerRatings[0] >= 2000) {
                         showAchievementUnlock("頂に立つ者", "👑");
                     }
                 } else {
-                    // フリー卓やリプレイなどの「レート変動なし（ダミー計算）」用
+                    // 🌟 CPU戦・フリー卓・リプレイなど: レート変動なし（表示用のダミー計算のみ）
+                    let avgTableRate = playerRatings.reduce((sum, r) => sum + r, 0) / 4;
                     let placementPoints = [0, 0, 0, 0];
                     for (let rank = 0; rank < 4; rank++) {
                         let pIdx = sortedIndices[rank];
@@ -3846,19 +3838,21 @@ async function handleRoundEnd(isReplayingResult = false) {
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
                 // 🌟 友人戦時は友人戦の名前リストを使用
+                // 注: friend モードでは totalScores/sortedIndices は視点回転済み（pIdx は自分視点の相対インデックス）
                 let name;
                 if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
-                    // pIdx は絶対座席なので、自分視点に変換してから getFriendPlayerName へ
-                    const relIdx = (pIdx - myPlayerIdx + 4) % 4;
-                    name = getFriendPlayerName(relIdx);
+                    name = getFriendPlayerName(pIdx);  // pIdx は既に視点回転後インデックスなので直接渡す
                 } else {
                     name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
                 }
                 resultMsg += `${rank + 1}位: ${name} (${totalScores[pIdx]}点)\n`;
 
-                if (currentGameMode === 'online' || currentGameMode === 'cpu') {
-                    let sign = rateChanges[pIdx] >= 0 ? "+" : "";
-                    resultMsg += ` ┗ レート: ${playerRatings[pIdx]} (${sign}${rateChanges[pIdx]})\n`;
+                if (currentGameMode === 'online' || currentGameMode === 'cpu' || currentGameMode === 'friend') {
+                    // 🌟 友人戦/オンライン/CPU: 自分（pIdx===0）のレート変動だけ表示
+                    if (pIdx === 0) {
+                        let sign = rateChanges[0] >= 0 ? "+" : "";
+                        resultMsg += ` ┗ レート: ${playerRatings[0]} (${sign}${rateChanges[0]})\n`;
+                    }
                 }
             }
 
