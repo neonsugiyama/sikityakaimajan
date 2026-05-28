@@ -518,6 +518,7 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
             "player_idx": player_idx,
             "tile": tile,
             "can_ron": r["ron"], "can_pon": r["pon"], "can_kan": r["kan"], "can_hanakan": r["hanakan"],
+            "pending_call": True,  # 🌟 誰かが反応可能=副露猶予中。受信側はこの間 checkT で局終了判定をしないようにする
             "state": state
         })
 

@@ -20,6 +20,7 @@ function startFriendGame(initData) {
     myPlayerIdx = initData.player_idx;
     friendRoomId = initData.room_id;
     friendPlayerNames = initData.player_names || [];
+    console.log("[FRIEND DEBUG] myPlayerIdx:", myPlayerIdx, " friendPlayerNames:", JSON.stringify(friendPlayerNames));
 
     // 🌟 ホストの設定値を CPU戦のグローバル変数に上書き（友人戦中だけ有効）
     if (initData.settings) {
@@ -452,8 +453,13 @@ function handleFriendEvent(data) {
                 checkHumanReaction(discarderRel, data.tile);
             }
             if (typeof isProc !== 'undefined') isProc = true;
+        } else if (data.pending_call) {
+            // 🌟 自分は反応不可だが、他プレイヤーが副露猶予中 → checkT は呼ばず call_resolved/friend_win 待ち
+            // （これを呼ぶと wallCount=0 時に handleRoundEnd が早期発動してしまう）
+            console.log("[FRIEND] 他プレイヤー副露猶予中 → checkT 待機");
+            if (typeof isProc !== 'undefined') isProc = true;
         } else {
-            // 反応不可 → 即 checkT
+            // 反応不可 + 副露猶予なし → 即 checkT
             if (typeof isProc !== 'undefined') isProc = false;
             if (typeof checkT === 'function') checkT();
         }
@@ -599,40 +605,54 @@ async function handleFriendSelfMeld(data) {
 // 🌟 演出中フラグ: 和了アニメーション中は他のイベントが checkT を呼ぶのを抑制
 let friendWinAnimating = false;
 
-async function handleFriendWin(data) {
-    console.log("[FRIEND] 和了:", data);
+// 🌟 和了演出を順番に処理するためのキュー
+let friendWinQueue = [];
 
-    // 既に演出中なら state だけ反映して終了（多重実行防止）
+async function handleFriendWin(data) {
+    console.log("[FRIEND] 和了:", data, "yaku:", data.yaku, "myPlayerIdx:", myPlayerIdx);
+
+    // 既に演出中ならキューに積んで終了
     if (friendWinAnimating) {
+        // state は最新化（手牌や河の整合性のため）
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
+        // 演出データだけ後でも実行できるようキューに保存
+        friendWinQueue.push(data);
+        console.log("[FRIEND] 演出中なのでキューに追加 (queue size:", friendWinQueue.length, ")");
         return;
     }
     friendWinAnimating = true;
 
     try {
-        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
-        if (typeof render === 'function') render();
-        if (typeof renderCPU === 'function') renderCPU();
+        // 1件目を演出 + 後続をキューから順次処理
+        let current = data;
+        while (current) {
+            if (current.state && typeof safeUpdate === 'function') safeUpdate(current.state);
+            if (typeof render === 'function') render();
+            if (typeof renderCPU === 'function') renderCPU();
 
-        // ボタン群を非表示
-        document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-        const btnWin = document.getElementById('btn-win');
-        if (btnWin) btnWin.style.display = "none";
+            // ボタン群を非表示
+            document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+            const btnWin = document.getElementById('btn-win');
+            if (btnWin) btnWin.style.display = "none";
 
-        // 演出: 勝者位置に「胡」「自摸」表示（テンポ重視で短め）
-        const winnerRel = (data.player_idx - myPlayerIdx + 4) % 4;
-        const winText = (data.win_type === "ron") ? "胡" : "自摸";
-        if (typeof showCallout === 'function') showCallout(winnerRel, winText);
-        await new Promise(r => setTimeout(r, 800));
+            // 演出: 勝者位置に「胡」「自摸」表示
+            const winnerRel = (current.player_idx - myPlayerIdx + 4) % 4;
+            const winText = (current.win_type === "ron") ? "胡" : "自摸";
+            if (typeof showCallout === 'function') showCallout(winnerRel, winText);
+            await new Promise(r => setTimeout(r, 800));
 
-        // 役表示
-        if (data.yaku && data.yaku.length > 0) {
-            for (const y of data.yaku) {
-                if (typeof showCallout === 'function') showCallout(winnerRel, y);
-                await new Promise(r => setTimeout(r, 600));
+            // 役表示
+            if (current.yaku && current.yaku.length > 0) {
+                for (const y of current.yaku) {
+                    if (typeof showCallout === 'function') showCallout(winnerRel, y);
+                    await new Promise(r => setTimeout(r, 600));
+                }
             }
+
+            // 次のキュー要素へ
+            current = friendWinQueue.shift() || null;
         }
     } finally {
         friendWinAnimating = false;

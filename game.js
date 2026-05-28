@@ -1747,6 +1747,17 @@ async function checkT() {
 
     if (wallCount === 0 && ((turn === 0 && isPlayerDrawPhase) || turn !== 0)) {
         //console.log(`[処理順確認] 🛑 山札が0枚のため、これ以上ターンを回さずに流局（または終了）処理へ移行します`);
+        // 🌟 友人戦: 和了演出中なら演出完了を待ってから handleRoundEnd を呼ぶ
+        if (currentGameMode === 'friend' && typeof friendWinAnimating !== 'undefined' && friendWinAnimating) {
+            const waitForAnim = async () => {
+                while (friendWinAnimating) {
+                    await sleep(100);
+                }
+                handleRoundEnd();
+            };
+            waitForAnim();
+            return;
+        }
         handleRoundEnd();
         return;
     }
@@ -3213,15 +3224,15 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (isNaN(elapsed)) elapsed = 0;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            // if (elapsed >= (i + 1) * 8) continue; 
+            if (elapsed >= (i + 1) * 8) continue; 
 
             // 🌟 UI調整用に600秒にします。
-            let currentWaitTime = 600;
+            //let currentWaitTime = 600;
 
             // 🌟 UI調整用のコメントアウト。あとで戻します
-            // let currentWaitTime = 8 - (elapsed - (i * 8));
-            // if (currentWaitTime > 8) currentWaitTime = 8;
-            // if (currentWaitTime < 0) currentWaitTime = 0;
+            let currentWaitTime = 8 - (elapsed - (i * 8));
+            if (currentWaitTime > 8) currentWaitTime = 8;
+            if (currentWaitTime < 0) currentWaitTime = 0;
 
             let isWinner = false;
             let winData = null;
