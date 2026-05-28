@@ -937,6 +937,7 @@ html, body {
     border: 3px solid #f1c40f;
     z-index: 100;
     min-width: 120px;
+    max-width: 120px;
     transform-style: flat !important;
     pointer-events: none !important;
 }
@@ -963,9 +964,12 @@ html, body {
     font-size: 18px;
     min-height: 28px !important;
     min-width: 126px !important;
+    max-width: 126px;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* ミニボタン (BGM等) */

@@ -172,6 +172,8 @@ async function returnToHomeGracefully() {
     if (typeof stopTimer === 'function') stopTimer();
     isProc = false;
     if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+    // 🌟 friend_round_end のガードがロックされたまま残らないよう、退出時にも解除する
+    if (typeof _handleRoundEndInProgress !== 'undefined') _handleRoundEndInProgress = false;
 
     if (currentGameMode === 'lesson' || currentGameMode === 'tutorial') {
         if (typeof loadGameData === 'function') loadGameData();
@@ -1096,6 +1098,55 @@ window.addEventListener('DOMContentLoaded', () => {
         }, 200);
     }
 });
+
+// ==========================================
+// 🔠 中央パネル #msg の文字サイズ自動調整（最大18px・一行収まり）
+// ==========================================
+(function () {
+    const MAX_FONT_SIZE = 18;
+    const MIN_FONT_SIZE = 8;
+    const TARGET_WIDTH = 126;
+    let measureEl = null;
+
+    function getMeasureEl() {
+        if (measureEl && document.body.contains(measureEl)) return measureEl;
+        measureEl = document.createElement('div');
+        measureEl.setAttribute('aria-hidden', 'true');
+        measureEl.style.cssText =
+            'position:absolute;visibility:hidden;pointer-events:none;' +
+            'white-space:nowrap;font-weight:bold;left:-9999px;top:-9999px;';
+        document.body.appendChild(measureEl);
+        return measureEl;
+    }
+
+    function fitMsgFontSize() {
+        const msg = document.getElementById('msg');
+        if (!msg) return;
+
+        const m = getMeasureEl();
+        m.style.fontSize = MAX_FONT_SIZE + 'px';
+        m.innerHTML = msg.innerHTML;
+
+        const naturalWidth = m.offsetWidth;
+        let size = MAX_FONT_SIZE;
+        if (naturalWidth > TARGET_WIDTH && naturalWidth > 0) {
+            size = Math.max(MIN_FONT_SIZE, (MAX_FONT_SIZE * TARGET_WIDTH) / naturalWidth);
+            size = Math.floor(size * 10) / 10;
+        }
+        const next = size + 'px';
+        if (msg.style.fontSize !== next) {
+            msg.style.fontSize = next;
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const msg = document.getElementById('msg');
+        if (!msg) return;
+        fitMsgFontSize();
+        const observer = new MutationObserver(fitMsgFontSize);
+        observer.observe(msg, { childList: true, characterData: true, subtree: true });
+    });
+})();
 
 // ==========================================
 // ★ オンライン対戦（卓選択）制御

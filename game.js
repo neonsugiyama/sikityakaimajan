@@ -30,6 +30,8 @@ let maxTimeForTimer = 0;
 let timerAction = null;
 let currentTickAudio = null;
 let selectedTileIndex = -1; // -1は「何も選択されていない」状態
+// 🌟 友人戦の friend_round_end ブロードキャストで自分自身が二重実行されるのを防ぐためのガード
+let _handleRoundEndInProgress = false;
 
 // ==========================================
 // 🚀 牌画像のプリロード（読み込み遅延・チラつき防止）
@@ -1871,7 +1873,12 @@ async function checkT() {
                 isProc = false;
 
                 startTimer(timeCall, () => {
-                    if (btnRyukyoku) btnRyukyoku.click();
+                    // 🌟 修正：btnRyukyoku.click() 経由だと、setInterval 内の isProc 判定で
+                    // アクションが握り潰される/onclick が発火しないケースがあり、リザルト画面が
+                    // 出ずに進行不能になる事象が発生していたため、直接 handleRoundEnd() を呼ぶ。
+                    if (btnHaitei) btnHaitei.style.display = "none";
+                    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+                    if (typeof handleRoundEnd === 'function') handleRoundEnd();
                 });
                 return;
             }
@@ -2989,6 +2996,11 @@ function skipAction() {
 
 // 🏁 1局の終了（アガリまたは流局）時に点数計算を行い、リザルト画面を表示する関数
 async function handleRoundEnd(isReplayingResult = false) {
+    // 🌟 修正：友人戦で /friend/calculate_round_scores の broadcast を自分自身も受信したり、
+    // 複数経路（タイマー・WSハンドラ・checkT）から同時に呼ばれた際の二重実行を防止する。
+    // リザルト演出のリプレイ呼び出し（isReplayingResult=true）はガード対象外。
+    if (_handleRoundEndInProgress && !isReplayingResult) return;
+    _handleRoundEndInProgress = true;
     try {
         stopTimer();
 
@@ -3897,11 +3909,13 @@ async function handleRoundEnd(isReplayingResult = false) {
 
         charlestonCount = 1;
         isProc = false;
+        _handleRoundEndInProgress = false;
         startCharlestonSelection();
         renderCPU();
 
     } catch (e) {
         console.error("リザルト処理中にエラーが発生しました:", e);
+        _handleRoundEndInProgress = false;
         alert("リザルト処理中に予期せぬエラーが発生しました。\nホーム画面に戻ります。");
         returnToHomeGracefully();
     }

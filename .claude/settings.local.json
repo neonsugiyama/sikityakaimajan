@@ -22,7 +22,8 @@
       "Bash(curl -s -D - -o /dev/null \"http://127.0.0.1:8765/game.js\")",
       "Bash(findstr LISTENING)",
       "Bash(curl -s \"http://127.0.0.1:8765/app.js\")",
-      "Bash(curl -s \"http://127.0.0.1:8765/main.py\")"
+      "Bash(curl -s \"http://127.0.0.1:8765/main.py\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\" log --oneline -20)"
     ]
   }
 }

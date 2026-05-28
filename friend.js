@@ -140,7 +140,7 @@ async function friendSubmitCharleston(t1, t2, t3) {
         // 待機メッセージ
         const msgEl = document.getElementById('msg');
         if (msgEl) {
-            msgEl.innerText = "他のプレイヤーを待っています...";
+            msgEl.innerText = "待機中...";
             msgEl.className = "";
         }
         // 🌟 fetch は await しない（最後に決定した人の場合、レスポンスより前に
@@ -256,7 +256,7 @@ function friendAskNextPlayer() {
         // 他人の番 → 待機メッセージ
         const msgEl = document.getElementById('msg');
         if (msgEl) {
-            msgEl.innerText = `${getFriendPlayerName(currentAskerRel)} の回答を待っています...`;
+            msgEl.innerText = `${getFriendPlayerName(currentAskerRel)} ...`;
             msgEl.className = "";
         }
         if (typeof isProc !== 'undefined') isProc = true;
@@ -311,7 +311,7 @@ async function friendSubmitSecondCharleston(participate, t1, t2, t3) {
     // 待機メッセージ
     const msgEl = document.getElementById('msg');
     if (msgEl) {
-        msgEl.innerText = "他のプレイヤーを待っています...";
+        msgEl.innerText = "待機中...";
         msgEl.className = "";
     }
 
@@ -503,9 +503,19 @@ function handleFriendEvent(data) {
     } else if (type === "friend_joker_swap") {
         // JokerSwap 成立
         handleFriendJokerSwap(data);
+    } else if (type === "friend_round_end") {
+        // 🌟 局終了 broadcast：海底スルーなど、自分自身は流局判定に到達しなかったプレイヤーも
+        // ここで handleRoundEnd を発火させてリザルト画面に進める。
+        // 発火元のクライアントは _handleRoundEndInProgress ガードにより二重実行されない。
+        console.log("[FRIEND] 局終了 broadcast 受信");
+        if (typeof handleRoundEnd === 'function') {
+            handleRoundEnd();
+        }
     } else if (type === "friend_next_round") {
         // 次局へ: state を反映 → リザルト画面を閉じて新局の初期化
         console.log("[FRIEND] 次局へ broadcast");
+        // 🌟 次局開始のタイミングで handleRoundEnd の二重実行ガードを解除
+        if (typeof _handleRoundEndInProgress !== 'undefined') _handleRoundEndInProgress = false;
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
