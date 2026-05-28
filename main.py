@@ -2391,7 +2391,6 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
                 print(f"[WARNING] 牌 '{t}' がゲームの規定枚数をオーバーして配置されています！")
         
         # 4. 余った牌をランダムにシャッフルして、シナリオで指定した山札の下（リストの先頭）に敷き詰める
-        import random
         random.shuffle(full_deck)
         game.wall = full_deck + preset_wall
 

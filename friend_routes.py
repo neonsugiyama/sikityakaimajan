@@ -276,7 +276,21 @@ async def friend_second_charleston_submit(
     })
 
     if len(confirms) < 4:
-        return {"status": "waiting", "confirmed": len(confirms)}
+        active_so_far = sum(1 for v in confirms.values() if v)
+        remaining = 4 - len(confirms)
+        # 🌟 早期不成立: 参加 + 残り < 2 で不成立確定
+        if active_so_far + remaining < 2:
+            print(f"[FRIEND] 第2交換 早期不成立: 参加 {active_so_far} + 残り {remaining} < 2")
+            for i in range(4):
+                if i not in confirms:
+                    confirms[i] = False
+            # 通常処理にフォールスルー
+        # 🌟 早期成立: 既に3人以上参加（残り1人の選択に関わらず交換実行）
+        # ※ ただし「3人参加+残り1人」のケースでも残り1人が参加すれば4人になるので、
+        #   残り1人の選択を待った方が公平。早期成立は無効化（自動で4人目を待たない動作を防止）
+        # → 単純に未回答者を待つ
+        else:
+            return {"status": "waiting", "confirmed": len(confirms)}
 
     # === 全員揃った: 実行 ===
     active = [i for i in range(4) if confirms[i]]
@@ -461,6 +475,10 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
     game.just_drawn = -1
     game.last_discard_info = {"player": player_idx, "tile": tile}
     game.is_first_turn[player_idx] = False
+    # 🌟 打牌したら槓上開花/JokerSwap/妙手フラグはリセット
+    game.next_tsumo_rinshan = False
+    game.next_tsumo_joker_swap = False
+    game.next_tsumo_miaoshou = False
     game.append_log("discard", player=player_idx, tile=tile,
                     tsumogiri=(tile == game.last_drawn[player_idx]))
 
@@ -503,6 +521,7 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
         "discarder": player_idx,
         "tile": tile,
         "responders": list(responders),
+        "ron_capable": [p for p, r in reactions.items() if r["ron"]],
         "responses": {},
         "resolved": False
     }
@@ -644,6 +663,8 @@ async def _resolve_friend_call(room_id: str, game):
             game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="minkan", tile=tile, from_player=discarder)
             game.pending_call = None
+            # 🌟 次のツモ和了で「槓上開花」を有効に
+            game.next_tsumo_rinshan = True
             for p in range(4):
                 state = get_friend_state_for_player(game, p)
                 await friend_connections.send_to(room_id, p, {
@@ -689,6 +710,8 @@ async def _resolve_friend_call(room_id: str, game):
             game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="hanakan", tile=tile, season=season_tile, from_player=discarder)
             game.pending_call = None
+            # 🌟 次のツモ和了で「槓上開花」を有効に
+            game.next_tsumo_rinshan = True
             for p in range(4):
                 state = get_friend_state_for_player(game, p)
                 await friend_connections.send_to(room_id, p, {
@@ -762,6 +785,16 @@ async def friend_call_action(room_id: str, player_idx: int, action: str, season:
     if action == "hanakan" and season:
         pc["hanakan_season"] = season
 
+    # 🌟 ロン宣言: 他のロン可能者だけ待ち、それ以外は即解決
+    if action == "ron":
+        ron_capable = pc.get("ron_capable", [])
+        # 他のロン可能者でまだ応答していない人がいるか
+        ron_pending = [p for p in ron_capable if p != player_idx and p not in pc["responses"]]
+        if not ron_pending:
+            # 他のロン可能者なし or 全員応答済み → 即解決（ポン/カン/スキップ待ちは不要）
+            await _resolve_friend_call(room_id, game)
+            return {"status": "ok", "responded": len(pc["responses"]), "needed": len(pc["responders"])}
+
     # 全員の応答が揃ったら即座に解決
     if len(pc["responses"]) >= len(pc["responders"]):
         await _resolve_friend_call(room_id, game)
@@ -786,17 +819,28 @@ async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "
         if tile in game.hands[player_idx]:
             game.hands[player_idx].remove(tile)
 
+        # 🌟 サーバー側に保持しているフラグも OR で使う（CPU戦と違い、フロントのフラグは保持できないため）
+        server_rinshan = getattr(game, 'next_tsumo_rinshan', False)
+        server_joker_swap = getattr(game, 'next_tsumo_joker_swap', False)
+        server_miaoshou = getattr(game, 'next_tsumo_miaoshou', False)
+
         ctx = {
             "winning_tile": tile,
             "is_tsumo": True,
             "is_haitei": len(game.wall) == 0,
-            "is_joker_swap": is_joker_swap.lower() == "true",
-            "is_rinshan": is_rinshan.lower() == "true",
+            "is_joker_swap": is_joker_swap.lower() == "true" or server_joker_swap,
+            "is_rinshan": is_rinshan.lower() == "true" or server_rinshan,
+            "is_miaoshou": server_miaoshou,
             "is_first_turn": game.is_first_turn[player_idx],
             "any_meld_occurred": game.any_meld_occurred,
             "is_dealer": game.dealer == player_idx,
             "discards_count": game.discards_count
         }
+        # フラグ消費
+        game.next_tsumo_rinshan = False
+        game.next_tsumo_joker_swap = False
+        game.next_tsumo_miaoshou = False
+
         game.win_records[player_idx].append(ctx)
         game.win_tiles[player_idx].append(tile)
         game.last_discard_info = {"player": -1, "tile": ""}
@@ -838,16 +882,18 @@ async def friend_self_meld(room_id: str, player_idx: int, type: str, tile: str, 
         raise HTTPException(status_code=404, detail="対局が見つかりません")
     game = lobby_manager.games[room_id]
 
-    # CPU戦のロジックを直接呼び出す（dependency が機能しないので game を渡す）
-    # ※ process_self_meld 内で player_idx を使う絶対座席ベースなので、そのまま渡せばOK
+    # CPU戦のロジックを直接呼び出す
     result = process_self_meld(player_idx=player_idx, type=type, tile=tile, season=season, is_hidden=is_hidden, game=game)
 
     if isinstance(result, dict) and result.get("error"):
         return result
 
-    # 槍槓（chankan）発生時は special 処理（5cでは未対応・後のステップで対応）
+    # 🌟 次のツモ和了時に「槓上開花」を有効にするためのフラグ（嶺上ツモが発生する種類だけ）
+    if type in ["暗槓", "暗花槓", "加槓", "加花槓"]:
+        game.next_tsumo_rinshan = True
+
+    # 槍槓（chankan）発生時は special 処理（後のステップで対応）
     if isinstance(result, dict) and result.get("chankan_occurred"):
-        # TODO: 槍槓は次のステップ
         pass
 
     # 全プレイヤーに friend_self_meld を broadcast
@@ -881,6 +927,11 @@ async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: st
 
     if isinstance(result, dict) and result.get("error"):
         return result
+
+    # 🌟 次のツモ和了で「JokerSwap」「妙手」を有効に
+    game.next_tsumo_joker_swap = True
+    if season == "春":
+        game.next_tsumo_miaoshou = True
 
     # 全プレイヤーに friend_joker_swap を broadcast
     for p in range(4):

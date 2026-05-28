@@ -375,6 +375,16 @@ async function handleSecondCharlestonComplete(data) {
     }
     if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
     if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+    // 🌟 チャールストンUIを閉じる（早期スキップ時にUIが残るのを防止）
+    const cUiClose = document.getElementById('charleston-ui');
+    if (cUiClose) cUiClose.style.display = "none";
+    const btnExClose = document.getElementById('btn-exchange');
+    if (btnExClose) btnExClose.style.display = "none";
+    // 選択状態もクリア
+    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+    // タイマー停止
+    if (typeof stopTimer === 'function') stopTimer();
+
     if (typeof render === 'function') render();
     if (typeof renderCPU === 'function') renderCPU();
 

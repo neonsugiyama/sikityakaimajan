@@ -73,10 +73,7 @@ window.cleanupTutorialUI = function () {
     // 7. グローバル変数のリセット
     selectedTileIndex = -1; // 🌟 ここに追加
     isIngameTutorial = false;
-    // 🌟 修正：tutorial/lesson から来た時だけ 'cpu' に戻す。friend モードを破壊しないように。
-    if (currentGameMode === 'tutorial' || currentGameMode === 'lesson') {
-        currentGameMode = 'cpu';
-    }
+    currentGameMode = 'cpu'; // 🌟 これを追加：強制的に通常モードに戻す
     window.currentLessonId = null;
 
     // 8. 🌟 追加：グローバルなゲーム状態を強制リセット（ここで前の対局の残骸を消す！）
@@ -981,8 +978,10 @@ async function startLesson(lessonId) {
 
     // 🌟 3. 盤面表示の初期化
     charlestonPhase = false;
-    document.getElementById('charleston-ui').style.display = "none";
-    document.getElementById('charleston-confirm-ui').style.display = "none";
+    const _cui = document.getElementById('charleston-ui');
+    if (_cui) _cui.style.display = "none";
+    const _ccfm = document.getElementById('charleston-confirm-ui');
+    if (_ccfm) _ccfm.style.display = "none";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     for (let i = 0; i < 4; i++) {
         let r = document.getElementById(`river-${i}`); if (r) r.innerHTML = "";
@@ -1247,15 +1246,7 @@ const LESSON_MESSAGES = {
         {
             trigger: 'draw', tile: '5p', count: 2, shown: false, type: 'hint',
             meldCount: { max: 0 }, // 副露ゼロのときだけ発動
-            requireNotTiles: ["北", "發"],
             text: "5pで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
-        },
-        {
-            trigger: 'discard', tile: '3s', from: 1, shown: false, type: 'hint',
-            meldCount: { max: 0 }, // 副露ゼロのときだけ発動
-            requireNotTiles: ["北", "發"],
-            requireTiles: ["冬"],
-            text: "3sで和了でもいいけど……<br>四季牌を切ると「無花果」になって、待ちを減らさずに2点から6点に打点上昇するよ！"
         }
     ],
     2: [

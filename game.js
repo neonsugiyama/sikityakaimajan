@@ -977,8 +977,10 @@ async function loadDebugScenario(scenario) {
     await apiCall('/debug_setup', { scenario: scenario });
 
     charlestonPhase = false;
-    document.getElementById('charleston-ui').style.display = "none";
-    document.getElementById('charleston-confirm-ui').style.display = "none";
+    const charlestonUi = document.getElementById('charleston-ui');
+    if (charlestonUi) charlestonUi.style.display = "none";
+    const charlestonConfirmUi = document.getElementById('charleston-confirm-ui');
+    if (charlestonConfirmUi) charlestonConfirmUi.style.display = "none";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     const btnHaitei = document.getElementById('btn-haitei-tsumo');
@@ -1011,8 +1013,10 @@ async function loadDebugScenario(scenario) {
     } else {
         // それ以外のテストはチャールストンをスキップして即打牌フェーズへ
         charlestonPhase = false;
-        document.getElementById('charleston-ui').style.display = "none";
-        document.getElementById('charleston-confirm-ui').style.display = "none";
+        const cUi2 = document.getElementById('charleston-ui');
+        if (cUi2) cUi2.style.display = "none";
+        const cCfm2 = document.getElementById('charleston-confirm-ui');
+        if (cCfm2) cCfm2.style.display = "none";
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
         render(); renderCPU();
