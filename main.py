@@ -1464,6 +1464,12 @@ def check_win(player_idx: int = 0, last_tile: str = "", is_ron: str = "false", i
     if not is_agari(data): return {"can_win": False, "reason": "役がありません"}
     return {"can_win": True, "score": 0, "yaku": []}
 
+@app.get("/skip_haitei")
+def skip_haitei(player_idx: int = 0, game: GameState = Depends(get_current_game)):
+    """海底牌をスルー（流局）したことを牌譜に記録する。"""
+    game.append_log("haitei_skip", player=player_idx)
+    return {"status": "success"}
+
 @app.get("/calculate_round_scores")
 def calculate_round_scores(game: GameState = Depends(get_current_game)):
     # 🌟 追加：既に計算済みなら、保存しておいた結果を返すだけにする（二重加算防止）

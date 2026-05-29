@@ -950,6 +950,27 @@ async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: st
 
 
 # ==========================================
+# REST: 海底牌のスルー（流局）
+# ==========================================
+@router.get("/skip_haitei")
+async def friend_skip_haitei(room_id: str, player_idx: int):
+    """海底牌をスルーしたことを牌譜に記録し、全員に broadcast。"""
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    game = lobby_manager.games[room_id]
+    game.append_log("haitei_skip", player=player_idx)
+
+    # 全プレイヤーに friend_haitei_skip を broadcast（各クライアントで「過」を表示）
+    for p in range(4):
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_haitei_skip",
+            "player_idx": player_idx
+        })
+    return {"status": "success"}
+
+
+# ==========================================
 # REST: 1局終了時の点数計算
 # ==========================================
 @router.get("/calculate_round_scores")

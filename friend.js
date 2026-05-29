@@ -503,6 +503,13 @@ function handleFriendEvent(data) {
     } else if (type === "friend_joker_swap") {
         // JokerSwap 成立
         handleFriendJokerSwap(data);
+    } else if (type === "friend_haitei_skip") {
+        // 🌟 海底牌スルー broadcast：実行者の位置に「過」スタンプを表示する
+        // 発火元のクライアントは handleHaiteiSkip 内で showCallout 済みなのでスキップ
+        if (data.player_idx !== myPlayerIdx) {
+            const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
+            if (typeof showCallout === 'function') showCallout(claimerRel, "過");
+        }
     } else if (type === "friend_round_end") {
         // 🌟 局終了 broadcast：海底スルーなど、自分自身は流局判定に到達しなかったプレイヤーも
         // ここで handleRoundEnd を発火させてリザルト画面に進める。

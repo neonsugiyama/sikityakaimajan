@@ -693,6 +693,8 @@ window.applyReplayState = async function () {
                 msgText = (pIdx === 0) ? "和了！" : `CPU ${pIdx} 和了`;
             } else if (action.type === "start") {
                 msgText = `配牌`;
+            } else if (action.type === "haitei_skip") {
+                msgText = (pIdx === 0) ? "海底スルー" : `CPU ${pIdx} 海底スルー`;
             } else if (action.type === "round_end") {
                 msgText = `局終了`;
                 // 🌟 局終了ステップに来たらリザルト画面を描画
@@ -729,6 +731,8 @@ window.applyReplayState = async function () {
                 } else {
                     callTextStr = "胡";
                 }
+            } else if (action.type === "haitei_skip") {
+                callTextStr = "過";
             } else if (action.type === "meld" || action.type === "self_meld" || String(action.type).includes("kan") || action.type === "pon") {
                 let mType = action.meld_type || action.type;
 

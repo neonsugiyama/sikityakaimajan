@@ -1875,10 +1875,10 @@ async function checkT() {
                 startTimer(timeCall, () => {
                     // 🌟 修正：btnRyukyoku.click() 経由だと、setInterval 内の isProc 判定で
                     // アクションが握り潰される/onclick が発火しないケースがあり、リザルト画面が
-                    // 出ずに進行不能になる事象が発生していたため、直接 handleRoundEnd() を呼ぶ。
+                    // 出ずに進行不能になる事象が発生していたため、直接 handleHaiteiSkip() を呼ぶ。
                     if (btnHaitei) btnHaitei.style.display = "none";
                     if (btnRyukyoku) btnRyukyoku.style.display = "none";
-                    if (typeof handleRoundEnd === 'function') handleRoundEnd();
+                    if (typeof handleHaiteiSkip === 'function') handleHaiteiSkip();
                 });
                 return;
             }
@@ -2992,6 +2992,45 @@ function skipAction() {
     // 🌟 追加：透過箱を即座に消す
     const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
     checkCpuReactions(lastDiscardPlayer, lastT);
+}
+
+// ⏭️ 海底牌のスルー（流局）処理。「過」スタンプを表示してからリザルトへ。
+let _handleHaiteiSkipInProgress = false;
+async function handleHaiteiSkip() {
+    // タイマー満了と手動クリックの両方から呼ばれる可能性があるため二重発火を防ぐ
+    if (_handleHaiteiSkipInProgress) return;
+    _handleHaiteiSkipInProgress = true;
+
+    stopTimer();
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
+    // リプレイ中（isReplayMode=true）は通信せずに「過」だけ表示
+    if (typeof isReplayMode !== 'undefined' && isReplayMode) {
+        if (typeof showCallout === 'function') showCallout(0, "過");
+        _handleHaiteiSkipInProgress = false;
+        return;
+    }
+
+    try {
+        if (currentGameMode === 'friend') {
+            // 友人戦: 自分の絶対座席で broadcast → 他プレイヤー側でも「過」を表示する
+            await apiCall('/friend/skip_haitei', { player_idx: 0 });
+        } else {
+            // CPU戦: 牌譜にスルー履歴を残す
+            await apiCall('/skip_haitei', { player_idx: 0 });
+        }
+    } catch (e) {
+        // 通信失敗時もリザルト進行は止めない
+        console.error("[海底スルー] 通信失敗:", e);
+    }
+
+    if (typeof showCallout === 'function') showCallout(0, "過");
+    await sleep(900);
+    _handleHaiteiSkipInProgress = false;
+    if (typeof handleRoundEnd === 'function') handleRoundEnd();
 }
 
 // 🏁 1局の終了（アガリまたは流局）時に点数計算を行い、リザルト画面を表示する関数
