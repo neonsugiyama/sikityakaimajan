@@ -364,6 +364,10 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
 from friend_routes import router as friend_router, get_friend_state_for_player
 app.include_router(friend_router)
 
+# 🔐 アカウントシステム
+from auth_routes import router as auth_router
+app.include_router(auth_router)
+
 # 友人戦: 現在のゲーム状態を取得するREST
 @app.get("/friend/state")
 def friend_get_state(room_id: str, player_idx: int):

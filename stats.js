@@ -67,12 +67,24 @@ function getRatingTitle(rate) {
 function saveGameData() {
     if (typeof currentGameMode !== 'undefined' && (currentGameMode === 'lesson' || currentGameMode === 'tutorial')) return;
     const data = { ratings: playerRatings, stats: playerStats };
-    localStorage.setItem('shiki_mahjong_data', JSON.stringify(data));
+    // 🔐 ログイン中はアカウント別キーに保存（タブ独立）＋サーバーにも同期
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+        localStorage.setItem(`shiki_mahjong_data_${authUsername}`, JSON.stringify(data));
+        // サーバーへ非同期保存（投げっぱなし）
+        if (typeof authSave === 'function') authSave();
+    } else {
+        localStorage.setItem('shiki_mahjong_data', JSON.stringify(data));
+    }
 }
 
 // 📂 ブラウザから実績とレートデータを読み込み、既存データとマージする関数
 function loadGameData() {
-    const saved = localStorage.getItem('shiki_mahjong_data');
+    // 🔐 ログイン中はアカウント別キーから読み込む（サーバーからの取得は authLoadAndApply が担当）
+    let storageKey = 'shiki_mahjong_data';
+    if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authUsername !== 'undefined' && authUsername) {
+        storageKey = `shiki_mahjong_data_${authUsername}`;
+    }
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
         const data = JSON.parse(saved);
         if (data.ratings) playerRatings = data.ratings;

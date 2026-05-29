@@ -76,6 +76,7 @@
                 <button class="mode-btn" style="background: #2980b9;" onclick="openMyPage()">📊 詳細戦績データ</button>
                 <button class="mode-btn" style="background: #2980b9;" onclick="openReplayList()">📼 牌譜（リプレイ）</button>
                 <button class="mode-btn" style="background: #16a085;" onclick="openLearningMenu()">🏫 学習メニュー</button>
+                <button class="mode-btn" style="background: #34495e;" onclick="openAuthModal()">🔐 アカウント <span id="auth-menu-status" style="font-size: 13px; opacity: 0.8;"></span></button>
 
                 <button class="mode-back-btn" onclick="backToTitle()">◀ タイトルへ戻る</button>
             </div>
@@ -237,6 +238,52 @@
     </div>
 
     <!-- 🤝 友人戦用ホスト設定モーダル -->
+    <!-- 🔐 アカウント ログイン/登録モーダル -->
+    <div id="auth-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 380px;">
+            <h2 class="modal-title">アカウント</h2>
+            <div id="auth-status-row" style="margin-bottom: 12px; text-align: center; color: #ccc; font-size: 14px;">
+                <span id="auth-status-text">未ログイン（ゲスト）</span>
+            </div>
+
+            <!-- ログインフォーム -->
+            <div id="auth-login-section">
+                <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 13px; color: #ccc; margin-bottom: 4px;">ユーザー名</label>
+                    <input type="text" id="auth-username" maxlength="20" placeholder="1〜20文字" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 13px; color: #ccc; margin-bottom: 4px;">パスワード</label>
+                    <input type="password" id="auth-password" maxlength="40" placeholder="4文字以上" style="width: 100%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff;">
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <button onclick="uiAuthLogin()" class="btn-act btn-blue" style="flex: 1;">ログイン</button>
+                    <button onclick="uiAuthRegister()" class="btn-act btn-green" style="flex: 1;">新規登録</button>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="auth-migrate-checkbox" checked>
+                        現在の戦績・牌譜を引き継ぐ（新規登録時のみ有効）
+                    </label>
+                </div>
+                <div id="auth-error" style="color: #e74c3c; font-size: 13px; min-height: 18px; text-align: center;"></div>
+            </div>
+
+            <!-- ログイン中の表示 -->
+            <div id="auth-loggedin-section" style="display: none;">
+                <div style="text-align: center; padding: 16px; background: rgba(0,150,0,0.1); border-radius: 6px; margin-bottom: 12px;">
+                    <div style="color: #2ecc71; font-size: 14px;">ログイン中</div>
+                    <div id="auth-current-username" style="color: #fff; font-size: 18px; font-weight: bold; margin-top: 4px;">-</div>
+                </div>
+                <button onclick="uiAuthLogout()" class="btn-act btn-gray" style="width: 100%;">ログアウト</button>
+            </div>
+
+            <div style="margin-top: 16px; text-align: center;">
+                <button onclick="closeAuthModal()" class="btn-act btn-gray" style="padding: 6px 16px;">閉じる / ゲストで遊ぶ</button>
+            </div>
+        </div>
+    </div>
+
     <div id="friend-settings-screen" class="modal-overlay" style="display: none;">
         <div class="modal-content match-settings-content">
             <h2 class="modal-title">FRIEND MATCH SETTINGS</h2>
@@ -1599,6 +1646,7 @@
 
     <script src="audio.js?v=2"></script>
     <script src="api.js?v=2"></script>
+    <script src="auth.js?v=1"></script>
     <script src="stats.js?v=3"></script>
     <script src="tutorial.js?v=2"></script>
     <script src="ui.js?v=1"></script>

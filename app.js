@@ -657,6 +657,129 @@ let lobbyWs = null;
 // 🌟 ホストが作成中のルームID（設定画面 → 待機画面で使う）
 let pendingHostRoomId = "";
 
+// ==========================================
+// 🔐 アカウントモーダル UI（ログイン/登録）
+// ==========================================
+function openAuthModal() {
+    if (typeof playSE === 'function') playSE('click');
+    const modal = document.getElementById('auth-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    _refreshAuthModalUI();
+}
+
+function closeAuthModal() {
+    if (typeof playSE === 'function') playSE('click');
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.style.display = 'none';
+    const err = document.getElementById('auth-error');
+    if (err) err.innerText = '';
+}
+
+function _refreshAuthModalUI() {
+    const loginSection = document.getElementById('auth-login-section');
+    const loggedinSection = document.getElementById('auth-loggedin-section');
+    const statusText = document.getElementById('auth-status-text');
+    const currentUser = document.getElementById('auth-current-username');
+    const menuStatus = document.getElementById('auth-menu-status');
+
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+        if (loginSection) loginSection.style.display = 'none';
+        if (loggedinSection) loggedinSection.style.display = 'block';
+        if (statusText) statusText.innerText = `ログイン中: ${authUsername}`;
+        if (currentUser) currentUser.innerText = authUsername;
+        if (menuStatus) menuStatus.innerText = `(${authUsername})`;
+    } else {
+        if (loginSection) loginSection.style.display = 'block';
+        if (loggedinSection) loggedinSection.style.display = 'none';
+        if (statusText) statusText.innerText = '未ログイン（ゲスト）';
+        if (menuStatus) menuStatus.innerText = '';
+    }
+}
+
+async function uiAuthLogin() {
+    if (typeof playSE === 'function') playSE('click');
+    const username = (document.getElementById('auth-username').value || '').trim();
+    const password = document.getElementById('auth-password').value || '';
+    const errEl = document.getElementById('auth-error');
+    if (errEl) errEl.innerText = '';
+    if (!username || !password) {
+        if (errEl) errEl.innerText = 'ユーザー名とパスワードを入力してください';
+        return;
+    }
+    try {
+        await authLogin(username, password);
+        _refreshAuthModalUI();
+        document.getElementById('auth-username').value = '';
+        document.getElementById('auth-password').value = '';
+        if (typeof playerStats !== 'undefined' && authUsername) {
+            playerStats.playerName = authUsername;
+        }
+        if (typeof updateProfileUI === 'function') updateProfileUI();
+        if (typeof updateInfoUI === 'function') updateInfoUI();
+        alert(`ログインしました: ${authUsername}`);
+    } catch (e) {
+        if (errEl) errEl.innerText = e.message || 'ログインに失敗しました';
+    }
+}
+
+async function uiAuthRegister() {
+    if (typeof playSE === 'function') playSE('click');
+    const username = (document.getElementById('auth-username').value || '').trim();
+    const password = document.getElementById('auth-password').value || '';
+    const migrate = document.getElementById('auth-migrate-checkbox').checked;
+    const errEl = document.getElementById('auth-error');
+    if (errEl) errEl.innerText = '';
+    if (!username || !password) {
+        if (errEl) errEl.innerText = 'ユーザー名とパスワードを入力してください';
+        return;
+    }
+    if (password.length < 4) {
+        if (errEl) errEl.innerText = 'パスワードは4文字以上で入力してください';
+        return;
+    }
+    try {
+        await authRegister(username, password, migrate);
+        _refreshAuthModalUI();
+        document.getElementById('auth-username').value = '';
+        document.getElementById('auth-password').value = '';
+        if (typeof playerStats !== 'undefined') {
+            playerStats.playerName = authUsername;
+        }
+        if (typeof updateProfileUI === 'function') updateProfileUI();
+        if (typeof updateInfoUI === 'function') updateInfoUI();
+        const msg = migrate
+            ? `アカウント作成完了: ${authUsername}\n（既存の戦績・牌譜を引き継ぎました）`
+            : `アカウント作成完了: ${authUsername}`;
+        alert(msg);
+    } catch (e) {
+        if (errEl) errEl.innerText = e.message || '登録に失敗しました';
+    }
+}
+
+async function uiAuthLogout() {
+    if (typeof playSE === 'function') playSE('click');
+    if (!confirm('ログアウトしますか?\n（戦績・牌譜はサーバーに保存されています）')) return;
+    await authLogout();
+    _refreshAuthModalUI();
+    alert('ログアウトしました');
+    location.reload();
+}
+
+// ページロード時、トークンが残っていればサーバーからデータ取得
+window.addEventListener('DOMContentLoaded', async () => {
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+        const ok = await authLoadAndApply();
+        if (ok && typeof playerStats !== 'undefined' && authUsername) {
+            playerStats.playerName = authUsername;
+        }
+        if (typeof updateProfileUI === 'function') updateProfileUI();
+        if (typeof updateInfoUI === 'function') updateInfoUI();
+        const menuStatus = document.getElementById('auth-menu-status');
+        if (menuStatus && authUsername) menuStatus.innerText = `(${authUsername})`;
+    }
+});
+
 function createRoom() {
     if (typeof playSE === 'function') playSE('click');
     // 🌟 ルームIDを先に発行

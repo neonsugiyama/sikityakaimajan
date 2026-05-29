@@ -273,7 +273,8 @@ function openReplayList() {
     }
 
     const container = document.getElementById('replay-list-container');
-    let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
+    const _replayKey = (typeof window.getReplaysStorageKey === 'function') ? window.getReplaysStorageKey() : 'shiki_mahjong_replays';
+    let savedReplays = JSON.parse(localStorage.getItem(_replayKey)) || [];
 
     if (savedReplays.length === 0) {
         container.innerHTML = "<p style='text-align:center; color:#aaa; margin-top:50px;'>保存された牌譜がありません。<br>対局を終了してロビーに戻ると自動で保存されます。</p>";
@@ -359,7 +360,8 @@ let replayResultPlayerIdx = 0; // 🌟 追加：リザルト画面で現在見�
 window.startReplay = function (id) {
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
-    let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
+    const _replayKey = (typeof window.getReplaysStorageKey === 'function') ? window.getReplaysStorageKey() : 'shiki_mahjong_replays';
+    let savedReplays = JSON.parse(localStorage.getItem(_replayKey)) || [];
     replayDataObj = savedReplays.find(r => r.id === id);
     if (!replayDataObj || !replayDataObj.rounds || replayDataObj.rounds.length === 0) {
         return alert("牌譜データが見つからないか、破損しています。");
@@ -1177,9 +1179,11 @@ window.exitReplay = function () {
 window.deleteReplay = function (id) {
     if (typeof playSE === 'function') playSE('click');
     if (confirm("本当にこの牌譜を削除しますか？\n※この操作は取り消せません。")) {
-        let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
+        const _replayKey = (typeof window.getReplaysStorageKey === 'function') ? window.getReplaysStorageKey() : 'shiki_mahjong_replays';
+        let savedReplays = JSON.parse(localStorage.getItem(_replayKey)) || [];
         savedReplays = savedReplays.filter(r => r.id !== id);
-        localStorage.setItem('shiki_mahjong_replays', JSON.stringify(savedReplays));
+        localStorage.setItem(_replayKey, JSON.stringify(savedReplays));
+        if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authSave === 'function') authSave();
         openReplayList();
     }
 };

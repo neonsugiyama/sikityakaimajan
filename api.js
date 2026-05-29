@@ -85,7 +85,9 @@ async function fetchAndSaveReplay() {
 
         // ログが1局分でも存在すれば保存する
         if (data.status === 'success' && data.replay_data && data.replay_data.rounds.length > 0) {
-            let savedReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays')) || [];
+            // 🔐 ログイン中はアカウント別キー、ゲストは従来通り
+            const replayKey = (typeof window.getReplaysStorageKey === 'function') ? window.getReplaysStorageKey() : 'shiki_mahjong_replays';
+            let savedReplays = JSON.parse(localStorage.getItem(replayKey)) || [];
 
             // 🌟 追加：現在の日時を取得して、見やすい形（YYYY/MM/DD HH:MM）に整形する
             const now = new Date();
@@ -101,15 +103,21 @@ async function fetchAndSaveReplay() {
 
             // 🌟 追加：整形した日時と、設定したプレイヤー名をデータに記録する
             data.replay_data.start_time = formattedTime;
-            data.replay_data.player_names = [playerStats.playerName, "CPU 1", "CPU 2", "CPU 3"];
+            // 友人戦の場合はサーバー側で実プレイヤー名がセット済みなので上書きしない
+            if (!data.replay_data.player_names || data.replay_data.player_names.length !== 4 || data.replay_data.player_names[0] === "あなた") {
+                data.replay_data.player_names = [playerStats.playerName, "CPU 1", "CPU 2", "CPU 3"];
+            }
 
             savedReplays.push(data.replay_data);
 
             // ストレージ容量圧迫を防ぐため、最新の30件だけ保存する
             if (savedReplays.length > 30) savedReplays.shift();
 
-            localStorage.setItem('shiki_mahjong_replays', JSON.stringify(savedReplays));
-            //console.log(`📼 牌譜 (${formattedTime}) をローカルストレージに保存しました！`);
+            localStorage.setItem(replayKey, JSON.stringify(savedReplays));
+            // 🔐 ログイン中はサーバーにも同期
+            if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authSave === 'function') {
+                authSave();
+            }
         }
     } catch (e) {
         //console.error("牌譜の取得・保存に失敗:", e);
