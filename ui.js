@@ -28,7 +28,8 @@ function closeAllModals() {
     const modals = [
         'settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal',
         'achievement-modal', 'friend-match-modal', 'learning-modal',
-        'online-match-modal', 'rate-help-modal'
+        'online-match-modal', 'rate-help-modal',
+        'auth-modal', 'friend-settings-screen'
     ];
     modals.forEach(id => {
         const element = document.getElementById(id);

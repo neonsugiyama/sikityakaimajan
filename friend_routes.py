@@ -996,10 +996,14 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
             if "player" in r2:
                 r2["player"] = (r2["player"] - p + 4) % 4
             rotated_results.append(r2)
+        # 🌟 リザルト中は全員の実手牌を含む state を同梱して、
+        # 「盤面を見る」ホバーで他プレイヤーの手牌・副露が確認できるようにする
+        state = get_friend_state_for_player(game, p)
         return {
             "results": rotated_results,
             "scores": rotated_scores,
-            "ranking_points": rotated_ranking
+            "ranking_points": rotated_ranking,
+            "state": state
         }
 
     # 各プレイヤーに視点回転済みのデータを broadcast

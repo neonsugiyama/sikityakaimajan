@@ -515,6 +515,8 @@ function handleFriendEvent(data) {
         // ここで handleRoundEnd を発火させてリザルト画面に進める。
         // 発火元のクライアントは _handleRoundEndInProgress ガードにより二重実行されない。
         console.log("[FRIEND] 局終了 broadcast 受信");
+        // 🌟 リザルト中の盤面公開（盤面を見るホバー）に向けて、全員の実手牌入り state を反映
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof handleRoundEnd === 'function') {
             handleRoundEnd();
         }

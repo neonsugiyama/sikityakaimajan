@@ -79,12 +79,12 @@ function saveGameData() {
 
 // 📂 ブラウザから実績とレートデータを読み込み、既存データとマージする関数
 function loadGameData() {
-    // 🔐 ログイン中はアカウント別キーから読み込む（サーバーからの取得は authLoadAndApply が担当）
-    let storageKey = 'shiki_mahjong_data';
-    if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authUsername !== 'undefined' && authUsername) {
-        storageKey = `shiki_mahjong_data_${authUsername}`;
+    // 🔐 ログイン中は localStorage から読まない（サーバーが真のデータ源。authLoadAndApply が担当）
+    // → これでログイン中の「一瞬古いデータが見える」ちらつきを防ぐ
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+        return;
     }
-    const saved = localStorage.getItem(storageKey);
+    const saved = localStorage.getItem('shiki_mahjong_data');
     if (saved) {
         const data = JSON.parse(saved);
         if (data.ratings) playerRatings = data.ratings;

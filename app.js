@@ -448,6 +448,28 @@ resizeGame();
 async function showModeSelect() {
     if (typeof playSE === 'function') playSE('start');
 
+    // 🔐 ページロード時の認証データ読み込みがまだ終わってなければ待つ
+    // （これでログイン中なら一瞬古いデータが見える現象を防ぐ）
+    if (_authInitPromise) {
+        try {
+            await _authInitPromise;
+        } catch (e) { /* ignore */ }
+        _authInitPromise = null; // 一度待ったら以降不要
+    }
+
+    // 🔐 未ログインならまず認証モーダルを表示（ゲストで続行も可能）
+    if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
+        _authModalForModeSelect = true;
+        openAuthModal();
+        return;
+    }
+
+    return _afterAuthShowModeSelect();
+}
+
+async function _afterAuthShowModeSelect() {
+    if (typeof playSE === 'function') playSE('start');
+
     if (typeof audioState !== 'undefined' && !audioState.initialized) {
         audioState.initialized = true;
         if (audioState.bgmOn && typeof sounds !== 'undefined') {
@@ -662,6 +684,8 @@ let pendingHostRoomId = "";
 // ==========================================
 function openAuthModal() {
     if (typeof playSE === 'function') playSE('click');
+    // 🌟 他のモーダル（設定/役一覧/遊び方など）を全部閉じてから開く
+    if (typeof closeAllModals === 'function') closeAllModals();
     const modal = document.getElementById('auth-modal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -674,7 +698,15 @@ function closeAuthModal() {
     if (modal) modal.style.display = 'none';
     const err = document.getElementById('auth-error');
     if (err) err.innerText = '';
+    // 🔐 GAME START からモーダルを開いていた場合、続きの処理へ
+    if (_authModalForModeSelect) {
+        _authModalForModeSelect = false;
+        if (typeof _afterAuthShowModeSelect === 'function') _afterAuthShowModeSelect();
+    }
 }
+
+// 🔐 GAME START 直後にモーダルを開いたかフラグ
+let _authModalForModeSelect = false;
 
 function _refreshAuthModalUI() {
     const loginSection = document.getElementById('auth-login-section');
@@ -682,6 +714,7 @@ function _refreshAuthModalUI() {
     const statusText = document.getElementById('auth-status-text');
     const currentUser = document.getElementById('auth-current-username');
     const menuStatus = document.getElementById('auth-menu-status');
+    const closeBtn = document.getElementById('auth-close-btn');
 
     if (typeof isLoggedIn === 'function' && isLoggedIn()) {
         if (loginSection) loginSection.style.display = 'none';
@@ -689,11 +722,13 @@ function _refreshAuthModalUI() {
         if (statusText) statusText.innerText = `ログイン中: ${authUsername}`;
         if (currentUser) currentUser.innerText = authUsername;
         if (menuStatus) menuStatus.innerText = `(${authUsername})`;
+        if (closeBtn) closeBtn.innerText = '閉じる';
     } else {
         if (loginSection) loginSection.style.display = 'block';
         if (loggedinSection) loggedinSection.style.display = 'none';
         if (statusText) statusText.innerText = '未ログイン（ゲスト）';
         if (menuStatus) menuStatus.innerText = '';
+        if (closeBtn) closeBtn.innerText = '閉じる / ゲストで遊ぶ';
     }
 }
 
@@ -718,6 +753,13 @@ async function uiAuthLogin() {
         if (typeof updateProfileUI === 'function') updateProfileUI();
         if (typeof updateInfoUI === 'function') updateInfoUI();
         alert(`ログインしました: ${authUsername}`);
+        // 🔐 GAME START からモーダルを開いていた場合、自動で閉じてモード選択へ
+        if (_authModalForModeSelect) {
+            _authModalForModeSelect = false;
+            const modal = document.getElementById('auth-modal');
+            if (modal) modal.style.display = 'none';
+            if (typeof _afterAuthShowModeSelect === 'function') _afterAuthShowModeSelect();
+        }
     } catch (e) {
         if (errEl) errEl.innerText = e.message || 'ログインに失敗しました';
     }
@@ -752,6 +794,13 @@ async function uiAuthRegister() {
             ? `アカウント作成完了: ${authUsername}\n（既存の戦績・牌譜を引き継ぎました）`
             : `アカウント作成完了: ${authUsername}`;
         alert(msg);
+        // 🔐 GAME START からモーダルを開いていた場合、自動で閉じてモード選択へ
+        if (_authModalForModeSelect) {
+            _authModalForModeSelect = false;
+            const modal = document.getElementById('auth-modal');
+            if (modal) modal.style.display = 'none';
+            if (typeof _afterAuthShowModeSelect === 'function') _afterAuthShowModeSelect();
+        }
     } catch (e) {
         if (errEl) errEl.innerText = e.message || '登録に失敗しました';
     }
@@ -766,17 +815,22 @@ async function uiAuthLogout() {
     location.reload();
 }
 
+// 🔐 ページロード時の認証データ読み込み Promise（showModeSelect 等から await できる）
+let _authInitPromise = null;
+
 // ページロード時、トークンが残っていればサーバーからデータ取得
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener('DOMContentLoaded', () => {
     if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-        const ok = await authLoadAndApply();
-        if (ok && typeof playerStats !== 'undefined' && authUsername) {
-            playerStats.playerName = authUsername;
-        }
-        if (typeof updateProfileUI === 'function') updateProfileUI();
-        if (typeof updateInfoUI === 'function') updateInfoUI();
-        const menuStatus = document.getElementById('auth-menu-status');
-        if (menuStatus && authUsername) menuStatus.innerText = `(${authUsername})`;
+        _authInitPromise = (async () => {
+            const ok = await authLoadAndApply();
+            if (ok && typeof playerStats !== 'undefined' && authUsername) {
+                playerStats.playerName = authUsername;
+            }
+            if (typeof updateProfileUI === 'function') updateProfileUI();
+            if (typeof updateInfoUI === 'function') updateInfoUI();
+            const menuStatus = document.getElementById('auth-menu-status');
+            if (menuStatus && authUsername) menuStatus.innerText = `(${authUsername})`;
+        })();
     }
 });
 
@@ -1051,6 +1105,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sidebar-settings')?.addEventListener('click', () => {
         closeSidebar(false);
         if (typeof openSettings === 'function') openSettings();
+    });
+
+    document.getElementById('sidebar-account')?.addEventListener('click', () => {
+        closeSidebar(false);
+        if (typeof openAuthModal === 'function') openAuthModal();
     });
 
     document.getElementById('sidebar-rules')?.addEventListener('click', () => {

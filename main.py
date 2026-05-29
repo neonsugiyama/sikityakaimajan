@@ -214,6 +214,10 @@ async def get_app_js():
 async def get_friend_js():
     return FileResponse("friend.js")
 
+@app.get("/auth.js")
+async def get_auth_js():
+    return FileResponse("auth.js")
+
 from fastapi.responses import FileResponse
 
 # --- 既存の index.html や game.js を返す処理の近くにこれを追加 ---

@@ -14,6 +14,7 @@ let humanSecondCharlestonTiles = [];
 let hideCpuTiles = [0, 0, 0, 0];
 let pendingIsJokerSwap = false, pendingIsRinshan = false, pendingIsMiaoshou = false;
 let myAllHands = [], myAllMelds = [], myAllWinTiles = [], cpuTargets = [], cpuPersonalities = [];
+let roundCalculated = false; // 🌟 リザルト中フラグ（true なら全員の手牌を公開表示）
 let myDevAllHands = []; // 🌟 友人戦の開発者モード用：全員の実手牌（視点回転済み）
 // 🌟 追加：引く前からテンパイしていたかを記憶するフラグ
 let isAlreadyTenpai = false;
@@ -519,11 +520,17 @@ function safeUpdate(data) {
 
     if (data.all_hands !== undefined) {
         myAllHands = data.all_hands;
-        // 🌟 友人戦の開発者モード: dev_all_hands（全員の実手牌）を myAllHands に上書き
-        if (currentGameMode === 'friend' && typeof isDevMode !== 'undefined' && isDevMode && data.dev_all_hands) {
-            myAllHands = data.dev_all_hands;
+        // 🌟 友人戦の開発者モード or リザルト中（局終了後）は dev_all_hands で上書きして
+        // 他プレイヤーの手牌・盤面プレビューが「ura」のままにならないようにする
+        if (currentGameMode === 'friend' && data.dev_all_hands) {
+            const inDevMode = (typeof isDevMode !== 'undefined' && isDevMode);
+            if (inDevMode || data.round_calculated) {
+                myAllHands = data.dev_all_hands;
+            }
         }
     }
+    // 🌟 リザルト中フラグ（true なら renderCPU が他人の手牌も実牌表示）
+    if (data.round_calculated !== undefined) roundCalculated = data.round_calculated;
     // 🌟 友人戦の開発者モード切り替え時に参照するため別変数で保持
     if (data.dev_all_hands !== undefined) myDevAllHands = data.dev_all_hands;
     if (data.all_melds !== undefined) myAllMelds = data.all_melds;
@@ -583,13 +590,21 @@ function updateInfoUI() {
 
         // 🌟 友人戦時は友人戦の名前リストを使用
         let opponentName;
-        if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+        if (typeof getDisplayPlayerName === 'function') {
+            opponentName = escapeHTML(getDisplayPlayerName(i));
+        } else if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
             opponentName = escapeHTML(getFriendPlayerName(i));
         } else {
             opponentName = `CPU ${i}`;
         }
+        let selfName;
+        if (typeof getDisplayPlayerName === 'function') {
+            selfName = escapeHTML(getDisplayPlayerName(0));
+        } else {
+            selfName = escapeHTML(playerStats.playerName);
+        }
         let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${escapeHTML(playerStats.playerName)}` :
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${selfName}` :
             `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${opponentName}`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
@@ -677,7 +692,9 @@ function showScoreDiff(baseIdx) {
     // 現在の点数で降順（高い順）にソートして順位を出す
     let sortedIndices = [0, 1, 2, 3].sort((a, b) => totalScores[b] - totalScores[a]);
 
-    let baseName = baseIdx === 0 ? playerStats.playerName : `CPU ${baseIdx}`;
+    let baseName = (typeof getDisplayPlayerName === 'function')
+        ? getDisplayPlayerName(baseIdx)
+        : (baseIdx === 0 ? playerStats.playerName : `CPU ${baseIdx}`);
     let baseScore = totalScores[baseIdx];
 
     // パネルのヘッダー部分
@@ -687,7 +704,9 @@ function showScoreDiff(baseIdx) {
 
     // 各プレイヤーの行を生成
     sortedIndices.forEach((idx, rank) => {
-        let name = idx === 0 ? playerStats.playerName : `CPU ${idx}`;
+        let name = (typeof getDisplayPlayerName === 'function')
+            ? getDisplayPlayerName(idx)
+            : (idx === 0 ? playerStats.playerName : `CPU ${idx}`);
         let score = totalScores[idx];
         let diff = score - baseScore;
 
@@ -1612,7 +1631,9 @@ function renderCPU() {
         tilesToRender.forEach(t => {
             const img = document.createElement('img');
             img.className = 'tile';
-            img.src = (isDevMode && t !== "ura") ? `images/${t}.png` : 'images/ura.png';
+            // 🌟 リザルト中（roundCalculated=true）なら、isDevMode に関係なく実牌を表示
+            const showReal = (isDevMode || roundCalculated) && t !== "ura";
+            img.src = showReal ? `images/${t}.png` : 'images/ura.png';
 
             // 🌟 修正：対面(i=2)のみ向きを上下逆（180度回転）にする
             if (i === 2) {
@@ -1626,7 +1647,8 @@ function renderCPU() {
         if (drawnTileImg) {
             const img = document.createElement('img');
             img.className = 'tile';
-            img.src = (isDevMode && drawnTileImg !== "ura") ? `images/${drawnTileImg}.png` : 'images/ura.png';
+            const showRealDrawn = (isDevMode || roundCalculated) && drawnTileImg !== "ura";
+            img.src = showRealDrawn ? `images/${drawnTileImg}.png` : 'images/ura.png';
             img.style.position = 'absolute';
             img.style.margin = '0';
 
@@ -1669,11 +1691,11 @@ function renderMelds(idx) {
             const i = document.createElement('img'); i.className = 'tile';
 
             // 🌟 修正箇所：自分の暗槓は常に「両端が裏」になるように条件を整理
-            if (idx !== 0 && isHidden && !isDevMode) {
-                // CPUの伏せ牌（または暗槓）は、開発者モードでなければ全部裏
+            if (idx !== 0 && isHidden && !isDevMode && !roundCalculated) {
+                // CPUの伏せ牌（または暗槓）は、開発者モードでもリザルト中でもなければ全部裏
                 i.src = 'images/ura.png';
             } else if (meld.type === 'ankan') {
-                // 自分（または開発者モード時のCPU）の暗槓は、常に両端を裏にする
+                // 自分（または開発者モード/リザルト中のCPU）の暗槓は、常に両端を裏にする
                 if (tileIdx === 0 || tileIdx === 3) i.src = 'images/ura.png';
                 else i.src = `images/${t}.png`;
             } else {
@@ -1875,10 +1897,10 @@ async function checkT() {
                 startTimer(timeCall, () => {
                     // 🌟 修正：btnRyukyoku.click() 経由だと、setInterval 内の isProc 判定で
                     // アクションが握り潰される/onclick が発火しないケースがあり、リザルト画面が
-                    // 出ずに進行不能になる事象が発生していたため、直接 handleHaiteiSkip() を呼ぶ。
+                    // 出ずに進行不能になる事象が発生していたため、直接 handleRoundEnd() を呼ぶ。
                     if (btnHaitei) btnHaitei.style.display = "none";
                     if (btnRyukyoku) btnRyukyoku.style.display = "none";
-                    if (typeof handleHaiteiSkip === 'function') handleHaiteiSkip();
+                    if (typeof handleRoundEnd === 'function') handleRoundEnd();
                 });
                 return;
             }
@@ -2994,45 +3016,6 @@ function skipAction() {
     checkCpuReactions(lastDiscardPlayer, lastT);
 }
 
-// ⏭️ 海底牌のスルー（流局）処理。「過」スタンプを表示してからリザルトへ。
-let _handleHaiteiSkipInProgress = false;
-async function handleHaiteiSkip() {
-    // タイマー満了と手動クリックの両方から呼ばれる可能性があるため二重発火を防ぐ
-    if (_handleHaiteiSkipInProgress) return;
-    _handleHaiteiSkipInProgress = true;
-
-    stopTimer();
-    const btnHaitei = document.getElementById('btn-haitei-tsumo');
-    const btnRyukyoku = document.getElementById('btn-ryukyoku');
-    if (btnHaitei) btnHaitei.style.display = "none";
-    if (btnRyukyoku) btnRyukyoku.style.display = "none";
-
-    // リプレイ中（isReplayMode=true）は通信せずに「過」だけ表示
-    if (typeof isReplayMode !== 'undefined' && isReplayMode) {
-        if (typeof showCallout === 'function') showCallout(0, "過");
-        _handleHaiteiSkipInProgress = false;
-        return;
-    }
-
-    try {
-        if (currentGameMode === 'friend') {
-            // 友人戦: 自分の絶対座席で broadcast → 他プレイヤー側でも「過」を表示する
-            await apiCall('/friend/skip_haitei', { player_idx: 0 });
-        } else {
-            // CPU戦: 牌譜にスルー履歴を残す
-            await apiCall('/skip_haitei', { player_idx: 0 });
-        }
-    } catch (e) {
-        // 通信失敗時もリザルト進行は止めない
-        console.error("[海底スルー] 通信失敗:", e);
-    }
-
-    if (typeof showCallout === 'function') showCallout(0, "過");
-    await sleep(900);
-    _handleHaiteiSkipInProgress = false;
-    if (typeof handleRoundEnd === 'function') handleRoundEnd();
-}
-
 // 🏁 1局の終了（アガリまたは流局）時に点数計算を行い、リザルト画面を表示する関数
 async function handleRoundEnd(isReplayingResult = false) {
     // 🌟 修正：友人戦で /friend/calculate_round_scores の broadcast を自分自身も受信したり、
@@ -3085,9 +3068,19 @@ async function handleRoundEnd(isReplayingResult = false) {
         let calcData;
         if (currentGameMode === 'friend') {
             calcData = await apiCall('/friend/calculate_round_scores', { player_idx: myPlayerIdx });
+            // 🌟 友人戦は state が calcData.state に入って返るので、明示的に safeUpdate して
+            // 他プレイヤーの実手牌（dev_all_hands）と round_calculated フラグを反映する
+            if (calcData && calcData.state && typeof safeUpdate === 'function') {
+                safeUpdate(calcData.state);
+            }
         } else {
             calcData = await apiCall('/calculate_round_scores');
         }
+
+        // 🌟 リザルト画面に入った時点で「リザルト中」フラグを立てる → CPU/友人戦どちらでも他人の手牌が表向きで表示される
+        roundCalculated = true;
+        // 🌟 myAllHands が apiCall の safeUpdate で更新されたばかりなので再描画して手牌公開を反映
+        if (typeof renderCPU === 'function') renderCPU();
 
         // 🌟 友人戦時は自分の player_idx を使用（CPU戦時は 0）
         // 🌟 friend モードでも results は視点回転済み（自分=player 0）なので selfIdx は常に 0
@@ -3308,9 +3301,14 @@ async function handleRoundEnd(isReplayingResult = false) {
             let scoreColor = "";
 
             if (isWinner && winData) {
-                // 🌟 友人戦時は友人戦の名前リストを使用（i は既に自分視点の相対インデックス）
+                // 🌟 リプレイ・友人戦・CPU戦すべて統一的に名前取得
                 let displayName;
-                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                if (typeof getDisplayPlayerName === 'function') {
+                    const nm = getDisplayPlayerName(i);
+                    displayName = (i === 0 && !(isReplayMode))
+                        ? "あなたの和了！"
+                        : `${nm} の和了！`;
+                } else if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
                     displayName = (i === 0) ? "あなたの和了！" : `${getFriendPlayerName(i)} の和了！`;
                 } else {
                     displayName = (i === 0) ? "あなたの和了！" : `CPU ${i} の和了！`;
@@ -3367,9 +3365,14 @@ async function handleRoundEnd(isReplayingResult = false) {
                         </div>`;
                 }
             } else {
-                // 🌟 友人戦時は友人戦の名前リストを使用（i は既に自分視点の相対インデックス）
+                // 🌟 リプレイ・友人戦・CPU戦すべて統一的に名前取得
                 let displayName;
-                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                if (typeof getDisplayPlayerName === 'function') {
+                    const nm = getDisplayPlayerName(i);
+                    displayName = (i === 0 && !(isReplayMode))
+                        ? "あなたの結果"
+                        : `${nm} の結果`;
+                } else if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
                     displayName = (i === 0) ? "あなたの結果" : `${getFriendPlayerName(i)} の結果`;
                 } else {
                     displayName = (i === 0) ? "あなたの結果" : `CPU ${i} の結果`;
@@ -3876,11 +3879,12 @@ async function handleRoundEnd(isReplayingResult = false) {
             let resultMsg = "【ゲーム終了！最終結果】\n\n";
             for (let rank = 0; rank < 4; rank++) {
                 let pIdx = sortedIndices[rank];
-                // 🌟 友人戦時は友人戦の名前リストを使用
-                // 注: friend モードでは totalScores/sortedIndices は視点回転済み（pIdx は自分視点の相対インデックス）
+                // 🌟 リプレイ・友人戦・CPU戦すべて統一的に名前取得
                 let name;
-                if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
-                    name = getFriendPlayerName(pIdx);  // pIdx は既に視点回転後インデックスなので直接渡す
+                if (typeof getDisplayPlayerName === 'function') {
+                    name = getDisplayPlayerName(pIdx);
+                } else if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
+                    name = getFriendPlayerName(pIdx);
                 } else {
                     name = pIdx === 0 ? playerStats.playerName : `CPU ${pIdx}`;
                 }
