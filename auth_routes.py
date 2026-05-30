@@ -43,6 +43,11 @@ def init_db():
                 created_at REAL
             )
         """)
+        # 🌟 既存DBにも対応するため ALTER TABLE で追加（存在しないカラムなら追加、あれば無視）
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN current_room_id TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # 既にカラムが存在する場合は無視
         conn.commit()
     finally:
         conn.close()
@@ -158,6 +163,10 @@ def login(body: LoginBody):
             raise HTTPException(status_code=401, detail="ユーザー名またはパスワードが違います")
 
         token = _issue_token(username)
+        try:
+            current_room_id = row["current_room_id"]
+        except (IndexError, KeyError):
+            current_room_id = None
         return {
             "status": "ok",
             "token": token,
@@ -165,6 +174,7 @@ def login(body: LoginBody):
             "stats": json.loads(row["stats_json"] or "{}"),
             "rating": row["rating"],
             "replays": json.loads(row["replays_json"] or "[]"),
+            "current_room_id": current_room_id,
         }
     finally:
         conn.close()
@@ -184,12 +194,18 @@ def load(token: str):
         row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="アカウントが見つかりません")
+        # 🌟 current_room_id も返す（フロント側で復帰判定に使う）
+        try:
+            current_room_id = row["current_room_id"]
+        except (IndexError, KeyError):
+            current_room_id = None
         return {
             "status": "ok",
             "username": username,
             "stats": json.loads(row["stats_json"] or "{}"),
             "rating": row["rating"],
             "replays": json.loads(row["replays_json"] or "[]"),
+            "current_room_id": current_room_id,
         }
     finally:
         conn.close()
@@ -236,3 +252,26 @@ def logout(body: SaveBody):
     if body.token in _active_tokens:
         del _active_tokens[body.token]
     return {"status": "ok"}
+
+
+# ==========================================
+# 🌟 友人戦の途中復帰用: ユーザーの current_room_id を管理する関数
+# friend_routes.py から呼び出される
+# ==========================================
+def set_user_current_room(username: str, room_id: str = None):
+    """ユーザーの current_room_id を更新（None でクリア）。username が文字列以外なら何もしない。"""
+    if not username or not isinstance(username, str):
+        return
+    conn = _get_db()
+    try:
+        conn.execute("UPDATE users SET current_room_id = ? WHERE username = ?", (room_id, username))
+        conn.commit()
+    except Exception as e:
+        print(f"[AUTH] set_user_current_room 失敗: {e}")
+    finally:
+        conn.close()
+
+
+def resolve_token_to_username(token: str):
+    """外部モジュールからトークン → username を解決するための公開関数"""
+    return _resolve_token(token)

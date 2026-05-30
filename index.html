@@ -1644,6 +1644,44 @@
     <div id="special-yaku-overlay"></div>
     <div id="big-yaku-text"></div>
 
+    <!-- 🔁 友人戦 途中復帰用ローディング画面 -->
+    <div id="rejoin-loading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 99999; align-items: center; justify-content: center; flex-direction: column; color: white; font-family: sans-serif;">
+        <div style="font-size: 22px; margin-bottom: 24px; color: #f1c40f;">🀄 対局に復帰しています...</div>
+        <div style="width: 360px; max-width: 80vw; height: 24px; background: #222; border: 2px solid #f1c40f; border-radius: 12px; overflow: hidden;">
+            <div id="rejoin-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #f39c12, #f1c40f); transition: width 0.2s ease-out;"></div>
+        </div>
+        <div id="rejoin-progress-text" style="margin-top: 12px; color: #ccc;">0%</div>
+    </div>
+
+    <!-- 🔁 切断/再接続のトーストコメント領域（ニコニコ風 右→左流し） -->
+    <div id="reconnect-toast-area" style="position: fixed; top: 100px; left: 0; width: 100%; height: 60px; pointer-events: none; z-index: 99998; overflow: hidden;"></div>
+
+    <style>
+        @keyframes reconnectToastSlide {
+            0% {
+                transform: translateX(100vw);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        .reconnect-toast {
+            position: absolute;
+            white-space: nowrap;
+            font-size: 26px;
+            font-weight: bold;
+            color: #2ecc71;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.9);
+            animation: reconnectToastSlide 8s linear forwards;
+        }
+
+            .reconnect-toast.disconnect {
+                color: #e74c3c;
+            }
+    </style>
+
     <script src="audio.js?v=2"></script>
     <script src="api.js?v=2"></script>
     <script src="auth.js?v=1"></script>

@@ -457,6 +457,18 @@ async function showModeSelect() {
         _authInitPromise = null; // 一度待ったら以降不要
     }
 
+    // 🔁 ログイン中 + 進行中の対局があれば自動的に復帰
+    if (typeof isLoggedIn === 'function' && isLoggedIn()
+        && typeof currentRoomIdInDb !== 'undefined' && currentRoomIdInDb) {
+        if (typeof rejoinFriendGame === 'function') {
+            const ok = await rejoinFriendGame();
+            if (ok) {
+                return; // 復帰成功 → 対局画面へ
+            }
+            // 復帰失敗（部屋が消えている等）→ そのまま通常モード選択へフォールスルー
+        }
+    }
+
     // 🔐 未ログインならまず認証モーダルを表示（ゲストで続行も可能）
     if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
         _authModalForModeSelect = true;
@@ -943,13 +955,17 @@ function enterWaitingRoom(roomId, hostSettings = null) {
     const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
-    // 🌟 接続直後にプレイヤー名と（ホストなら）設定値を送信
+    // 🌟 接続直後にプレイヤー名と（ホストなら）設定値、ログイン中ならトークンも送信
     lobbyWs.onopen = () => {
         const myName = (typeof playerStats !== 'undefined' && playerStats.playerName)
             ? playerStats.playerName : "Player";
         const payload = { name: myName };
         if (hostSettings) {
             payload.settings = hostSettings;
+        }
+        // 🌟 ログイン中ならトークンも送信（途中復帰機能用）
+        if (typeof authToken !== 'undefined' && authToken) {
+            payload.token = authToken;
         }
         lobbyWs.send(JSON.stringify(payload));
     };

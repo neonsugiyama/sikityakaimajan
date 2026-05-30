@@ -11,6 +11,8 @@ let friendWs = null;          // 対局中のWebSocket（ロビーWSとは別）
 let myPlayerIdx = -1;          // 自分の座席番号 (0=東, 1=南, 2=西, 3=北)
 let friendRoomId = "";         // 現在の友人戦ルームID
 let friendPlayerNames = [];   // 全プレイヤー名（視点回転前の絶対座席順）
+// 🔁 切断中プレイヤー（相対インデックス）の管理。true なら切断中
+let disconnectedPlayers = [false, false, false, false];
 
 // ==========================================
 // ロビーで4人揃ったら呼ばれるエントリーポイント
@@ -66,6 +68,161 @@ function startFriendGame(initData) {
 
     // 対局WSに接続
     connectFriendGameWs();
+}
+
+// ==========================================
+// 🔁 友人戦 途中復帰
+// ==========================================
+async function rejoinFriendGame() {
+    // ローディング画面を出す
+    const loading = document.getElementById('rejoin-loading');
+    const progBar = document.getElementById('rejoin-progress-bar');
+    const progText = document.getElementById('rejoin-progress-text');
+    if (loading) loading.style.display = 'flex';
+
+    const setProgress = (pct) => {
+        if (progBar) progBar.style.width = pct + '%';
+        if (progText) progText.innerText = Math.round(pct) + '%';
+    };
+    setProgress(5);
+
+    try {
+        if (!authToken) throw new Error('未ログイン');
+
+        // サーバーから state 取得
+        setProgress(15);
+        const res = await fetch(`/friend/rejoin?token=${encodeURIComponent(authToken)}&_t=${Date.now()}`, { cache: 'no-store' });
+        setProgress(40);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.status === 'no_active_room' || data.status === 'room_expired' || data.status === 'player_not_found') {
+            // 復帰対象なし → ローディングを閉じて、通常モード選択へ
+            console.log('[REJOIN] 復帰なし:', data.status);
+            currentRoomIdInDb = null;
+            if (loading) loading.style.display = 'none';
+            return false;
+        }
+        if (data.status !== 'ok') throw new Error('rejoin 失敗: ' + JSON.stringify(data));
+
+        setProgress(55);
+
+        // ゲーム変数を復元
+        myPlayerIdx = data.player_idx;
+        friendRoomId = data.room_id;
+        friendPlayerNames = data.player_names || [];
+        currentSessionRoomId = data.room_id;
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('shiki_mahjong_room_id', data.room_id);
+        }
+
+        // タイマー設定を上書き
+        if (data.settings) {
+            if (typeof timeDiscard !== 'undefined') timeDiscard = data.settings.timeDiscard || 60;
+            if (typeof timeCall !== 'undefined') timeCall = data.settings.timeCall || 20;
+            if (typeof timeExchange !== 'undefined') timeExchange = data.settings.timeExchange || 60;
+        }
+
+        // ゲームモード切り替え
+        currentGameMode = 'friend';
+        localStorage.setItem('shiki_mahjong_game_mode', 'friend');
+
+        setProgress(65);
+
+        // 切断状況を反映
+        if (Array.isArray(data.connected)) {
+            for (let i = 0; i < 4; i++) disconnectedPlayers[i] = !data.connected[i];
+        }
+
+        // state を反映
+        if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        setProgress(80);
+
+        // 画面遷移
+        const titleScreen = document.getElementById('title-screen');
+        const modeScreen = document.getElementById('mode-select-screen');
+        const table = document.querySelector('.table');
+        const gameContainer = document.getElementById('game-container');
+        if (titleScreen) titleScreen.style.display = 'none';
+        if (modeScreen) modeScreen.style.display = 'none';
+        if (table) table.style.opacity = 1;
+        if (gameContainer) {
+            gameContainer.style.display = 'block';
+            gameContainer.style.opacity = 1;
+        }
+
+        // 描画
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+        if (typeof updateInfoUI === 'function') updateInfoUI();
+
+        // WS接続
+        connectFriendGameWs();
+        setProgress(92);
+
+        // フェーズに応じた再開
+        await _resumeByPhase(data);
+        setProgress(100);
+
+        // ローディング非表示
+        setTimeout(() => { if (loading) loading.style.display = 'none'; }, 300);
+        return true;
+    } catch (e) {
+        console.error('[REJOIN] 失敗:', e);
+        alert('対局への復帰に失敗しました: ' + e.message);
+        if (loading) loading.style.display = 'none';
+        currentRoomIdInDb = null;
+        return false;
+    }
+}
+
+// フェーズに応じて状態を再開
+async function _resumeByPhase(rejoinData) {
+    const phase = rejoinData.phase;
+    console.log('[REJOIN] フェーズ:', phase);
+
+    if (phase === 'charleston') {
+        // 第1交換中
+        if (typeof charlestonCount !== 'undefined') charlestonCount = 1;
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof startCharlestonSelection === 'function') startCharlestonSelection();
+    } else if (phase === 'second_charleston') {
+        // 第2交換中
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof friendAskNextPlayer === 'function') friendAskNextPlayer();
+    } else if (phase === 'pending_call') {
+        // 副露猶予中
+        const pc = rejoinData.pending_can;
+        const remaining = rejoinData.pending_remaining;
+        if (pc && !pc.responded && remaining > 0) {
+            // 自分が反応待機中で未応答 → ロンボタンを再表示
+            if (typeof lastDiscardPlayer !== 'undefined') lastDiscardPlayer = pc.discarder;
+            if (typeof lastT !== 'undefined') lastT = pc.tile;
+            if (typeof checkHumanReaction === 'function') {
+                checkHumanReaction(pc.discarder, pc.tile);
+                // タイマー残り秒数で上書き
+                if (typeof stopTimer === 'function') stopTimer();
+                if (typeof startTimer === 'function') {
+                    startTimer(remaining, () => {
+                        if (typeof sendFriendCallAction === 'function') sendFriendCallAction('skip');
+                    });
+                }
+            }
+            if (typeof isProc !== 'undefined') isProc = true;
+        } else {
+            // 自分は対象外 → 待機
+            if (typeof isProc !== 'undefined') isProc = true;
+        }
+    } else if (phase === 'round_end') {
+        // リザルト画面中 → 自分も同様にリザルト画面表示
+        if (typeof handleRoundEnd === 'function') {
+            handleRoundEnd(true);
+        }
+    } else {
+        // play フェーズ（通常ターン）
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof checkT === 'function') checkT();
+    }
 }
 
 // ==========================================
@@ -346,6 +503,15 @@ async function handleSecondCharlestonComplete(data) {
         safeUpdate(data.state);
     }
 
+    // 🌟 まず UI を全部閉じる（早期スキップ時に「3枚選んで」パネルが残るのを防ぐため、
+    //    showCenterMessage の前に閉じる必要がある）
+    const cUiEarly = document.getElementById('charleston-ui');
+    if (cUiEarly) cUiEarly.style.display = "none";
+    const btnExEarly = document.getElementById('btn-exchange');
+    if (btnExEarly) btnExEarly.style.display = "none";
+    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+    if (typeof stopTimer === 'function') stopTimer();
+
     if (data.skipped) {
         // 不成立: メッセージ表示
         if (typeof showCenterMessage === 'function') {
@@ -559,7 +725,44 @@ function handleFriendEvent(data) {
         if (typeof returnToHomeGracefully === 'function') {
             returnToHomeGracefully();
         }
+    } else if (type === "player_disconnected") {
+        // 🔁 他プレイヤー切断 → 名前を赤文字に + 通知トースト
+        const absIdx = data.player_idx;
+        const relIdx = (absIdx - myPlayerIdx + 4) % 4;
+        if (relIdx !== 0) {  // 自分は対象外
+            disconnectedPlayers[relIdx] = true;
+            const playerName = getFriendPlayerName(relIdx);
+            showReconnectToast(`${playerName} が切断しました`, true);
+            // 名前表示を更新
+            if (typeof updateInfoUI === 'function') updateInfoUI();
+        }
+    } else if (type === "player_reconnected") {
+        // 🔁 他プレイヤー再接続 → 名前を白に戻す + 通知トースト
+        const absIdx = data.player_idx;
+        const relIdx = (absIdx - myPlayerIdx + 4) % 4;
+        if (relIdx !== 0) {
+            disconnectedPlayers[relIdx] = false;
+            const playerName = data.player_name || getFriendPlayerName(relIdx);
+            showReconnectToast(`${playerName} が再接続しました`, false);
+            if (typeof updateInfoUI === 'function') updateInfoUI();
+        }
     }
+}
+
+// 🔁 切断/再接続のトーストを画面右から左へ流す（ニコニコ風）
+function showReconnectToast(text, isDisconnect) {
+    const area = document.getElementById('reconnect-toast-area');
+    if (!area) return;
+    const el = document.createElement('div');
+    el.className = 'reconnect-toast' + (isDisconnect ? ' disconnect' : '');
+    el.innerText = text;
+    // 縦位置をランダムにずらして重なりを避ける（最大3レーン）
+    const laneOffsets = [0, 60, 120];
+    const offset = laneOffsets[Math.floor(Math.random() * laneOffsets.length)];
+    el.style.top = offset + 'px';
+    area.appendChild(el);
+    // アニメ終了後に削除（8秒）
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 8100);
 }
 
 // ==========================================

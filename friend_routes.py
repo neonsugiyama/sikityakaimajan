@@ -22,40 +22,105 @@ class FriendGameConnections:
     ロビーWSは4人揃ったらゲーム画面に遷移するための仕組み。
     こちらは対局中のリアルタイム同期用。"""
 
+    # 🌟 切断時のクリーンアップ猶予秒数（この間に再接続があれば対局を保持）
+    CLEANUP_GRACE_SEC = 60.0
+
     def __init__(self):
         # room_id → [WebSocket, WebSocket, WebSocket, WebSocket]（player_idx順）
         self.connections: Dict[str, List[WebSocket]] = {}
+        # room_id → asyncio.Task （全員切断時のクリーンアップタスク）
+        self._cleanup_tasks: Dict[str, "asyncio.Task"] = {}
 
     async def connect(self, websocket: WebSocket, room_id: str, player_idx: int):
         await websocket.accept()
         if room_id not in self.connections:
             self.connections[room_id] = [None, None, None, None]
+
+        # 🌟 既存接続があれば閉じる（再接続時の差し替え）
+        old = self.connections[room_id][player_idx]
+        if old is not None and old is not websocket:
+            try:
+                await old.close()
+            except Exception:
+                pass
+
         self.connections[room_id][player_idx] = websocket
         print(f"[FRIEND WS] Room {room_id} に Player {player_idx} が接続")
+
+        # 🌟 クリーンアップタスクがあればキャンセル（全員切断 → 誰か復帰）
+        if room_id in self._cleanup_tasks:
+            self._cleanup_tasks[room_id].cancel()
+            del self._cleanup_tasks[room_id]
+            print(f"[FRIEND WS] Room {room_id} のクリーンアップタスクをキャンセル（再接続）")
 
     def disconnect(self, websocket: WebSocket, room_id: str):
         if room_id not in self.connections:
             return
+        disconnected_idx = -1
         for i, conn in enumerate(self.connections[room_id]):
             if conn is websocket:
                 self.connections[room_id][i] = None
+                disconnected_idx = i
                 print(f"[FRIEND WS] Room {room_id} の Player {i} が切断")
                 break
-        if not any(self.connections[room_id]):
-            del self.connections[room_id]
-            print(f"[FRIEND WS] Room {room_id} の対局WS接続を全削除")
-            # 対局WSが全切断 → ゲーム状態もクリーンアップ
+
+        # 🌟 他プレイヤーに切断通知
+        if disconnected_idx >= 0:
+            import asyncio as _async
             try:
-                from main import lobby_manager
-                if room_id in lobby_manager.games: del lobby_manager.games[room_id]
-                if room_id in lobby_manager.charleston_selections: del lobby_manager.charleston_selections[room_id]
-                if room_id in lobby_manager.second_charleston_confirms: del lobby_manager.second_charleston_confirms[room_id]
-                if room_id in lobby_manager.second_charleston_selections: del lobby_manager.second_charleston_selections[room_id]
-                if hasattr(lobby_manager, 'player_names') and room_id in lobby_manager.player_names:
-                    del lobby_manager.player_names[room_id]
-                print(f"[FRIEND WS] Room {room_id} の game 状態を完全削除しました。")
-            except Exception as e:
-                print(f"[FRIEND WS] cleanup失敗: {e}")
+                _async.create_task(self._notify_disconnect(room_id, disconnected_idx))
+            except Exception:
+                pass
+
+        if not any(self.connections[room_id]):
+            # 🌟 全員切断 → 即削除せず、60秒の猶予タイマー開始
+            print(f"[FRIEND WS] Room {room_id} は全員切断。{self.CLEANUP_GRACE_SEC}秒の猶予開始")
+            import asyncio as _async
+            self._cleanup_tasks[room_id] = _async.create_task(self._delayed_cleanup(room_id))
+
+    async def _notify_disconnect(self, room_id: str, player_idx: int):
+        """他プレイヤーに player_disconnected を送る"""
+        await self.send_to_others(room_id, player_idx, {
+            "type": "player_disconnected",
+            "player_idx": player_idx
+        })
+
+    async def _delayed_cleanup(self, room_id: str):
+        """全員切断後、猶予秒数経過したら game 状態を削除"""
+        import asyncio as _async
+        try:
+            await _async.sleep(self.CLEANUP_GRACE_SEC)
+            # 経過後、まだ誰も繋がっていなければクリーンアップ
+            if room_id in self.connections and not any(self.connections[room_id]):
+                del self.connections[room_id]
+                print(f"[FRIEND WS] Room {room_id} 猶予期間終了。対局を削除します。")
+                try:
+                    from main import lobby_manager
+                    if room_id in lobby_manager.games: del lobby_manager.games[room_id]
+                    if room_id in lobby_manager.charleston_selections: del lobby_manager.charleston_selections[room_id]
+                    if room_id in lobby_manager.second_charleston_confirms: del lobby_manager.second_charleston_confirms[room_id]
+                    if room_id in lobby_manager.second_charleston_selections: del lobby_manager.second_charleston_selections[room_id]
+                    if hasattr(lobby_manager, 'player_names') and room_id in lobby_manager.player_names:
+                        # 各プレイヤーの current_room_id もクリア
+                        try:
+                            from auth_routes import set_user_current_room
+                            if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                                for username in lobby_manager.player_usernames[room_id]:
+                                    if username:
+                                        set_user_current_room(username, None)
+                        except Exception:
+                            pass
+                        del lobby_manager.player_names[room_id]
+                    if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                        del lobby_manager.player_usernames[room_id]
+                    print(f"[FRIEND WS] Room {room_id} の game 状態を完全削除しました。")
+                except Exception as e:
+                    print(f"[FRIEND WS] cleanup失敗: {e}")
+            if room_id in self._cleanup_tasks:
+                del self._cleanup_tasks[room_id]
+        except _async.CancelledError:
+            # 再接続でキャンセルされた場合
+            pass
 
     async def broadcast(self, room_id: str, message: dict):
         """ルーム内の全プレイヤーに同じメッセージを送信"""
@@ -81,6 +146,18 @@ class FriendGameConnections:
         except Exception as e:
             print(f"[FRIEND WS] 個別送信失敗 (player {player_idx}): {e}")
 
+    async def send_to_others(self, room_id: str, exclude_idx: int, message: dict):
+        """指定プレイヤー以外に送信（切断・再接続通知用）"""
+        if room_id not in self.connections:
+            return
+        for i, conn in enumerate(self.connections[room_id]):
+            if i == exclude_idx or conn is None:
+                continue
+            try:
+                await conn.send_json(message)
+            except Exception as e:
+                print(f"[FRIEND WS] 通知送信失敗 (player {i}): {e}")
+
 
 friend_connections = FriendGameConnections()
 
@@ -96,11 +173,14 @@ def rotate_for_player(arr: list, player_idx: int) -> list:
 def get_friend_state_for_player(game, player_idx: int) -> dict:
     """指定プレイヤー視点に回転した state を作る。
     CPU戦の get_safe_state とフィールド名を合わせる。"""
-    # 全プレイヤーの手牌（自分以外は「ura」プレースホルダー）
+    # 🌟 リザルト画面（局終了 = round_calculated == True）なら全員の手牌公開
+    reveal_all = getattr(game, 'round_calculated', False)
+
+    # 全プレイヤーの手牌（自分以外は通常「ura」プレースホルダー、リザルト時は実手牌）
     all_hands_display = []
     for i in range(4):
         actual_seat = (player_idx + i) % 4
-        if i == 0:
+        if i == 0 or reveal_all:
             all_hands_display.append(list(game.hands[actual_seat]))
         else:
             all_hands_display.append(["ura"] * len(game.hands[actual_seat]))
@@ -517,13 +597,15 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
         return get_friend_state_for_player(game, player_idx)
 
     # 副露猶予を開始
+    import time as _time
     game.pending_call = {
         "discarder": player_idx,
         "tile": tile,
         "responders": list(responders),
         "ron_capable": [p for p, r in reactions.items() if r["ron"]],
         "responses": {},
-        "resolved": False
+        "resolved": False,
+        "started_at": _time.time()  # 🌟 復帰時の残り時間計算用
     }
 
     # 各プレイヤーに WS で「discard」イベント + 反応可能フラグを送る
@@ -950,27 +1032,6 @@ async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: st
 
 
 # ==========================================
-# REST: 海底牌のスルー（流局）
-# ==========================================
-@router.get("/skip_haitei")
-async def friend_skip_haitei(room_id: str, player_idx: int):
-    """海底牌をスルーしたことを牌譜に記録し、全員に broadcast。"""
-    from main import lobby_manager
-    if room_id not in lobby_manager.games:
-        raise HTTPException(status_code=404, detail="対局が見つかりません")
-    game = lobby_manager.games[room_id]
-    game.append_log("haitei_skip", player=player_idx)
-
-    # 全プレイヤーに friend_haitei_skip を broadcast（各クライアントで「過」を表示）
-    for p in range(4):
-        await friend_connections.send_to(room_id, p, {
-            "type": "friend_haitei_skip",
-            "player_idx": player_idx
-        })
-    return {"status": "success"}
-
-
-# ==========================================
 # REST: 1局終了時の点数計算
 # ==========================================
 @router.get("/calculate_round_scores")
@@ -1009,12 +1070,18 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
     # 各プレイヤーに視点回転済みのデータを broadcast
     for p in range(4):
         payload = rotate_result_for(p)
+        state = get_friend_state_for_player(game, p)  # round_calculated=True 状態の state（全員手牌公開済み）
         await friend_connections.send_to(room_id, p, {
             "type": "friend_round_end",
+            "state": state,
             **payload
         })
-    # 呼び出した本人にも視点回転済みの結果を返す
-    return rotate_result_for(player_idx)
+    # 呼び出した本人にも視点回転済みの結果を返す（state も含めて、apiCall の safeUpdate で myAllHands を更新）
+    response = rotate_result_for(player_idx)
+    response["state"] = get_friend_state_for_player(game, player_idx)
+    # state の中身も apiCall の safeUpdate が拾えるようにトップレベルにも展開
+    response.update(response["state"])
+    return response
 
 
 # ==========================================
@@ -1044,6 +1111,16 @@ async def friend_round_ready(room_id: str, player_idx: int):
 
         # 4局終了判定
         if game.current_round >= 4:
+            # 🌟 ログイン中ユーザーの current_room_id をクリア（途中復帰の対象から外す）
+            try:
+                from auth_routes import set_user_current_room
+                from main import lobby_manager
+                if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                    for username in lobby_manager.player_usernames[room_id]:
+                        if username:
+                            set_user_current_room(username, None)
+            except Exception as e:
+                print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
             for p in range(4):
                 await friend_connections.send_to(room_id, p, {
                     "type": "friend_game_end",
@@ -1069,15 +1146,148 @@ async def friend_round_ready(room_id: str, player_idx: int):
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================
-@router.websocket("/ws/{room_id}/{player_idx}")
+# ==========================================
+# REST: 途中復帰
+# ==========================================
+@router.get("/rejoin")
+async def friend_rejoin(token: str):
+    """ログイン中ユーザーの current_room_id に基づいて途中復帰用の state を返す。"""
+    from main import lobby_manager
+    from auth_routes import resolve_token_to_username
+    import time as _time
+
+    username = resolve_token_to_username(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="セッションが無効です")
+
+    # DB から current_room_id を取得
+    import sqlite3 as _sql
+    import os as _os
+    db_path = _os.environ.get("SHIKI_DB_PATH", _os.path.join(_os.path.dirname(__file__), "accounts.db"))
+    conn = _sql.connect(db_path)
+    conn.row_factory = _sql.Row
+    try:
+        row = conn.execute("SELECT current_room_id FROM users WHERE username = ?", (username,)).fetchone()
+    finally:
+        conn.close()
+
+    room_id = row["current_room_id"] if row else None
+    if not room_id:
+        return {"status": "no_active_room"}
+
+    # ルームが存在するか確認
+    if room_id not in lobby_manager.games:
+        # サーバー再起動 or 猶予期間切れで対局が消えている
+        from auth_routes import set_user_current_room
+        set_user_current_room(username, None)
+        return {"status": "room_expired"}
+
+    # username から player_idx を特定
+    player_idx = None
+    if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+        for i, uname in enumerate(lobby_manager.player_usernames[room_id]):
+            if uname == username:
+                player_idx = i
+                break
+    if player_idx is None:
+        # username 紐付けが失われている。クリアして諦め
+        from auth_routes import set_user_current_room
+        set_user_current_room(username, None)
+        return {"status": "player_not_found"}
+
+    game = lobby_manager.games[room_id]
+    state = get_friend_state_for_player(game, player_idx)
+
+    # ルーム設定（タイマー設定）
+    room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {
+        "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
+    })
+
+    # 現在のフェーズ判定
+    phase = "play"  # デフォルト
+    if not getattr(game, 'charleston_done', False):
+        phase = "charleston"
+    elif not getattr(game, 'second_charleston_done', False):
+        phase = "second_charleston"
+    elif getattr(game, 'round_calculated', False):
+        phase = "round_end"
+    elif getattr(game, 'pending_call', None):
+        phase = "pending_call"
+
+    # 副露猶予の残り秒数（pending_call が立っている場合）
+    pending_remaining = None
+    pending_can = None
+    if game.pending_call:
+        elapsed = _time.time() - game.pending_call.get("started_at", _time.time())
+        user_time_call = float(room_settings.get('timeCall', 20))
+        pending_remaining = max(0.0, user_time_call - elapsed)
+        # 自分が反応可能か
+        responders = game.pending_call.get("responders", [])
+        if player_idx in responders:
+            # 簡易再計算（_check_reaction_possible は内部用なのでここでは pending_call の情報から判定）
+            pending_can = {
+                "can_ron": player_idx in game.pending_call.get("ron_capable", []),
+                "discarder": (game.pending_call.get("discarder", 0) - player_idx + 4) % 4,
+                "tile": game.pending_call.get("tile", ""),
+                "responded": player_idx in game.pending_call.get("responses", {})
+            }
+
+    # 接続状況（誰が切断中か = None）
+    connected_status = []
+    if room_id in friend_connections.connections:
+        for i in range(4):
+            connected_status.append(friend_connections.connections[room_id][i] is not None)
+    else:
+        connected_status = [False, False, False, False]
+    # 自分視点に回転
+    connected_rotated = [connected_status[(player_idx + i) % 4] for i in range(4)]
+    # 自分は復帰直後なので True 扱い
+    connected_rotated[0] = True
+
+    return {
+        "status": "ok",
+        "room_id": room_id,
+        "player_idx": player_idx,
+        "player_names": list(getattr(game, 'friend_player_names', [])) or [],
+        "dealer": game.dealer,
+        "settings": room_settings,
+        "phase": phase,
+        "pending_remaining": pending_remaining,
+        "pending_can": pending_can,
+        "connected": connected_rotated,
+        "state": state
+    }
+
+
+
 async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: int):
     """対局中の双方向通信。各プレイヤーがゲーム画面に入ったら接続する。"""
+    # 🌟 既に対局中（lobby_manager.games に存在）なら、再接続として扱い他プレイヤーに通知
+    from main import lobby_manager
+    is_rejoin = room_id in lobby_manager.games and friend_connections.connections.get(room_id) is not None
+
     await friend_connections.connect(websocket, room_id, player_idx)
+
+    # 🌟 再接続なら他プレイヤーに通知（プレイヤー名も含めて）
+    if is_rejoin:
+        player_name = None
+        try:
+            if hasattr(lobby_manager, 'player_names') and room_id in lobby_manager.player_names:
+                names = lobby_manager.player_names[room_id]
+                if player_idx < len(names):
+                    player_name = names[player_idx]
+        except Exception:
+            pass
+        await friend_connections.send_to_others(room_id, player_idx, {
+            "type": "player_reconnected",
+            "player_idx": player_idx,
+            "player_name": player_name or f"Player {player_idx}"
+        })
+
     try:
         while True:
             data = await websocket.receive_json()
             print(f"[FRIEND WS] Room {room_id} Player {player_idx} から受信: {data}")
-            # 受信した action はステップ2以降で処理を追加する
     except WebSocketDisconnect:
         friend_connections.disconnect(websocket, room_id)
     except Exception as e:

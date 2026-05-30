@@ -281,6 +281,7 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
 
         # 接続直後にプレイヤー名を受信（5秒タイムアウト）
         import asyncio
+        player_token = None
         try:
             name_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
             player_name = name_msg.get("name", "Player")
@@ -291,6 +292,8 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                     lobby_manager.room_settings = {}
                 lobby_manager.room_settings[room_id] = host_settings
                 print(f"[LOBBY] Room {room_id} のホスト設定: {host_settings}")
+            # 🌟 ログイン中ならトークンを受信（途中復帰機能用）
+            player_token = name_msg.get("token")
         except Exception:
             player_name = "Player"
 
@@ -299,6 +302,19 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         if room_id not in lobby_manager.player_names:
             lobby_manager.player_names[room_id] = []
         lobby_manager.player_names[room_id].append(player_name)
+
+        # 🌟 ログイン中ユーザーの username を絶対座席に紐付け（復帰判定で使用）
+        if not hasattr(lobby_manager, 'player_usernames'):
+            lobby_manager.player_usernames = {}
+        if room_id not in lobby_manager.player_usernames:
+            lobby_manager.player_usernames[room_id] = []
+        try:
+            from auth_routes import resolve_token_to_username
+            username = resolve_token_to_username(player_token) if player_token else None
+        except Exception:
+            username = None
+        lobby_manager.player_usernames[room_id].append(username)
+
 
         player_count = len(lobby_manager.active_connections[room_id])
         print(f"[LOBBY] Room {room_id}: {player_count}人目 ({player_name}) 接続")
@@ -321,6 +337,16 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                 # 🌟 牌譜（リプレイ）データにも実際のプレイヤー名を反映
                 room_game.replay_data["player_names"] = list(lobby_manager.player_names[room_id])
                 room_game.replay_data["room_id"] = room_id
+
+                # 🌟 ログイン中ユーザーの current_room_id をDBに記録（途中復帰機能用）
+                try:
+                    from auth_routes import set_user_current_room
+                    if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                        for username in lobby_manager.player_usernames[room_id]:
+                            if username:
+                                set_user_current_room(username, room_id)
+                except Exception as e:
+                    print(f"[LOBBY] current_room_id 設定失敗: {e}")
 
                 lobby_manager.charleston_selections[room_id] = {}
                 lobby_manager.second_charleston_confirms[room_id] = {}

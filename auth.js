@@ -6,6 +6,8 @@
 // ログイン状態（sessionStorage がタブ独立なので、4窓で別アカウントにできる）
 let authToken = sessionStorage.getItem('shiki_auth_token') || null;
 let authUsername = sessionStorage.getItem('shiki_auth_username') || null;
+// 🌟 途中復帰用: ログイン時に取得した進行中の対局ルームID
+let currentRoomIdInDb = null;
 
 // ログイン中かどうか
 function isLoggedIn() {
@@ -153,6 +155,8 @@ function _applyServerData(data) {
         // 牌譜はアカウント別キーに保存（タブ独立のため username 付き）
         localStorage.setItem(_replaysKey(), JSON.stringify(data.replays));
     }
+    // 🌟 進行中の対局ルームIDを保持
+    currentRoomIdInDb = data.current_room_id || null;
     // UIを更新
     if (typeof updateProfileUI === 'function') updateProfileUI();
     if (typeof updateInfoUI === 'function') updateInfoUI();

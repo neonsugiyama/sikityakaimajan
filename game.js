@@ -603,9 +603,14 @@ function updateInfoUI() {
         } else {
             selfName = escapeHTML(playerStats.playerName);
         }
+        // 🔁 友人戦で切断中なら名前を赤文字で表示
+        let nameColor = '';
+        if (currentGameMode === 'friend' && typeof disconnectedPlayers !== 'undefined' && disconnectedPlayers[i]) {
+            nameColor = ' style="color:#e74c3c;"';
+        }
         let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${selfName}` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br>${opponentName}`;
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br><span${nameColor}>${selfName}</span>` :
+            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br><span${nameColor}>${opponentName}</span>`;
 
         let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
         let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
