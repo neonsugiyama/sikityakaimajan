@@ -195,6 +195,13 @@ function stopTimer() {
 
 function toggleAutoPlay() {
     isAutoPlay = !isAutoPlay;
+    // 🔁 友人戦時はオート状態を sessionStorage に保存（再接続時に復元するため）
+    if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId) {
+        try {
+            const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
+            sessionStorage.setItem(key, isAutoPlay ? '1' : '0');
+        } catch (e) { }
+    }
     const btn = document.getElementById('btn-auto-play');
 
     if (isAutoPlay) {
@@ -3074,6 +3081,13 @@ async function handleRoundEnd(isReplayingResult = false) {
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
 
         isAutoPlay = false;
+        // 🔁 リザルトに入った時点で、保存されていたオート状態（友人戦）を削除
+        if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId) {
+            try {
+                const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
+                sessionStorage.removeItem(key);
+            } catch (e) { }
+        }
         const btnAuto = document.getElementById('btn-auto-play');
         if (btnAuto) {
             btnAuto.innerText = "オート(和了後): OFF";

@@ -1516,44 +1516,80 @@ async def friend_round_ready(room_id: str, player_idx: int):
 
     print(f"[FRIEND] Room {room_id} round_ready: {len(game.round_ready)}/4 (player {player_idx})")
 
+    # 接続中プレイヤー全員が ready なら、切断者待ち 5秒タイマー開始（既存タイマーがあれば何もしない）
+    if room_id in friend_connections.connections:
+        connected_indices = set()
+        for i in range(4):
+            if friend_connections.connections[room_id][i] is not None:
+                connected_indices.add(i)
+        # 接続中の全員が ready かつ、まだ全員 ready ではない（=切断者がいる）場合
+        if connected_indices and connected_indices.issubset(game.round_ready) and len(game.round_ready) < 4:
+            existing_task = getattr(game, '_disconnect_skip_task', None)
+            if not existing_task or existing_task.done():
+                async def _wait_and_force_ready():
+                    try:
+                        await asyncio.sleep(5.0)
+                        if room_id in lobby_manager.games:
+                            g = lobby_manager.games[room_id]
+                            if hasattr(g, 'round_ready') and len(g.round_ready) < 4 and not getattr(g, 'next_round_processing', False):
+                                print(f"[FRIEND] Room {room_id} 切断者待ちタイムアウト → 強制的に次局へ")
+                                g.round_ready = {0, 1, 2, 3}
+                                await _advance_to_next_round(room_id, g)
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as e:
+                        print(f"[FRIEND] 切断者待ちタスク失敗: {e}")
+                game._disconnect_skip_task = asyncio.create_task(_wait_and_force_ready())
+                print(f"[FRIEND] Room {room_id} 切断者待ち 5秒タイマー開始")
+
     # 4人揃った時点で次局へ進める
     if len(game.round_ready) >= 4 and not getattr(game, 'next_round_processing', False):
-        game.next_round_processing = True
-        game.round_ready = set()  # クリア
-
-        # 4局終了判定
-        if game.current_round >= 4:
-            # 🌟 ログイン中ユーザーの current_room_id をクリア（途中復帰の対象から外す）
-            try:
-                from auth_routes import set_user_current_room
-                from main import lobby_manager
-                if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
-                    for username in lobby_manager.player_usernames[room_id]:
-                        if username:
-                            set_user_current_room(username, None)
-            except Exception as e:
-                print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
-            for p in range(4):
-                await friend_connections.send_to(room_id, p, {
-                    "type": "friend_game_end",
-                    "total_scores": game.total_scores
-                })
-            return {"status": "game_end", "total_scores": game.total_scores}
-
-        # 次局へ
-        next_round(game=game)
-        game.next_round_processing = False
-
-        # 各プレイヤーに視点回転済み state を broadcast
-        for p in range(4):
-            state = get_friend_state_for_player(game, p)
-            await friend_connections.send_to(room_id, p, {
-                "type": "friend_next_round",
-                "state": state
-            })
+        # 既存の切断者待ちタスクがあればキャンセル
+        existing_task = getattr(game, '_disconnect_skip_task', None)
+        if existing_task and not existing_task.done():
+            existing_task.cancel()
+        return await _advance_to_next_round(room_id, game)
 
     return {"status": "ok", "ready_count": len(game.round_ready)}
 
+
+async def _advance_to_next_round(room_id: str, game):
+    """次局へ進める処理（4局終了ならゲーム終了 broadcast）"""
+    from main import lobby_manager, next_round
+    game.next_round_processing = True
+    game.round_ready = set()  # クリア
+
+    # 4局終了判定
+    if game.current_round >= 4:
+        try:
+            from auth_routes import set_user_current_room
+            if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                for username in lobby_manager.player_usernames[room_id]:
+                    if username:
+                        set_user_current_room(username, None)
+        except Exception as e:
+            print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
+        for p in range(4):
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_game_end",
+                "total_scores": game.total_scores
+            })
+        return {"status": "game_end", "total_scores": game.total_scores}
+
+    # 次局へ
+    next_round(game=game)
+    game.next_round_processing = False
+
+    # 🌟 第1交換用のタイマーを開始（これがないと再接続時に csRemaining=None で初期化＝バグ）
+    _start_charleston_timer(game, room_id)
+
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_next_round",
+            "state": state
+        })
+    return {"status": "ok", "advanced": True}
 
 # ==========================================
 # REST: 時間切れペナルティ通知

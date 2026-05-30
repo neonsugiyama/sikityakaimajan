@@ -137,6 +137,25 @@ async function rejoinFriendGame() {
 
         // state を反映
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        // 🔁 オート機能の状態を復元（同じ局・同じ親なら ON のままにする）
+        // リザルト経由 or 次局移行時には sessionStorage から削除されるので、復元されない
+        if (data.phase === 'play' || data.phase === 'pending_call') {
+            try {
+                const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
+                const saved = sessionStorage.getItem(key);
+                if (saved === '1') {
+                    if (typeof isAutoPlay !== 'undefined') isAutoPlay = true;
+                    // ボタン見た目も更新
+                    const btn = document.getElementById('btn-auto-play');
+                    if (btn) {
+                        btn.innerText = "オート(和了後): ON";
+                        btn.style.background = "#27ae60";
+                        btn.style.boxShadow = "0 3px #2ecc71";
+                        btn.classList.remove('auto-off');
+                    }
+                }
+            } catch (e) { }
+        }
         setProgress(80);
 
         // 画面遷移
@@ -822,7 +841,7 @@ function handleFriendEvent(data) {
         handleFriendJokerSwap(data);
     } else if (type === "friend_haitei_skip") {
         // 🌟 海底牌スルー broadcast：実行者の位置に「過」スタンプを表示する
-        // 発火元のクライアントは handleHaiteiSkip 内で showCallout 済みなのでスキップ
+        // 発火元のクライアントは handleRoundEnd 内で showCallout 済みなのでスキップ
         if (data.player_idx !== myPlayerIdx) {
             const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
             if (typeof showCallout === 'function') showCallout(claimerRel, "過");
