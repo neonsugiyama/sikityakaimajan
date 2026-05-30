@@ -33,6 +33,8 @@ class FriendGameConnections:
         self._cleanup_tasks: Dict[str, "asyncio.Task"] = {}
         # room_id → [bool, bool, bool, bool] 各player_idxが一度でも接続したか（再接続判定用）
         self._ever_connected: Dict[str, List[bool]] = {}
+        # (room_id, player_idx) → asyncio.Task （切断中プレイヤーを自動進行させるウォッチドッグ）
+        self._disconnect_watchdogs: Dict[tuple, "asyncio.Task"] = {}
 
     async def connect(self, websocket: WebSocket, room_id: str, player_idx: int) -> bool:
         """接続を登録。戻り値は「これが再接続か（過去に一度でも接続したことがあるか）」を表す。"""
@@ -63,6 +65,13 @@ class FriendGameConnections:
             del self._cleanup_tasks[room_id]
             print(f"[FRIEND WS] Room {room_id} のクリーンアップタスクをキャンセル（再接続）")
 
+        # 🌟 このプレイヤー宛のウォッチドッグはキャンセルせず、次のループで自分で終了させる。
+        # （自動アクション中にキャンセルすると friend_discard の応答待ちが途中で切れて
+        #  pending_call が放置される可能性があるため、ウォッチドッグ側の再接続判定に任せる）
+        wd_key = (room_id, player_idx)
+        if wd_key in self._disconnect_watchdogs:
+            print(f"[FRIEND WS] Player {player_idx} のウォッチドッグは次の周期で自己終了予定")
+
         return is_rejoin
 
     def disconnect(self, websocket: WebSocket, room_id: str):
@@ -76,10 +85,21 @@ class FriendGameConnections:
                 print(f"[FRIEND WS] Room {room_id} の Player {i} が切断")
                 break
 
-        # 🌟 他プレイヤーに切断通知
+        # 🌟 他プレイヤーに切断通知 + 自動進行ウォッチドッグ起動
         if disconnected_idx >= 0:
             try:
                 asyncio.create_task(self._notify_disconnect(room_id, disconnected_idx))
+            except Exception:
+                pass
+            # 🌟 切断中プレイヤーのターン/反応を肩代わりして他プレイヤーを待たせないためのウォッチドッグ
+            wd_key = (room_id, disconnected_idx)
+            old_wd = self._disconnect_watchdogs.get(wd_key)
+            if old_wd is not None and not old_wd.done():
+                old_wd.cancel()
+            try:
+                self._disconnect_watchdogs[wd_key] = asyncio.create_task(
+                    _disconnect_watchdog(room_id, disconnected_idx)
+                )
             except Exception:
                 pass
 
@@ -104,6 +124,12 @@ class FriendGameConnections:
                 del self.connections[room_id]
                 if room_id in self._ever_connected:
                     del self._ever_connected[room_id]
+                # 🌟 ルームに紐づくウォッチドッグタスクをすべて停止
+                for key in list(self._disconnect_watchdogs.keys()):
+                    if key[0] == room_id:
+                        task = self._disconnect_watchdogs.pop(key, None)
+                        if task is not None and not task.done():
+                            task.cancel()
                 print(f"[FRIEND WS] Room {room_id} 猶予期間終了。対局を削除します。")
                 try:
                     from main import lobby_manager
@@ -174,6 +200,343 @@ friend_connections = FriendGameConnections()
 
 
 # ==========================================
+# 🕒 ターンタイマー（CPU戦の startTimer 相当をサーバー側にも保持）
+# ==========================================
+# サーバー側でのタイマー切れ判定にネットワーク遅延ぶんの余裕を足す
+_TURN_TIMER_GRACE_SEC = 2.0
+
+
+def _get_room_settings(room_id: str) -> dict:
+    from main import lobby_manager
+    return getattr(lobby_manager, 'room_settings', {}).get(room_id, {
+        "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
+    })
+
+
+def _start_turn_timer(game, room_id: str):
+    """現在の game.turn のプレイヤーに対して、状況に応じたターンタイマーを記録する。
+    - 山残り1枚（海底選択）: timeCall
+    - それ以外（通常の打牌）: timeDiscard
+    """
+    import time as _t
+    room_settings = _get_room_settings(room_id)
+    time_discard = float(room_settings.get('timeDiscard', 60))
+    time_call = float(room_settings.get('timeCall', 20))
+    duration = time_call if len(game.wall) == 1 else time_discard
+    game.turn_timer_started_at = _t.time()
+    game.turn_timer_duration = duration
+
+
+def _clear_turn_timer(game):
+    """ターンタイマーをクリア（局終了など、誰のターンでもない状態用）"""
+    game.turn_timer_started_at = None
+    game.turn_timer_duration = None
+
+
+def _get_turn_timer_remaining(game) -> float:
+    """現在のターンタイマーの残り秒数。タイマー未設定なら None。"""
+    import time as _t
+    started = getattr(game, 'turn_timer_started_at', None)
+    duration = getattr(game, 'turn_timer_duration', None)
+    if started is None or duration is None:
+        return None
+    return max(0.0, started + duration - _t.time())
+
+
+def _start_charleston_timer(game, room_id: str):
+    """第1/第2交換のタイマーをサーバー側で開始。
+    クライアント側 startTimer(timeExchange, ...) と同時刻にサーバーでも記録しておくことで、
+    リロード復帰時に残り秒数を返せるようにする。"""
+    import time as _t
+    room_settings = _get_room_settings(room_id)
+    duration = float(room_settings.get('timeExchange', 60))
+    game.charleston_timer_started_at = _t.time()
+    game.charleston_timer_duration = duration
+
+
+def _clear_charleston_timer(game):
+    game.charleston_timer_started_at = None
+    game.charleston_timer_duration = None
+
+
+def _get_charleston_timer_remaining(game) -> float:
+    import time as _t
+    started = getattr(game, 'charleston_timer_started_at', None)
+    duration = getattr(game, 'charleston_timer_duration', None)
+    if started is None or duration is None:
+        return None
+    return max(0.0, started + duration - _t.time())
+
+
+# ==========================================
+# 🕒 タイマー切れペナルティ（プレイヤーごと）
+# ==========================================
+# 1回の時間切れごとに timeDiscard を 20秒減らす（最低 5秒）
+_PENALTY_DISCARD_DELTA = 20
+# 1回の時間切れごとに timeCall を 5秒減らす（最低 5秒）
+_PENALTY_CALL_DELTA = 5
+_PENALTY_FLOOR = 5
+
+
+def _get_penalty_count(game, player_idx: int) -> int:
+    counts = getattr(game, 'player_penalty_counts', None)
+    if counts is None or player_idx < 0 or player_idx >= len(counts):
+        return 0
+    return counts[player_idx]
+
+
+def _increment_penalty(game, player_idx: int):
+    if not hasattr(game, 'player_penalty_counts') or game.player_penalty_counts is None:
+        game.player_penalty_counts = [0, 0, 0, 0]
+    if 0 <= player_idx < len(game.player_penalty_counts):
+        game.player_penalty_counts[player_idx] += 1
+
+
+def _effective_settings_for_player(room_settings: dict, penalty_count: int) -> dict:
+    """ペナルティ回数を反映した実効タイマー設定。"""
+    td = int(room_settings.get('timeDiscard', 60))
+    tc = int(room_settings.get('timeCall', 20))
+    te = int(room_settings.get('timeExchange', 60))
+    return {
+        "timeDiscard": max(_PENALTY_FLOOR, td - _PENALTY_DISCARD_DELTA * penalty_count),
+        "timeCall": max(_PENALTY_FLOOR, tc - _PENALTY_CALL_DELTA * penalty_count),
+        "timeExchange": te,
+    }
+
+
+# ==========================================
+# 🔁 切断中プレイヤーのターン/反応を自動進行するウォッチドッグ
+# ==========================================
+# 「アクションすべき場面が無い」とき次のチェックまで待つ秒数
+_IDLE_POLL_SEC = 1.0
+# 待機中に再接続/状態変化を確認するポーリング間隔
+_WAIT_POLL_SEC = 0.5
+
+
+def _get_wait_for_action(game, action: str, room_id: str) -> float:
+    """アクション種別と現在のタイマー残量から、ウォッチドッグの待機秒数を返す。
+    - 副露猶予の skip: pending_call の timeCall タイマー残量 + grace
+    - 第1/第2交換のフェーズ: 交換タイマー残量 + grace
+    - 通常打牌/海底ツモ等: ターンタイマー残量 + grace
+    """
+    import time as _t
+    room_settings = _get_room_settings(room_id)
+    if action == "skip_call":
+        # pending_call.started_at + timeCall - now まで待つ
+        pc = getattr(game, 'pending_call', None)
+        if pc:
+            started = pc.get("started_at")
+            if started is not None:
+                time_call = float(room_settings.get('timeCall', 20))
+                remaining = max(0.0, started + time_call - _t.time())
+                return remaining + _TURN_TIMER_GRACE_SEC
+        return float(room_settings.get('timeCall', 20))
+    if action in ("charleston_submit", "second_charleston_answer"):
+        # 交換タイマー残量を尊重する
+        remaining = _get_charleston_timer_remaining(game)
+        if remaining is None:
+            return float(room_settings.get('timeExchange', 60))
+        return remaining + _TURN_TIMER_GRACE_SEC
+    # その他は現在のターンタイマーの残量を待つ
+    remaining = _get_turn_timer_remaining(game)
+    if remaining is None:
+        # タイマーが未設定（=サーバーが追跡していない場面）はフォールバック
+        return float(room_settings.get('timeDiscard', 60))
+    return remaining + _TURN_TIMER_GRACE_SEC
+
+
+def _watchdog_what_to_do(game, player_idx: int, room_id: str = ""):
+    """切断中プレイヤーが滞らせている現状アクションを判定。
+    戻り値: "skip_call" / "charleston_submit" / "second_charleston_answer" /
+            "discard_drawn" / "draw" / "trigger_round_end" / None
+    """
+    from main import lobby_manager
+    if getattr(game, 'round_calculated', False):
+        return None
+    pc = getattr(game, 'pending_call', None)
+    if pc and not pc.get('resolved'):
+        if player_idx in pc.get('responders', []) and player_idx not in pc.get('responses', {}):
+            return "skip_call"
+
+    # 第1交換: 自分が3枚提出していなければ自動提出すべき
+    if not getattr(game, 'charleston_done', False):
+        cs = getattr(lobby_manager, 'charleston_selections', {}).get(room_id, {})
+        if player_idx not in cs:
+            return "charleston_submit"
+        return None  # 既に提出済み → 他のプレイヤー待ち
+
+    # 第2交換: 自分が今の質問対象で、まだ回答していなければ自動回答すべき
+    if not getattr(game, 'second_charleston_done', False):
+        confirms = getattr(lobby_manager, 'second_charleston_confirms', {}).get(room_id, {})
+        if player_idx in confirms:
+            return None  # 既に回答済み
+        # 自分が今の質問対象か（dealer + asked_count == player_idx）
+        asked_count = len(confirms)
+        current_asker = (game.dealer + asked_count) % 4
+        if current_asker == player_idx:
+            return "second_charleston_answer"
+        return None  # 他人の番なので何もしない
+
+    if (game.turn == player_idx
+            and getattr(game, 'charleston_done', False)
+            and getattr(game, 'second_charleston_done', False)):
+        # 手牌枚数で「打牌が必要 / ツモが必要」を判定。
+        # 待機状態: hand = 13 - 3*melds、打牌必要状態: hand = 14 - 3*melds（ツモ後 or 副露後）
+        hand_len = len(game.hands[player_idx])
+        meld_count = len(game.melds[player_idx])
+        expected_waiting = max(0, 13 - meld_count * 3)
+        if hand_len > expected_waiting:
+            # 1枚以上余っている = 打牌すべき（ツモ後 or 副露後）
+            return "discard_drawn"
+        if game.wall:
+            return "draw"
+        return "trigger_round_end"
+    return None
+
+
+async def _disconnect_watchdog(room_id: str, player_idx: int):
+    """切断中のプレイヤー player_idx が自分のターン/副露猶予で止めている場面を検出し、
+    自動的にスキップ/自摸切り処理を行うウォッチドッグ。
+
+    待機:
+      - 自分のターン（打牌/海底ツモ等）: サーバーが追跡している
+        ターンタイマー残量に等しい時間だけ待ってから自動アクション。
+        ホストが設定した timeDiscard / timeCall がそのまま「他人を待たせる時間」になる。
+      - 副露猶予 skip: discard 側のポーリングが timeCall+5 で auto-skip するため即時。
+    """
+    from main import lobby_manager
+
+    def _is_reconnected():
+        conns = friend_connections.connections.get(room_id)
+        return conns is not None and conns[player_idx] is not None
+
+    def _is_room_gone():
+        return room_id not in lobby_manager.games
+
+    while True:
+        try:
+            # 再接続 or ルーム消失で終了
+            if _is_reconnected():
+                print(f"[WATCHDOG] Room {room_id} Player {player_idx} 再接続検知、終了")
+                return
+            if _is_room_gone():
+                return
+
+            game = lobby_manager.games[room_id]
+            action = _watchdog_what_to_do(game, player_idx, room_id)
+
+            if action is None:
+                # 現状アクション不要 → 短い間隔で再チェック
+                try:
+                    await asyncio.sleep(_IDLE_POLL_SEC)
+                except asyncio.CancelledError:
+                    return
+                continue
+
+            # サーバーが追跡しているターンタイマー残量に応じて待機
+            wait_sec = _get_wait_for_action(game, action, room_id)
+            print(f"[WATCHDOG] Room {room_id} Player {player_idx} 検知: action={action}, {wait_sec:.1f}秒待機")
+
+            elapsed = 0.0
+            interrupted = False
+            while elapsed < wait_sec:
+                step = min(_WAIT_POLL_SEC, wait_sec - elapsed)
+                try:
+                    await asyncio.sleep(step)
+                except asyncio.CancelledError:
+                    return
+                elapsed += step
+                if _is_reconnected() or _is_room_gone():
+                    interrupted = True
+                    break
+                # 待機中にゲーム状態が変わって行動不要になっていたらキャンセル
+                if room_id in lobby_manager.games:
+                    current_action = _watchdog_what_to_do(lobby_manager.games[room_id], player_idx, room_id)
+                    if current_action != action:
+                        interrupted = True
+                        break
+
+            if interrupted:
+                continue  # ループ先頭で再判定（再接続/状態変化に対応）
+
+            # 待機完了 → 改めて状態を確認してアクション実行
+            if _is_reconnected() or _is_room_gone():
+                continue
+            game = lobby_manager.games[room_id]
+            action_now = _watchdog_what_to_do(game, player_idx, room_id)
+            if action_now is None:
+                continue
+
+            # アクション実行
+            try:
+                if action_now == "skip_call":
+                    pc = getattr(game, 'pending_call', None)
+                    if pc:
+                        print(f"[WATCHDOG] Room {room_id} Player {player_idx} 副露猶予を自動スキップ（+ペナルティ）")
+                        pc.setdefault('responses', {})[player_idx] = 'skip'
+                        # 🌟 切断中の応答タイムアウト → 通常と同じくペナルティ
+                        _increment_penalty(game, player_idx)
+                elif action_now == "charleston_submit":
+                    # 第1交換: 手牌の昇順下位3枚を自動提出（クライアントのタイムアウト挙動 [0,1,2] と一致）
+                    sorted_hand = list(game.hands[player_idx])
+                    if len(sorted_hand) >= 3:
+                        t1, t2, t3 = sorted_hand[0], sorted_hand[1], sorted_hand[2]
+                        print(f"[WATCHDOG] Room {room_id} Player {player_idx} 第1交換を自動提出 {t1},{t2},{t3}（+ペナルティ）")
+                        _increment_penalty(game, player_idx)
+                        await friend_charleston_submit(room_id, player_idx, t1, t2, t3)
+                elif action_now == "second_charleston_answer":
+                    # 第2交換: 「スキップ（参加しない）」で自動回答
+                    print(f"[WATCHDOG] Room {room_id} Player {player_idx} 第2交換を自動スキップ（+ペナルティ）")
+                    _increment_penalty(game, player_idx)
+                    await friend_second_charleston_submit(room_id, player_idx, "false", "", "", "")
+                elif action_now == "discard_drawn":
+                    # 自摸切り（ツモ後）、または副露後の打牌（pon 等で just_drawn が無いケース）
+                    tile_to_discard = ""
+                    if game.just_drawn == player_idx and player_idx < len(game.last_drawn):
+                        t = game.last_drawn[player_idx]
+                        if t and t in game.hands[player_idx]:
+                            tile_to_discard = t
+                    if not tile_to_discard and game.hands[player_idx]:
+                        # 副露後はクライアントのタイマー切れと同じく「ソート済み手牌の末尾」を捨てる
+                        sorted_hand = game.sort_hand(list(game.hands[player_idx]))
+                        if sorted_hand:
+                            tile_to_discard = sorted_hand[-1]
+                    if tile_to_discard:
+                        print(f"[WATCHDOG] Room {room_id} Player {player_idx} 自動打牌 {tile_to_discard}（+ペナルティ）")
+                        _increment_penalty(game, player_idx)
+                        await friend_discard(room_id, player_idx, tile_to_discard)
+                elif action_now == "draw":
+                    print(f"[WATCHDOG] Room {room_id} Player {player_idx} 自動ツモ（+ペナルティ）")
+                    # 🌟 切断中のツモ未実行タイムアウト → 通常と同じくペナルティ
+                    _increment_penalty(game, player_idx)
+                    await friend_draw(room_id, player_idx)
+                elif action_now == "trigger_round_end":
+                    # 山0枚での局終了は時間切れではないのでペナルティ無し
+                    print(f"[WATCHDOG] Room {room_id} Player {player_idx} 山0枚で局終了をトリガ")
+                    await friend_calculate_round_scores(room_id, player_idx)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                print(f"[WATCHDOG] アクション実行失敗 ({action_now}): {e}")
+                traceback.print_exc()
+
+            # ブロードキャスト反映の安定化
+            try:
+                await asyncio.sleep(0.5)
+            except asyncio.CancelledError:
+                return
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            print(f"[WATCHDOG] エラー: {e}")
+            traceback.print_exc()
+            try:
+                await asyncio.sleep(1.0)
+            except asyncio.CancelledError:
+                return
+
+
+# ==========================================
 # 視点回転ユーティリティ
 # ==========================================
 def rotate_for_player(arr: list, player_idx: int) -> list:
@@ -234,6 +597,10 @@ def get_friend_state_for_player(game, player_idx: int) -> dict:
             getattr(game, 'friend_player_names', [f"Player {i}" for i in range(4)]),
             player_idx
         ),
+        # 🌟 サーバー側で管理しているターンタイマーの残量（自分のターンの時のみクライアントで利用する想定）
+        "turn_timer_remaining": _get_turn_timer_remaining(game),
+        # 🌟 交換タイマーの残量（charleston フェーズで意味を持つ）
+        "charleston_timer_remaining": _get_charleston_timer_remaining(game),
     }
     return state
 
@@ -304,6 +671,9 @@ async def friend_charleston_submit(room_id: str, player_idx: int, t1: str, t2: s
     game.last_discard_info = {"player": -1, "tile": ""}
     game.charleston_done = True
 
+    # 🌟 第2交換（最初の質問対象=親）用にタイマーをリセット
+    _start_charleston_timer(game, room_id)
+
     # 各プレイヤーに視点回転済みstate + dice/direction を送信
     for p in range(4):
         state = get_friend_state_for_player(game, p)
@@ -359,6 +729,9 @@ async def friend_second_charleston_submit(
             if t in game.hands[player_idx]:
                 game.hands[player_idx].remove(t)
 
+    # 🌟 次の質問対象のプレイヤー用にタイマーをリセット
+    _start_charleston_timer(game, room_id)
+
     # 「player_idx が回答した」を全員に通知（次の番のプレイヤーに進ませる用）
     await friend_connections.broadcast(room_id, {
         "type": "second_charleston_player_done",
@@ -394,6 +767,9 @@ async def friend_second_charleston_submit(
                 game.hands[p].extend(selections[p])
                 game.hands[p] = game.sort_hand(game.hands[p])
         game.second_charleston_done = True
+        # 🌟 交換タイマー終了 + 親のターンタイマー開始
+        _clear_charleston_timer(game)
+        _start_turn_timer(game, room_id)
         # 全員にスキップを通知
         for p in range(4):
             state = get_friend_state_for_player(game, p)
@@ -440,6 +816,9 @@ async def friend_second_charleston_submit(
     game.just_drawn = -1
     game.last_discard_info = {"player": -1, "tile": ""}
     game.second_charleston_done = True
+    # 🌟 交換タイマー終了 + 親（先頭打牌者）のターンタイマー開始
+    _clear_charleston_timer(game)
+    _start_turn_timer(game, room_id)
 
     # 各プレイヤーに視点回転済みstateを送信
     for p in range(4):
@@ -478,6 +857,8 @@ async def friend_draw(room_id: str, player_idx: int):
     game.just_drawn = player_idx
     game.last_discard_info = {"player": -1, "tile": ""}
     game.append_log("draw", player=player_idx, tile=tile)
+    # 🌟 ツモ後はクライアント側で改めて timeDiscard タイマーが始まるので、サーバー側も合わせる
+    _start_turn_timer(game, room_id)
 
     # 自分（呼び出し元）には実際の牌を含むstateを返す
     my_state = get_friend_state_for_player(game, player_idx)
@@ -587,6 +968,7 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
     # 反応可能なプレイヤーがいない → 即 turn 進行
     if not responders:
         game.turn = (player_idx + 1) % 4
+        _start_turn_timer(game, room_id)
         # 全員に friend_discard を送る + 打牌者には call_resolved を送って checkT させる
         for p in range(4):
             if p == player_idx:
@@ -654,10 +1036,15 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
 
     pc = getattr(game, 'pending_call', None)
     if pc and not pc.get("resolved"):
-        # タイムアウト: 未応答者は skip 扱い
+        # タイムアウト: 未応答者は skip 扱い + ペナルティ加算
+        # （クライアント側で notifyTimerPenalty を投げられないまま timeCall+5 まで来た =
+        #   応答できなかった、または切断中なので、通常のタイマー切れと同じ扱いにする）
+        timeout_reached = elapsed >= TIMEOUT
         for r in pc["responders"]:
             if r not in pc["responses"]:
                 pc["responses"][r] = "skip"
+                if timeout_reached:
+                    _increment_penalty(game, r)
         # 副露判定
         await _resolve_friend_call(room_id, game)
 
@@ -716,6 +1103,7 @@ async def _resolve_friend_call(room_id: str, game):
         # アガリ放題: ターンは打牌者の次に進む（勝者ではない）
         # ただし山が空（海底ロン後）なら局終了は後のステップで実装
         game.turn = (discarder + 1) % 4
+        _start_turn_timer(game, room_id)
         game.pending_call = None
 
         # 全プレイヤーに win イベントを broadcast
@@ -746,6 +1134,7 @@ async def _resolve_friend_call(room_id: str, game):
             game.is_first_turn[claimer] = False
             game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
+            _start_turn_timer(game, room_id)
             # 嶺上ツモ
             drawn = ""
             if game.wall:
@@ -793,6 +1182,7 @@ async def _resolve_friend_call(room_id: str, game):
             game.is_first_turn[claimer] = False
             game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
+            _start_turn_timer(game, room_id)
             # 嶺上ツモ
             drawn = ""
             if game.wall:
@@ -832,6 +1222,7 @@ async def _resolve_friend_call(room_id: str, game):
             game.is_first_turn[claimer] = False
             game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
+            _start_turn_timer(game, room_id)
             game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="pong", tile=tile, from_player=discarder)
             game.pending_call = None
@@ -849,6 +1240,7 @@ async def _resolve_friend_call(room_id: str, game):
 
     # ===== 全員スキップ → turn 進行 =====
     game.turn = (discarder + 1) % 4
+    _start_turn_timer(game, room_id)
     game.pending_call = None
     for p in range(4):
         state = get_friend_state_for_player(game, p)
@@ -941,6 +1333,7 @@ async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "
         game.just_drawn = -1
         # アガリ放題: ターンを次に進める
         game.turn = (player_idx + 1) % 4
+        _start_turn_timer(game, room_id)
 
         effects = get_special_effects(game, player_idx, ctx)
         game.append_log("win", player=player_idx, method="tsumo", tile=tile)
@@ -989,6 +1382,9 @@ async def friend_self_meld(room_id: str, player_idx: int, type: str, tile: str, 
     if isinstance(result, dict) and result.get("chankan_occurred"):
         pass
 
+    # 🌟 自分が継続して打牌するためタイマーをリセット
+    _start_turn_timer(game, room_id)
+
     # 全プレイヤーに friend_self_meld を broadcast
     for p in range(4):
         state = get_friend_state_for_player(game, p)
@@ -1026,6 +1422,9 @@ async def friend_joker_swap(room_id: str, player_idx: int, tile: str, season: st
     if season == "春":
         game.next_tsumo_miaoshou = True
 
+    # 🌟 自分が継続して打牌するためタイマーをリセット
+    _start_turn_timer(game, room_id)
+
     # 全プレイヤーに friend_joker_swap を broadcast
     for p in range(4):
         state = get_friend_state_for_player(game, p)
@@ -1054,6 +1453,8 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
     game = lobby_manager.games[room_id]
 
     result = calculate_round_scores(game=game)
+    # 🌟 局終了時はターンタイマーを無効化（ウォッチドッグが何もしないようにするため）
+    _clear_turn_timer(game)
 
     abs_scores = result.get("scores", [0, 0, 0, 0])
     abs_ranking = result.get("ranking_points", [0, 0, 0, 0])
@@ -1155,6 +1556,24 @@ async def friend_round_ready(room_id: str, player_idx: int):
 
 
 # ==========================================
+# REST: 時間切れペナルティ通知
+# ==========================================
+@router.get("/timer_penalty")
+async def friend_timer_penalty(room_id: str, player_idx: int):
+    """クライアントが自分のタイマーを切らした時に呼ぶ。
+    プレイヤーごとのペナルティ回数を 1 加算する（リロード時の復元用）。"""
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        return {"status": "no_room"}
+    game = lobby_manager.games[room_id]
+    _increment_penalty(game, player_idx)
+    return {
+        "status": "ok",
+        "penalty_count": _get_penalty_count(game, player_idx)
+    }
+
+
+# ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================
 # ==========================================
@@ -1163,6 +1582,19 @@ async def friend_round_ready(room_id: str, player_idx: int):
 @router.get("/rejoin")
 async def friend_rejoin(token: str):
     """ログイン中ユーザーの current_room_id に基づいて途中復帰用の state を返す。"""
+    try:
+        return await _friend_rejoin_impl(token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[FRIEND REJOIN ERROR] {e}")
+        traceback.print_exc()
+        # 500を返すと UI が「対局への復帰に失敗しました」アラートを出して通常モード選択に進めない。
+        # ここでは「復帰対象なし」として 200 を返してフロントを通常選択画面に進める。
+        return {"status": "no_active_room", "error": str(e)}
+
+
+async def _friend_rejoin_impl(token: str):
     from main import lobby_manager
     from auth_routes import resolve_token_to_username
     import time as _time
@@ -1228,19 +1660,20 @@ async def friend_rejoin(token: str):
     # 副露猶予の残り秒数（pending_call が立っている場合）
     pending_remaining = None
     pending_can = None
-    if game.pending_call:
-        elapsed = _time.time() - game.pending_call.get("started_at", _time.time())
+    pending_call = getattr(game, 'pending_call', None)
+    if pending_call:
+        elapsed = _time.time() - pending_call.get("started_at", _time.time())
         user_time_call = float(room_settings.get('timeCall', 20))
         pending_remaining = max(0.0, user_time_call - elapsed)
         # 自分が反応可能か
-        responders = game.pending_call.get("responders", [])
+        responders = pending_call.get("responders", [])
         if player_idx in responders:
             # 簡易再計算（_check_reaction_possible は内部用なのでここでは pending_call の情報から判定）
             pending_can = {
-                "can_ron": player_idx in game.pending_call.get("ron_capable", []),
-                "discarder": (game.pending_call.get("discarder", 0) - player_idx + 4) % 4,
-                "tile": game.pending_call.get("tile", ""),
-                "responded": player_idx in game.pending_call.get("responses", {})
+                "can_ron": player_idx in pending_call.get("ron_capable", []),
+                "discarder": (pending_call.get("discarder", 0) - player_idx + 4) % 4,
+                "tile": pending_call.get("tile", ""),
+                "responded": player_idx in pending_call.get("responses", {})
             }
 
     # 接続状況（誰が切断中か = None）
@@ -1255,6 +1688,38 @@ async def friend_rejoin(token: str):
     # 自分は復帰直後なので True 扱い
     connected_rotated[0] = True
 
+    # 🌟 ターンタイマーの残り秒数（自分のターンの場合のみ意味を持つ）
+    turn_timer_remaining = _get_turn_timer_remaining(game)
+    # 🌟 交換タイマーの残り秒数（charleston フェーズで意味を持つ）
+    charleston_timer_remaining = _get_charleston_timer_remaining(game)
+
+    # 🌟 自分のペナルティ回数と、それを反映した実効タイマー設定
+    penalty_count = _get_penalty_count(game, player_idx)
+    effective_settings = _effective_settings_for_player(room_settings, penalty_count)
+
+    # 🌟 第1交換の提出状況: 自分が既に3枚提出済みかどうか
+    charleston_submitted = False
+    cs = getattr(lobby_manager, 'charleston_selections', {}).get(room_id, {})
+    if player_idx in cs:
+        charleston_submitted = True
+
+    # 🌟 第2交換の進行状況: 何人が回答したか / 自分が回答済みかどうか / 各人の回答
+    confirms_dict = getattr(lobby_manager, 'second_charleston_confirms', {}).get(room_id, {})
+    # 自分視点の dealer 起点で asked_count を数える（=確認辞書のサイズで十分。順序は親→下家→...）
+    second_charleston_asked_count = len(confirms_dict)
+    second_charleston_my_answered = player_idx in confirms_dict
+    second_charleston_my_participate = bool(confirms_dict.get(player_idx, False))
+    # 4要素の絶対座席 → 自分視点に回転して participating を返す
+    abs_participating = [bool(confirms_dict.get(i, False)) for i in range(4)]
+    second_charleston_participating = [
+        abs_participating[(player_idx + i) % 4] for i in range(4)
+    ]
+    # 既に answered か否かを「自分視点で誰々」で返す
+    abs_answered = [i in confirms_dict for i in range(4)]
+    second_charleston_answered = [
+        abs_answered[(player_idx + i) % 4] for i in range(4)
+    ]
+
     return {
         "status": "ok",
         "room_id": room_id,
@@ -1262,10 +1727,20 @@ async def friend_rejoin(token: str):
         "player_names": list(getattr(game, 'friend_player_names', [])) or [],
         "dealer": game.dealer,
         "settings": room_settings,
+        "effective_settings": effective_settings,
+        "penalty_count": penalty_count,
         "phase": phase,
         "pending_remaining": pending_remaining,
         "pending_can": pending_can,
+        "turn_timer_remaining": turn_timer_remaining,
+        "charleston_timer_remaining": charleston_timer_remaining,
         "connected": connected_rotated,
+        "charleston_submitted": charleston_submitted,
+        "second_charleston_asked_count": second_charleston_asked_count,
+        "second_charleston_my_answered": second_charleston_my_answered,
+        "second_charleston_my_participate": second_charleston_my_participate,
+        "second_charleston_participating": second_charleston_participating,
+        "second_charleston_answered": second_charleston_answered,
         "state": state
     }
 

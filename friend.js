@@ -116,11 +116,12 @@ async function rejoinFriendGame() {
             localStorage.setItem('shiki_mahjong_room_id', data.room_id);
         }
 
-        // タイマー設定を上書き
-        if (data.settings) {
-            if (typeof timeDiscard !== 'undefined') timeDiscard = data.settings.timeDiscard || 60;
-            if (typeof timeCall !== 'undefined') timeCall = data.settings.timeCall || 20;
-            if (typeof timeExchange !== 'undefined') timeExchange = data.settings.timeExchange || 60;
+        // タイマー設定を上書き（ペナルティ反映済みの effective_settings があればそちらを優先）
+        const baseSettings = data.effective_settings || data.settings;
+        if (baseSettings) {
+            if (typeof timeDiscard !== 'undefined') timeDiscard = baseSettings.timeDiscard || 60;
+            if (typeof timeCall !== 'undefined') timeCall = baseSettings.timeCall || 20;
+            if (typeof timeExchange !== 'undefined') timeExchange = baseSettings.timeExchange || 60;
         }
 
         // ゲームモード切り替え
@@ -156,7 +157,8 @@ async function rejoinFriendGame() {
         if (typeof renderCPU === 'function') renderCPU();
         if (typeof updateInfoUI === 'function') updateInfoUI();
 
-        // WS接続
+        // WS接続（onopen 内の fetchFriendInitialState はスキップさせる）
+        friendSkipInitialStateOnOpen = true;
         connectFriendGameWs();
         setProgress(92);
 
@@ -181,15 +183,107 @@ async function _resumeByPhase(rejoinData) {
     const phase = rejoinData.phase;
     console.log('[REJOIN] フェーズ:', phase);
 
+    // 🌟 サーバーから返ってきた交換タイマーの残り秒数を sessionStorage に流し込み、
+    //    startTimer の既存復元ロジック（isResuming + endTime 参照）で残り時間からカウント再開させる。
+    const csRemaining = rejoinData.charleston_timer_remaining;
+    function _applyCharlestonRemaining() {
+        if (typeof csRemaining === 'number' && csRemaining > 0) {
+            const endTime = Date.now() + Math.round(csRemaining * 1000);
+            try {
+                sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
+            } catch (e) { }
+            if (typeof isResuming !== 'undefined') isResuming = true;
+        }
+    }
+
     if (phase === 'charleston') {
         // 第1交換中
         if (typeof charlestonCount !== 'undefined') charlestonCount = 1;
         if (typeof isProc !== 'undefined') isProc = false;
-        if (typeof startCharlestonSelection === 'function') startCharlestonSelection();
+        if (rejoinData.charleston_submitted) {
+            // 🌟 既に3枚提出済み: 選択UIは出さず、待機画面に切り替える
+            console.log('[REJOIN] 第1交換は既に提出済み → 待機表示');
+            const cUi = document.getElementById('charleston-ui');
+            if (cUi) cUi.style.display = 'none';
+            const btn = document.getElementById('btn-exchange');
+            if (btn) btn.style.display = 'none';
+            if (typeof charlestonPhase !== 'undefined') charlestonPhase = true;
+            if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+            // 自分の前に「提出済み(裏3枚)」スタンプを出す
+            if (typeof showCharlestonStatus === 'function') showCharlestonStatus(0, true);
+            const msgEl = document.getElementById('msg');
+            if (msgEl) { msgEl.innerText = "待機中..."; msgEl.className = ""; }
+            if (typeof isProc !== 'undefined') isProc = true; // 操作不可
+        } else {
+            _applyCharlestonRemaining();
+            if (typeof startCharlestonSelection === 'function') startCharlestonSelection();
+        }
     } else if (phase === 'second_charleston') {
-        // 第2交換中
-        if (typeof isProc !== 'undefined') isProc = false;
-        if (typeof friendAskNextPlayer === 'function') friendAskNextPlayer();
+        // 第2交換中: サーバーから渡された進行状況を復元
+        if (typeof charlestonCount !== 'undefined') charlestonCount = 2;
+        if (typeof charlestonPhase !== 'undefined') charlestonPhase = true;
+        if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+
+        // 🌟 friendStartSecondCharleston と同じく「第2交換」パネルを再表示する
+        const cTitle = document.getElementById('c-title');
+        if (cTitle) {
+            cTitle.innerText = "第2交換 (Second Charleston)";
+            cTitle.style.color = "#f1c40f";
+        }
+        const cUiOpen = document.getElementById('charleston-ui');
+        if (cUiOpen) {
+            cUiOpen.style.zIndex = "9999";
+            cUiOpen.style.display = "block";
+        }
+        const btnReopen = document.getElementById('btn-exchange');
+        if (btnReopen) btnReopen.style.display = "none";
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
+
+        const askedCount = rejoinData.second_charleston_asked_count || 0;
+        const answeredRel = Array.isArray(rejoinData.second_charleston_answered)
+            ? rejoinData.second_charleston_answered : [false, false, false, false];
+        const participatingRel = Array.isArray(rejoinData.second_charleston_participating)
+            ? rejoinData.second_charleston_participating : [false, false, false, false];
+
+        if (typeof friendSecondAskedCount !== 'undefined') friendSecondAskedCount = askedCount;
+        if (typeof friendSecondParticipating !== 'undefined') {
+            // 既存配列は絶対座席で使われている。dealer 起点で復元するため絶対座席に戻す
+            for (let rel = 0; rel < 4; rel++) {
+                const abs = (myPlayerIdx + rel) % 4;
+                friendSecondParticipating[abs] = !!participatingRel[rel];
+            }
+        }
+
+        // 既に回答済みのプレイヤーの場に「参加(裏3枚)」or「過」スタンプを再描画
+        if (typeof showCharlestonStatus === 'function') {
+            for (let rel = 0; rel < 4; rel++) {
+                if (answeredRel[rel]) {
+                    showCharlestonStatus(rel, !!participatingRel[rel]);
+                    if (rel !== 0 && participatingRel[rel] && typeof hideCpuTiles !== 'undefined') {
+                        hideCpuTiles[rel] = 3;
+                    }
+                }
+            }
+        }
+        if (typeof renderCPU === 'function') renderCPU();
+
+        if (rejoinData.second_charleston_my_answered) {
+            // 🌟 自分は回答済み → UIは出さず、他プレイヤーの回答待ち
+            console.log('[REJOIN] 第2交換は既に回答済み → 待機表示');
+            const cUi = document.getElementById('charleston-ui');
+            if (cUi) cUi.style.display = 'none';
+            const btn = document.getElementById('btn-exchange');
+            if (btn) btn.style.display = 'none';
+            const msgEl = document.getElementById('msg');
+            if (msgEl) { msgEl.innerText = "待機中..."; msgEl.className = ""; }
+            if (typeof isProc !== 'undefined') isProc = true;
+        } else {
+            // 自分が回答対象の番なら、startTimer で交換タイマー残量を引き継ぐ
+            const currentAskerRel = (typeof dealer !== 'undefined' ? (dealer + askedCount) % 4 : -1);
+            if (currentAskerRel === 0) _applyCharlestonRemaining();
+            if (typeof isProc !== 'undefined') isProc = false;
+            if (typeof friendAskNextPlayer === 'function') friendAskNextPlayer();
+        }
     } else if (phase === 'pending_call') {
         // 副露猶予中
         const pc = rejoinData.pending_can;
@@ -199,7 +293,10 @@ async function _resumeByPhase(rejoinData) {
             if (typeof lastDiscardPlayer !== 'undefined') lastDiscardPlayer = pc.discarder;
             if (typeof lastT !== 'undefined') lastT = pc.tile;
             if (typeof checkHumanReaction === 'function') {
-                checkHumanReaction(pc.discarder, pc.tile);
+                // 🌟 checkHumanReaction は async（内部で await apiCall 多数）。
+                // 中で startTimer(timeCall, ...) を呼んでフルタイマーをセットするので、
+                // それを await で待ってから残り秒数に上書きする必要がある。
+                await checkHumanReaction(pc.discarder, pc.tile);
                 // タイマー残り秒数で上書き
                 if (typeof stopTimer === 'function') stopTimer();
                 if (typeof startTimer === 'function') {
@@ -220,10 +317,47 @@ async function _resumeByPhase(rejoinData) {
         }
     } else {
         // play フェーズ（通常ターン）
+        // 🌟 自分のターンでサーバーが残り時間を返してきていたら、
+        //    既存の isResuming/sessionStorage 経由で startTimer に引き継ぐ
+        const remaining = rejoinData.turn_timer_remaining;
+        if (typeof turn !== 'undefined' && turn === 0 && typeof remaining === 'number' && remaining > 0) {
+            const endTime = Date.now() + Math.round(remaining * 1000);
+            try {
+                sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
+            } catch (e) { }
+            if (typeof isResuming !== 'undefined') isResuming = true;
+        }
         if (typeof isProc !== 'undefined') isProc = false;
-        if (typeof checkT === 'function') checkT();
+        if (typeof checkT === 'function') {
+            // 🌟 checkT は async。中で startTimer(timeDiscard, ...) を呼ぶ。
+            //    isResuming フラグを事前にセットしてあるので、sessionStorage 経由で残り時間が反映される。
+            //    ただし await で待つことで、checkT 完了後に念のためタイマー上書きで残り時間を確実に反映する。
+            await checkT();
+            // 🌟 安全のため、自分のターンならタイマーを残り秒数で再セット（フルタイマーになっている場合の保険）
+            if (typeof turn !== 'undefined' && turn === 0 && typeof remaining === 'number' && remaining > 0) {
+                // checkT 内ですでに startTimer が呼ばれているはず。残り秒数の方が短いなら上書き。
+                // 現在のタイマー残り秒数を取得して、サーバーの remaining より長ければ上書き
+                if (typeof timeLeft !== 'undefined' && timeLeft > remaining + 1) {
+                    if (typeof stopTimer === 'function') stopTimer();
+                    if (typeof startTimer === 'function') {
+                        // 元のコールバックを保持できないので、シンプルに timeDiscard 用のオート打牌コールバックを再現
+                        startTimer(remaining, () => {
+                            // 時間切れ → ツモ切り
+                            if (typeof drawnTile !== 'undefined' && drawnTile !== "" && typeof discard === 'function') {
+                                discard(drawnTile, true, 'drawn');
+                            } else if (typeof myHand !== 'undefined' && myHand.length > 0 && typeof discard === 'function') {
+                                discard(myHand[myHand.length - 1], false, myHand.length - 1);
+                            }
+                        });
+                    }
+                }
+            }
+        }
     }
 }
+
+// 🌟 復帰時は WS の onopen での「初期state→第1交換開始」自動シーケンスを抑止する
+let friendSkipInitialStateOnOpen = false;
 
 // ==========================================
 // 対局中のWebSocket接続
@@ -235,6 +369,12 @@ function connectFriendGameWs() {
 
     friendWs.onopen = () => {
         console.log("[FRIEND] WS接続成功。初期stateを取得します");
+        // 🌟 復帰時は _resumeByPhase が UI を組んでいるので、初期stateフローはスキップ
+        if (friendSkipInitialStateOnOpen) {
+            friendSkipInitialStateOnOpen = false;
+            console.log("[FRIEND] 復帰中のため fetchFriendInitialState はスキップ");
+            return;
+        }
         // ステップ1: 初期stateを取得して画面に反映
         fetchFriendInitialState();
     };
@@ -277,6 +417,17 @@ async function fetchFriendInitialState() {
         // 🌟 第1交換の選択画面を表示（CPU戦と同じ関数を流用）
         if (typeof charlestonCount !== 'undefined') {
             charlestonCount = 1;
+        }
+        // 🌟 サーバー側で起動済みの交換タイマー残量に合わせて、クライアント間の表示ズレを抑える
+        //    （reset_round 時に _start_charleston_timer が走っているので、ここに来る時点で
+        //     既に1〜2秒経過していることがある）
+        const csRemaining = state.charleston_timer_remaining;
+        if (typeof csRemaining === 'number' && csRemaining > 0) {
+            const endTime = Date.now() + Math.round(csRemaining * 1000);
+            try {
+                sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
+            } catch (e) { }
+            if (typeof isResuming !== 'undefined') isResuming = true;
         }
         if (typeof startCharlestonSelection === 'function') {
             startCharlestonSelection();

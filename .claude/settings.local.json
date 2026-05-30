@@ -23,7 +23,8 @@
       "Bash(findstr LISTENING)",
       "Bash(curl -s \"http://127.0.0.1:8765/app.js\")",
       "Bash(curl -s \"http://127.0.0.1:8765/main.py\")",
-      "PowerShell(& \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\" log --oneline -20)"
+      "PowerShell(& \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\" log --oneline -20)",
+      "Bash(node *)"
     ]
   }
 }

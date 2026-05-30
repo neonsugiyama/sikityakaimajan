@@ -120,6 +120,7 @@ function startTimer(seconds, timeoutCallback) {
                 //console.log(`[タイマー処理] 🚀 強制アクション発動！`);
                 timeDiscard = Math.max(5, timeDiscard - 20);
                 timeCall = Math.max(5, timeCall - 5);
+                notifyTimerPenalty();
                 finalAction();
             }, 100);
         }
@@ -158,12 +159,24 @@ function startTimer(seconds, timeoutCallback) {
             //console.log(`[タイマー処理] ⌛ 通常の時間切れ。アクションを実行します。`);
             timeDiscard = Math.max(5, timeDiscard - 20);
             timeCall = Math.max(5, timeCall - 5);
+            notifyTimerPenalty();
 
             if (typeof finalAction === 'function') {
                 finalAction();
             }
         }
     }, 1000);
+}
+
+// 🌟 友人戦: 時間切れペナルティをサーバーへ通知（リロード時に復元するため）
+function notifyTimerPenalty() {
+    if (currentGameMode !== 'friend') return;
+    if (typeof friendRoomId === 'undefined' || !friendRoomId) return;
+    if (typeof myPlayerIdx === 'undefined' || myPlayerIdx < 0) return;
+    try {
+        fetch(`/friend/timer_penalty?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`,
+            { cache: 'no-store' }).catch(() => {});
+    } catch (e) { }
 }
 
 // ⏹️ 動作中の持ち時間タイマーを停止・破棄する関数

@@ -352,6 +352,16 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                 lobby_manager.second_charleston_confirms[room_id] = {}
                 lobby_manager.second_charleston_selections[room_id] = {}
 
+                # 🌟 ペナルティ回数（プレイヤーごと）を初期化
+                room_game.player_penalty_counts = [0, 0, 0, 0]
+
+                # 🌟 第1交換タイマーをサーバー側でも開始（クライアントの startTimer と同期）
+                try:
+                    from friend_routes import _start_charleston_timer
+                    _start_charleston_timer(room_game, room_id)
+                except Exception as e:
+                    print(f"[LOBBY] charleston timer 初期化失敗: {e}")
+
                 # 各プレイヤーに「ゲーム画面に遷移してね + 自分の player_idx」を通知
                 room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {
                     "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
