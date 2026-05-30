@@ -31,11 +31,20 @@ class FriendGameConnections:
         self.connections: Dict[str, List[WebSocket]] = {}
         # room_id → asyncio.Task （全員切断時のクリーンアップタスク）
         self._cleanup_tasks: Dict[str, "asyncio.Task"] = {}
+        # room_id → [bool, bool, bool, bool] 各player_idxが一度でも接続したか（再接続判定用）
+        self._ever_connected: Dict[str, List[bool]] = {}
 
-    async def connect(self, websocket: WebSocket, room_id: str, player_idx: int):
+    async def connect(self, websocket: WebSocket, room_id: str, player_idx: int) -> bool:
+        """接続を登録。戻り値は「これが再接続か（過去に一度でも接続したことがあるか）」を表す。"""
         await websocket.accept()
         if room_id not in self.connections:
             self.connections[room_id] = [None, None, None, None]
+        if room_id not in self._ever_connected:
+            self._ever_connected[room_id] = [False, False, False, False]
+
+        # 🌟 再接続判定: 過去に一度でも接続したことがあるか
+        is_rejoin = self._ever_connected[room_id][player_idx]
+        self._ever_connected[room_id][player_idx] = True
 
         # 🌟 既存接続があれば閉じる（再接続時の差し替え）
         old = self.connections[room_id][player_idx]
@@ -46,13 +55,15 @@ class FriendGameConnections:
                 pass
 
         self.connections[room_id][player_idx] = websocket
-        print(f"[FRIEND WS] Room {room_id} に Player {player_idx} が接続")
+        print(f"[FRIEND WS] Room {room_id} に Player {player_idx} が接続 (rejoin={is_rejoin})")
 
         # 🌟 クリーンアップタスクがあればキャンセル（全員切断 → 誰か復帰）
         if room_id in self._cleanup_tasks:
             self._cleanup_tasks[room_id].cancel()
             del self._cleanup_tasks[room_id]
             print(f"[FRIEND WS] Room {room_id} のクリーンアップタスクをキャンセル（再接続）")
+
+        return is_rejoin
 
     def disconnect(self, websocket: WebSocket, room_id: str):
         if room_id not in self.connections:
@@ -91,6 +102,8 @@ class FriendGameConnections:
             # 経過後、まだ誰も繋がっていなければクリーンアップ
             if room_id in self.connections and not any(self.connections[room_id]):
                 del self.connections[room_id]
+                if room_id in self._ever_connected:
+                    del self._ever_connected[room_id]
                 print(f"[FRIEND WS] Room {room_id} 猶予期間終了。対局を削除します。")
                 try:
                     from main import lobby_manager
@@ -1258,13 +1271,13 @@ async def friend_rejoin(token: str):
 
 
 
+@router.websocket("/ws/{room_id}/{player_idx}")
 async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: int):
     """対局中の双方向通信。各プレイヤーがゲーム画面に入ったら接続する。"""
-    # 🌟 既に対局中（lobby_manager.games に存在）なら、再接続として扱い他プレイヤーに通知
     from main import lobby_manager
-    is_rejoin = room_id in lobby_manager.games and friend_connections.connections.get(room_id) is not None
 
-    await friend_connections.connect(websocket, room_id, player_idx)
+    # 🌟 再接続判定は connect() が「過去に一度でも繋いだ player_idx か」を返す
+    is_rejoin = await friend_connections.connect(websocket, room_id, player_idx)
 
     # 🌟 再接続なら他プレイヤーに通知（プレイヤー名も含めて）
     if is_rejoin:
