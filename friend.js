@@ -916,6 +916,13 @@ function handleFriendEvent(data) {
             showReconnectToast(`${playerName} が再接続しました`, false);
             if (typeof updateInfoUI === 'function') updateInfoUI();
         }
+    } else if (type === "friend_stamp") {
+        // 🌟 他プレイヤーからのスタンプ表示
+        const absIdx = data.player_idx;
+        const relIdx = (absIdx - myPlayerIdx + 4) % 4;
+        if (relIdx !== 0 && typeof showStamp === 'function') {
+            showStamp(relIdx, data.content);
+        }
     }
 }
 

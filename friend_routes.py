@@ -1608,6 +1608,22 @@ async def friend_timer_penalty(room_id: str, player_idx: int):
         "penalty_count": _get_penalty_count(game, player_idx)
     }
 
+# ==========================================
+# REST: スタンプを他プレイヤーに中継
+# ==========================================
+@router.get("/stamp")
+async def friend_stamp(room_id: str, player_idx: int, content: str):
+    """指定プレイヤーが押したスタンプを他3人にブロードキャストする。"""
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        raise HTTPException(status_code=404, detail="対局が見つかりません")
+    # 他プレイヤーに通知（自分には送らない。自分は既にローカルで表示済み）
+    await friend_connections.send_to_others(room_id, player_idx, {
+        "type": "friend_stamp",
+        "player_idx": player_idx,
+        "content": content
+    })
+    return {"status": "ok"}
 
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期

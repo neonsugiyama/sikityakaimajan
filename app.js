@@ -1162,6 +1162,13 @@ function sendStamp(stampContent) {
     const menu = document.getElementById('stamp-menu');
     if (menu) menu.style.display = 'none';
     showStamp(0, stampContent);
+    // 🌟 友人戦: 他プレイヤーにブロードキャスト
+    if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId
+        && typeof myPlayerIdx !== 'undefined' && myPlayerIdx >= 0) {
+        try {
+            fetch(`/friend/stamp?room_id=${encodeURIComponent(friendRoomId)}&player_idx=${myPlayerIdx}&content=${encodeURIComponent(stampContent)}&_t=${Date.now()}`, { cache: 'no-store' });
+        } catch (e) { console.warn('[STAMP] 送信失敗:', e); }
+    }
 }
 
 function showStamp(playerIdx, content) {
