@@ -10,6 +10,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import Dict, List
 import traceback
+import asyncio
 
 router = APIRouter(prefix="/friend")
 
@@ -66,17 +67,15 @@ class FriendGameConnections:
 
         # 🌟 他プレイヤーに切断通知
         if disconnected_idx >= 0:
-            import asyncio as _async
             try:
-                _async.create_task(self._notify_disconnect(room_id, disconnected_idx))
+                asyncio.create_task(self._notify_disconnect(room_id, disconnected_idx))
             except Exception:
                 pass
 
         if not any(self.connections[room_id]):
             # 🌟 全員切断 → 即削除せず、60秒の猶予タイマー開始
             print(f"[FRIEND WS] Room {room_id} は全員切断。{self.CLEANUP_GRACE_SEC}秒の猶予開始")
-            import asyncio as _async
-            self._cleanup_tasks[room_id] = _async.create_task(self._delayed_cleanup(room_id))
+            self._cleanup_tasks[room_id] = asyncio.create_task(self._delayed_cleanup(room_id))
 
     async def _notify_disconnect(self, room_id: str, player_idx: int):
         """他プレイヤーに player_disconnected を送る"""
@@ -87,9 +86,8 @@ class FriendGameConnections:
 
     async def _delayed_cleanup(self, room_id: str):
         """全員切断後、猶予秒数経過したら game 状態を削除"""
-        import asyncio as _async
         try:
-            await _async.sleep(self.CLEANUP_GRACE_SEC)
+            await asyncio.sleep(self.CLEANUP_GRACE_SEC)
             # 経過後、まだ誰も繋がっていなければクリーンアップ
             if room_id in self.connections and not any(self.connections[room_id]):
                 del self.connections[room_id]
@@ -118,7 +116,7 @@ class FriendGameConnections:
                     print(f"[FRIEND WS] cleanup失敗: {e}")
             if room_id in self._cleanup_tasks:
                 del self._cleanup_tasks[room_id]
-        except _async.CancelledError:
+        except asyncio.CancelledError:
             # 再接続でキャンセルされた場合
             pass
 
