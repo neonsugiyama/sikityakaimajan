@@ -283,6 +283,7 @@
         </div>
     </div>
 
+    <!-- 🤝 友人戦用ホスト設定モーダル -->
     <div id="friend-settings-screen" class="modal-overlay" style="display: none;">
         <div class="modal-content match-settings-content">
             <h2 class="modal-title">FRIEND MATCH SETTINGS</h2>
@@ -337,9 +338,26 @@
             <div id="friend-menu-waiting" style="display: none;">
                 <h3 style="color: #bdc3c7;">ルームID: <span id="display-room-id" class="friend-room-id">---</span></h3>
                 <button onclick="copyRoomUrl()" class="friend-btn-copy">📋 招待URLをコピー</button>
+
                 <div class="friend-wait-box">
-                    <p class="friend-wait-text">メンバーを待っています...</p>
-                    <div class="friend-wait-count"><span id="room-player-count">1</span> / 4</div>
+                    <p class="friend-wait-text">メンバー</p>
+                    <div id="lobby-seats-list" style="display: flex; flex-direction: column; gap: 8px; margin: 12px 0;">
+                        <!-- 動的に席を表示 -->
+                    </div>
+                </div>
+
+                <!-- 🤖 ホスト専用: CPU 追加コントロール -->
+                <div id="lobby-host-controls" style="display: none; margin-top: 12px;">
+                    <p style="color: #bdc3c7; margin-bottom: 6px; font-size: 14px;">CPU を空席に追加:</p>
+                    <div style="display: flex; gap: 6px; justify-content: center;">
+                        <button onclick="addCpuToLobby(0)" style="flex: 1; padding: 10px 6px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">よわい</button>
+                        <button onclick="addCpuToLobby(1)" style="flex: 1; padding: 10px 6px; background: #2980b9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">ふつう</button>
+                        <button onclick="addCpuToLobby(2)" style="flex: 1; padding: 10px 6px; background: #1f6391; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;">つよい</button>
+                    </div>
+                    <button id="btn-host-start" onclick="hostStartGame()"
+                            style="width: 100%; margin-top: 12px; padding: 12px; font-size: 16px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; opacity: 0.5; pointer-events: none;">
+                        ▶ 対局開始
+                    </button>
                 </div>
             </div>
             <button onclick="closeFriendMatch()" class="btn-act btn-gray modal-close-bottom" style="width: 100%; margin-top: 20px; box-sizing: border-box;">閉じる / 退室</button>
@@ -1689,8 +1707,8 @@
     <script src="tutorial.js?v=2"></script>
     <script src="ui.js?v=1"></script>
     <script src="config.js?v=1"></script>
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
     <script src="game.js?v=20"></script>
-    <script src="friend.js?v=1"></script>
+    <script src="friend.js?v=2"></script>
 </body>
 </html>

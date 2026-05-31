@@ -973,8 +973,28 @@ function enterWaitingRoom(roomId, hostSettings = null) {
     lobbyWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === "lobby_update") {
+            // 旧仕様の互換（使用しない可能性大）
             const countEl = document.getElementById('room-player-count');
             if (countEl) countEl.innerText = data.player_count;
+        }
+        if (data.type === "lobby_welcome") {
+            // 自分の席番号 + ホスト判定を受け取る
+            window.lobbyMySeat = data.my_seat;
+            window.lobbyIsHost = data.is_host;
+            // ホスト用UIの表示制御
+            const hostCtrl = document.getElementById('lobby-host-controls');
+            if (hostCtrl) hostCtrl.style.display = data.is_host ? 'block' : 'none';
+        }
+        if (data.type === "seats_update") {
+            // 席の表示を更新
+            renderLobbySeats(data.seats);
+        }
+        if (data.type === "lobby_full") {
+            alert("このルームは満員です");
+            if (typeof closeFriendMatch === 'function') closeFriendMatch();
+        }
+        if (data.type === "lobby_error") {
+            alert(data.message || "ロビーエラー");
         }
         if (data.type === "game_start") {
             // 🤝 友人戦の本対局開始 → friend.js に処理を委譲
@@ -989,6 +1009,85 @@ function enterWaitingRoom(roomId, hostSettings = null) {
     lobbyWs.onclose = () => {
         console.log("ロビーから切断されました");
     };
+}
+
+// 🤝 ロビー: 席リストを描画
+function renderLobbySeats(seats) {
+    const list = document.getElementById('lobby-seats-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const cpuLevelLabel = ['よわい', 'ふつう', 'つよい'];
+    for (let i = 0; i < 4; i++) {
+        const seat = seats[i];
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(255,255,255,0.08); border-radius:6px;';
+
+        const idxLabel = document.createElement('span');
+        idxLabel.style.cssText = 'color:#bdc3c7; font-size:12px; min-width:36px;';
+        idxLabel.innerText = `席${i + 1}`;
+        row.appendChild(idxLabel);
+
+        const nameLabel = document.createElement('span');
+        nameLabel.style.cssText = 'flex:1; color:white; font-size:15px;';
+        if (!seat) {
+            nameLabel.innerText = '（空席）';
+            nameLabel.style.color = '#7f8c8d';
+        } else if (seat.type === 'human') {
+            nameLabel.innerText = '👤 ' + (seat.name || 'Player');
+            if (i === (window.lobbyMySeat ?? -1)) {
+                nameLabel.innerHTML += ' <span style="color:#f1c40f; font-size:12px;">(あなた)</span>';
+            }
+        } else if (seat.type === 'cpu') {
+            const lvl = (seat.cpu_level !== undefined && seat.cpu_level !== null) ? cpuLevelLabel[seat.cpu_level] : '?';
+            nameLabel.innerHTML = `🤖 ${seat.name} <span style="color:#3498db; font-size:12px;">(${lvl})</span>`;
+        }
+        row.appendChild(nameLabel);
+
+        // ホストのみ: CPU 削除ボタン
+        if (window.lobbyIsHost && seat && seat.type === 'cpu') {
+            const btnRm = document.createElement('button');
+            btnRm.innerText = '✕';
+            btnRm.style.cssText = 'background:#c0392b; color:white; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:14px;';
+            btnRm.onclick = () => removeCpuFromLobby(i);
+            row.appendChild(btnRm);
+        }
+
+        list.appendChild(row);
+    }
+
+    // 「対局開始」ボタンの有効化（席が全部埋まっていれば押せる）
+    const btnStart = document.getElementById('btn-host-start');
+    if (btnStart && window.lobbyIsHost) {
+        const allFilled = seats.every(s => s !== null);
+        if (allFilled) {
+            btnStart.style.opacity = '1';
+            btnStart.style.pointerEvents = 'auto';
+        } else {
+            btnStart.style.opacity = '0.5';
+            btnStart.style.pointerEvents = 'none';
+        }
+    }
+}
+
+// 🤝 ロビー: CPU 追加（ホスト用）
+function addCpuToLobby(level) {
+    if (typeof playSE === 'function') playSE('click');
+    if (!lobbyWs || lobbyWs.readyState !== WebSocket.OPEN) return;
+    lobbyWs.send(JSON.stringify({ type: 'host_add_cpu', cpu_level: level }));
+}
+
+// 🤝 ロビー: CPU 削除（ホスト用）
+function removeCpuFromLobby(seatIdx) {
+    if (typeof playSE === 'function') playSE('click');
+    if (!lobbyWs || lobbyWs.readyState !== WebSocket.OPEN) return;
+    lobbyWs.send(JSON.stringify({ type: 'host_remove_cpu', seat: seatIdx }));
+}
+
+// 🤝 ロビー: 対局開始（ホスト用）
+function hostStartGame() {
+    if (typeof playSE === 'function') playSE('click');
+    if (!lobbyWs || lobbyWs.readyState !== WebSocket.OPEN) return;
+    lobbyWs.send(JSON.stringify({ type: 'host_start_game' }));
 }
 
 function copyRoomUrl() {
@@ -1162,13 +1261,6 @@ function sendStamp(stampContent) {
     const menu = document.getElementById('stamp-menu');
     if (menu) menu.style.display = 'none';
     showStamp(0, stampContent);
-    // 🌟 友人戦: 他プレイヤーにブロードキャスト
-    if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId
-        && typeof myPlayerIdx !== 'undefined' && myPlayerIdx >= 0) {
-        try {
-            fetch(`/friend/stamp?room_id=${encodeURIComponent(friendRoomId)}&player_idx=${myPlayerIdx}&content=${encodeURIComponent(stampContent)}&_t=${Date.now()}`, { cache: 'no-store' });
-        } catch (e) { console.warn('[STAMP] 送信失敗:', e); }
-    }
 }
 
 function showStamp(playerIdx, content) {

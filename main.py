@@ -275,6 +275,12 @@ lobby_manager = ConnectionManager()
 # ==========================================
 @app.websocket("/ws/lobby/{room_id}")
 async def websocket_lobby(websocket: WebSocket, room_id: str):
+    """友人戦ロビー WS（席管理 + CPU 追加/削除 + ホスト開始）
+
+    席は lobby_manager.seats[room_id] で管理:
+      [{"type": "human"/"cpu", "name": str, "username": str|None, "cpu_level": int|None}, ...]
+    ホストは1人目の接続者（席0）。
+    """
     print(f"\n[LOBBY] === 新規接続 Room: {room_id} ===")
     try:
         await lobby_manager.connect(websocket, room_id)
@@ -285,120 +291,238 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
         try:
             name_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
             player_name = name_msg.get("name", "Player")
-            # 🌟 ホスト（1人目）から設定値を受信
             host_settings = name_msg.get("settings")
             if host_settings:
                 if not hasattr(lobby_manager, 'room_settings'):
                     lobby_manager.room_settings = {}
                 lobby_manager.room_settings[room_id] = host_settings
                 print(f"[LOBBY] Room {room_id} のホスト設定: {host_settings}")
-            # 🌟 ログイン中ならトークンを受信（途中復帰機能用）
             player_token = name_msg.get("token")
         except Exception:
             player_name = "Player"
 
-        if not hasattr(lobby_manager, 'player_names'):
-            lobby_manager.player_names = {}
-        if room_id not in lobby_manager.player_names:
-            lobby_manager.player_names[room_id] = []
-        lobby_manager.player_names[room_id].append(player_name)
-
-        # 🌟 ログイン中ユーザーの username を絶対座席に紐付け（復帰判定で使用）
-        if not hasattr(lobby_manager, 'player_usernames'):
-            lobby_manager.player_usernames = {}
-        if room_id not in lobby_manager.player_usernames:
-            lobby_manager.player_usernames[room_id] = []
+        # ユーザー名（トークン解決）
         try:
             from auth_routes import resolve_token_to_username
             username = resolve_token_to_username(player_token) if player_token else None
         except Exception:
             username = None
-        lobby_manager.player_usernames[room_id].append(username)
 
+        # 席の初期化
+        if not hasattr(lobby_manager, 'seats'):
+            lobby_manager.seats = {}
+        if room_id not in lobby_manager.seats:
+            lobby_manager.seats[room_id] = [None, None, None, None]
 
-        player_count = len(lobby_manager.active_connections[room_id])
-        print(f"[LOBBY] Room {room_id}: {player_count}人目 ({player_name}) 接続")
+        # 一番若い空席に着席
+        seats = lobby_manager.seats[room_id]
+        my_seat_idx = -1
+        for i in range(4):
+            if seats[i] is None:
+                seats[i] = {"type": "human", "name": player_name, "username": username, "cpu_level": None}
+                my_seat_idx = i
+                break
 
-        await lobby_manager.broadcast_to_room(room_id, {
-            "type": "lobby_update",
-            "player_count": player_count
+        if my_seat_idx < 0:
+            await websocket.send_json({"type": "lobby_full"})
+            await websocket.close()
+            lobby_manager.disconnect(websocket, room_id)
+            return
+
+        # ws と席番号を紐付け（切断時の解放用）
+        if not hasattr(lobby_manager, 'seat_owner'):
+            lobby_manager.seat_owner = {}
+        lobby_manager.seat_owner[(id(websocket), room_id)] = my_seat_idx
+
+        print(f"[LOBBY] Room {room_id}: 席 {my_seat_idx} に {player_name} (human) が着席")
+
+        # welcome 送信
+        is_host = (my_seat_idx == 0)
+        await websocket.send_json({
+            "type": "lobby_welcome",
+            "my_seat": my_seat_idx,
+            "is_host": is_host,
+            "room_id": room_id
         })
 
-        # 🌟 4人揃ったらゲームを開始
-        if player_count == 4:
-            print(f"[LOBBY] Room {room_id}: 4人揃いました。ゲーム開始準備...")
-            try:
-                if room_id not in lobby_manager.games:
-                    lobby_manager.games[room_id] = GameState()
+        # 席情報 broadcast
+        await _broadcast_seats_update(room_id)
 
-                room_game = lobby_manager.games[room_id]
-                room_game.reset_round()
-                room_game.friend_player_names = list(lobby_manager.player_names[room_id])
-                # 🌟 牌譜（リプレイ）データにも実際のプレイヤー名を反映
-                room_game.replay_data["player_names"] = list(lobby_manager.player_names[room_id])
-                room_game.replay_data["room_id"] = room_id
-
-                # 🌟 ログイン中ユーザーの current_room_id をDBに記録（途中復帰機能用）
-                try:
-                    from auth_routes import set_user_current_room
-                    if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
-                        for username in lobby_manager.player_usernames[room_id]:
-                            if username:
-                                set_user_current_room(username, room_id)
-                except Exception as e:
-                    print(f"[LOBBY] current_room_id 設定失敗: {e}")
-
-                lobby_manager.charleston_selections[room_id] = {}
-                lobby_manager.second_charleston_confirms[room_id] = {}
-                lobby_manager.second_charleston_selections[room_id] = {}
-
-                # 🌟 ペナルティ回数（プレイヤーごと）を初期化
-                room_game.player_penalty_counts = [0, 0, 0, 0]
-
-                # 🌟 第1交換タイマーをサーバー側でも開始（クライアントの startTimer と同期）
-                try:
-                    from friend_routes import _start_charleston_timer
-                    _start_charleston_timer(room_game, room_id)
-                except Exception as e:
-                    print(f"[LOBBY] charleston timer 初期化失敗: {e}")
-
-                # 各プレイヤーに「ゲーム画面に遷移してね + 自分の player_idx」を通知
-                room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {
-                    "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
-                })
-                for i, connection in enumerate(lobby_manager.active_connections[room_id]):
-                    await connection.send_json({
-                        "type": "game_start",
-                        "player_idx": i,
-                        "room_id": room_id,
-                        "player_names": list(lobby_manager.player_names[room_id]),
-                        "dealer": room_game.dealer,
-                        "settings": room_settings
-                    })
-                print(f"[LOBBY] game_start を全員に送信完了")
-
-            except Exception as init_err:
-                print(f"[FATAL] ゲーム初期化失敗: {init_err}")
-                traceback.print_exc()
-
-        # 接続維持ループ（このWSは「ロビー専用」なので、ゲーム中のアクションは受け取らない）
+        # メッセージ受信ループ
         while True:
-            data = await websocket.receive_json()
-            # ロビーWSでは何も処理しない（ゲーム中は /friend/ws/... が担当）
-            print(f"[LOBBY] 受信（無視）: {data}")
+            msg = await websocket.receive_json()
+            mtype = msg.get("type", "")
+            print(f"[LOBBY] Room {room_id} 受信: {msg}")
+
+            if mtype == "host_add_cpu" and my_seat_idx == 0:
+                cpu_level = int(msg.get("cpu_level", 1))
+                for i in range(4):
+                    if lobby_manager.seats[room_id][i] is None:
+                        cpu_count = sum(1 for s in lobby_manager.seats[room_id] if s and s.get("type") == "cpu")
+                        cpu_name = f"CPU {cpu_count + 1}"
+                        lobby_manager.seats[room_id][i] = {
+                            "type": "cpu", "name": cpu_name, "username": None, "cpu_level": cpu_level
+                        }
+                        print(f"[LOBBY] 席 {i} に CPU(lv={cpu_level}) を追加")
+                        break
+                await _broadcast_seats_update(room_id)
+
+            elif mtype == "host_remove_cpu" and my_seat_idx == 0:
+                target_seat = int(msg.get("seat", -1))
+                if 0 <= target_seat < 4:
+                    s = lobby_manager.seats[room_id][target_seat]
+                    if s and s.get("type") == "cpu":
+                        lobby_manager.seats[room_id][target_seat] = None
+                        # CPU 番号を再採番
+                        cpu_n = 0
+                        for j in range(4):
+                            ss = lobby_manager.seats[room_id][j]
+                            if ss and ss.get("type") == "cpu":
+                                cpu_n += 1
+                                ss["name"] = f"CPU {cpu_n}"
+                        print(f"[LOBBY] 席 {target_seat} の CPU を削除")
+                        await _broadcast_seats_update(room_id)
+
+            elif mtype == "host_start_game" and my_seat_idx == 0:
+                seats_now = lobby_manager.seats[room_id]
+                if all(s is not None for s in seats_now):
+                    print(f"[LOBBY] Room {room_id}: ホスト開始 → ゲーム開始")
+                    await _start_friend_game(room_id)
+                else:
+                    await websocket.send_json({
+                        "type": "lobby_error",
+                        "message": "席が埋まっていません"
+                    })
 
     except WebSocketDisconnect:
+        print(f"[LOBBY] Room {room_id}: 切断")
         lobby_manager.disconnect(websocket, room_id)
-        if room_id in lobby_manager.active_connections:
-            new_count = len(lobby_manager.active_connections[room_id])
-            await lobby_manager.broadcast_to_room(room_id, {
-                "type": "lobby_update",
-                "player_count": new_count
-            })
-    except Exception as fatal_e:
-        print(f"[LOBBY FATAL] {fatal_e}")
+        # 自分の席を解放（ゲーム開始前のみ）
+        try:
+            seat_key = (id(websocket), room_id)
+            if hasattr(lobby_manager, 'seat_owner') and seat_key in lobby_manager.seat_owner:
+                idx = lobby_manager.seat_owner.pop(seat_key)
+                if room_id not in getattr(lobby_manager, 'games', {}):
+                    if room_id in lobby_manager.seats and 0 <= idx < 4:
+                        lobby_manager.seats[room_id][idx] = None
+                        await _broadcast_seats_update(room_id)
+        except Exception as e:
+            print(f"[LOBBY] 切断時席解放失敗: {e}")
+    except Exception as e:
+        print(f"[LOBBY ERROR] {e}")
         traceback.print_exc()
-        lobby_manager.disconnect(websocket, room_id)
+        try:
+            lobby_manager.disconnect(websocket, room_id)
+        except Exception:
+            pass
+
+
+async def _broadcast_seats_update(room_id: str):
+    """全員に現在の席情報をブロードキャスト"""
+    if room_id not in getattr(lobby_manager, 'seats', {}):
+        return
+    seats_view = []
+    for s in lobby_manager.seats[room_id]:
+        if s is None:
+            seats_view.append(None)
+        else:
+            seats_view.append({
+                "type": s["type"],
+                "name": s["name"],
+                "cpu_level": s.get("cpu_level")
+            })
+    await lobby_manager.broadcast_to_room(room_id, {
+        "type": "seats_update",
+        "seats": seats_view
+    })
+
+
+async def _start_friend_game(room_id: str):
+    """席情報に基づいて友人戦を開始する。"""
+    try:
+        if room_id not in lobby_manager.games:
+            lobby_manager.games[room_id] = GameState()
+
+        room_game = lobby_manager.games[room_id]
+        room_game.reset_round()
+
+        seats = lobby_manager.seats[room_id]
+        player_names = [s["name"] for s in seats]
+        cpu_levels = [s.get("cpu_level") for s in seats]
+        player_types = [s["type"] for s in seats]
+        usernames = [s.get("username") for s in seats]
+
+        room_game.friend_player_names = list(player_names)
+        room_game.replay_data["player_names"] = list(player_names)
+        room_game.replay_data["room_id"] = room_id
+        room_game.friend_seat_types = list(player_types)
+        room_game.friend_cpu_levels = list(cpu_levels)
+
+        if not hasattr(lobby_manager, 'player_names'):
+            lobby_manager.player_names = {}
+        lobby_manager.player_names[room_id] = list(player_names)
+
+        if not hasattr(lobby_manager, 'player_usernames'):
+            lobby_manager.player_usernames = {}
+        lobby_manager.player_usernames[room_id] = list(usernames)
+
+        try:
+            from auth_routes import set_user_current_room
+            for username in usernames:
+                if username:
+                    set_user_current_room(username, room_id)
+        except Exception as e:
+            print(f"[LOBBY] current_room_id 設定失敗: {e}")
+
+        lobby_manager.charleston_selections[room_id] = {}
+        lobby_manager.second_charleston_confirms[room_id] = {}
+        lobby_manager.second_charleston_selections[room_id] = {}
+
+        room_game.player_penalty_counts = [0, 0, 0, 0]
+
+        try:
+            from friend_routes import _start_charleston_timer
+            _start_charleston_timer(room_game, room_id)
+        except Exception as e:
+            print(f"[LOBBY] charleston timer 初期化失敗: {e}")
+
+        room_settings = getattr(lobby_manager, 'room_settings', {}).get(room_id, {
+            "timeDiscard": 60, "timeCall": 20, "timeExchange": 60
+        })
+
+        # 人間プレイヤーに game_start 送信
+        connections_by_seat = {}
+        if room_id in lobby_manager.active_connections:
+            for conn in lobby_manager.active_connections[room_id]:
+                for key, seat_idx in getattr(lobby_manager, 'seat_owner', {}).items():
+                    if key[1] == room_id and key[0] == id(conn):
+                        connections_by_seat[seat_idx] = conn
+                        break
+
+        for i in range(4):
+            if player_types[i] != "human":
+                continue
+            conn = connections_by_seat.get(i)
+            if conn is None:
+                print(f"[LOBBY] 警告: 席 {i} は human だが WebSocket なし")
+                continue
+            try:
+                await conn.send_json({
+                    "type": "game_start",
+                    "player_idx": i,
+                    "room_id": room_id,
+                    "player_names": list(player_names),
+                    "dealer": room_game.dealer,
+                    "settings": room_settings,
+                    "seat_types": list(player_types)
+                })
+            except Exception as e:
+                print(f"[LOBBY] game_start 送信失敗 seat {i}: {e}")
+        print(f"[LOBBY] game_start を全員に送信完了")
+
+    except Exception as init_err:
+        print(f"[FATAL] ゲーム初期化失敗: {init_err}")
+        traceback.print_exc()
 
 # 友人戦専用のルーターを登録
 from friend_routes import router as friend_router, get_friend_state_for_player
