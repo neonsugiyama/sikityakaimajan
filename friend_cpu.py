@@ -27,6 +27,17 @@ CPU_WAIT_CHARLESTON = 1.5   # 第1/第2交換選択
 CPU_WAIT_BETWEEN_TURNS = 0.3 # CPU同士の連続ターン間
 
 
+def scaled_wait(game, base_seconds: float) -> float:
+    """game.friend_speed_mult を反映したウェイト秒数を返す。"""
+    try:
+        mult = float(getattr(game, 'friend_speed_mult', 1.0) or 1.0)
+        if mult <= 0:
+            mult = 1.0
+    except Exception:
+        mult = 1.0
+    return max(0.05, base_seconds / mult)
+
+
 # ==========================================
 # 席判定 / 難易度パッチ
 # ==========================================

@@ -297,6 +297,19 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
                     lobby_manager.room_settings = {}
                 lobby_manager.room_settings[room_id] = host_settings
                 print(f"[LOBBY] Room {room_id} のホスト設定: {host_settings}")
+            # 🌟 ホストの speedMult を保存（CPU 動作遅延の倍率）
+            speed_mult = name_msg.get("speedMult", 1.0)
+            try:
+                speed_mult = float(speed_mult)
+                if speed_mult <= 0:
+                    speed_mult = 1.0
+            except Exception:
+                speed_mult = 1.0
+            if host_settings:  # ホスト（1人目）の値だけ採用
+                if not hasattr(lobby_manager, 'room_speed_mult'):
+                    lobby_manager.room_speed_mult = {}
+                lobby_manager.room_speed_mult[room_id] = speed_mult
+                print(f"[LOBBY] Room {room_id} の speedMult: {speed_mult}")
             player_token = name_msg.get("token")
         except Exception:
             player_name = "Player"
@@ -464,6 +477,9 @@ async def _start_friend_game(room_id: str):
             init_cpu_personalities_for_friend_game(room_game)
         except Exception as e:
             print(f"[LOBBY] CPU 人格初期化失敗: {e}")
+
+        # 🌟 ホストの speedMult を game state に保存（CPU 動作の遅延に反映）
+        room_game.friend_speed_mult = getattr(lobby_manager, 'room_speed_mult', {}).get(room_id, 1.0)
 
         if not hasattr(lobby_manager, 'player_names'):
             lobby_manager.player_names = {}

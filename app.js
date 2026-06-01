@@ -967,6 +967,10 @@ function enterWaitingRoom(roomId, hostSettings = null) {
         if (typeof authToken !== 'undefined' && authToken) {
             payload.token = authToken;
         }
+        // 🌟 ホストの speedMult をサーバーへ（CPU 動作の遅延に反映）
+        if (typeof speedMult !== 'undefined') {
+            payload.speedMult = speedMult;
+        }
         lobbyWs.send(JSON.stringify(payload));
     };
 

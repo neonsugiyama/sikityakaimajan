@@ -309,9 +309,13 @@ function showCallout(playerIdx, text) {
     const el = document.getElementById(`call-text-${playerIdx}`);
     if (!el) return;
 
+    // 🌟 アニメーション再起動を確実にするため、一度クラスを完全に外して reflow
+    el.className = '';
+    el.innerText = '';
+    void el.offsetWidth;
+    // 再付与
     el.className = 'call-text';
     void el.offsetWidth;
-
     el.innerText = text;
 
     if (el.parentElement) {
