@@ -134,28 +134,118 @@ def cpu_should_join_second_charleston(game, seat_idx: int) -> bool:
 def cpu_react_to_discard(game, discarder_idx: int, tile: str, cpu_idx: int, is_kakan: bool = False):
     """CPU席が他者の打牌に対してどう反応するか。
     返り値: {"action": "skip"/"ron"/"pon"/"kan"/"hanakan", ...}
+
+    既存の check_cpu_reaction は副露・打牌まで一気に実行してしまうので、
+    そのロジックを部分的に複製して「判断だけ」する。
     """
-    from main import check_cpu_reaction
-    with patch_cpu_level(game, cpu_idx):
-        try:
-            result = check_cpu_reaction(
-                discarder_idx=discarder_idx, tile=tile,
-                is_kakan=("true" if is_kakan else "false"),
-                game=game
-            )
-            # check_cpu_reaction は cpu インデックスごとに辞書を返す
-            per_cpu = None
-            if isinstance(result, dict):
-                per_cpu = result.get(str(cpu_idx), None)
-                if per_cpu is None:
-                    per_cpu = result.get(cpu_idx, None)
-            if per_cpu is None:
+    from main import SEASON_TILES
+    from mahjong_logic import (
+        is_agari, get_waits_for_hand, determine_target,
+        evaluate_tile_dynamically, get_visible_count
+    )
+
+    try:
+        is_haitei = (len(game.wall) == 0)
+
+        with patch_cpu_level(game, cpu_idx):
+            # ===== ロン判定 =====
+            if cpu_idx != discarder_idx:
+                ctx = {
+                    "winning_tile": tile, "is_tsumo": False, "is_haitei": is_haitei,
+                    "is_joker_swap": False, "is_rinshan": False, "is_chankan": is_kakan,
+                    "is_first_turn": game.is_first_turn[cpu_idx],
+                    "any_meld_occurred": game.any_meld_occurred,
+                    "is_dealer": game.dealer == cpu_idx, "discards_count": game.discards_count
+                }
+                data = {"closed_tiles": " ".join(game.hands[cpu_idx]), "melds": game.melds[cpu_idx], "win_context": ctx}
+                if is_agari(data):
+                    has_won_already = len(game.win_tiles[cpu_idx]) > 0
+                    has_season_in_hand = any(t in SEASON_TILES for t in game.hands[cpu_idx]) or any(
+                        t in SEASON_TILES for m in game.melds[cpu_idx] for t in m["tiles"]
+                    )
+                    is_pass = False
+                    target = determine_target(cpu_idx, game.hands[cpu_idx], game)
+                    personality = game.cpu_personalities[cpu_idx] if game.cpu_personalities[cpu_idx] else 1
+
+                    if not has_won_already and has_season_in_hand:
+                        is_hanari_zentan = (target == "全単")
+                        jokers_count = sum(1 for t in game.hands[cpu_idx] + [tile] if t in SEASON_TILES)
+                        is_hanari_qixing = (target == "七星不靠" and jokers_count == 1 and personality in [1, 2])
+                        if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
+                            is_pass = True
+                        if target == "十三幺九":
+                            waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                            if len(waits) < 13:
+                                remaining = 0
+                                for w in waits:
+                                    visible = get_visible_count(w, game)
+                                    remaining += max(0, 4 - visible - game.hands[cpu_idx].count(w))
+                                if len(game.wall) >= 24 and remaining >= 3:
+                                    is_pass = True
+                        # つよい以外（よわい/ふつう）は欲張らず即和了
+                        if game.cpu_level == 2 and len(game.wall) > 20:
+                            waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
+                            if len(waits) < 27:
+                                is_pass = True
+
+                    if not is_pass:
+                        return {"action": "ron"}
+
+            # 槍槓中はポン/カン不可
+            if is_kakan:
                 return {"action": "skip"}
-            return per_cpu
-        except Exception as e:
-            print(f"[FRIEND_CPU] cpu_react_to_discard 失敗: {e}")
-            traceback.print_exc()
+
+            # 海底中はポン/カン不可（ロンは可、上で済）
+            if is_haitei:
+                return {"action": "skip"}
+
+            # 既に和了済みなら鳴かない
+            if len(game.win_tiles[cpu_idx]) > 0:
+                return {"action": "skip"}
+
+            current_target = determine_target(cpu_idx, game.hands[cpu_idx], game)
+            # 一色四歩高・十三幺九・七星不靠・全単狙いは鳴かない
+            if current_target in ["十三幺九", "七星不靠", "全単"]:
+                return {"action": "skip"}
+
+            # ===== 花槓 (相手の打牌が季節牌で、 自分が2枚同種を持っている) =====
+            if tile in SEASON_TILES:
+                # 任意の手牌1枚で同種2枚持っているか確認
+                for h_tile in set(game.hands[cpu_idx]):
+                    if h_tile in SEASON_TILES:
+                        continue
+                    if game.hands[cpu_idx].count(h_tile) >= 2:
+                        # 花槓宣言してよい (シンプルにOK)
+                        return {"action": "hanakan", "season": tile, "tile": h_tile}
+                return {"action": "skip"}
+
+            # ===== ポン / 大明槓 =====
+            count = game.hands[cpu_idx].count(tile)
+            if count >= 2:
+                # 鳴き見逃し（cpu_level に応じて）
+                level = game.cpu_level
+                if level == 0:
+                    if random.random() < 0.5:
+                        return {"action": "skip"}
+                elif level == 1:
+                    if random.random() < 0.2:
+                        return {"action": "skip"}
+
+                personality = game.cpu_personalities[cpu_idx] if game.cpu_personalities[cpu_idx] else 1
+                temp_hand_with_meld = list(game.hands[cpu_idx])
+                temp_hand_with_meld.extend([tile, tile])
+                score_if_meld = evaluate_tile_dynamically(tile, temp_hand_with_meld, game, cpu_idx, personality)
+                if score_if_meld > 80 or (count >= 3):
+                    if count >= 3:
+                        return {"action": "kan"}
+                    else:
+                        return {"action": "pon"}
+
             return {"action": "skip"}
+    except Exception as e:
+        print(f"[FRIEND_CPU] cpu_react_to_discard 失敗: {e}")
+        traceback.print_exc()
+        return {"action": "skip"}
 
 
 # ==========================================
@@ -171,5 +261,39 @@ def cpu_do_turn(game, seat_idx: int):
             return cpu_turn(cpu_idx=seat_idx, game=game)
         except Exception as e:
             print(f"[FRIEND_CPU] cpu_do_turn 失敗 (seat {seat_idx}): {e}")
+            traceback.print_exc()
+            return {"error": str(e)}
+
+
+def cpu_pick_discard_only(game, seat_idx: int):
+    """副露直後で「ツモなし、打牌だけ」を行うケース用。
+    手牌から評価値最低の牌を捨てて、 turn を進める。
+    cpu_turn のような全機能（暗槓・花槓・和了等）は含まない。
+    返り値: {"discard": tile}
+    """
+    from mahjong_logic import evaluate_tile_dynamically
+    with patch_cpu_level(game, seat_idx):
+        try:
+            personality = game.cpu_personalities[seat_idx] if game.cpu_personalities[seat_idx] else random.randint(1, 4)
+            scored = [
+                (t, evaluate_tile_dynamically(t, game.hands[seat_idx], game, seat_idx, personality) + random.randint(0, 5))
+                for t in game.hands[seat_idx]
+            ]
+            scored.sort(key=lambda x: x[1])
+            discard = scored[0][0]
+            # 実行: 手牌から削除、 河に追加、 turn 進行
+            game.hands[seat_idx].remove(discard)
+            game.discards[seat_idx].append(discard)
+            game.is_first_turn[seat_idx] = False
+            game.hands[seat_idx] = game.sort_hand(game.hands[seat_idx])
+            game.turn = (seat_idx + 1) % 4
+            game.just_drawn = -1
+            game.last_discard_info = {"player": seat_idx, "tile": discard}
+            game.discards_count += 1
+            game.append_log("discard", player=seat_idx, tile=discard, tsumogiri=False)
+            print(f"[FRIEND_CPU] 副露後打牌 seat {seat_idx}: {discard}")
+            return {"discard": discard, "did_kakan": False, "did_joker_swap": False, "kakan_tile": ""}
+        except Exception as e:
+            print(f"[FRIEND_CPU] cpu_pick_discard_only 失敗 (seat {seat_idx}): {e}")
             traceback.print_exc()
             return {"error": str(e)}

@@ -3,6 +3,9 @@
 let currentWaits = [];
 let myHand = [], myMelds = [], myWinTiles = [], turn = 0, isProc = false, lastT = "", justPonged = false;
 let drawnTile = "", autoResumeTimer = null, lastDiscardPlayer = -1;
+// 🌟 友人戦: CPU 席のツモ牌を明示的に保持する配列 (index 1,2,3 が CPU 席相対 idx)
+// 各要素: "ura" / 実際の牌名 / null（ツモ位置に何も表示しない）
+let cpuDrawnTiles = [null, null, null, null];
 let wallCount = 0;
 let currentRound = 1, dealer = 0, scores = [0, 0, 0, 0], totalScores = [0, 0, 0, 0];
 let currentRoundSeasonDiscardCount = 0;
@@ -175,7 +178,7 @@ function notifyTimerPenalty() {
     if (typeof myPlayerIdx === 'undefined' || myPlayerIdx < 0) return;
     try {
         fetch(`/friend/timer_penalty?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`,
-            { cache: 'no-store' }).catch(() => {});
+            { cache: 'no-store' }).catch(() => { });
     } catch (e) { }
 }
 
@@ -195,13 +198,6 @@ function stopTimer() {
 
 function toggleAutoPlay() {
     isAutoPlay = !isAutoPlay;
-    // 🔁 友人戦時はオート状態を sessionStorage に保存（再接続時に復元するため）
-    if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId) {
-        try {
-            const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
-            sessionStorage.setItem(key, isAutoPlay ? '1' : '0');
-        } catch (e) { }
-    }
     const btn = document.getElementById('btn-auto-play');
 
     if (isAutoPlay) {
@@ -1642,9 +1638,16 @@ function renderCPU() {
         let tilesToRender = cpuHand.slice(0, limit);
 
         let drawnTileImg = null;
-        // ツモ番（14枚目がある）なら最後の一枚を切り離す
-        if (limit % 3 === 2) {
-            drawnTileImg = tilesToRender.pop();
+        // 🌟 友人戦: ツモ牌は cpuDrawnTiles で明示的に管理（副露があると剰余ロジックが破綻するため）
+        if (currentGameMode === 'friend') {
+            if (cpuDrawnTiles[i]) {
+                drawnTileImg = cpuDrawnTiles[i];
+            }
+        } else {
+            // CPU戦: 既存ロジック（ツモ番なら手牌の末尾を分離）
+            if (limit % 3 === 2) {
+                drawnTileImg = tilesToRender.pop();
+            }
         }
 
         // 🌟 修正：下家(1)と対面(2)の手牌の並びを反転させる（昇順を維持するため）
@@ -1678,17 +1681,17 @@ function renderCPU() {
             img.style.margin = '0';
 
             if (i === 1) {
-                // 下家：手牌の「下（彼らにとっての右）」に配置
-                img.style.top = 'calc(100% + 10px)';
+                // 下家(画面右、縦並び): ツモ牌は手牌の「上」（下家の右手側）
+                img.style.bottom = 'calc(100% + 10px)';
                 img.style.left = '0';
             } else if (i === 2) {
-                // 対面：手牌の「右（彼らにとっての右）」に配置
-                img.style.left = 'calc(100% + 15px)';
+                // 対面(画面上、横並び): ツモ牌は手牌の「左」（対面の右手側）
+                img.style.right = 'calc(100% + 15px)';
                 img.style.top = '0';
                 img.style.transform = 'rotate(180deg)';
             } else if (i === 3) {
-                // 上家：手牌の「上（彼らにとっての右）」に配置
-                img.style.bottom = 'calc(100% + 10px)';
+                // 上家(画面左、縦並び): ツモ牌は手牌の「下」（上家の右手側）
+                img.style.top = 'calc(100% + 10px)';
                 img.style.left = '0';
             }
             c.appendChild(img);
@@ -3081,13 +3084,6 @@ async function handleRoundEnd(isReplayingResult = false) {
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
 
         isAutoPlay = false;
-        // 🔁 リザルトに入った時点で、保存されていたオート状態（友人戦）を削除
-        if (currentGameMode === 'friend' && typeof friendRoomId !== 'undefined' && friendRoomId) {
-            try {
-                const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
-                sessionStorage.removeItem(key);
-            } catch (e) { }
-        }
         const btnAuto = document.getElementById('btn-auto-play');
         if (btnAuto) {
             btnAuto.innerText = "オート(和了後): OFF";

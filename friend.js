@@ -137,25 +137,6 @@ async function rejoinFriendGame() {
 
         // state を反映
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
-        // 🔁 オート機能の状態を復元（同じ局・同じ親なら ON のままにする）
-        // リザルト経由 or 次局移行時には sessionStorage から削除されるので、復元されない
-        if (data.phase === 'play' || data.phase === 'pending_call') {
-            try {
-                const key = `shiki_friend_auto_${friendRoomId}_${currentRound}_${dealer}`;
-                const saved = sessionStorage.getItem(key);
-                if (saved === '1') {
-                    if (typeof isAutoPlay !== 'undefined') isAutoPlay = true;
-                    // ボタン見た目も更新
-                    const btn = document.getElementById('btn-auto-play');
-                    if (btn) {
-                        btn.innerText = "オート(和了後): ON";
-                        btn.style.background = "#27ae60";
-                        btn.style.boxShadow = "0 3px #2ecc71";
-                        btn.classList.remove('auto-off');
-                    }
-                }
-            } catch (e) { }
-        }
         setProgress(80);
 
         // 画面遷移
@@ -776,40 +757,85 @@ function handleFriendEvent(data) {
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
         // ターンは進めない（打牌するまでは tsumo 中の表示）
-    } else if (type === "friend_discard") {
-        // 他人が打牌した → state を反映
+    } else if (type === "friend_cpu_draw_preview") {
+        // 🤖 CPU がツモった瞬間（演出用） → state 反映して再描画
+        // 他プレイヤーから見ると、対応する手牌が14枚（13枚 + 自摸1枚）に増えるので、
+        // renderCPU が `length % 3 === 2` を検知して自摸位置に1枚分離して表示する。
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
-
-        // 🌟 演出中は checkT を呼ばない（演出後の handleFriendWin が責任を持って checkT する）
-        if (friendWinAnimating) {
-            console.log("[FRIEND] 和了演出中 → checkT 抑制");
-            return;
+    } else if (type === "friend_discard") {
+        // 🤖 CPU の打牌の場合: safeUpdate 前に「ツモ後14枚状態」を擬似的に再構成して
+        // renderCPU で自摸表現を表示する（CPU戦と同じ手法）。
+        // 自分視点での相対インデックス
+        const discarderAbs = data.player_idx;
+        const discarderRel = (discarderAbs - myPlayerIdx + 4) % 4;
+        let didCpuDrawAnim = false;
+        if (discarderRel !== 0 && data.tile) {
+            // 🌟 cpuDrawnTiles に "ura" をセットして renderCPU でツモ位置に表示
+            if (typeof cpuDrawnTiles !== 'undefined') {
+                cpuDrawnTiles[discarderRel] = "ura";
+            }
+            if (typeof renderCPU === 'function') renderCPU();
+            didCpuDrawAnim = true;
         }
 
-        const canAny = !!(data.can_ron || data.can_pon || data.can_kan || data.can_hanakan);
+        // 他人が打牌した → state を反映（手牌は最終的に13枚に上書きされる）
+        // ただし自摸表現を一瞬見せるため、少し遅延させる
+        // 🌟 トークン: 後続の call_resolved 等によって状態が進んでいる場合、遅延ハンドラを破棄するため
+        const myDiscardToken = (window.__friend_discard_token || 0) + 1;
+        window.__friend_discard_token = myDiscardToken;
 
-        if (canAny) {
-            // 🌟 反応可能 → checkHumanReaction でボタン表示
-            const discarderRel = (data.player_idx - myPlayerIdx + 4) % 4;
-            if (typeof checkHumanReaction === 'function') {
-                lastDiscardPlayer = discarderRel;
-                lastT = data.tile;
-                checkHumanReaction(discarderRel, data.tile);
+        const _applyDiscardUpdate = () => {
+            if (window.__friend_discard_token !== myDiscardToken) {
+                console.log("[FRIEND] friend_discard 遅延ハンドラ: superseded → skip");
+                return;
             }
-            if (typeof isProc !== 'undefined') isProc = true;
-        } else if (data.pending_call) {
-            // 🌟 自分は反応不可だが、他プレイヤーが副露猶予中 → checkT は呼ばず call_resolved/friend_win 待ち
-            // （これを呼ぶと wallCount=0 時に handleRoundEnd が早期発動してしまう）
-            console.log("[FRIEND] 他プレイヤー副露猶予中 → checkT 待機");
-            if (typeof isProc !== 'undefined') isProc = true;
+            // 🌟 ツモ表現を解除
+            if (typeof cpuDrawnTiles !== 'undefined') {
+                cpuDrawnTiles[discarderRel] = null;
+            }
+            if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+            if (typeof render === 'function') render();
+            if (typeof renderCPU === 'function') renderCPU();
+
+            // 🌟 演出中は checkT を呼ばない（演出後の handleFriendWin が責任を持って checkT する）
+            if (friendWinAnimating) {
+                console.log("[FRIEND] 和了演出中 → checkT 抑制");
+                return;
+            }
+
+            const canAny = !!(data.can_ron || data.can_pon || data.can_kan || data.can_hanakan);
+
+            if (canAny) {
+                if (typeof checkHumanReaction === 'function') {
+                    lastDiscardPlayer = discarderRel;
+                    lastT = data.tile;
+                    checkHumanReaction(discarderRel, data.tile);
+                }
+                if (typeof isProc !== 'undefined') isProc = true;
+            } else if (data.pending_call) {
+                console.log("[FRIEND] 他プレイヤー副露猶予中 → checkT 待機");
+                if (typeof isProc !== 'undefined') isProc = true;
+            } else {
+                if (typeof isProc !== 'undefined') isProc = false;
+                if (typeof checkT === 'function') checkT();
+            }
+        };
+
+        if (didCpuDrawAnim) {
+            // ツモ表現を 0.6秒見せてから打牌へ
+            setTimeout(_applyDiscardUpdate, 600);
         } else {
-            // 反応不可 + 副露猶予なし → 即 checkT
-            if (typeof isProc !== 'undefined') isProc = false;
-            if (typeof checkT === 'function') checkT();
+            _applyDiscardUpdate();
         }
     } else if (type === "call_resolved") {
+        // 🌟 friend_discard の遅延ハンドラを無効化
+        window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
+        // 🌟 全 CPU のツモ表現を解除
+        if (typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles = [null, null, null, null];
+        }
         // 副露猶予の結果通知 → state 反映して checkT
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
         if (typeof render === 'function') render();
@@ -828,6 +854,11 @@ function handleFriendEvent(data) {
         if (btnWin) btnWin.style.display = "none";
         if (typeof checkT === 'function') checkT();
     } else if (type === "friend_win") {
+        // 🌟 全 CPU のツモ表現を解除
+        if (typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles = [null, null, null, null];
+        }
+        window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
         // 誰かが和了した（ロン or ツモ）
         handleFriendWin(data);
     } else if (type === "friend_meld") {
@@ -841,7 +872,7 @@ function handleFriendEvent(data) {
         handleFriendJokerSwap(data);
     } else if (type === "friend_haitei_skip") {
         // 🌟 海底牌スルー broadcast：実行者の位置に「過」スタンプを表示する
-        // 発火元のクライアントは handleRoundEnd 内で showCallout 済みなのでスキップ
+        // 発火元のクライアントは handleHaiteiSkip 内で showCallout 済みなのでスキップ
         if (data.player_idx !== myPlayerIdx) {
             const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
             if (typeof showCallout === 'function') showCallout(claimerRel, "過");
@@ -857,6 +888,10 @@ function handleFriendEvent(data) {
             handleRoundEnd();
         }
     } else if (type === "friend_next_round") {
+        // 🌟 全 CPU のツモ表現を解除
+        if (typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles = [null, null, null, null];
+        }
         // 次局へ: state を反映 → リザルト画面を閉じて新局の初期化
         console.log("[FRIEND] 次局へ broadcast");
         // 🌟 次局開始のタイミングで handleRoundEnd の二重実行ガードを解除
@@ -916,13 +951,6 @@ function handleFriendEvent(data) {
             showReconnectToast(`${playerName} が再接続しました`, false);
             if (typeof updateInfoUI === 'function') updateInfoUI();
         }
-    } else if (type === "friend_stamp") {
-        // 🌟 他プレイヤーからのスタンプ表示
-        const absIdx = data.player_idx;
-        const relIdx = (absIdx - myPlayerIdx + 4) % 4;
-        if (relIdx !== 0 && typeof showStamp === 'function') {
-            showStamp(relIdx, data.content);
-        }
     }
 }
 
@@ -966,6 +994,12 @@ async function handleFriendJokerSwap(data) {
 // ==========================================
 async function handleFriendMeld(data) {
     console.log("[FRIEND] 副露:", data);
+    // 🌟 friend_discard の遅延ハンドラを無効化
+    window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
+    // 🌟 全 CPU のツモ表現を解除
+    if (typeof cpuDrawnTiles !== 'undefined') {
+        cpuDrawnTiles = [null, null, null, null];
+    }
     if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
 
     // ボタン群を非表示

@@ -381,7 +381,7 @@ function resizeGame() {
         /* 🚨 古い achievement-modal は削除しました */
         '#mypage-modal > div', '#friend-match-modal > div',
         '#settings-screen > div', '#friend-settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
-        '#rate-help-modal > div', '#replay-modal > div'
+        '#rate-help-modal > div', '#replay-modal > div', '#auth-modal > div'
     ];
     modalElements.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => {

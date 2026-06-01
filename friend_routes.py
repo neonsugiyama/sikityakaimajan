@@ -11,6 +11,8 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from typing import Dict, List
 import traceback
 import asyncio
+import random
+import friend_cpu
 
 router = APIRouter(prefix="/friend")
 
@@ -671,6 +673,9 @@ async def friend_charleston_submit(room_id: str, player_idx: int, t1: str, t2: s
     game.last_discard_info = {"player": -1, "tile": ""}
     game.charleston_done = True
 
+    # 🌟 第2交換開始: 最初の質問対象は親
+    game.second_charleston_current_asker = game.dealer
+
     # 🌟 第2交換（最初の質問対象=親）用にタイマーをリセット
     _start_charleston_timer(game, room_id)
 
@@ -687,6 +692,14 @@ async def friend_charleston_submit(room_id: str, player_idx: int, t1: str, t2: s
 
     # 選択辞書をクリア（メモリ節約・次局のため）
     del lobby_manager.charleston_selections[room_id]
+
+    # 🤖 第2交換は親から順番に。最初の質問対象 (dealer) が CPU なら自動応答を起動。
+    # 次の asker（順番が回ってきた瞬間）も submit 完了時に同様に起動される。
+    if friend_cpu.is_cpu_seat(game, game.dealer):
+        asyncio.create_task(_cpu_answer_second_charleston(room_id, game.dealer))
+    else:
+        # 親が人間 → タイムアウト監視タスク起動
+        asyncio.create_task(_watch_second_charleston_timeout(room_id, game.dealer))
 
     return {"status": "complete", "dice": dice, "direction": msg}
 
@@ -711,6 +724,16 @@ async def friend_second_charleston_submit(
     if getattr(game, 'second_charleston_done', False):
         return {"status": "already_done"}
 
+    # 🌟 順番チェック: 現在質問対象 (second_charleston_current_asker) でなければ拒否
+    current_asker = getattr(game, 'second_charleston_current_asker', None)
+    if current_asker is None:
+        # 初期化されていない（charleston_complete を経由していない異常状態）→ 親で初期化
+        game.second_charleston_current_asker = game.dealer
+        current_asker = game.dealer
+    if player_idx != current_asker:
+        print(f"[FRIEND] 第2交換 submit 順番違反: 要求 {player_idx}, 期待 {current_asker} → 無視")
+        return {"status": "not_your_turn", "expected": current_asker}
+
     participates = participate.lower() == "true"
 
     # 蓄積場所の初期化
@@ -729,6 +752,10 @@ async def friend_second_charleston_submit(
             if t in game.hands[player_idx]:
                 game.hands[player_idx].remove(t)
 
+    # 🌟 次の質問対象を更新（4人全員回ったら終了処理に行く）
+    next_asker = (player_idx + 1) % 4
+    game.second_charleston_current_asker = next_asker
+
     # 🌟 次の質問対象のプレイヤー用にタイマーをリセット
     _start_charleston_timer(game, room_id)
 
@@ -736,8 +763,14 @@ async def friend_second_charleston_submit(
     await friend_connections.broadcast(room_id, {
         "type": "second_charleston_player_done",
         "player_idx": player_idx,
-        "participate": participates
+        "participate": participates,
+        "next_asker": next_asker
     })
+
+    # 🌟 次の asker が人間で、まだ4人回答完了でなければタイムアウト監視タスクを起動
+    # （人間が放置しても、設定時間 + マージンで自動スキップして次へ進める）
+    if len(confirms) < 4 and not friend_cpu.is_cpu_seat(game, next_asker):
+        asyncio.create_task(_watch_second_charleston_timeout(room_id, next_asker))
 
     if len(confirms) < 4:
         active_so_far = sum(1 for v in confirms.values() if v)
@@ -754,6 +787,9 @@ async def friend_second_charleston_submit(
         #   残り1人の選択を待った方が公平。早期成立は無効化（自動で4人目を待たない動作を防止）
         # → 単純に未回答者を待つ
         else:
+            # 🤖 次の asker が CPU なら自動応答タスク起動
+            if friend_cpu.is_cpu_seat(game, next_asker):
+                asyncio.create_task(_cpu_answer_second_charleston(room_id, next_asker))
             return {"status": "waiting", "confirmed": len(confirms)}
 
     # === 全員揃った: 実行 ===
@@ -784,6 +820,10 @@ async def friend_second_charleston_submit(
         # クリーンアップ
         del lobby_manager.second_charleston_confirms[room_id]
         del lobby_manager.second_charleston_selections[room_id]
+
+        # 🤖 通常ターン開始: 次が CPU なら自動進行
+        asyncio.create_task(cpu_auto_advance_if_needed(room_id))
+
         return {"status": "skipped"}
 
     # 交換実行
@@ -835,6 +875,10 @@ async def friend_second_charleston_submit(
     # クリーンアップ
     del lobby_manager.second_charleston_confirms[room_id]
     del lobby_manager.second_charleston_selections[room_id]
+
+    # 🤖 通常ターン開始: 次が CPU なら自動進行
+    asyncio.create_task(cpu_auto_advance_if_needed(room_id))
+
     return {"status": "complete", "dice": dice, "direction": msg}
 
 
@@ -987,6 +1031,8 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
                 "can_ron": False, "can_pon": False, "can_kan": False, "can_hanakan": False,
                 "state": state
             })
+        # 🤖 反応者なしで進行 → 次が CPU なら自動進行
+        asyncio.create_task(cpu_auto_advance_if_needed(room_id))
         return get_friend_state_for_player(game, player_idx)
 
     # 副露猶予を開始
@@ -1000,6 +1046,11 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
         "resolved": False,
         "started_at": _time.time()  # 🌟 復帰時の残り時間計算用
     }
+
+    # 🤖 CPU 席が responder にいれば自動応答タスク起動
+    cpu_in_responders = any(friend_cpu.is_cpu_seat(game, r) for r in responders)
+    if cpu_in_responders:
+        asyncio.create_task(_cpu_respond_to_pending_call(room_id))
 
     # 各プレイヤーに WS で「discard」イベント + 反応可能フラグを送る
     for p in range(4):
@@ -1047,6 +1098,8 @@ async def friend_discard(room_id: str, player_idx: int, tile: str):
                     _increment_penalty(game, r)
         # 副露判定
         await _resolve_friend_call(room_id, game)
+        # 🤖 副露解決後、次が CPU なら自動進行
+        asyncio.create_task(cpu_auto_advance_if_needed(room_id))
 
     return get_friend_state_for_player(game, player_idx)
 
@@ -1278,11 +1331,15 @@ async def friend_call_action(room_id: str, player_idx: int, action: str, season:
         if not ron_pending:
             # 他のロン可能者なし or 全員応答済み → 即解決（ポン/カン/スキップ待ちは不要）
             await _resolve_friend_call(room_id, game)
+            # 🤖 副露解決後、次が CPU なら自動進行
+            asyncio.create_task(cpu_auto_advance_if_needed(room_id))
             return {"status": "ok", "responded": len(pc["responses"]), "needed": len(pc["responders"])}
 
     # 全員の応答が揃ったら即座に解決
     if len(pc["responses"]) >= len(pc["responders"]):
         await _resolve_friend_call(room_id, game)
+        # 🤖 副露解決後、次が CPU なら自動進行
+        asyncio.create_task(cpu_auto_advance_if_needed(room_id))
 
     return {"status": "ok", "responded": len(pc["responses"]), "needed": len(pc["responders"])}
 
@@ -1514,82 +1571,63 @@ async def friend_round_ready(room_id: str, player_idx: int):
         game.round_ready = set()
     game.round_ready.add(player_idx)
 
-    print(f"[FRIEND] Room {room_id} round_ready: {len(game.round_ready)}/4 (player {player_idx})")
+    # 🤖 CPU 席は常に自動 ready 扱い（人間プレイヤーがリザルト演出完了するのを待たない）
+    types = getattr(game, 'friend_seat_types', None)
+    if types:
+        for seat in range(4):
+            if types[seat] == "cpu":
+                game.round_ready.add(seat)
 
-    # 接続中プレイヤー全員が ready なら、切断者待ち 5秒タイマー開始（既存タイマーがあれば何もしない）
-    if room_id in friend_connections.connections:
-        connected_indices = set()
-        for i in range(4):
-            if friend_connections.connections[room_id][i] is not None:
-                connected_indices.add(i)
-        # 接続中の全員が ready かつ、まだ全員 ready ではない（=切断者がいる）場合
-        if connected_indices and connected_indices.issubset(game.round_ready) and len(game.round_ready) < 4:
-            existing_task = getattr(game, '_disconnect_skip_task', None)
-            if not existing_task or existing_task.done():
-                async def _wait_and_force_ready():
-                    try:
-                        await asyncio.sleep(5.0)
-                        if room_id in lobby_manager.games:
-                            g = lobby_manager.games[room_id]
-                            if hasattr(g, 'round_ready') and len(g.round_ready) < 4 and not getattr(g, 'next_round_processing', False):
-                                print(f"[FRIEND] Room {room_id} 切断者待ちタイムアウト → 強制的に次局へ")
-                                g.round_ready = {0, 1, 2, 3}
-                                await _advance_to_next_round(room_id, g)
-                    except asyncio.CancelledError:
-                        pass
-                    except Exception as e:
-                        print(f"[FRIEND] 切断者待ちタスク失敗: {e}")
-                game._disconnect_skip_task = asyncio.create_task(_wait_and_force_ready())
-                print(f"[FRIEND] Room {room_id} 切断者待ち 5秒タイマー開始")
+    print(f"[FRIEND] Room {room_id} round_ready: {len(game.round_ready)}/4 (player {player_idx})")
 
     # 4人揃った時点で次局へ進める
     if len(game.round_ready) >= 4 and not getattr(game, 'next_round_processing', False):
-        # 既存の切断者待ちタスクがあればキャンセル
-        existing_task = getattr(game, '_disconnect_skip_task', None)
-        if existing_task and not existing_task.done():
-            existing_task.cancel()
-        return await _advance_to_next_round(room_id, game)
+        game.next_round_processing = True
+        game.round_ready = set()  # クリア
+
+        # 4局終了判定
+        if game.current_round >= 4:
+            # 🌟 ログイン中ユーザーの current_room_id をクリア（途中復帰の対象から外す）
+            try:
+                from auth_routes import set_user_current_room
+                from main import lobby_manager
+                if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                    for username in lobby_manager.player_usernames[room_id]:
+                        if username:
+                            set_user_current_room(username, None)
+            except Exception as e:
+                print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
+            for p in range(4):
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_game_end",
+                    "total_scores": game.total_scores
+                })
+            return {"status": "game_end", "total_scores": game.total_scores}
+
+        # 次局へ
+        next_round(game=game)
+        game.next_round_processing = False
+
+        # 🌟 第1交換用のタイマーを開始
+        _start_charleston_timer(game, room_id)
+
+        # 各プレイヤーに視点回転済み state を broadcast
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_next_round",
+                "state": state
+            })
+
+        # 🤖 CPU 席があれば第1交換の自動 submit を起動
+        types = getattr(game, 'friend_seat_types', None)
+        if types:
+            for seat in range(4):
+                if types[seat] == "cpu":
+                    asyncio.create_task(_cpu_submit_charleston_after_delay(room_id, seat, friend_cpu.CPU_WAIT_CHARLESTON))
 
     return {"status": "ok", "ready_count": len(game.round_ready)}
 
-
-async def _advance_to_next_round(room_id: str, game):
-    """次局へ進める処理（4局終了ならゲーム終了 broadcast）"""
-    from main import lobby_manager, next_round
-    game.next_round_processing = True
-    game.round_ready = set()  # クリア
-
-    # 4局終了判定
-    if game.current_round >= 4:
-        try:
-            from auth_routes import set_user_current_room
-            if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
-                for username in lobby_manager.player_usernames[room_id]:
-                    if username:
-                        set_user_current_room(username, None)
-        except Exception as e:
-            print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
-        for p in range(4):
-            await friend_connections.send_to(room_id, p, {
-                "type": "friend_game_end",
-                "total_scores": game.total_scores
-            })
-        return {"status": "game_end", "total_scores": game.total_scores}
-
-    # 次局へ
-    next_round(game=game)
-    game.next_round_processing = False
-
-    # 🌟 第1交換用のタイマーを開始（これがないと再接続時に csRemaining=None で初期化＝バグ）
-    _start_charleston_timer(game, room_id)
-
-    for p in range(4):
-        state = get_friend_state_for_player(game, p)
-        await friend_connections.send_to(room_id, p, {
-            "type": "friend_next_round",
-            "state": state
-        })
-    return {"status": "ok", "advanced": True}
 
 # ==========================================
 # REST: 時間切れペナルティ通知
@@ -1608,27 +1646,414 @@ async def friend_timer_penalty(room_id: str, player_idx: int):
         "penalty_count": _get_penalty_count(game, player_idx)
     }
 
+
 # ==========================================
-# REST: スタンプを他プレイヤーに中継
+# 🤖 CPU 自動進行 ヘルパー群
 # ==========================================
-@router.get("/stamp")
-async def friend_stamp(room_id: str, player_idx: int, content: str):
-    """指定プレイヤーが押したスタンプを他3人にブロードキャストする。"""
+async def schedule_cpu_initial_charleston(room_id: str):
+    """ゲーム開始時、CPU 席があれば第1交換の自動 submit をスケジュール。"""
     from main import lobby_manager
     if room_id not in lobby_manager.games:
-        raise HTTPException(status_code=404, detail="対局が見つかりません")
-    # 他プレイヤーに通知（自分には送らない。自分は既にローカルで表示済み）
-    await friend_connections.send_to_others(room_id, player_idx, {
-        "type": "friend_stamp",
-        "player_idx": player_idx,
-        "content": content
-    })
-    return {"status": "ok"}
+        return
+    game = lobby_manager.games[room_id]
+    types = getattr(game, 'friend_seat_types', None)
+    if not types:
+        return
+    # 各CPU席に対してタスクを起動（人間と同じくらいの遅延で submit）
+    for seat in range(4):
+        if types[seat] == "cpu":
+            asyncio.create_task(_cpu_submit_charleston_after_delay(room_id, seat, friend_cpu.CPU_WAIT_CHARLESTON))
+
+
+async def _cpu_submit_charleston_after_delay(room_id: str, seat_idx: int, delay: float):
+    """指定遅延後、CPU 席の第1交換を submit する。"""
+    try:
+        await asyncio.sleep(delay)
+        from main import lobby_manager
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        # 既に交換完了 or 既に submit 済みなら何もしない
+        if getattr(game, 'charleston_done', False):
+            return
+        selections = lobby_manager.charleston_selections.get(room_id, {})
+        if seat_idx in selections:
+            return
+        # CPU の選択を計算
+        tiles = friend_cpu.cpu_pick_charleston_tiles(game, seat_idx)
+        if len(tiles) < 3:
+            print(f"[FRIEND_CPU] charleston tiles 不足 seat {seat_idx}: {tiles}")
+            return
+        # 既存の friend_charleston_submit を内部呼び出し
+        await friend_charleston_submit(
+            room_id=room_id, player_idx=seat_idx,
+            t1=tiles[0], t2=tiles[1], t3=tiles[2]
+        )
+    except Exception as e:
+        print(f"[FRIEND_CPU] CPU 第1交換 submit 失敗 seat {seat_idx}: {e}")
+        traceback.print_exc()
+
+
+async def _cpu_answer_second_charleston(room_id: str, seat_idx: int):
+    """指定 CPU 席が第2交換の質問対象になったタイミングで自動応答。
+    必ず current_asker == seat_idx の時のみ実行する。
+    """
+    try:
+        await asyncio.sleep(friend_cpu.CPU_WAIT_CHARLESTON)
+        from main import lobby_manager
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if getattr(game, 'second_charleston_done', False):
+            return
+        # 🌟 順番チェック: 自分が current_asker でなければ何もしない
+        current_asker = getattr(game, 'second_charleston_current_asker', None)
+        if current_asker != seat_idx:
+            print(f"[FRIEND_CPU] CPU seat {seat_idx} 第2交換 自動応答スキップ (current_asker={current_asker})")
+            return
+        # 参加するか
+        participate = friend_cpu.cpu_should_join_second_charleston(game, seat_idx)
+        if participate:
+            tiles = friend_cpu.cpu_pick_charleston_tiles(game, seat_idx)
+            if len(tiles) < 3:
+                tiles = list(game.hands[seat_idx][:3])
+            await friend_second_charleston_submit(
+                room_id=room_id, player_idx=seat_idx,
+                participate="true",
+                t1=tiles[0], t2=tiles[1], t3=tiles[2]
+            )
+        else:
+            await friend_second_charleston_submit(
+                room_id=room_id, player_idx=seat_idx,
+                participate="false", t1="", t2="", t3=""
+            )
+    except Exception as e:
+        print(f"[FRIEND_CPU] CPU 第2交換 submit 失敗 seat {seat_idx}: {e}")
+        traceback.print_exc()
+
+
+async def _watch_second_charleston_timeout(room_id: str, asker_seat: int):
+    """第2交換で人間が時間切れになったら自動的にスキップして次へ進める。
+    タイマーの残り秒数（+マージン）後に asker_seat がまだ submit していなければ強制 skip。
+    """
+    try:
+        from main import lobby_manager
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if getattr(game, 'second_charleston_done', False):
+            return
+        # 現在のタイマー残り時間 + マージン
+        remaining = _get_charleston_timer_remaining(game)
+        if remaining is None:
+            return
+        wait_sec = float(remaining) + 3.0  # マージン
+
+        # 一気に sleep するのではなく、少しずつチェック（途中で submit されれば抜ける）
+        elapsed = 0.0
+        STEP = 0.5
+        while elapsed < wait_sec:
+            await asyncio.sleep(STEP)
+            elapsed += STEP
+            if room_id not in lobby_manager.games:
+                return
+            game = lobby_manager.games[room_id]
+            # 第2交換完了 → 抜ける
+            if getattr(game, 'second_charleston_done', False):
+                return
+            # 該当 asker が submit 済み → 抜ける
+            confirms = lobby_manager.second_charleston_confirms.get(room_id, {})
+            if asker_seat in confirms:
+                return
+            # 現在の asker が変わった（他の経路で進められた）→ 抜ける
+            if getattr(game, 'second_charleston_current_asker', None) != asker_seat:
+                return
+
+        # タイムアウト到達 → 強制スキップ
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if getattr(game, 'second_charleston_done', False):
+            return
+        confirms = lobby_manager.second_charleston_confirms.get(room_id, {})
+        if asker_seat in confirms:
+            return
+        if getattr(game, 'second_charleston_current_asker', None) != asker_seat:
+            return
+
+        print(f"[FRIEND] 第2交換 タイムアウト → 強制スキップ seat {asker_seat}")
+        # ペナルティ加算
+        _increment_penalty(game, asker_seat)
+        # 強制 skip として submit
+        await friend_second_charleston_submit(
+            room_id=room_id, player_idx=asker_seat,
+            participate="false", t1="", t2="", t3=""
+        )
+    except Exception as e:
+        print(f"[FRIEND] _watch_second_charleston_timeout 失敗: {e}")
+        traceback.print_exc()
+
+
+
+async def cpu_auto_advance_if_needed(room_id: str):
+    """次のターンが CPU 席なら自動進行。連鎖的に複数のCPUターンを処理。
+    人間ターン or 副露猶予中 になったら戻る。
+    """
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        return
+    game = lobby_manager.games[room_id]
+
+    # 第1/第2交換中・局終了中・副露猶予中は ターン進行系の対象外
+    if not getattr(game, 'charleston_done', False):
+        return
+    if not getattr(game, 'second_charleston_done', False):
+        return
+    if getattr(game, 'round_calculated', False):
+        return
+    if getattr(game, 'pending_call', None):
+        # 副露猶予中 → CPU の応答を別途処理
+        return
+
+    # 連続CPUターンを処理（ループだが、毎ターン awaitable な遅延あり）
+    safety_limit = 200
+    while safety_limit > 0:
+        safety_limit -= 1
+
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+
+        # 終了条件
+        if getattr(game, 'round_calculated', False):
+            return
+        if getattr(game, 'pending_call', None):
+            return
+        if not game.wall:
+            return
+
+        seat = game.turn
+        if not friend_cpu.is_cpu_seat(game, seat):
+            return  # 人間ターン → 戻る
+
+        # CPU のターン処理
+        await asyncio.sleep(friend_cpu.CPU_WAIT_TURN)
+
+        # 再度状態チェック（待っている間に変わった可能性）
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if getattr(game, 'round_calculated', False) or not game.wall:
+            return
+        if game.turn != seat:
+            continue  # ターンが変わったので再評価
+        if getattr(game, 'pending_call', None):
+            return
+
+        # CPU のアクション実行
+        # 副露直後（ポン直後）は手牌+meld=14枚相当 → ツモなしで打牌のみ
+        # 通常ターン開始時は手牌+meld=13枚相当 → ツモ→打牌（cpu_do_turn）
+        total_tiles = len(game.hands[seat]) + 3 * len(game.melds[seat])
+        # 花槓は4枚 meld だが、内部的にも3で計算しているため要注意。
+        # 念のため花槓を考慮した正確な総枚数を計算する
+        try:
+            total_tiles = len(game.hands[seat])
+            for m in game.melds[seat]:
+                total_tiles += len(m.get("tiles", []))
+        except Exception:
+            total_tiles = len(game.hands[seat]) + 3 * len(game.melds[seat])
+
+        if total_tiles >= 14:
+            # 副露直後 → ツモせずに打牌だけ
+            result = friend_cpu.cpu_pick_discard_only(game, seat)
+        else:
+            # 通常ターン → ツモ→打牌（和了判定・暗槓・花槓・JokerSwap も含む）
+            result = friend_cpu.cpu_do_turn(game, seat)
+
+        if isinstance(result, dict) and result.get("error"):
+            print(f"[FRIEND_CPU] cpu turn error seat {seat}: {result.get('error')}")
+            return
+
+        # ツモ和了の場合
+        if isinstance(result, dict) and result.get("tsumo"):
+            # 自摸イベントを broadcast（全員）
+            for p in range(4):
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_win_tsumo",
+                    "winner": seat,
+                    "winning_tile": result.get("winning_tile", ""),
+                    "yaku": result.get("yaku", []),
+                    "state": state
+                })
+            # CPU のツモ和了後は次の手番はそのCPU席+1だが、cpu_turn 内で turn を進めている。
+            # アガリ放題ルールなので局は続行。次の人がCPUなら更にループ。
+            await asyncio.sleep(0.5)
+            continue
+
+        # 通常の打牌の場合
+        discard = result.get("discard", "") if isinstance(result, dict) else ""
+        did_kakan = result.get("did_kakan", False) if isinstance(result, dict) else False
+        did_joker_swap = result.get("did_joker_swap", False) if isinstance(result, dict) else False
+        kakan_tile = result.get("kakan_tile", "") if isinstance(result, dict) else ""
+
+        # 副露猶予を発生させる必要があるかチェック
+        # 既存の friend_discard 関数のロジックと同じ判定を簡略化して実装
+        await _broadcast_cpu_discard(room_id, seat, discard, did_kakan, did_joker_swap, kakan_tile)
+
+        # discard 後、副露猶予が発生していれば一旦戻る（CPUの応答は別タスクで処理）
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if getattr(game, 'pending_call', None):
+            # 副露猶予 → CPU の応答を非同期で処理
+            asyncio.create_task(_cpu_respond_to_pending_call(room_id))
+            return
+
+        # 連続CPUターンの間に少し空ける
+        await asyncio.sleep(friend_cpu.CPU_WAIT_BETWEEN_TURNS)
+
+
+async def _broadcast_cpu_discard(room_id: str, seat: int, tile: str, did_kakan: bool, did_joker_swap: bool, kakan_tile: str):
+    """CPU の打牌結果を broadcast し、必要なら副露猶予を立てる。
+    friend_discard と同等の処理を CPU 用に行う。
+    人間版の broadcast 形式 (player_idx + state) に揃える。"""
+    from main import lobby_manager
+    if room_id not in lobby_manager.games:
+        return
+    game = lobby_manager.games[room_id]
+
+    # 各プレイヤーの反応可能性を計算
+    reactions = {}
+    responders = []
+    for p in range(4):
+        if p == seat:
+            continue
+        # 既存の dict 返却版（game, responder_idx, tile）を使う
+        r = _check_reaction_possible(game, p, tile)
+        reactions[p] = r
+        if any([r.get("pon", False), r.get("kan", False), r.get("ron", False), r.get("hanakan", False)]):
+            responders.append(p)
+
+    if responders:
+        import time as _time
+        game.pending_call = {
+            "discarder": seat,
+            "tile": tile,
+            "responders": list(responders),
+            "ron_capable": [p for p, r in reactions.items() if r["ron"]],
+            "responses": {},
+            "resolved": False,
+            "started_at": _time.time(),
+            "is_kakan": did_kakan,
+            "kakan_tile": kakan_tile,
+        }
+        # 各プレイヤーに通知（人間版の friend_discard と同じ形式 + state を含める）
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            payload = {
+                "type": "friend_discard",
+                "player_idx": seat,  # 絶対座席
+                "tile": tile,
+                "did_kakan": did_kakan,
+                "did_joker_swap": did_joker_swap,
+                "kakan_tile": kakan_tile,
+                "pending_call": True,
+                "can_ron": reactions.get(p, {}).get("ron", False),
+                "can_pon": reactions.get(p, {}).get("pon", False),
+                "can_kan": reactions.get(p, {}).get("kan", False),
+                "can_hanakan": reactions.get(p, {}).get("hanakan", False),
+                "state": state
+            }
+            await friend_connections.send_to(room_id, p, payload)
+        # ターン切り替えはまだ
+    else:
+        # 副露なし → 即進行
+        for p in range(4):
+            state = get_friend_state_for_player(game, p)
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_discard",
+                "player_idx": seat,
+                "tile": tile,
+                "did_kakan": did_kakan,
+                "did_joker_swap": did_joker_swap,
+                "kakan_tile": kakan_tile,
+                "pending_call": False,
+                "can_ron": False, "can_pon": False, "can_kan": False, "can_hanakan": False,
+                "state": state
+            })
+        # turn は cpu_turn 内で進めている
+        _start_turn_timer(game, room_id)
+
+
+async def _cpu_respond_to_pending_call(room_id: str):
+    """副露猶予中、CPU 席があれば自動的に応答（スキップ or 副露）。
+    人間プレイヤーの応答も待つので、CPU は即応答ではなく適切な遅延を挟む。"""
+    from main import lobby_manager
+    try:
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        pc = getattr(game, 'pending_call', None)
+        if not pc:
+            return
+        discarder = pc.get("discarder", -1)
+        tile = pc.get("tile", "")
+        responders = list(pc.get("responders", []))
+        is_kakan = bool(pc.get("is_kakan", False))
+
+        # CPU 席だけを抽出
+        cpu_responders = [r for r in responders if friend_cpu.is_cpu_seat(game, r)]
+
+        for cpu_seat in cpu_responders:
+            # 応答決定
+            reaction = friend_cpu.cpu_react_to_discard(game, discarder, tile, cpu_seat, is_kakan=is_kakan)
+            action = reaction.get("action", "skip")
+
+            if action == "skip":
+                await asyncio.sleep(friend_cpu.CPU_WAIT_CALL_SKIP)
+            else:
+                await asyncio.sleep(friend_cpu.CPU_WAIT_CALL_DO)
+
+            # 再度 game の状態確認
+            if room_id not in lobby_manager.games:
+                return
+            game = lobby_manager.games[room_id]
+            pc = getattr(game, 'pending_call', None)
+            if not pc or pc.get("resolved", False):
+                return
+
+            # action を内部呼び出しで処理
+            try:
+                if action == "hanakan":
+                    hk_season = reaction.get("season", tile)
+                    await friend_call_action(
+                        room_id=room_id, player_idx=cpu_seat,
+                        action="hanakan", season=hk_season
+                    )
+                else:
+                    await friend_call_action(
+                        room_id=room_id, player_idx=cpu_seat,
+                        action=action, season=""
+                    )
+            except Exception as e:
+                print(f"[FRIEND_CPU] call action 失敗 seat {cpu_seat} action={action}: {e}")
+                traceback.print_exc()
+                # スキップでフォールバック
+                try:
+                    await friend_call_action(room_id=room_id, player_idx=cpu_seat, action="skip", season="")
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[FRIEND_CPU] _cpu_respond_to_pending_call 失敗: {e}")
+        traceback.print_exc()
+
 
 # ==========================================
 # WebSocket: 対局中のリアルタイム同期
 # ==========================================
 # ==========================================
+
 # REST: 途中復帰
 # ==========================================
 @router.get("/rejoin")

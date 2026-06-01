@@ -458,6 +458,13 @@ async def _start_friend_game(room_id: str):
         room_game.friend_seat_types = list(player_types)
         room_game.friend_cpu_levels = list(cpu_levels)
 
+        # 🤖 CPU 席の人格 (cpu_personalities) を友人戦用に再設定
+        try:
+            from friend_cpu import init_cpu_personalities_for_friend_game
+            init_cpu_personalities_for_friend_game(room_game)
+        except Exception as e:
+            print(f"[LOBBY] CPU 人格初期化失敗: {e}")
+
         if not hasattr(lobby_manager, 'player_names'):
             lobby_manager.player_names = {}
         lobby_manager.player_names[room_id] = list(player_names)
@@ -519,6 +526,13 @@ async def _start_friend_game(room_id: str):
             except Exception as e:
                 print(f"[LOBBY] game_start 送信失敗 seat {i}: {e}")
         print(f"[LOBBY] game_start を全員に送信完了")
+
+        # 🤖 CPU 席があれば、第1交換の自動 submit をバックグラウンドで実行
+        try:
+            from friend_routes import schedule_cpu_initial_charleston
+            await schedule_cpu_initial_charleston(room_id)
+        except Exception as e:
+            print(f"[LOBBY] CPU 第1交換予約失敗: {e}")
 
     except Exception as init_err:
         print(f"[FATAL] ゲーム初期化失敗: {init_err}")
