@@ -952,7 +952,9 @@ function enterWaitingRoom(roomId, hostSettings = null) {
     const countEl = document.getElementById('room-player-count');
     if (countEl) countEl.innerText = "1";
 
-    const wsUrl = `ws://${window.location.host}/ws/lobby/${roomId}`;
+    // 🌟 HTTPS ページからは wss:// を使う必要がある (Render等の本番環境対応)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/lobby/${roomId}`;
     lobbyWs = new WebSocket(wsUrl);
 
     // 🌟 接続直後にプレイヤー名と（ホストなら）設定値、ログイン中ならトークンも送信
