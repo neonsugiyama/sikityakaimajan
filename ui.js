@@ -232,7 +232,9 @@ function closeAchievements() {
 }
 function openLearningMenu() {
     openModal('learning-modal');
-    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
+    const _lkey = (typeof window.getLessonsStorageKey === 'function')
+        ? window.getLessonsStorageKey() : 'shiki_mahjong_lessons';
+    let savedLessons = JSON.parse(localStorage.getItem(_lkey)) || [];
     for (let i = 1; i <= 9; i++) {
         if (savedLessons[i]) show(`stamp-lesson-${i}`);
         else hide(`stamp-lesson-${i}`);

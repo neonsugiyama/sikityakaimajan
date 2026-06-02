@@ -749,7 +749,10 @@ function resetToInitialData() {
         maxComboCount: 0, welcomeHomeCount: 0, comebackCount: 0, masterOfSeasonsCount: 0, pacifistCount: 0, wideWaitCount: 0, hezuezhangCount: 0
     };
     saveGameData();
-    localStorage.removeItem('shiki_mahjong_lessons');
+    // 🌟 レッスンクリアデータもアカウント別キーで削除
+    const _lkey = (typeof window.getLessonsStorageKey === 'function')
+        ? window.getLessonsStorageKey() : 'shiki_mahjong_lessons';
+    localStorage.removeItem(_lkey);
     alert("データを完全初期化しました！\n画面をリロードして反映します。");
     location.reload();
 }

@@ -781,7 +781,6 @@ async function uiAuthRegister() {
     if (typeof playSE === 'function') playSE('click');
     const username = (document.getElementById('auth-username').value || '').trim();
     const password = document.getElementById('auth-password').value || '';
-    const migrate = document.getElementById('auth-migrate-checkbox').checked;
     const errEl = document.getElementById('auth-error');
     if (errEl) errEl.innerText = '';
     if (!username || !password) {
@@ -793,7 +792,7 @@ async function uiAuthRegister() {
         return;
     }
     try {
-        await authRegister(username, password, migrate);
+        await authRegister(username, password);
         _refreshAuthModalUI();
         document.getElementById('auth-username').value = '';
         document.getElementById('auth-password').value = '';
@@ -802,10 +801,7 @@ async function uiAuthRegister() {
         }
         if (typeof updateProfileUI === 'function') updateProfileUI();
         if (typeof updateInfoUI === 'function') updateInfoUI();
-        const msg = migrate
-            ? `アカウント作成完了: ${authUsername}\n（既存の戦績・牌譜を引き継ぎました）`
-            : `アカウント作成完了: ${authUsername}`;
-        alert(msg);
+        alert(`アカウント作成完了: ${authUsername}`);
         // 🔐 GAME START からモーダルを開いていた場合、自動で閉じてモード選択へ
         if (_authModalForModeSelect) {
             _authModalForModeSelect = false;
@@ -1462,4 +1458,4 @@ function startOnlineGame(roomType) {
     if (roomType === "advanced") roomName = "👹 上級卓";
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
 }
-/*デプロイ用コメント1*/
+/*デプロイ用コメント*/

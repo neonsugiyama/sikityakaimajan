@@ -17,17 +17,8 @@ function isLoggedIn() {
 // ==========================================
 // 新規登録
 // ==========================================
-async function authRegister(username, password, migrateLocalData = false) {
+async function authRegister(username, password) {
     let payload = { username, password };
-
-    // 初回マイグレーション: 現在の localStorage データを引き継ぐ
-    if (migrateLocalData) {
-        const localData = JSON.parse(localStorage.getItem('shiki_mahjong_data') || '{}');
-        const localReplays = JSON.parse(localStorage.getItem('shiki_mahjong_replays') || '[]');
-        if (localData.stats) payload.stats = localData.stats;
-        if (localData.ratings && Array.isArray(localData.ratings)) payload.rating = localData.ratings[0];
-        if (localReplays.length > 0) payload.replays = localReplays;
-    }
 
     const res = await fetch('/auth/register', {
         method: 'POST',
@@ -170,6 +161,12 @@ function _replaysKey() {
     return 'shiki_mahjong_replays';
 }
 
+// 🌟 レッスンクリアデータのキー（アカウント別）
+function _lessonsKey() {
+    if (authUsername) return `shiki_mahjong_lessons_${authUsername}`;
+    return 'shiki_mahjong_lessons';
+}
+
 // グローバルに公開（他ファイルから参照）
 window.getReplaysStorageKey = _replaysKey;
-/*デプロイ用コメント1*/
+window.getLessonsStorageKey = _lessonsKey;

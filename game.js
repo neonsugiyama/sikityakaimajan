@@ -3706,10 +3706,12 @@ async function handleRoundEnd(isReplayingResult = false) {
                     //console.log("実際にサーバーから返ってきた獲得役:", myYaku);
                     clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
 
-                    // 🌟 追加：レッスンクリア状況を専用の領域にセーブする
-                    let savedLessons = JSON.parse(localStorage.getItem('shiki_mahjong_lessons')) || [];
+                    // 🌟 追加：レッスンクリア状況を専用の領域にセーブする（アカウント別）
+                    const _lkey = (typeof window.getLessonsStorageKey === 'function')
+                        ? window.getLessonsStorageKey() : 'shiki_mahjong_lessons';
+                    let savedLessons = JSON.parse(localStorage.getItem(_lkey)) || [];
                     savedLessons[window.currentLessonId] = true;
-                    localStorage.setItem('shiki_mahjong_lessons', JSON.stringify(savedLessons));
+                    localStorage.setItem(_lkey, JSON.stringify(savedLessons));
 
                 } else {
                     //console.log("実際にサーバーから返ってきた獲得役:", myYaku);
