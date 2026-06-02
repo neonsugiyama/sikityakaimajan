@@ -136,11 +136,20 @@ function _applyLogin(token, username) {
 
 // 内部: サーバーから受け取ったデータをゲーム変数に反映
 function _applyServerData(data) {
+    // 🌟 アカウント切り替え時に前アカウントのデータが UI に残るのを防ぐため、
+    //    playerStats と playerRatings を完全に初期値にリセットしてから上書き反映する
+    if (typeof window._resetPlayerStatsToDefaults === 'function') {
+        window._resetPlayerStatsToDefaults();
+    }
+
     if (data.stats && typeof playerStats !== 'undefined') {
         playerStats = { ...playerStats, ...data.stats };
     }
     if (data.rating !== undefined && typeof playerRatings !== 'undefined') {
         playerRatings[0] = data.rating;
+    } else if (typeof playerRatings !== 'undefined') {
+        // サーバーに rating がなければ初期値 1500 に戻す
+        playerRatings[0] = 1500;
     }
     if (data.replays !== undefined) {
         // 牌譜はアカウント別キーに保存（タブ独立のため username 付き）

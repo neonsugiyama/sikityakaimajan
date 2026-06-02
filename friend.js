@@ -42,6 +42,16 @@ function startFriendGame(initData) {
     currentGameMode = 'friend';
     localStorage.setItem('shiki_mahjong_game_mode', 'friend');
 
+    // 🌟 実績ポップアップをゲーム終了時までストックする「キューシステム」を起動
+    //    （CPU戦 init() と同じ処理。途中の局で実績が表示されるのを防ぐ）
+    window.pendingAchievements = [];
+    if (!window.originalShowAchievementUnlock && typeof showAchievementUnlock === 'function') {
+        window.originalShowAchievementUnlock = window.showAchievementUnlock;
+    }
+    window.showAchievementUnlock = function (title, icon) {
+        window.pendingAchievements.push({ title: title, icon: icon });
+    };
+
     // 🌟 api.js の apiCall が使う currentSessionRoomId に同期
     if (typeof currentSessionRoomId !== 'undefined') {
         currentSessionRoomId = friendRoomId;
@@ -65,6 +75,25 @@ function startFriendGame(initData) {
     if (modeScreen) modeScreen.style.display = 'none';
     if (table) table.style.opacity = 1;
     if (gameContainer) gameContainer.style.opacity = 1;
+
+    // 🌟 友人戦中は退出ボタンを非表示にする
+    //    （誤操作で抜けると他プレイヤーに迷惑がかかるため）
+    //    ログアウトボタンの非表示はアカウントモーダルが開かれる時点で
+    //    _refreshAuthModalUI が currentGameMode を見て自動的に処理する
+    const _hideInFriend = (id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.setProperty('display', 'none', 'important');
+            console.log(`[FRIEND] ${id} を非表示にしました`);
+        } else {
+            console.log(`[FRIEND] ${id} 要素が見つかりません`);
+        }
+    };
+    _hideInFriend('sidebar-exit');
+    _hideInFriend('quick-exit-btn');
+
+    // 🌟 スタンプボタンを表示
+    if (typeof updateStampVisibility === 'function') updateStampVisibility();
 
     // 対局WSに接続
     connectFriendGameWs();
@@ -151,6 +180,17 @@ async function rejoinFriendGame() {
             gameContainer.style.display = 'block';
             gameContainer.style.opacity = 1;
         }
+
+        // 🌟 友人戦中は退出ボタンを非表示
+        const _hideInFriend2 = (id) => {
+            const el = document.getElementById(id);
+            if (el) el.style.setProperty('display', 'none', 'important');
+        };
+        _hideInFriend2('sidebar-exit');
+        _hideInFriend2('quick-exit-btn');
+
+        // 🌟 スタンプボタンを表示
+        if (typeof updateStampVisibility === 'function') updateStampVisibility();
 
         // 描画
         if (typeof render === 'function') render();
@@ -474,6 +514,13 @@ async function friendSubmitCharleston(t1, t2, t3) {
 // ==========================================
 async function handleCharlestonComplete(data) {
     console.log("[FRIEND] 第1交換完了:", data);
+
+    // 🌟 第2交換用の状態を初期化（次の局のために必ずリセット）
+    //    第1交換完了は局の最初に必ず1回だけ発生するため、ここでリセットするのが安全
+    friendSecondAskedCount = 0;
+    friendSecondParticipating = [false, false, false, false];
+    friendMySecondCharlestonTiles = [];
+    window.__friend_second_charleston_started = false;
 
     // 🌟 修正: アニメーション「前」に safeUpdate しても render しない（手牌の更新は描画しない）
     // CPU戦と同じ挙動: アニメーション後にまとめて render する
@@ -1170,4 +1217,3 @@ function getFriendPlayerName(rotatedIdx) {
     const absoluteIdx = (myPlayerIdx + rotatedIdx) % 4;
     return friendPlayerNames[absoluteIdx] || `Player ${absoluteIdx}`;
 }
-/*デプロイ用コメント1*/

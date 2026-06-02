@@ -149,6 +149,23 @@ async function takeResultScreenshot() {
 async function returnToHomeGracefully() {
     //console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
 
+    // 🌟 友人戦中に非表示にしていた退出/ログアウトボタンを元に戻す
+    const _showAgain = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.removeProperty('display');
+    };
+    _showAgain('sidebar-exit');
+    _showAgain('quick-exit-btn');
+    const authLoggedinSection = document.getElementById('auth-loggedin-section');
+    if (authLoggedinSection) {
+        const logoutBtns = authLoggedinSection.querySelectorAll('button');
+        logoutBtns.forEach(btn => {
+            if (btn.textContent.includes('ログアウト')) {
+                btn.style.removeProperty('display');
+            }
+        });
+    }
+
     // 🌟 追加：途中で退出した時は、実績のストック状態を強制リセットして元に戻す
     if (window.originalShowAchievementUnlock) {
         window.showAchievementUnlock = window.originalShowAchievementUnlock;
@@ -742,6 +759,22 @@ function _refreshAuthModalUI() {
         if (menuStatus) menuStatus.innerText = '';
         if (closeBtn) closeBtn.innerText = '閉じる / ゲストで遊ぶ';
     }
+
+    // 🌟 友人戦の対局中はログアウトボタンを非表示にする
+    //    （誤操作で抜けると他プレイヤーに迷惑がかかるため）
+    const isFriendGame = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend');
+    if (loggedinSection) {
+        const logoutBtns = loggedinSection.querySelectorAll('button');
+        logoutBtns.forEach(btn => {
+            if (btn.textContent.includes('ログアウト')) {
+                if (isFriendGame) {
+                    btn.style.display = 'none';
+                } else {
+                    btn.style.removeProperty('display');
+                }
+            }
+        });
+    }
 }
 
 async function uiAuthLogin() {
@@ -1194,12 +1227,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ts && ms && exitBtn) {
             // 🌟 修正：牌譜再生中（isReplayModeがtrue）の場合も、タイトル画面と同様に非表示にする！
             const isReplaying = (typeof isReplayMode !== 'undefined' && isReplayMode);
+            // 🌟 友人戦中も非表示（誤操作で抜けると他プレイヤーに迷惑がかかるため）
+            const isFriendGame = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend');
 
-            if (ts.style.display === 'none' && ms.style.display === 'none' && !isReplaying) {
-                // タイトルでもモード選択でもなく、リプレイ中でもない（＝通常の対局中）
+            if (ts.style.display === 'none' && ms.style.display === 'none' && !isReplaying && !isFriendGame) {
+                // タイトルでもモード選択でもなく、リプレイ中でも友人戦中でもない（＝通常の対局中）
                 exitBtn.style.display = 'block';
             } else {
-                // タイトル画面、モード選択画面、または牌譜再生中のいずれか
+                // タイトル画面、モード選択画面、牌譜再生中、または友人戦中のいずれか
                 exitBtn.style.setProperty('display', 'none', 'important');
             }
         }
@@ -1301,7 +1336,10 @@ function updateStampVisibility() {
         if (el && el.style.display === 'flex') noModalsOpen = false;
     });
 
-    if (isGameActive && noModalsOpen) {
+    // 🌟 スタンプ機能は友人戦中のみ表示（CPU 戦では非表示）
+    const isFriendGame = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend');
+
+    if (isGameActive && noModalsOpen && isFriendGame) {
         btn.style.display = 'flex';
     } else {
         btn.style.display = 'none';
@@ -1458,4 +1496,3 @@ function startOnlineGame(roomType) {
     if (roomType === "advanced") roomName = "👹 上級卓";
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
 }
-/*デプロイ用コメント*/

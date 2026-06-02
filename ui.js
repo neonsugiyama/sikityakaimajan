@@ -360,6 +360,26 @@ window.charlestonAnimLock = false;
 let charlestonPhaseState = 0;
 let replayResultPlayerIdx = 0; // 🌟 追加：リザルト画面で現在見ているプレイヤー
 
+// 🌟 統一プレイヤー名表示ヘルパー
+// 友人戦・友人戦リプレイ・CPU戦・CPU戦リプレイで正しい名前を返す
+function getDisplayPlayerName(idx) {
+    // 1. リプレイ中: replayDataObj.player_names を優先
+    if (typeof isReplayMode !== 'undefined' && isReplayMode
+        && typeof replayDataObj !== 'undefined' && replayDataObj
+        && Array.isArray(replayDataObj.player_names)
+        && replayDataObj.player_names[idx]) {
+        return replayDataObj.player_names[idx];
+    }
+    // 2. 友人戦中: getFriendPlayerName (相対インデックス)
+    if (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend'
+        && typeof getFriendPlayerName === 'function') {
+        return getFriendPlayerName(idx);
+    }
+    // 3. CPU戦: 自分=playerStats.playerName、他=CPU N
+    return idx === 0 ? (typeof playerStats !== 'undefined' ? playerStats.playerName : "あなた") : `CPU ${idx}`;
+}
+window.getDisplayPlayerName = getDisplayPlayerName;
+
 window.startReplay = function (id) {
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
@@ -688,18 +708,19 @@ window.applyReplayState = async function () {
             const pIdx = action.player !== undefined ? action.player : action.turn;
 
             let msgText = "";
+            const _nm = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
             if (isCharleston && isSkippedCharleston) {
                 msgText = `第2交換<br><span style="font-size:14px; color:#e74c3c;">不成立</span>`;
             } else if (action.type === "draw" || action.type === "discard") {
-                msgText = (pIdx === 0) ? "↓打牌↓" : `CPU ${pIdx}`;
+                msgText = (pIdx === 0) ? "↓打牌↓" : _nm;
             } else if (action.type === "meld" || action.type === "self_meld") {
-                msgText = (pIdx === 0) ? "鳴き" : `CPU ${pIdx} 鳴き`;
+                msgText = (pIdx === 0) ? "鳴き" : `${_nm} 鳴き`;
             } else if (action.type === "win") {
-                msgText = (pIdx === 0) ? "和了！" : `CPU ${pIdx} 和了`;
+                msgText = (pIdx === 0) ? "和了！" : `${_nm} 和了`;
             } else if (action.type === "start") {
                 msgText = `配牌`;
             } else if (action.type === "haitei_skip") {
-                msgText = (pIdx === 0) ? "海底スルー" : `CPU ${pIdx} 海底スルー`;
+                msgText = (pIdx === 0) ? "海底スルー" : `${_nm} 海底スルー`;
             } else if (action.type === "round_end") {
                 msgText = `局終了`;
                 // 🌟 局終了ステップに来たらリザルト画面を描画
@@ -721,7 +742,7 @@ window.applyReplayState = async function () {
                     }
                 }
             } else {
-                msgText = `CPU ${pIdx}`;
+                msgText = _nm;
             }
             msg.innerHTML = msgText;
 
@@ -804,7 +825,8 @@ window.renderReplayResult = function (pIdx) {
     let scoreText = "";
 
     if (isWinner && winData) {
-        titleText = (pIdx === 0) ? "あなたの和了！" : `CPU ${pIdx} の和了！`;
+        const _nmW = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
+        titleText = (pIdx === 0 && !isReplayMode) ? "あなたの和了！" : `${_nmW} の和了！`;
         scoreText = `${winData.total_score} 点`; // 🌟 文字列の組み立ては後でアニメーション関数が上書きします
 
         let groupedDetails = {};
@@ -853,7 +875,8 @@ window.renderReplayResult = function (pIdx) {
                 </div>`;
         }
     } else {
-        titleText = (pIdx === 0) ? "あなたの結果" : `CPU ${pIdx} の結果`;
+        const _nmR = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
+        titleText = (pIdx === 0 && !isReplayMode) ? "あなたの結果" : `${_nmR} の結果`;
         let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
         scoreText = `${diffStr} 点`;
 
@@ -1238,19 +1261,8 @@ window.animateWinScore = function (element, targetScore, isWinner) {
     let duration = 1400;
     let startTime = null;
 
-    // 🌟 修正：役の個数を取得して、待機時間(delay)を完璧に同期させる！
-    let yakuCount = 0;
-    const yakuListEl = document.getElementById('win-yaku');
-    if (yakuListEl && isWinner) {
-        yakuCount = yakuListEl.children.length;
-    }
-
-    // 役1つにつき約200ms遅延 + アニメーション自体の再生時間(約200ms)。上限は1800ms。
-    // 振込など（役リストがない・勝者でない）場合はサクッと300msで開始。
-    let delay = isWinner ? Math.min(1800, yakuCount * 200 + 200) : 300;
-
-    // 挙動確認用のログ
-    //console.log(`[DEBUG 演出] 役の数: ${yakuCount}個 -> 点数カウントアップまでの待機時間を ${delay}ms に自動設定しました。`);
+    // 🌟 修正：役リストの表示完了を待たずに即時カウントアップ開始
+    let delay = 0;
 
     let absTargetScore = Math.abs(targetScore);
     let suffix = " 点";
@@ -1314,4 +1326,3 @@ window.animateWinScore = function (element, targetScore, isWinner) {
         requestAnimationFrame(updateScore);
     }, delay);
 };
-/*デプロイ用コメント1*/

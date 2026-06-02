@@ -741,13 +741,7 @@ function injectDummyData() {
 
 function resetToInitialData() {
     if (!confirm("データを完全に初期化し、インストール直後の状態に戻しますか？")) return;
-    playerRatings = [1500, 1500, 1500, 1500];
-    playerStats = {
-        playerName: "あなた", maxScore: 0, maxScoreHand: null, currentWinStreak: 0, maxWinStreak: 0, yakuCollected: {},
-        jokerSwapCount: 0, secondCharlestonCount: 0, hanakanCount: 0, totalRoundsPlayed: 0, recentRecords: [],
-        totalGamesPlayed: 0, rankCounts: [0, 0, 0, 0], totalWins: 0, totalTsumoWins: 0, totalCalls: 0, totalScoreSum: 0,
-        maxComboCount: 0, welcomeHomeCount: 0, comebackCount: 0, masterOfSeasonsCount: 0, pacifistCount: 0, wideWaitCount: 0, hezuezhangCount: 0
-    };
+    _resetPlayerStatsToDefaults();
     saveGameData();
     // 🌟 レッスンクリアデータもアカウント別キーで削除
     const _lkey = (typeof window.getLessonsStorageKey === 'function')
@@ -756,6 +750,50 @@ function resetToInitialData() {
     alert("データを完全初期化しました！\n画面をリロードして反映します。");
     location.reload();
 }
+
+// 🌟 playerStats と playerRatings を完全に初期値にリセット（アカウント切り替え等で使用）
+function _resetPlayerStatsToDefaults() {
+    playerRatings = [1500, 1500, 1500, 1500];
+    playerStats = {
+        playerName: "あなた",
+        maxScore: 0,
+        maxScoreHand: null,
+        currentWinStreak: 0,
+        maxWinStreak: 0,
+        yakuCollected: {},
+        jokerSwapCount: 0,
+        secondCharlestonCount: 0,
+        hanakanCount: 0,
+        totalRoundsPlayed: 0,
+        clutch1PointCount: 0,
+        recentRecords: [],
+        totalGamesPlayed: 0,
+        rankCounts: [0, 0, 0, 0],
+        totalWins: 0,
+        totalTsumoWins: 0,
+        totalCalls: 0,
+        totalScoreSum: 0,
+        maxComboCount: 0,
+        welcomeHomeCount: 0,
+        comebackCount: 0,
+        masterOfSeasonsCount: 0,
+        pacifistCount: 0,
+        wideWaitCount: 0,
+        sacrilegeCount: 0,
+        suankoTrollCount: 0,
+        chantaTrollCount: 0,
+        evilRationalismCount: 0,
+        kyukaSanfukuCount: 0,
+        senshuBandaiCount: 0,
+        tougetsuSekisokuCount: 0,
+        tousenKaroCount: 0,
+        noWinGameCount: 0,
+        muhanaAddictionCount: 0,
+        hezuezhangCount: 0
+    };
+}
+// グローバル公開（auth.js から呼ぶため）
+window._resetPlayerStatsToDefaults = _resetPlayerStatsToDefaults;
 
 function injectBeginnerData() {
     if (!confirm("現在のセーブデータを上書きして、初心者(10ゲームプレイ済み)のデータを注入しますか？")) return;
@@ -814,4 +852,3 @@ function resetTestAchievements() {
     saveGameData();
     alert("テスト用の実績をリセット（未達成）に戻しました。");
 }
-/*デプロイ用コメント1*/

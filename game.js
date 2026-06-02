@@ -2225,6 +2225,22 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
     if (isProc) return;
     isProc = true;
 
+    // 🌟 選択状態を即時解除（discard 処理中の意図しない render() で
+    //    打牌した牌や別の牌が浮いたままになるのを防ぐ）
+    selectedTileIndex = -1;
+
+    // 🌟 サーバー応答前に myHand から打牌牌を即座に除去する
+    //    （副露猶予で待機中、ユーザーが他の牌をタップして render() が呼ばれた時、
+    //     myHand に打牌した牌が残っていると「手牌に復活」して見えてしまうため）
+    const _idxInHand = myHand.indexOf(t);
+    if (_idxInHand !== -1) {
+        myHand.splice(_idxInHand, 1);
+    }
+    // ツモ切りの場合、 drawnTile も即座にクリア
+    if (isTsumogiri) {
+        drawnTile = "";
+    }
+
     // 🌟 追加：「罰当たり」実績の判定
     if (["春", "夏", "秋", "冬"].includes(t)) {
         currentRoundSeasonDiscardCount++;
