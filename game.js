@@ -219,6 +219,20 @@ function toggleAutoPlay() {
 }
 
 // 🌟 修正：プレイヤーがテンパイしているか（副露も考慮して）正確に判定する関数
+// 🌟 海底牌でツモらず流局スキップする時の処理
+function handleHaiteiSkip() {
+    if (typeof playSE === 'function') playSE('click');
+    // 既存タイマーを停止
+    if (typeof stopTimer === 'function') stopTimer();
+    // ボタン非表示
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+    // 局終了処理を呼ぶ
+    if (typeof handleRoundEnd === 'function') handleRoundEnd();
+}
+
 function isPlayerTenpai() {
     // 手牌の枚数 + (鳴き回数 × 3) で仮想的な手牌枚数を計算
     let totalVirtualTiles = myHand.length + (myMelds.length * 3);
@@ -3753,6 +3767,35 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                     // 4. 少しだけ待ってから同じレッスンIDで再スタート！
                     setTimeout(() => {
+                        // 🌟 ゲーム状態のグローバル変数を完全初期化
+                        // （海底牌・isProc・turn・wallCount 等が前局の値で残るのを防ぐ）
+                        if (typeof stopTimer === 'function') stopTimer();
+                        isProc = false;
+                        turn = 0;
+                        wallCount = 0;
+                        drawnTile = "";
+                        lastDiscardPlayer = -1;
+                        lastT = "";
+                        pendingIsRinshan = false;
+                        currentWaits = [];
+                        currentNanikiru = null;
+                        selectedTileIndex = -1;
+                        exchangeSelection = [];
+                        // 🌟 重要: リザルト二重実行ガードもリセットしないと、
+                        // 次の局終了時に handleRoundEnd が return してしまい局が終わらない
+                        _handleRoundEndInProgress = false;
+                        if (typeof cpuDrawnTiles !== 'undefined') {
+                            cpuDrawnTiles = [null, null, null, null];
+                        }
+                        if (typeof hideCpuTiles !== 'undefined') {
+                            hideCpuTiles = [0, 0, 0, 0];
+                        }
+                        // 海底ボタンを非表示
+                        const btnHaitei = document.getElementById('btn-haitei-tsumo');
+                        const btnRyukyoku = document.getElementById('btn-ryukyoku');
+                        if (btnHaitei) btnHaitei.style.display = "none";
+                        if (btnRyukyoku) btnRyukyoku.style.display = "none";
+
                         if (typeof startLesson === 'function') {
                             startLesson(retryId);
                         }
@@ -4009,4 +4052,3 @@ function addR(idx, t, isTsumogiri = false) {
     }
     r.appendChild(i);
 }
-/*デプロイ用コメント1*/
