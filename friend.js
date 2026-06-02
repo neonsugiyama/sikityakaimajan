@@ -363,7 +363,9 @@ let friendSkipInitialStateOnOpen = false;
 // 対局中のWebSocket接続
 // ==========================================
 function connectFriendGameWs() {
-    const wsUrl = `ws://${window.location.host}/friend/ws/${friendRoomId}/${myPlayerIdx}`;
+    // 🌟 HTTPS ページからは wss:// を使う必要がある (Render等の本番環境対応)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/friend/ws/${friendRoomId}/${myPlayerIdx}`;
     console.log("[FRIEND] WS接続:", wsUrl);
     friendWs = new WebSocket(wsUrl);
 
