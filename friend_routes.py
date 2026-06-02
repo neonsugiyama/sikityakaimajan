@@ -2277,4 +2277,4 @@ async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: 
         print(f"[FRIEND WS ERROR] {e}")
         traceback.print_exc()
         friend_connections.disconnect(websocket, room_id)
-        #デプロイ用コメント
+        #デプロイ用コメント1

@@ -123,4 +123,4 @@ async function fetchAndSaveReplay() {
         //console.error("牌譜の取得・保存に失敗:", e);
     }
 }
-/*デプロイ用コメント*/
+/*デプロイ用コメント1*/

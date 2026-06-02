@@ -275,3 +275,4 @@ def set_user_current_room(username: str, room_id: str = None):
 def resolve_token_to_username(token: str):
     """外部モジュールからトークン → username を解決するための公開関数"""
     return _resolve_token(token)
+#デプロイ用コメント1

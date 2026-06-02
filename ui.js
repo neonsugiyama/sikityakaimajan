@@ -1312,4 +1312,4 @@ window.animateWinScore = function (element, targetScore, isWinner) {
         requestAnimationFrame(updateScore);
     }, delay);
 };
-/*デプロイ用コメント*/
+/*デプロイ用コメント1*/

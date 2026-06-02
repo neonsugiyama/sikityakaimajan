@@ -221,4 +221,4 @@ function toggleBGM() {
     if (typeof saveSettings === 'function') saveSettings();
     playSE('click');
 }
-/*デプロイ用コメント*/
+/*デプロイ用コメント1*/

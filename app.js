@@ -1462,4 +1462,4 @@ function startOnlineGame(roomType) {
     if (roomType === "advanced") roomName = "👹 上級卓";
     alert(`${roomName} のマッチング待機画面へ移行します！\n（※バックエンドのマッチング処理は今後実装）`);
 }
-/*デプロイ用コメント*/
+/*デプロイ用コメント1*/

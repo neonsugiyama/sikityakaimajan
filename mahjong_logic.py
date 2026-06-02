@@ -800,4 +800,4 @@ def is_kan_valid_for_player(player_idx, kan_type, tile, game_state):
         return False 
             
     return True
-#デプロイ用コメント
+#デプロイ用コメント1

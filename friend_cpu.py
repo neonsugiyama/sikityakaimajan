@@ -308,4 +308,4 @@ def cpu_pick_discard_only(game, seat_idx: int):
             print(f"[FRIEND_CPU] cpu_pick_discard_only 失敗 (seat {seat_idx}): {e}")
             traceback.print_exc()
             return {"error": str(e)}
-        #デプロイ用コメント
+        #デプロイ用コメント1

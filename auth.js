@@ -172,3 +172,4 @@ function _replaysKey() {
 
 // グローバルに公開（他ファイルから参照）
 window.getReplaysStorageKey = _replaysKey;
+/*デプロイ用コメント1*/
