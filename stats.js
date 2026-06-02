@@ -811,3 +811,4 @@ function resetTestAchievements() {
     saveGameData();
     alert("テスト用の実績をリセット（未達成）に戻しました。");
 }
+/*デプロイ用コメント*/

@@ -1454,3 +1454,4 @@ window.addEventListener('resize', () => {
             ※CSSの !important 制御により、二重縮小（scale）は完全にガードされています。`);*/
     }
 });
+/*デプロイ用コメント*/

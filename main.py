@@ -2711,3 +2711,4 @@ def should_cpu_participate_second_charleston(cpu_idx: int, game: GameState = Dep
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e), "participate": False}
+    #デプロイ用コメント

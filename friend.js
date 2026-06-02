@@ -1168,3 +1168,4 @@ function getFriendPlayerName(rotatedIdx) {
     const absoluteIdx = (myPlayerIdx + rotatedIdx) % 4;
     return friendPlayerNames[absoluteIdx] || `Player ${absoluteIdx}`;
 }
+/*デプロイ用コメント*/
