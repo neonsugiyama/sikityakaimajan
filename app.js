@@ -396,7 +396,7 @@ function resizeGame() {
     const modalElements = [
         '#settings-modal > div', '#howto-modal > div', '#yaku-modal > div',
         /* 🚨 古い achievement-modal は削除しました */
-        '#mypage-modal > div', '#friend-match-modal > div',
+        '#friend-match-modal > div',
         '#settings-screen > div', '#friend-settings-screen > div', '#learning-modal > div', '#online-match-modal > div',
         '#rate-help-modal > div', '#replay-modal > div', '#auth-modal > div'
     ];
@@ -958,27 +958,13 @@ function applyFriendSettingsAndCreate() {
     enterWaitingRoom(roomId, settings);
 }
 
-async function joinRoom() {
+function joinRoom() {
     if (typeof playSE === 'function') playSE('click');
     const inputEl = document.getElementById('room-id-input');
     if (!inputEl) return;
     const inputVal = inputEl.value.trim().toUpperCase();
     if (!inputVal) {
         alert("ルームIDを入力してください！");
-        return;
-    }
-    // 🌟 存在チェック: 存在しないルームIDに接続すると意図せずホストになってしまうため、
-    //    参加 (join) 時はサーバー側で部屋の有無を確認する
-    try {
-        const res = await fetch(`/friend/check_lobby_room?room_id=${encodeURIComponent(inputVal)}&_t=${Date.now()}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.exists) {
-            alert("指定されたルームIDは存在しません。\n入力したIDが正しいかご確認ください。");
-            return;
-        }
-    } catch (e) {
-        alert("通信エラーが発生しました。\n" + (e && e.message ? e.message : ""));
         return;
     }
     enterWaitingRoom(inputVal);
@@ -1343,7 +1329,7 @@ function updateStampVisibility() {
     const ms = document.getElementById('mode-select-screen');
     const isGameActive = ts && ts.style.display === 'none' && ms && ms.style.display === 'none';
 
-    const modalList = ['settings-modal', 'mypage-modal', 'howto-modal', 'yaku-modal', 'achievement-modal', 'overlay'];
+    const modalList = ['settings-modal', 'howto-modal', 'yaku-modal', 'achievement-modal', 'overlay'];
     let noModalsOpen = true;
     modalList.forEach(id => {
         const el = document.getElementById(id);

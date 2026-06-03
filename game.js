@@ -1021,7 +1021,7 @@ async function loadDebugScenario(scenario) {
 
     // 🌟 修正：テスト開始時に画面を強制終了する（エラー落ちを防ぐ安全な書き方）
     const screensToClose = [
-        'mypage-modal', 'achievement-modal', 'achievement-screen',
+        'mypage-screen', 'achievement-modal', 'achievement-screen',
         'settings-modal', 'howto-modal', 'yaku-modal', 'waits-panel'
     ];
     screensToClose.forEach(id => {
@@ -2465,15 +2465,6 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (el) el.style.display = 'none';
     });
 
-    // 🌟 友人戦のレース条件対策：トークンを発行し、各 await 完了時にチェック。
-    //   副露・和了 broadcast が来てトークンがインクリメントされていれば、
-    //   この checkHumanReaction の続き（ボタン表示処理）を即座に中断する。
-    //   これがないと、他人のロン宣言で副露猶予が無効化された後でも、 await 完了で
-    //   ポン/スキップボタンが「復活表示」してしまい、 手番と行動フェーズがズレる。
-    const _myReactionToken = (window.__friend_human_reaction_token || 0) + 1;
-    window.__friend_human_reaction_token = _myReactionToken;
-    const _isCancelled = () => (window.__friend_human_reaction_token !== _myReactionToken);
-
     const count = myHand.filter(t => t === tile).length;
     const hasSeason = myHand.some(t => ["春", "夏", "秋", "冬"].includes(t));
     const isSeasonDiscard = ["春", "夏", "秋", "冬"].includes(tile);
@@ -2483,7 +2474,6 @@ async function checkHumanReaction(discarderIdx, tile) {
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
-    if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
 
     // 🌟 頭ハネ判定
     let anyCpuWillRon = false;
@@ -2494,7 +2484,6 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (i === discarderIdx) continue;
         try {
             const cpuWd = await apiCall('/check_win', { player_idx: i, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
-            if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
             if (cpuWd.can_win) {
                 anyCpuWillRon = true;
                 let cpuDist = (i - discarderIdx + 4) % 4;
@@ -2504,9 +2493,6 @@ async function checkHumanReaction(discarderIdx, tile) {
             }
         } catch (e) { }
     }
-
-    // 🌟 最終ボタン表示の直前にも中断チェック（await 完了直後に broadcast が来た場合に備える）
-    if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
 
     let canHumanRon = wd.can_win; // 🟢 修正：頭ハネされる場合でも「ロン」ボタンを堂々と出す！
 

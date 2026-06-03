@@ -26,7 +26,7 @@ function escapeHTML(str) {
 function closeAllModals() {
     //console.log("[LOG] ▶ closeAllModals が呼ばれました");
     const modals = [
-        'settings-modal', 'howto-modal', 'yaku-modal', 'mypage-modal',
+        'settings-modal', 'howto-modal', 'yaku-modal',
         'achievement-modal', 'friend-match-modal', 'learning-modal',
         'online-match-modal', 'rate-help-modal',
         'auth-modal', 'friend-settings-screen'
@@ -156,7 +156,11 @@ function closeFriendMatch() {
 }
 
 function openMyPage() {
-    openModal('mypage-modal');
+    const targetScreen = document.getElementById('mypage-screen');
+    if (!targetScreen) return;
+
+    if (typeof closeAllModals === 'function') closeAllModals();
+
     if (typeof playerStats !== 'undefined') {
         if (el('input-player-name')) el('input-player-name').value = playerStats.playerName;
         if (typeof updateNameCounter === 'function') updateNameCounter(playerStats.playerName);
@@ -170,11 +174,32 @@ function openMyPage() {
         }
         if (typeof updateStatsModalUI === 'function') updateStatsModalUI(playerStats);
     }
+
+    // 全画面切替（achievements 画面と同じパターン）
+    targetScreen.style.display = 'flex';
+    setTimeout(() => {
+        targetScreen.classList.add('screen-active');
+    }, 10);
+
+    if (typeof playSE === 'function') playSE('click');
 }
-function closeMyPage() { closeModal('mypage-modal'); }
+function closeMyPage() {
+    const targetScreen = document.getElementById('mypage-screen');
+    if (targetScreen) {
+        targetScreen.classList.remove('screen-active');
+        if (typeof playSE === 'function') playSE('click');
+        setTimeout(() => {
+            targetScreen.style.display = 'none';
+        }, 300);
+    }
+}
 
 function openPlayerStats(idx) {
-    openModal('mypage-modal');
+    const targetScreen = document.getElementById('mypage-screen');
+    if (!targetScreen) return;
+
+    if (typeof closeAllModals === 'function') closeAllModals();
+
     if (typeof playerStats !== 'undefined' && typeof cpuStats !== 'undefined') {
         let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
         hide('mypage-edit-mode');
@@ -183,6 +208,13 @@ function openPlayerStats(idx) {
         if (el('mypage-view-rate')) el('mypage-view-rate').innerText = playerRatings[idx];
         if (typeof updateStatsModalUI === 'function') updateStatsModalUI(targetStats);
     }
+
+    targetScreen.style.display = 'flex';
+    setTimeout(() => {
+        targetScreen.classList.add('screen-active');
+    }, 10);
+
+    if (typeof playSE === 'function') playSE('click');
 }
 
 // 🌟 実績・役図鑑画面を開く (全画面)

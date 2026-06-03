@@ -358,113 +358,109 @@
         </div>
     </div>
 
-    <div id="mypage-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="position: relative;">
-            <button class="modal-close-top" onclick="closeMyPage()">×</button>
+    <div id="mypage-screen" class="game-screen" style="display: none;">
 
-            <div class="mypage-header" style="padding-right: 40px;">
-                <h2 class="mypage-title">📊 詳細戦績データ</h2>
+        <div class="screen-header">
+            <h2 class="screen-header-title">📊 詳細戦績データ</h2>
+            <button id="btn-mypage-back" class="btn-act btn-gray" onclick="closeMyPage()" style="display: block; font-size: 18px; padding: 10px 25px; z-index: 99999;">◀ メニューに戻る</button>
+        </div>
 
-                <div id="mypage-edit-mode" class="mypage-edit-wrap" style="display: none;">
-                    <div class="mypage-input-col">
-                        <div class="mypage-input-wrap">
-                            <input type="text" id="input-player-name" class="mypage-input" maxlength="10"
-                                   placeholder="名前を入力" title="クリックして名前を変更"
-                                   oninput="updateNameCounter(this.value)"
-                                   onchange="saveNewName()">
-                            <span onclick="clearNameInput()" title="名前をクリア" class="mypage-input-clear">×</span>
-                        </div>
-                        <span id="name-char-counter" class="mypage-char-count">0/10</span>
+        <div class="mypage-header" style="padding: 0 20px 20px;">
+            <div id="mypage-edit-mode" class="mypage-edit-wrap" style="display: none;">
+                <div class="mypage-input-col">
+                    <div class="mypage-input-wrap">
+                        <input type="text" id="input-player-name" class="mypage-input" maxlength="10"
+                               placeholder="名前を入力" title="クリックして名前を変更"
+                               oninput="updateNameCounter(this.value)"
+                               onchange="saveNewName()">
+                        <span onclick="clearNameInput()" title="名前をクリア" class="mypage-input-clear">×</span>
                     </div>
-                    <button class="btn-act btn-blue mypage-btn-rename" onclick="saveNewName()">名前変更</button>
+                    <span id="name-char-counter" class="mypage-char-count">0/10</span>
+                </div>
+                <button class="btn-act btn-blue mypage-btn-rename" onclick="saveNewName()">名前変更</button>
+            </div>
+
+            <div id="mypage-view-mode" class="mypage-edit-wrap">
+                <div id="mypage-view-name" class="mypage-view-name">プレイヤー名</div>
+                <div class="mypage-rate-badge">
+                    <span class="mypage-rate-label">Rate</span>
+                    <span id="mypage-view-rate" class="mypage-rate-val">----</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="screen-body">
+            <div class="mypage-flex-row">
+                <div class="mypage-col">
+                    <div class="stats-card">
+                        <h3 class="stats-card-title">総合指標</h3>
+                        <div class="stats-grid">
+                            <div class="stats-item" title="今までプレイした合計ゲーム数です。">
+                                <span class="label">総ゲーム数</span><span class="val" id="stat-total-games">0</span>
+                            </div>
+                            <div class="stats-item" title="連続で1位（トップ）を獲得した最大回数です。">
+                                <span class="label">最大連勝数</span><span class="val" style="color: #f1c40f;" id="stat-max-streak">0 連勝</span>
+                            </div>
+                            <div class="stats-item" title="全ゲームの順位の平均値です。">
+                                <span class="label">平均順位</span><span class="val highlight" id="stat-avg-rank">0.00</span>
+                            </div>
+                            <div class="stats-item" title="全ゲームのうち、1位（トップ）になった確率です。">
+                                <span class="label">トップ率</span><span class="val" id="stat-top-rate">0.00%</span>
+                            </div>
+                            <div class="stats-item" title="全ゲームのうち、1位または2位になった確率です。">
+                                <span class="label">連対率</span><span class="val" id="stat-rentai-rate">0.00%</span>
+                            </div>
+                            <div class="stats-item" title="全ゲームのうち、最下位（ラス）を回避した確率です。">
+                                <span class="label">ラス回避率</span><span class="val" id="stat-rasu-kaihi">0.00%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card" style="flex-grow: 1; align-items: center;">
+                        <h3 class="stats-card-title" style="width: 100%; text-align: left;">プレイスタイル分析</h3>
+                        <div id="mypage-radar-wrapper" class="mypage-chart-radar">
+                            <canvas id="mypage-radar-chart"></canvas>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="mypage-view-mode" class="mypage-edit-wrap">
-                    <div id="mypage-view-name" class="mypage-view-name">プレイヤー名</div>
-                    <div class="mypage-rate-badge">
-                        <span class="mypage-rate-label">Rate</span>
-                        <span id="mypage-view-rate" class="mypage-rate-val">----</span>
+                <div class="mypage-col">
+                    <div class="stats-card">
+                        <h3 class="stats-card-title">順位分布</h3>
+                        <div id="mypage-pie-wrapper" class="mypage-chart-pie">
+                            <canvas id="mypage-rank-pie-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <h3 class="stats-card-title">詳細スコア・技術指標</h3>
+                        <div class="stats-grid">
+                            <div class="stats-item" title="1局あたりに和了った平均回数です。">
+                                <span class="label">1局平均和了</span><span class="val highlight" id="stat-avg-wins">0 回</span>
+                            </div>
+                            <div class="stats-item" title="1回の和了で獲得した平均スコアです。">
+                                <span class="label">平均打点</span><span class="val" style="color: #3498db;" id="stat-avg-score-win">0 点</span>
+                            </div>
+                            <div class="stats-item" title="1局で稼いだ平均スコアです。">
+                                <span class="label">1局平均スコア</span><span class="val" id="stat-avg-score-round">0 点</span>
+                            </div>
+                            <div class="stats-item" title="1ゲーム終了時に獲得している平均最終スコアです。">
+                                <span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-score-game">0 点</span>
+                            </div>
+                            <div class="stats-item" title="全和了のうち、「無花果」が含まれていた割合です。">
+                                <span class="label">無花果率</span><span class="val" style="color: #f1c40f;" id="stat-muhana-rate">0.00%</span>
+                            </div>
+                            <div class="stats-item" title="全和了のうち、嶺上開花・妙手回春・花天月地で和了った割合です。">
+                                <span class="label">天運</span><span class="val text-red" id="stat-luck-rate">0.00%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-scroll-area">
-                <div class="mypage-flex-row">
-                    <div class="mypage-col">
-                        <div class="stats-card">
-                            <h3 class="stats-card-title">総合指標</h3>
-                            <div class="stats-grid">
-                                <div class="stats-item" title="今までプレイした合計ゲーム数です。">
-                                    <span class="label">総ゲーム数</span><span class="val" id="stat-total-games">0</span>
-                                </div>
-                                <div class="stats-item" title="連続で1位（トップ）を獲得した最大回数です。">
-                                    <span class="label">最大連勝数</span><span class="val" style="color: #f1c40f;" id="stat-max-streak">0 連勝</span>
-                                </div>
-                                <div class="stats-item" title="全ゲームの順位の平均値です。">
-                                    <span class="label">平均順位</span><span class="val highlight" id="stat-avg-rank">0.00</span>
-                                </div>
-                                <div class="stats-item" title="全ゲームのうち、1位（トップ）になった確率です。">
-                                    <span class="label">トップ率</span><span class="val" id="stat-top-rate">0.00%</span>
-                                </div>
-                                <div class="stats-item" title="全ゲームのうち、1位または2位になった確率です。">
-                                    <span class="label">連対率</span><span class="val" id="stat-rentai-rate">0.00%</span>
-                                </div>
-                                <div class="stats-item" title="全ゲームのうち、最下位（ラス）を回避した確率です。">
-                                    <span class="label">ラス回避率</span><span class="val" id="stat-rasu-kaihi">0.00%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="stats-card" style="flex-grow: 1; align-items: center;">
-                            <h3 class="stats-card-title" style="width: 100%; text-align: left;">プレイスタイル分析</h3>
-                            <div id="mypage-radar-wrapper" class="mypage-chart-radar">
-                                <canvas id="mypage-radar-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mypage-col">
-                        <div class="stats-card">
-                            <h3 class="stats-card-title">順位分布</h3>
-                            <div id="mypage-pie-wrapper" class="mypage-chart-pie">
-                                <canvas id="mypage-rank-pie-chart"></canvas>
-                            </div>
-                        </div>
-
-                        <div class="stats-card">
-                            <h3 class="stats-card-title">詳細スコア・技術指標</h3>
-                            <div class="stats-grid">
-                                <div class="stats-item" title="1局あたりに和了った平均回数です。">
-                                    <span class="label">1局平均和了</span><span class="val highlight" id="stat-avg-wins">0 回</span>
-                                </div>
-                                <div class="stats-item" title="1回の和了で獲得した平均スコアです。">
-                                    <span class="label">平均打点</span><span class="val" style="color: #3498db;" id="stat-avg-score-win">0 点</span>
-                                </div>
-                                <div class="stats-item" title="1局で稼いだ平均スコアです。">
-                                    <span class="label">1局平均スコア</span><span class="val" id="stat-avg-score-round">0 点</span>
-                                </div>
-                                <div class="stats-item" title="1ゲーム終了時に獲得している平均最終スコアです。">
-                                    <span class="label">1G平均最終スコア</span><span class="val" id="stat-avg-score-game">0 点</span>
-                                </div>
-                                <div class="stats-item" title="全和了のうち、「無花果」が含まれていた割合です。">
-                                    <span class="label">無花果率</span><span class="val" style="color: #f1c40f;" id="stat-muhana-rate">0.00%</span>
-                                </div>
-                                <div class="stats-item" title="全和了のうち、嶺上開花・妙手回春・花天月地で和了った割合です。">
-                                    <span class="label">天運</span><span class="val text-red" id="stat-luck-rate">0.00%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mypage-lifetime-box">
-                    <div class="mypage-lifetime-label">LIFETIME TOTAL SCORE</div>
-                    <div class="mypage-lifetime-val" id="stat-lifetime-score">0 <span>点</span></div>
-                </div>
-            </div>
-
-            <div class="text-center-mb10">
-                <button onclick="closeMyPage()" class="btn-act btn-gray modal-close-bottom">閉じる</button>
+            <div class="mypage-lifetime-box">
+                <div class="mypage-lifetime-label">LIFETIME TOTAL SCORE</div>
+                <div class="mypage-lifetime-val" id="stat-lifetime-score">0 <span>点</span></div>
             </div>
         </div>
     </div>
