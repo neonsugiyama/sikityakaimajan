@@ -113,18 +113,14 @@ let lineChart = null;
 async function updateProfileUI() {
     const profNameEl = document.getElementById('prof-name');
     if (profNameEl) {
-        profNameEl.innerHTML = `${escapeHTML(playerStats.playerName)} <span style="font-size: 16px; margin-left: 8px; opacity: 0.7;">✏️</span>`;
-        profNameEl.style.cursor = "pointer";
-        profNameEl.title = "名前と詳細戦績を確認・変更";
-        profNameEl.onclick = () => openMyPage();
+        // 🌟 名前変更フォームは一旦廃止したので、 ✏️ アイコンも非表示。
+        profNameEl.innerHTML = escapeHTML(playerStats.playerName);
     }
 
     const profRankEl = document.getElementById('prof-rank');
     if (profRankEl) {
         let rate = playerRatings[0];
         profRankEl.innerText = `【${getRatingTitle(rate)}】 R:${rate}`;
-        profRankEl.style.cursor = "pointer";
-        profRankEl.onclick = () => openMyPage();
     }
 
     let retryCount = 0;

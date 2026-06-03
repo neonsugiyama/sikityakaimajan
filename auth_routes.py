@@ -65,6 +65,15 @@ def _hash_password(password: str, salt: str) -> str:
 
 
 def _issue_token(username: str) -> str:
+    # 🌟 後勝ち方式: 同じユーザー名の既存トークンを全て無効化
+    #   旧セッション（別タブ/別デバイス）の API 呼び出しは 401 が返るようになり、
+    #   クライアント側が再ログイン画面に戻す。 雀魂等と同じ挙動。
+    revoked = [t for t, info in _active_tokens.items() if info.get("username") == username]
+    for t in revoked:
+        del _active_tokens[t]
+    if revoked:
+        print(f"[AUTH] '{username}' の既存セッション {len(revoked)} 個を無効化（後勝ちログイン）")
+
     token = secrets.token_urlsafe(32)
     _active_tokens[token] = {"username": username, "created": time.time()}
     return token

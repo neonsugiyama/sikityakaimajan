@@ -84,7 +84,10 @@ async function authLoadAndApply() {
         const res = await fetch(`/auth/load?token=${encodeURIComponent(authToken)}&_t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) {
             // トークン無効 → ログアウト扱い
-            if (res.status === 401) await authLogout();
+            if (res.status === 401) {
+                await authLogout();
+                _notifySessionRevoked();
+            }
             return false;
         }
         const data = await res.json();
@@ -114,7 +117,10 @@ async function authSave() {
             body: JSON.stringify(payload)
         });
         if (!res.ok) {
-            if (res.status === 401) await authLogout();
+            if (res.status === 401) {
+                await authLogout();
+                _notifySessionRevoked();
+            }
             return false;
         }
         return true;
@@ -122,6 +128,21 @@ async function authSave() {
         console.error('[AUTH] save失敗:', e);
         return false;
     }
+}
+
+// ==========================================
+// 内部: セッションが他の場所からのログインで無効化された時の通知
+// ==========================================
+let _sessionRevokedNotified = false;
+function _notifySessionRevoked() {
+    if (_sessionRevokedNotified) return; // 多重表示を防ぐ
+    _sessionRevokedNotified = true;
+    // 少し遅延させて、 他の即時アラート（例: alert）と重ならないようにする
+    setTimeout(() => {
+        alert("他の場所（タブ・デバイス）で同じアカウントにログインされました。\nこのセッションは終了します。");
+        // ホーム画面に戻すためリロード
+        try { location.reload(); } catch (e) { /* ignore */ }
+    }, 100);
 }
 
 // ==========================================
@@ -157,13 +178,6 @@ function _applyServerData(data) {
     }
     // 🌟 進行中の対局ルームIDを保持
     currentRoomIdInDb = data.current_room_id || null;
-
-    // 🌟 ログイン中のアカウント名でゲーム中ユーザー名を強制統一
-    //   （サーバーに古い playerName が残っていても、 必ずアカウント名で上書き）
-    if (authUsername && typeof playerStats !== 'undefined') {
-        playerStats.playerName = authUsername;
-    }
-
     // UIを更新
     if (typeof updateProfileUI === 'function') updateProfileUI();
     if (typeof updateInfoUI === 'function') updateInfoUI();
