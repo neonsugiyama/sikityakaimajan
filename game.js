@@ -1288,7 +1288,7 @@ async function execExchange() {
         }
 
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
-        if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0) {
+        if (oldHandStr === newHandStr && playerStats.welcomeHomeCount === 0 && _isStatsTrackingMode()) {
             playerStats.welcomeHomeCount = 1;
             saveGameData();
             showAchievementUnlock("おかえりなさい", "🎲");
@@ -1501,7 +1501,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     let oldHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
     if (t1 !== "") oldHandStr = [...myHand, t1, t2, t3].sort((a, b) => SM[a] - SM[b]).join(',');
 
-    if (secondCharlestonParticipating[0] && t1 !== "") {
+    if (secondCharlestonParticipating[0] && t1 !== "" && _isStatsTrackingMode()) {
         let oldCharleston = playerStats.secondCharlestonCount;
         playerStats.secondCharlestonCount++;
         checkTieredAchievement("charleston", "チャールストンの愛し子", "🔄", oldCharleston, playerStats.secondCharlestonCount, [5, 50, 500, 2500]);
@@ -1520,7 +1520,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     });
 
     // 🏆 おかえりなさい実績の判定
-    if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立")) {
+    if (secondCharlestonParticipating[0] && t1 !== "" && !data.direction.includes("不成立") && _isStatsTrackingMode()) {
         let newHandStr = [...myHand].sort((a, b) => SM[a] - SM[b]).join(',');
         if (oldHandStr === newHandStr) {
             playerStats.welcomeHomeCount = 1;
@@ -2244,7 +2244,7 @@ async function discard(t, isTsumogiri = false, domIdx = null) {
     // 🌟 追加：「罰当たり」実績の判定
     if (["春", "夏", "秋", "冬"].includes(t)) {
         currentRoundSeasonDiscardCount++;
-        if (currentRoundSeasonDiscardCount === 2 && playerStats.sacrilegeCount === 0) {
+        if (currentRoundSeasonDiscardCount === 2 && playerStats.sacrilegeCount === 0 && _isStatsTrackingMode()) {
             playerStats.sacrilegeCount = 1;
             showAchievementUnlock("罰当たり", "🚮");
             saveGameData();
@@ -2465,6 +2465,15 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (el) el.style.display = 'none';
     });
 
+    // 🌟 友人戦のレース条件対策：トークンを発行し、各 await 完了時にチェック。
+    //   副露・和了 broadcast が来てトークンがインクリメントされていれば、
+    //   この checkHumanReaction の続き（ボタン表示処理）を即座に中断する。
+    //   これがないと、他人のロン宣言で副露猶予が無効化された後でも、 await 完了で
+    //   ポン/スキップボタンが「復活表示」してしまい、 手番と行動フェーズがズレる。
+    const _myReactionToken = (window.__friend_human_reaction_token || 0) + 1;
+    window.__friend_human_reaction_token = _myReactionToken;
+    const _isCancelled = () => (window.__friend_human_reaction_token !== _myReactionToken);
+
     const count = myHand.filter(t => t === tile).length;
     const hasSeason = myHand.some(t => ["春", "夏", "秋", "冬"].includes(t));
     const isSeasonDiscard = ["春", "夏", "秋", "冬"].includes(tile);
@@ -2474,6 +2483,7 @@ async function checkHumanReaction(discarderIdx, tile) {
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
     const wd = await apiCall('/check_win', { player_idx: 0, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
+    if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
 
     // 🌟 頭ハネ判定
     let anyCpuWillRon = false;
@@ -2484,6 +2494,7 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (i === discarderIdx) continue;
         try {
             const cpuWd = await apiCall('/check_win', { player_idx: i, last_tile: tile, is_ron: "true", is_haitei: isHaitei, is_chankan: "false" });
+            if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
             if (cpuWd.can_win) {
                 anyCpuWillRon = true;
                 let cpuDist = (i - discarderIdx + 4) % 4;
@@ -2493,6 +2504,9 @@ async function checkHumanReaction(discarderIdx, tile) {
             }
         } catch (e) { }
     }
+
+    // 🌟 最終ボタン表示の直前にも中断チェック（await 完了直後に broadcast が来た場合に備える）
+    if (_isCancelled()) { console.log("[FRIEND] checkHumanReaction 中断: 副露・和了 broadcast 受信"); return; }
 
     let canHumanRon = wd.can_win; // 🟢 修正：頭ハネされる場合でも「ロン」ボタンを堂々と出す！
 
@@ -2925,7 +2939,7 @@ async function execMeld(type) {
     await sleep(1500);
 
     if (type === 'カン' || type === '花槓') {
-        if (type === '花槓') {
+        if (type === '花槓' && _isStatsTrackingMode()) {
             let oldHanakan = playerStats.hanakanCount;
             playerStats.hanakanCount++;
             checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);
@@ -2949,7 +2963,7 @@ async function execSelfMeld(type, t, s, isHidden = false) {
     // 🌟 追加：透過箱を即座に消す
     const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
-    if (type.includes("花槓")) {
+    if (type.includes("花槓") && _isStatsTrackingMode()) {
         // 🏆 ここを変更！【花槓マスター】（暗花槓など）
         let oldHanakan = playerStats.hanakanCount;
         playerStats.hanakanCount++;
@@ -3053,10 +3067,12 @@ async function execJokerSwap(t, season, targetIdx) {
     await sleep(1500);
 
     // 🏆 ここを変更！【スワップの支配者】
-    let oldSwap = playerStats.jokerSwapCount;
-    playerStats.jokerSwapCount++;
-    checkTieredAchievement("jokerswap", "スワップの支配者", "🃏", oldSwap, playerStats.jokerSwapCount, [1, 10, 50, 150]);
-    saveGameData();
+    if (_isStatsTrackingMode()) {
+        let oldSwap = playerStats.jokerSwapCount;
+        playerStats.jokerSwapCount++;
+        checkTieredAchievement("jokerswap", "スワップの支配者", "🃏", oldSwap, playerStats.jokerSwapCount, [1, 10, 50, 150]);
+        saveGameData();
+    }
 
     pendingIsJokerSwap = true;
     pendingIsMiaoshou = (season === "春");
@@ -3103,7 +3119,7 @@ async function handleRoundEnd(isReplayingResult = false) {
         let resultStartTime = parseInt(startTime);
         if (isNaN(resultStartTime)) resultStartTime = Date.now();
 
-        if (!isReplayingResult) {
+        if (!isReplayingResult && _isStatsTrackingMode()) {
             let oldRounds = playerStats.totalRoundsPlayed;
             playerStats.totalRoundsPlayed++;
             checkTieredAchievement("rounds", "継続は力なり", "⏳", oldRounds, playerStats.totalRoundsPlayed, [10, 100, 1000, 5000]);
@@ -3152,7 +3168,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             if (res.player === selfIdx) {
                 iWon = true;
 
-                if (!isReplayingResult && currentGameMode !== 'lesson' && currentGameMode !== 'tutorial') {
+                if (!isReplayingResult && _isStatsTrackingMode()) {
                     playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1;
                     if (calcData.results.length > 0) {
                         if (calcData.results[0].player === selfIdx) playerStats._tempFirstWin = true;

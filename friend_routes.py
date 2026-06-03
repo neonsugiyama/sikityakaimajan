@@ -610,6 +610,22 @@ def get_friend_state_for_player(game, player_idx: int) -> dict:
 
 
 # ==========================================
+# REST: 友人戦ロビーの部屋存在チェック
+# ==========================================
+@router.get("/check_lobby_room")
+async def friend_check_lobby_room(room_id: str = ""):
+    """指定されたルームIDのロビーが既に存在するか確認。
+    参加 (join) 時に存在しない部屋に接続すると意図せずホストになってしまうため、
+    クライアント側で事前に呼んでチェックする。"""
+    from main import lobby_manager
+    if not room_id:
+        return {"exists": False}
+    active = getattr(lobby_manager, 'active_connections', {})
+    exists = room_id in active and len(active.get(room_id, [])) > 0
+    return {"exists": exists}
+
+
+# ==========================================
 # REST: 第1交換（チャールストン）の3枚提出
 # ==========================================
 @router.get("/charleston_submit")
@@ -1150,7 +1166,10 @@ async def _resolve_friend_call(room_id: str, game):
         }
         game.win_records[winner].append(ctx)
         game.win_tiles[winner].append(tile)
-        game.is_first_turn[winner] = False
+        # 🌟 ロン和了は「自分のツモ番じゃない時の他人の打牌への反応」なので、
+        #   ロンしても自分はまだ打牌していない → is_first_turn は True のまま維持する。
+        #   （CPU戦の process_win_ron でもロン時に is_first_turn を変更していないので、
+        #    友人戦も挙動を合わせる。 これがないとロン後の自分の第一自摸で地胡が成立しなくなる）
         game.last_discard_info = {"player": -1, "tile": ""}
 
         effects = get_special_effects(game, winner, ctx)

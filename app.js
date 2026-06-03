@@ -958,13 +958,27 @@ function applyFriendSettingsAndCreate() {
     enterWaitingRoom(roomId, settings);
 }
 
-function joinRoom() {
+async function joinRoom() {
     if (typeof playSE === 'function') playSE('click');
     const inputEl = document.getElementById('room-id-input');
     if (!inputEl) return;
     const inputVal = inputEl.value.trim().toUpperCase();
     if (!inputVal) {
         alert("ルームIDを入力してください！");
+        return;
+    }
+    // 🌟 存在チェック: 存在しないルームIDに接続すると意図せずホストになってしまうため、
+    //    参加 (join) 時はサーバー側で部屋の有無を確認する
+    try {
+        const res = await fetch(`/friend/check_lobby_room?room_id=${encodeURIComponent(inputVal)}&_t=${Date.now()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.exists) {
+            alert("指定されたルームIDは存在しません。\n入力したIDが正しいかご確認ください。");
+            return;
+        }
+    } catch (e) {
+        alert("通信エラーが発生しました。\n" + (e && e.message ? e.message : ""));
         return;
     }
     enterWaitingRoom(inputVal);

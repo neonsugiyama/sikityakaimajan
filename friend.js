@@ -1072,6 +1072,10 @@ async function handleFriendMeld(data) {
     console.log("[FRIEND] 副露:", data);
     // 🌟 friend_discard の遅延ハンドラを無効化
     window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
+    // 🌟 副露猶予 UI を即座に無効化（checkHumanReaction が進行中なら中断）
+    //    他人のポン/カン/花槓宣言で副露猶予が無効化された後でも、
+    //    await 完了でポン/スキップボタンが復活表示されるのを防ぐ
+    window.__friend_human_reaction_token = (window.__friend_human_reaction_token || 0) + 1;
     // 🌟 全 CPU のツモ表現を解除
     if (typeof cpuDrawnTiles !== 'undefined') {
         cpuDrawnTiles = [null, null, null, null];
@@ -1091,6 +1095,19 @@ async function handleFriendMeld(data) {
     const label = meldLabels[data.meld_type] || data.meld_type;
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, label);
+
+    // 🌟 自分の副露の場合、 次のアクション制限のためのフラグを設定（CPU戦 execMeld と同じ挙動）
+    //   ・ポン後: 加槓・暗槓・カン不可、 花槓のみ可能（ツモがないため）→ justPonged=true
+    //   ・カン/花槓後: 嶺上ツモするので、 連続で加槓・暗槓・花槓すべて可能 → justPonged=false
+    if (claimerRel === 0) {
+        if (data.meld_type === 'pong') {
+            if (typeof justPonged !== 'undefined') justPonged = true;
+            if (typeof pendingIsRinshan !== 'undefined') pendingIsRinshan = false;
+        } else if (data.meld_type === 'minkan' || data.meld_type === 'hanakan') {
+            if (typeof pendingIsRinshan !== 'undefined') pendingIsRinshan = true;
+            if (typeof justPonged !== 'undefined') justPonged = false;
+        }
+    }
 
     // 🌟 明槓の場合は嶺上ツモ表現を CPU 席に出す（自分の槓ではない場合）
     if (data.meld_type === 'minkan' && claimerRel !== 0) {
@@ -1121,6 +1138,14 @@ async function handleFriendSelfMeld(data) {
     const label = labels[data.meld_type] || data.meld_type;
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, label);
+
+    // 🌟 自分の暗槓・加槓・花槓の場合、 嶺上開花フラグを立てる
+    //   （次のツモが嶺上牌になるので、 連続で加槓・暗槓・花槓宣言が可能）
+    if (claimerRel === 0) {
+        if (typeof pendingIsRinshan !== 'undefined') pendingIsRinshan = true;
+        if (typeof justPonged !== 'undefined') justPonged = false;
+    }
+
     await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
 
     if (typeof isProc !== 'undefined') isProc = false;
@@ -1138,6 +1163,14 @@ let friendWinQueue = [];
 
 async function handleFriendWin(data) {
     console.log("[FRIEND] 和了:", data, "yaku:", data.yaku, "myPlayerIdx:", myPlayerIdx);
+
+    // 🌟 副露猶予 UI を即座に無効化（checkHumanReaction が進行中なら中断）
+    //    これがないと、 await 完了後にポン/スキップボタンが復活表示してしまう
+    window.__friend_human_reaction_token = (window.__friend_human_reaction_token || 0) + 1;
+    // 既に表示されている副露ボタン群を即座に非表示
+    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
+    const _btnWinNow = document.getElementById('btn-win');
+    if (_btnWinNow) _btnWinNow.style.display = "none";
 
     // 既に演出中ならキューに積んで終了
     if (friendWinAnimating) {

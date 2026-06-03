@@ -4,6 +4,16 @@
 
 let playerRatings = [1500, 1500, 1500, 1500];
 
+// 🌟 統計・実績の追跡を行うべきモードか判定するヘルパー
+//   true: CPU戦・友人戦・オンライン対戦（実装次第） などの「本番対局」
+//   false: チュートリアル・レッスン・リプレイ などの「練習/再生」
+function _isStatsTrackingMode() {
+    if (typeof currentGameMode === 'undefined') return false;
+    return currentGameMode === 'cpu' || currentGameMode === 'friend' || currentGameMode === 'online';
+}
+// グローバル公開
+window._isStatsTrackingMode = _isStatsTrackingMode;
+
 // 📊 プレイヤーの実績・戦績を管理するデータオブジェクト
 let playerStats = {
     playerName: "あなた",
