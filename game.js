@@ -3785,7 +3785,11 @@ async function handleRoundEnd(isReplayingResult = false) {
                         ? window.getLessonsStorageKey() : 'shiki_mahjong_lessons';
                     let savedLessons = JSON.parse(localStorage.getItem(_lkey)) || [];
                     savedLessons[window.currentLessonId] = true;
-                    localStorage.setItem(_lkey, JSON.stringify(savedLessons));
+                    if (typeof window.safeLocalStorageSet === 'function') {
+                        window.safeLocalStorageSet(_lkey, savedLessons);
+                    } else {
+                        try { localStorage.setItem(_lkey, JSON.stringify(savedLessons)); } catch (e) { console.warn('[LESSON] save失敗:', e); }
+                    }
 
                 } else {
                     //console.log("実際にサーバーから返ってきた獲得役:", myYaku);

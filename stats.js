@@ -78,12 +78,22 @@ function saveGameData() {
     if (typeof currentGameMode !== 'undefined' && (currentGameMode === 'lesson' || currentGameMode === 'tutorial')) return;
     const data = { ratings: playerRatings, stats: playerStats };
     // 🔐 ログイン中はアカウント別キーに保存（タブ独立）＋サーバーにも同期
+    // 🛡️ 戦績データの保存失敗は致命的なので、 ユーザーに通知する
     if (typeof isLoggedIn === 'function' && isLoggedIn()) {
-        localStorage.setItem(`shiki_mahjong_data_${authUsername}`, JSON.stringify(data));
+        const storageKey = `shiki_mahjong_data_${authUsername}`;
+        if (typeof window.safeLocalStorageSet === 'function') {
+            window.safeLocalStorageSet(storageKey, data, { notifyOnFail: true });
+        } else {
+            try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch (e) { console.error('[STATS] save失敗:', e); }
+        }
         // サーバーへ非同期保存（投げっぱなし）
         if (typeof authSave === 'function') authSave();
     } else {
-        localStorage.setItem('shiki_mahjong_data', JSON.stringify(data));
+        if (typeof window.safeLocalStorageSet === 'function') {
+            window.safeLocalStorageSet('shiki_mahjong_data', data, { notifyOnFail: true });
+        } else {
+            try { localStorage.setItem('shiki_mahjong_data', JSON.stringify(data)); } catch (e) { console.error('[STATS] save失敗:', e); }
+        }
     }
 }
 

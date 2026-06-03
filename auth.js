@@ -174,7 +174,13 @@ function _applyServerData(data) {
     }
     if (data.replays !== undefined) {
         // 牌譜はアカウント別キーに保存（タブ独立のため username 付き）
-        localStorage.setItem(_replaysKey(), JSON.stringify(data.replays));
+        // 🛡️ サーバーから来た牌譜はサイズが大きい可能性 → safe wrapper で容量超過対応
+        const replayKey = _replaysKey();
+        if (typeof safeLocalStorageSet === 'function') {
+            safeLocalStorageSet(replayKey, data.replays, { cleanupKey: replayKey });
+        } else {
+            try { localStorage.setItem(replayKey, JSON.stringify(data.replays)); } catch (e) { console.warn('[AUTH] replay保存失敗:', e); }
+        }
     }
     // 🌟 進行中の対局ルームIDを保持
     currentRoomIdInDb = data.current_room_id || null;
@@ -200,3 +206,49 @@ function _lessonsKey() {
 // グローバルに公開（他ファイルから参照）
 window.getReplaysStorageKey = _replaysKey;
 window.getLessonsStorageKey = _lessonsKey;
+
+// ==========================================
+// 🛡️ localStorage 書き込みの安全ラッパ
+//   QuotaExceededError (容量超過) や その他の例外で setItem が失敗するのを補足する。
+//   options:
+//     - cleanupKey: 容量超過時に古いデータを削除して再試行する対象キー
+//       (主に牌譜・lessons 等、 配列で保存されているもの)
+//     - notifyOnFail: true なら失敗時にユーザーへ alert で通知
+//   戻り値: 成功 true / 失敗 false
+// ==========================================
+function safeLocalStorageSet(key, value, options = {}) {
+    const valueStr = (typeof value === 'string') ? value : JSON.stringify(value);
+    try {
+        localStorage.setItem(key, valueStr);
+        return true;
+    } catch (e) {
+        const isQuota = (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014));
+        console.warn(`[STORAGE] setItem '${key}' 失敗 (quota=${isQuota}):`, e);
+
+        // 容量超過 + 配列データなら、 古い半分を削除して再試行
+        if (isQuota && options.cleanupKey) {
+            try {
+                const arr = JSON.parse(localStorage.getItem(options.cleanupKey) || '[]');
+                if (Array.isArray(arr) && arr.length > 1) {
+                    const halved = arr.slice(Math.floor(arr.length / 2));  // 古い半分を捨てる
+                    localStorage.setItem(options.cleanupKey, JSON.stringify(halved));
+                    console.warn(`[STORAGE] '${options.cleanupKey}' を ${arr.length}→${halved.length} 件に圧縮して再試行`);
+                    // 再試行
+                    try {
+                        localStorage.setItem(key, valueStr);
+                        return true;
+                    } catch (e2) { /* 諦める */ }
+                }
+            } catch (e3) { /* cleanup 失敗、 そのまま諦める */ }
+        }
+
+        if (options.notifyOnFail) {
+            const msg = isQuota
+                ? "ブラウザの保存容量が不足しています。\n古い牌譜を削除するか、 ブラウザのキャッシュをクリアしてください。"
+                : "データの保存に失敗しました: " + (e && e.message ? e.message : '不明なエラー');
+            try { alert(msg); } catch (_) { /* ignore */ }
+        }
+        return false;
+    }
+}
+window.safeLocalStorageSet = safeLocalStorageSet;

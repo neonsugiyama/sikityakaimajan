@@ -60,7 +60,12 @@ function saveSettings() {
         cpuLevel: confCpuLevel,
         systemUnlocked: document.getElementById('btn-tab-system') ? (document.getElementById('btn-tab-system').style.display === "block") : false
     };
-    localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config));
+    // 🛡️ 設定は小さいので失敗しにくいが、 念のため safe wrapper
+    if (typeof window.safeLocalStorageSet === 'function') {
+        window.safeLocalStorageSet('shiki_mahjong_settings', config);
+    } else {
+        try { localStorage.setItem('shiki_mahjong_settings', JSON.stringify(config)); } catch (e) { console.warn('[CONFIG] save失敗:', e); }
+    }
 }
 
 // 📂 ブラウザから設定を読み込み、スライダーや画面状態に反映する関数

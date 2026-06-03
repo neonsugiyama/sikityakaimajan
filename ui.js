@@ -1266,7 +1266,12 @@ window.deleteReplay = function (id) {
         const _replayKey = (typeof window.getReplaysStorageKey === 'function') ? window.getReplaysStorageKey() : 'shiki_mahjong_replays';
         let savedReplays = JSON.parse(localStorage.getItem(_replayKey)) || [];
         savedReplays = savedReplays.filter(r => r.id !== id);
-        localStorage.setItem(_replayKey, JSON.stringify(savedReplays));
+        // 🛡️ 削除後の保存は容量が減るので失敗しにくいが、 念のため safe wrapper を使う
+        if (typeof window.safeLocalStorageSet === 'function') {
+            window.safeLocalStorageSet(_replayKey, savedReplays);
+        } else {
+            try { localStorage.setItem(_replayKey, JSON.stringify(savedReplays)); } catch (e) { console.warn('[REPLAY] delete save失敗:', e); }
+        }
         if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authSave === 'function') authSave();
         openReplayList();
     }

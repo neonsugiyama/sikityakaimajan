@@ -113,7 +113,13 @@ async function fetchAndSaveReplay() {
             // ストレージ容量圧迫を防ぐため、最新の30件だけ保存する
             if (savedReplays.length > 30) savedReplays.shift();
 
-            localStorage.setItem(replayKey, JSON.stringify(savedReplays));
+            // 🛡️ 容量超過に備えて safeLocalStorageSet を使用
+            //   失敗時は古い牌譜を半分削って再試行（牌譜は古いものから捨ててよい）
+            if (typeof window.safeLocalStorageSet === 'function') {
+                window.safeLocalStorageSet(replayKey, savedReplays, { cleanupKey: replayKey });
+            } else {
+                try { localStorage.setItem(replayKey, JSON.stringify(savedReplays)); } catch (e) { console.warn('[REPLAY] save失敗:', e); }
+            }
             // 🔐 ログイン中はサーバーにも同期
             if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authSave === 'function') {
                 authSave();
