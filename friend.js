@@ -19,6 +19,12 @@ let disconnectedPlayers = [false, false, false, false];
 // ==========================================
 function startFriendGame(initData) {
     console.log("[FRIEND] startFriendGame", initData);
+
+    // 🌟 transient な状態を一括初期化（前のゲームの残骸を防ぐ）
+    if (typeof _resetTransientGameState === 'function') {
+        _resetTransientGameState();
+    }
+
     myPlayerIdx = initData.player_idx;
     friendRoomId = initData.room_id;
     friendPlayerNames = initData.player_names || [];

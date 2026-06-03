@@ -38,6 +38,59 @@ let selectedTileIndex = -1; // -1は「何も選択されていない」状態
 let _handleRoundEndInProgress = false;
 
 // ==========================================
+// 🔄 局・ゲーム遷移時の状態リセット共通関数
+// 「リセット忘れ」が過去のバグの温床になっていたので、 1か所に集約する。
+//   - 局単位 transient 変数（前局の状態が残ると次局でバグる変数）
+//   - レッスン retry / friend ゲーム開始 / init / next_round 等で共通利用
+// ==========================================
+function _resetTransientGameState() {
+    if (typeof stopTimer === 'function') stopTimer();
+
+    // ── プレイ進行状態（局単位） ──
+    isProc = false;
+    turn = 0;
+    wallCount = 0;
+    drawnTile = "";
+    lastDiscardPlayer = -1;
+    lastT = "";
+    justPonged = false;
+
+    // ── 副露・カン関連の保留フラグ ──
+    pendingIsJokerSwap = false;
+    pendingIsRinshan = false;
+    pendingIsMiaoshou = false;
+
+    // ── 待ち牌・解析結果 ──
+    currentWaits = [];
+    currentNanikiru = null;
+
+    // ── 牌操作 UI ──
+    selectedTileIndex = -1;
+    exchangeSelection = [];
+
+    // ── CPU 表示状態 ──
+    if (typeof cpuDrawnTiles !== 'undefined') {
+        cpuDrawnTiles = [null, null, null, null];
+    }
+    if (typeof hideCpuTiles !== 'undefined') {
+        hideCpuTiles = [0, 0, 0, 0];
+    }
+
+    // ── 判定フラグ ──
+    isAlreadyTenpai = false;
+    currentRoundSeasonDiscardCount = 0;
+
+    // ── リザルト関連の二重実行ガード ──
+    _handleRoundEndInProgress = false;
+
+    // ── ボタンの表示状態を初期化 ──
+    const btnHaitei = document.getElementById('btn-haitei-tsumo');
+    const btnRyukyoku = document.getElementById('btn-ryukyoku');
+    if (btnHaitei) btnHaitei.style.display = "none";
+    if (btnRyukyoku) btnRyukyoku.style.display = "none";
+}
+
+// ==========================================
 // 🚀 牌画像のプリロード（読み込み遅延・チラつき防止）
 // ==========================================
 const preloadedImages = []; // メモリ上に保持しておくための配列
@@ -1117,7 +1170,10 @@ function switchDebugTab(evt, tabId) {
 
 // 🚀 ゲームの初期化通信を行い、最初のチャールストンを開始する関数
 async function init() {
-    selectedTileIndex = -1;
+    // 🌟 transient な状態を一括初期化（前回ゲームの状態が残らないよう保護）
+    if (typeof _resetTransientGameState === 'function') {
+        _resetTransientGameState();
+    }
     if (window.cleanupTutorialUI) window.cleanupTutorialUI();
 
     logMsg("=== ゲーム起動 ===");
@@ -3787,34 +3843,11 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                     // 4. 少しだけ待ってから同じレッスンIDで再スタート！
                     setTimeout(() => {
-                        // 🌟 ゲーム状態のグローバル変数を完全初期化
-                        // （海底牌・isProc・turn・wallCount 等が前局の値で残るのを防ぐ）
-                        if (typeof stopTimer === 'function') stopTimer();
-                        isProc = false;
-                        turn = 0;
-                        wallCount = 0;
-                        drawnTile = "";
-                        lastDiscardPlayer = -1;
-                        lastT = "";
-                        pendingIsRinshan = false;
-                        currentWaits = [];
-                        currentNanikiru = null;
-                        selectedTileIndex = -1;
-                        exchangeSelection = [];
-                        // 🌟 重要: リザルト二重実行ガードもリセットしないと、
-                        // 次の局終了時に handleRoundEnd が return してしまい局が終わらない
-                        _handleRoundEndInProgress = false;
-                        if (typeof cpuDrawnTiles !== 'undefined') {
-                            cpuDrawnTiles = [null, null, null, null];
+                        // 🌟 共通リセット関数で transient な状態を一括初期化
+                        //   （前局の海底牌・isProc・turn・wallCount 等が残るのを防ぐ）
+                        if (typeof _resetTransientGameState === 'function') {
+                            _resetTransientGameState();
                         }
-                        if (typeof hideCpuTiles !== 'undefined') {
-                            hideCpuTiles = [0, 0, 0, 0];
-                        }
-                        // 海底ボタンを非表示
-                        const btnHaitei = document.getElementById('btn-haitei-tsumo');
-                        const btnRyukyoku = document.getElementById('btn-ryukyoku');
-                        if (btnHaitei) btnHaitei.style.display = "none";
-                        if (btnRyukyoku) btnRyukyoku.style.display = "none";
 
                         if (typeof startLesson === 'function') {
                             startLesson(retryId);
