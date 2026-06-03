@@ -37,6 +37,20 @@ function closeAllModals() {
     });
 }
 
+// 🌟 すべての「全画面」(game-screen) を閉じる共通関数
+//   mypage-screen, achievement-screen など、 game-screen クラスを持つ要素を排他制御する
+function closeAllScreens(except = null) {
+    const screens = ['mypage-screen', 'achievement-screen'];
+    screens.forEach(id => {
+        if (id === except) return;
+        const element = document.getElementById(id);
+        if (element) {
+            element.classList.remove('screen-active');
+            element.style.display = 'none';
+        }
+    });
+}
+
 // 🌟 画面内のスクロール位置を強制リセットし、ログを出す共通関数
 function resetScrollAreas(parentId, contextName) {
     const parent = document.getElementById(parentId);
@@ -160,6 +174,8 @@ function openMyPage() {
     if (!targetScreen) return;
 
     if (typeof closeAllModals === 'function') closeAllModals();
+    // 🌟 他の全画面（achievement-screen 等）を閉じて排他制御
+    closeAllScreens('mypage-screen');
 
     if (typeof playerStats !== 'undefined') {
         if (el('input-player-name')) el('input-player-name').value = playerStats.playerName;
@@ -199,6 +215,8 @@ function openPlayerStats(idx) {
     if (!targetScreen) return;
 
     if (typeof closeAllModals === 'function') closeAllModals();
+    // 🌟 他の全画面（achievement-screen 等）を閉じて排他制御
+    closeAllScreens('mypage-screen');
 
     if (typeof playerStats !== 'undefined' && typeof cpuStats !== 'undefined') {
         let targetStats = (idx === 0) ? playerStats : cpuStats[idx];
@@ -225,6 +243,8 @@ function openAchievements() {
     if (!targetScreen) return;
 
     if (typeof closeAllModals === 'function') closeAllModals();
+    // 🌟 他の全画面（mypage-screen 等）を閉じて排他制御
+    closeAllScreens('achievement-screen');
     if (typeof renderAchievements === 'function') renderAchievements();
 
     // 🌟 1. まず画面を「存在」させる（※この時点ではCSSの設定でまだ透明です）
