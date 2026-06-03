@@ -157,6 +157,13 @@ function _applyServerData(data) {
     }
     // 🌟 進行中の対局ルームIDを保持
     currentRoomIdInDb = data.current_room_id || null;
+
+    // 🌟 ログイン中のアカウント名でゲーム中ユーザー名を強制統一
+    //   （サーバーに古い playerName が残っていても、 必ずアカウント名で上書き）
+    if (authUsername && typeof playerStats !== 'undefined') {
+        playerStats.playerName = authUsername;
+    }
+
     // UIを更新
     if (typeof updateProfileUI === 'function') updateProfileUI();
     if (typeof updateInfoUI === 'function') updateInfoUI();

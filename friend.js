@@ -830,14 +830,27 @@ function handleFriendEvent(data) {
     } else if (type === "friend_draw") {
         // 他人がツモした → state を反映して描画（手牌枚数 +1, 山牌 -1）
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        // 🌟 ツモ牌を手牌の右側に分離表示するために cpuDrawnTiles をセット
+        //   （renderCPU の友人戦ロジックは cpuDrawnTiles[i] を見て分離を判定するため、
+        //    これがないと他プレイヤーの自摸牌が手牌に埋もれてしまう）
+        const drawerAbs = data.player_idx;
+        const drawerRel = (drawerAbs - myPlayerIdx + 4) % 4;
+        if (drawerRel !== 0 && typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles[drawerRel] = "ura";
+        }
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
         // ターンは進めない（打牌するまでは tsumo 中の表示）
     } else if (type === "friend_cpu_draw_preview") {
-        // 🤖 CPU がツモった瞬間（演出用） → state 反映して再描画
-        // 他プレイヤーから見ると、対応する手牌が14枚（13枚 + 自摸1枚）に増えるので、
-        // renderCPU が `length % 3 === 2` を検知して自摸位置に1枚分離して表示する。
+        // 🤖 CPU がツモった瞬間（演出用） → state 反映して自摸表現をセット
+        //   renderCPU の友人戦ロジックは cpuDrawnTiles[i] を見て分離を判定するため、
+        //   ここで明示的にセットしないと自摸牌が手牌に埋もれてしまう。
         if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
+        const drawerAbs = data.player_idx;
+        const drawerRel = (drawerAbs - myPlayerIdx + 4) % 4;
+        if (drawerRel !== 0 && typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles[drawerRel] = "ura";
+        }
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
     } else if (type === "friend_discard") {
@@ -1072,10 +1085,6 @@ async function handleFriendMeld(data) {
     console.log("[FRIEND] 副露:", data);
     // 🌟 friend_discard の遅延ハンドラを無効化
     window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
-    // 🌟 副露猶予 UI を即座に無効化（checkHumanReaction が進行中なら中断）
-    //    他人のポン/カン/花槓宣言で副露猶予が無効化された後でも、
-    //    await 完了でポン/スキップボタンが復活表示されるのを防ぐ
-    window.__friend_human_reaction_token = (window.__friend_human_reaction_token || 0) + 1;
     // 🌟 全 CPU のツモ表現を解除
     if (typeof cpuDrawnTiles !== 'undefined') {
         cpuDrawnTiles = [null, null, null, null];
@@ -1163,14 +1172,6 @@ let friendWinQueue = [];
 
 async function handleFriendWin(data) {
     console.log("[FRIEND] 和了:", data, "yaku:", data.yaku, "myPlayerIdx:", myPlayerIdx);
-
-    // 🌟 副露猶予 UI を即座に無効化（checkHumanReaction が進行中なら中断）
-    //    これがないと、 await 完了後にポン/スキップボタンが復活表示してしまう
-    window.__friend_human_reaction_token = (window.__friend_human_reaction_token || 0) + 1;
-    // 既に表示されている副露ボタン群を即座に非表示
-    document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
-    const _btnWinNow = document.getElementById('btn-win');
-    if (_btnWinNow) _btnWinNow.style.display = "none";
 
     // 既に演出中ならキューに積んで終了
     if (friendWinAnimating) {

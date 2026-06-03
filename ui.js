@@ -160,8 +160,14 @@ function openMyPage() {
     if (typeof playerStats !== 'undefined') {
         if (el('input-player-name')) el('input-player-name').value = playerStats.playerName;
         if (typeof updateNameCounter === 'function') updateNameCounter(playerStats.playerName);
-        show('mypage-edit-mode', 'flex');
-        hide('mypage-view-mode');
+        // 🌟 名前変更フォームは一旦廃止。 アカウント名 = ゲーム中ユーザー名 で統一。
+        //    （saveNewName 等のロジックは残しているので、 後で戻したい時は再表示するだけで OK）
+        hide('mypage-edit-mode');
+        show('mypage-view-mode', 'flex');
+        if (el('mypage-view-name')) el('mypage-view-name').innerText = playerStats.playerName;
+        if (el('mypage-view-rate') && typeof playerRatings !== 'undefined') {
+            el('mypage-view-rate').innerText = playerRatings[0];
+        }
         if (typeof updateStatsModalUI === 'function') updateStatsModalUI(playerStats);
     }
 }
