@@ -1070,11 +1070,21 @@ function renderLobbySeats(seats) {
         } else if (seat.type === 'human') {
             nameLabel.innerText = '👤 ' + (seat.name || 'Player');
             if (i === (window.lobbyMySeat ?? -1)) {
-                nameLabel.innerHTML += ' <span style="color:#f1c40f; font-size:12px;">(あなた)</span>';
+                // 🌟 XSS 対策: innerHTML 連結だと既存テキストが再解釈されるため、
+                //   safe な span を appendChild で追加する
+                const youMark = document.createElement('span');
+                youMark.style.cssText = 'color:#f1c40f; font-size:12px;';
+                youMark.innerText = ' (あなた)';
+                nameLabel.appendChild(youMark);
             }
         } else if (seat.type === 'cpu') {
             const lvl = (seat.cpu_level !== undefined && seat.cpu_level !== null) ? cpuLevelLabel[seat.cpu_level] : '?';
-            nameLabel.innerHTML = `🤖 ${seat.name} <span style="color:#3498db; font-size:12px;">(${lvl})</span>`;
+            // 🌟 XSS 対策: name の部分はテキストノードで追加、 (Lv) 部分のみ装飾 span
+            nameLabel.innerText = '🤖 ' + (seat.name || '');
+            const lvlMark = document.createElement('span');
+            lvlMark.style.cssText = 'color:#3498db; font-size:12px;';
+            lvlMark.innerText = ' (' + lvl + ')';
+            nameLabel.appendChild(lvlMark);
         }
         row.appendChild(nameLabel);
 

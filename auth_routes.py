@@ -7,6 +7,7 @@ import hashlib
 import secrets
 import json
 import os
+import re
 import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -20,6 +21,10 @@ DB_PATH = os.environ.get("SHIKI_DB_PATH", os.path.join(os.path.dirname(__file__)
 _active_tokens = {}  # token -> {"username": str, "created": float}
 
 TOKEN_TTL = 60 * 60 * 24 * 7  # トークン有効期間: 7日
+
+# 🌟 XSS 対策: ユーザー名に使えない文字（HTML/スクリプトに使われる特殊文字）
+#   日本語（ひらがな、 カタカナ、 漢字）や英数字は許可、 危険な記号のみ禁止
+_DANGEROUS_USERNAME_CHARS = re.compile(r'[<>&\'"`\\\x00-\x1f\x7f]')
 
 
 def _get_db():
@@ -124,6 +129,9 @@ def register(body: RegisterBody):
 
     if len(username) < 1 or len(username) > 20:
         raise HTTPException(status_code=400, detail="ユーザー名は1〜20文字で入力してください")
+    # 🌟 XSS 対策: 危険文字をチェック
+    if _DANGEROUS_USERNAME_CHARS.search(username):
+        raise HTTPException(status_code=400, detail="ユーザー名に使用できない文字が含まれています（< > & ' \" ` バックスラッシュ 等は使えません）")
     if len(password) < 4:
         raise HTTPException(status_code=400, detail="パスワードは4文字以上で入力してください")
 
