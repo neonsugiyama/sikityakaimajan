@@ -28,7 +28,6 @@ function startFriendGame(initData) {
     myPlayerIdx = initData.player_idx;
     friendRoomId = initData.room_id;
     friendPlayerNames = initData.player_names || [];
-    console.log("[FRIEND DEBUG] myPlayerIdx:", myPlayerIdx, " friendPlayerNames:", JSON.stringify(friendPlayerNames));
 
     // 🌟 ホストの設定値を CPU戦のグローバル変数に上書き（友人戦中だけ有効）
     if (initData.settings) {
@@ -429,7 +428,8 @@ function connectFriendGameWs() {
 
     friendWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log("[FRIEND] WS受信:", data);
+        // 🌟 大量に出るので window.DEBUG_FRIEND_WS = true の時のみ詳細ログを出す
+        if (window.DEBUG_FRIEND_WS) console.log("[FRIEND] WS受信:", data);
         handleFriendEvent(data);
     };
 

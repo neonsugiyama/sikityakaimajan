@@ -24,7 +24,6 @@ function escapeHTML(str) {
 
 // 🌟 すべてのモーダル（別画面）を一旦閉じる共通関数
 function closeAllModals() {
-    //console.log("[LOG] ▶ closeAllModals が呼ばれました");
     const modals = [
         'settings-modal', 'howto-modal', 'yaku-modal',
         'achievement-modal', 'friend-match-modal', 'learning-modal',
@@ -60,7 +59,6 @@ function resetScrollAreas(parentId, contextName) {
     const scrollAreas = parent.querySelectorAll('.modal-scroll-area, .settings-content, .rate-help-desc, [style*="overflow-y: auto"]');
     scrollAreas.forEach(area => {
         area.scrollTop = 0;
-        //console.log(`[DEBUG スクロール初期化] ${contextName} (${parentId}) のスクロール位置を一番上(0)に戻しました。`);
     });
 }
 
@@ -75,9 +73,7 @@ function openModal(modalId) {
         const scrollEl = modalEl.querySelector('.settings-content, .rate-help-box, .learning-content, .modal-scroll-area');
         if (scrollEl) {
             const style = window.getComputedStyle(scrollEl, '::-webkit-scrollbar-thumb');
-            console.log(`[DEBUG] パネル '${modalId}' を開きました。現在のthumb背景色: ${style.backgroundColor}`);
         } else {
-            console.log(`[DEBUG] パネル '${modalId}' を開きましたが、スクロール領域が見つかりません。`);
         }
     }
 
@@ -237,7 +233,6 @@ function openPlayerStats(idx) {
 
 // 🌟 実績・役図鑑画面を開く (全画面)
 function openAchievements() {
-    //console.log("[SCREEN NAV] 🏆 実績・役図鑑画面への遷移を要求されました。");
 
     const targetScreen = document.getElementById('achievement-screen');
     if (!targetScreen) return;
@@ -254,7 +249,6 @@ function openAchievements() {
     const scrollContainer = document.getElementById('achievement-list-container');
     if (scrollContainer) {
         scrollContainer.scrollTop = 0;
-        //console.log(`[DEBUG スクロール初期化] 実績画面のスクロール位置を一番上(0)に戻しました。現在の scrollTop = ${scrollContainer.scrollTop}`);
     }
 
     // 🌟 3. フワッと表示させるアニメーションを開始
@@ -265,7 +259,6 @@ function openAchievements() {
         const backBtn = document.getElementById('btn-achieve-back');
         if (backBtn) {
             const computedStyle = window.getComputedStyle(backBtn);
-            console.log(`[DEBUG 画面遷移] 戻るボタンの最終的な display 状態: ${computedStyle.display}`);
         }
     }, 10);
 
@@ -274,7 +267,6 @@ function openAchievements() {
 
 // 🌟 実績・役図鑑画面を閉じる (全画面)
 function closeAchievements() {
-    //console.log("[SCREEN NAV] 🏆 実績画面からメニューへ戻る要求を検知。");
 
     // 🚨 ここを screen に変更
     const targetScreen = document.getElementById('achievement-screen');
@@ -309,7 +301,6 @@ function openRateHelp() {
         const scrollEl = modalEl.querySelector('.rate-help-box');
         if (scrollEl) {
             const style = window.getComputedStyle(scrollEl, '::-webkit-scrollbar-thumb');
-            console.log(`[DEBUG] パネル 'rate-help-modal' を開きました。現在のthumb背景色: ${style.backgroundColor}`);
         }
     }
 
@@ -597,7 +588,6 @@ window.applyReplayState = async function () {
 
                     // 🌟 追加：「自摸」の文字が出るとき（自摸和了の瞬間）は自摸牌を完全に消去する
                     if (action.type === "win" && stateToRender.just_drawn === i) {
-                        //console.log(`[DEBUG 牌譜再生] プレイヤー${i}の「自摸」表示に合わせ、画面から自摸牌を消去しました。`);
                         drawnTile = null;
                     }
                 }
@@ -688,7 +678,6 @@ window.applyReplayState = async function () {
 
                         // ログを出力して暗槓の描画処理が走ったことを確認
                         if (m.type === 'ankan') {
-                            //console.log(`[DEBUG 牌譜再生] プレイヤー${i}の暗槓を描画: ${idx + 1}枚目を ${src}.png に設定しました。`);
                         }
 
                         mWrap.appendChild(img);
@@ -796,7 +785,6 @@ window.applyReplayState = async function () {
                             btnAuto.style.background = "#273c75";
                         }
                         // 🌟 ご指示通り、原因・挙動がわかるようにログを出力
-                        //console.log("[DEBUG 牌譜再生] 局終了ステップに到達したため、自動再生を一時停止しました。");
                     }
                 }
             } else {
@@ -841,7 +829,6 @@ window.applyReplayState = async function () {
                 }
 
                 // 原因がわかるようにコンソールにログを出力
-                //console.log(`[DEBUG 牌譜再生] アクション判定: 内部タイプ名='${mType}' -> 画面表示='${callTextStr}'`);
             }
 
             if (callTextStr !== "" && typeof showCallout === 'function') {
@@ -1004,13 +991,11 @@ window.renderReplayResult = function (pIdx) {
     if (peekBtn) {
         // マウスが乗った時
         peekBtn.onmouseenter = () => {
-            //console.log("[DEBUG 盤面プレビュー] ホバー検知: リザルト画面を透過し、牌譜操作パネルを非表示にします。");
             overlay.classList.add('peek-mode');
             if (replayControls) replayControls.classList.add('peek-hidden');
         };
         // マウスが外れた時
         peekBtn.onmouseleave = () => {
-            //console.log("[DEBUG 盤面プレビュー] ホバー解除: リザルト画面と牌譜操作パネルの表示を元に戻しました。");
             overlay.classList.remove('peek-mode');
             if (replayControls) replayControls.classList.remove('peek-hidden');
         };
@@ -1248,7 +1233,6 @@ window.exitReplay = function () {
     const menuExitBtn = document.getElementById('sidebar-exit');
     if (topExitBtn) topExitBtn.style.removeProperty('display');
     if (menuExitBtn) menuExitBtn.style.removeProperty('display');
-    //console.log("[DEBUG 牌譜退出] 非表示にしていた退出ボタンのスタイルを解除しました。");
     // =========================================================
 
     // 🌟 リザルト画面のボタンをCPU戦用の元の状態に戻す

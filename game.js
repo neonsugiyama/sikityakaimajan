@@ -107,7 +107,6 @@ window.addEventListener('DOMContentLoaded', () => {
         preloadedImages.push(img);
     });
 
-    //console.log(`[Preload] ${allTiles.length}種類の牌画像をキャッシュしました！`);
 });
 
 // ⏳ 持ち時間タイマーを開始し、0秒になったら指定のコールバック処理を実行する関数
@@ -117,7 +116,6 @@ function startTimer(seconds, timeoutCallback) {
     maxTimeForTimer = seconds;
     timerAction = timeoutCallback;
 
-    //console.log(`[タイマー処理] ⏱️ タイマーセット要求: ${seconds}秒`);
 
     // 🎓 レッスンモード中はタイマーを無効化し、「∞」を表示して待ち続ける
     if (currentGameMode === 'lesson') {
@@ -135,18 +133,13 @@ function startTimer(seconds, timeoutCallback) {
         const endTime = sessionStorage.getItem(`timer_end_time_${currentSessionRoomId}`);
         if (endTime) {
             const remaining = Math.ceil((parseInt(endTime) - Date.now()) / 1000);
-            //console.log(`[タイマー復元] 💾 記憶された終了時刻: ${endTime}, 現在時刻: ${Date.now()}`);
-            //console.log(`[タイマー復元] 🔍 算出された残り時間: ${remaining}秒`);
 
             if (remaining > 0 && remaining <= seconds) {
                 timeLeft = remaining;
-                //console.log(`[タイマー復元] ✅ ${timeLeft}秒からタイマーを再開します。`);
             } else if (remaining <= 0) {
                 timeLeft = 0;
-                //console.log(`[タイマー復元] 🚨 時間切れのため、0秒として処理します。`);
             }
         } else {
-            //console.log(`[タイマー復元] ⚠️ 終了時刻の記憶がないため、初期値(${seconds}秒)で開始します。`);
         }
         isResuming = false;
     } else {
@@ -162,7 +155,6 @@ function startTimer(seconds, timeoutCallback) {
 
     // すでにタイマーが0秒以下の場合は即座に実行
     if (timeLeft <= 0) {
-        //console.log(`[タイマー処理] ⚡ 残り時間が0秒以下のため、待機せず即座にアクションを実行します！ (isProc状態: ${isProc})`);
         secSpan.innerText = "0";
         display.style.color = "#e74c3c";
         display.style.borderColor = "#e74c3c";
@@ -173,7 +165,6 @@ function startTimer(seconds, timeoutCallback) {
 
         if (typeof finalAction === 'function') {
             setTimeout(() => {
-                //console.log(`[タイマー処理] 🚀 強制アクション発動！`);
                 timeDiscard = Math.max(5, timeDiscard - 20);
                 timeCall = Math.max(5, timeCall - 5);
                 notifyTimerPenalty();
@@ -212,7 +203,6 @@ function startTimer(seconds, timeoutCallback) {
             stopTimer();
             if (isProc) return;
 
-            //console.log(`[タイマー処理] ⌛ 通常の時間切れ。アクションを実行します。`);
             timeDiscard = Math.max(5, timeDiscard - 20);
             timeCall = Math.max(5, timeCall - 5);
             notifyTimerPenalty();
@@ -1196,7 +1186,6 @@ async function init() {
     // ゲーム中は画面に出さず、裏の配列に貯め込むだけの偽物の関数にすり替える
     window.showAchievementUnlock = function (title, icon) {
         window.pendingAchievements.push({ title: title, icon: icon });
-        //console.log(`[実績ストック] '${title}' を達成！ゲーム終了時にまとめて表示します。`);
     };
 
     // 🌟 修正：牌譜再生モードで隠した「退出」ボタンの非表示設定を解除し、元に戻す！
@@ -1776,7 +1765,6 @@ function renderCPU() {
     }
 
     // 原因がわかるように、正常に描画されたことをコンソールに出力
-    //console.log("[DEBUG 描画] CPUの手牌描画を更新しました（下家・対面の反転適用済み）");
 }
 
 // 🀄 指定プレイヤーの鳴き牌（ポン・カン）を描画する関数
@@ -1853,7 +1841,6 @@ async function checkT() {
     let totalVirtualTiles = myHand.length + (myMelds.length * 3);
     let isPlayerDrawPhase = (totalVirtualTiles % 3 === 1);
 
-    //console.log(`[処理順確認] ターン判定開始 -> 現在のターン: ${turn === 0 ? "あなた" : "CPU " + turn}, 山札残り: ${wallCount}枚, 自分の手牌相当: ${totalVirtualTiles}枚`);
 
     // 🌟 全員の光を一旦消す
     for (let i = 0; i < 4; i++) {
@@ -1876,7 +1863,6 @@ async function checkT() {
     if (btnRyukyoku) btnRyukyoku.style.display = "none";
 
     if (wallCount === 0 && ((turn === 0 && isPlayerDrawPhase) || turn !== 0)) {
-        //console.log(`[処理順確認] 🛑 山札が0枚のため、これ以上ターンを回さずに流局（または終了）処理へ移行します`);
         // 🌟 友人戦: 和了演出中なら演出完了を待ってから handleRoundEnd を呼ぶ
         if (currentGameMode === 'friend' && typeof friendWinAnimating !== 'undefined' && friendWinAnimating) {
             const waitForAnim = async () => {
@@ -2082,9 +2068,7 @@ function setupActionBtn(html, cls, onClick) {
 
     // 🌟 追加：ボタンに割り当てられたクラスと、描画された後の実際のCSSカラーをログに出す
     let btnName = html.replace(/<[^>]*>?/gm, '').trim(); // 画像タグなどを消して文字だけ抽出
-    //console.log(`[DEBUG] アクションボタン生成 [${btnName}]: 指定されたクラス = '${cls}' | 適用後のクラス = '${btn.className}'`);
     setTimeout(() => {
-        //console.log(`[DEBUG] 👆 [${btnName}] の最終的な背景色 =`, window.getComputedStyle(btn).backgroundColor);
     }, 50);
 
     activeSelfActionsCount++;
@@ -3566,7 +3550,6 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             if (cpuPeekBtn && overlayElement) {
                 cpuPeekBtn.onmouseenter = () => {
-                    //console.log("[DEBUG CPU戦プレビュー] ホバー検知: リザルト画面を透過し、手牌と暗槓を公開します。");
                     overlayElement.classList.add('peek-mode');
 
                     // 1. 手牌のバックアップと公開（対象: CPUの 1, 2, 3）
@@ -3582,12 +3565,10 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                             // 🌟 修正：下家(i=1)と対面(i=2)の理牌を逆（降順）にする
                             if (i === 1 || i === 2) {
-                                //console.log(`[DEBUG CPU戦プレビュー] CPU ${i} の手牌を降順(理牌を逆)にソートしました。`);
                                 // 降順
                                 if (typeof SM !== 'undefined') sorted.sort((a, b) => SM[b] - SM[a]);
                             } else {
                                 // 昇順（上家i=3のみ、自分i=0はループ外）
-                                //console.log(`[DEBUG CPU戦プレビュー] CPU ${i} の手牌を昇順(理牌)にソートしました。`);
                                 if (typeof SM !== 'undefined') sorted.sort((a, b) => SM[a] - SM[b]);
                             }
 
@@ -3633,7 +3614,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                 };
 
                 cpuPeekBtn.onmouseleave = () => {
-                    //console.log("[DEBUG CPU戦プレビュー] ホバー解除: リザルト画面と盤面を元に戻します。");
                     overlayElement.classList.remove('peek-mode');
 
                     // バックアップから安全に元の状態（裏向き）へ復元する
@@ -3741,7 +3721,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                 void scoreEl.offsetWidth; // ブラウザに「クラスが外れた」ことを強制認識させる（リセット）
                 scoreEl.classList.add('score-pop-effect'); // 再度クラスを付与してアニメーション起動
 
-                //console.log(`[DEBUG アニメーション] プレイヤー${targetIdx}の点数加算アニメーションをCSSネイティブで実行しました。`);
 
                 // 🚨🚨 ここにあった setTimeout による縮小処理はまるごと削除してください 🚨🚨
             }
@@ -3777,7 +3756,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                 else if (window.currentLessonId === 9 && myYaku.includes("無花果") && myYaku.includes("槓上開花")) isCleared = true;
 
                 if (isCleared) {
-                    //console.log("実際にサーバーから返ってきた獲得役:", myYaku);
                     clearMsg = "🎉 レッスンクリア！おめでとうございます！\n『四季茶会麻雀』ならではの、日麻の常識を壊す戦術が身につきましたね！";
 
                     // 🌟 追加：レッスンクリア状況を専用の領域にセーブする（アカウント別）
@@ -3792,7 +3770,6 @@ async function handleRoundEnd(isReplayingResult = false) {
                     }
 
                 } else {
-                    //console.log("実際にサーバーから返ってきた獲得役:", myYaku);
                     clearMsg = "⚠️ 和了はできましたが、ミッションの条件役が含まれていませんでした！\nもう一度、指定された役の完成を狙ってみましょう！";
                 }
             } else {
@@ -4037,7 +4014,6 @@ async function handleRoundEnd(isReplayingResult = false) {
             }
 
             if (window.pendingAchievements && window.pendingAchievements.length > 0) {
-                //console.log(`[実績解放] ストックされていた ${window.pendingAchievements.length} 個の実績を表示します！`);
                 for (let ach of window.pendingAchievements) {
                     window.showAchievementUnlock(ach.title, ach.icon);
                 }

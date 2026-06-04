@@ -87,7 +87,6 @@ window.cleanupTutorialUI = function () {
     // 🌟 これを1つ追加（チュートリアルのロック状態も確実に解除）
     if (typeof tutLock !== 'undefined') tutLock = false;
 
-    console.log("[DEBUG] チュートリアルとレッスンのUIを完全にクリーンアップしました。");
 };
 
 // 🌟 新規追加：退出ボタンが押された時の処理をここで「1回だけ」確実に登録！
@@ -1003,7 +1002,6 @@ async function startLesson(lessonId) {
     // これにより配置基準が麻雀卓と完全に同期し、画面比率を変えても絶対に位置がズレなくなります。
     const gameContainer = document.getElementById('game-container');
     if (navPanel && gameContainer && navPanel.parentNode !== gameContainer) {
-        //console.log("[DEBUG レッスンUI調整] 役紹介パネルの配置基準をゲーム卓内部（#game-container）へ同期しました。");
         gameContainer.appendChild(navPanel);
     }
     // =====================================================================
@@ -1300,12 +1298,10 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
     const toast = document.getElementById('lesson-toast');
     const gameContainer = document.getElementById('game-container');
     if (toast && gameContainer && toast.parentNode !== gameContainer) {
-        //console.log("[DEBUG レッスンUI調整] ポップアップの配置基準をブラウザ画面からゲーム卓内部（#game-container）へ同期しました。");
         gameContainer.appendChild(toast);
     }
     // =====================================================================
 
-    //console.log(`[DEBUG レッスン監視] イベント検知 -> タイプ: ${eventType}, 牌: ${tile}, プレイヤー: ${fromPlayer}`);
 
     const messages = LESSON_MESSAGES[lessonId];
 
@@ -1326,7 +1322,6 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
             if (typeof myHand !== 'undefined' && Array.isArray(myHand)) {
                 const currentCount = myHand.filter(t => t === msg.tile).length;
                 if (currentCount < msg.count) {
-                    //console.log(`[DEBUG レッスン監視] 条件不一致: ${msg.tile} の枚数が足りません (${currentCount}/${msg.count})`);
                     isMatch = false;
                 }
             } else {
@@ -1404,7 +1399,6 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
         // 🎯 すべての条件が完全に一致した場合、トーストを画面内に降臨させる
         if (isMatch) {
             msg.shown = true; // 表示済みフラグをON
-            console.log(`[DEBUG レッスン通知発動] レッスン ${lessonId} - アイテム番号 [${idx}] の条件が成立しました。内容: "${msg.text}"`);
 
             const toast = document.getElementById('lesson-toast');
             const icon = document.getElementById('lesson-toast-icon');
@@ -1435,7 +1429,6 @@ window.hideLessonToast = function () {
     const toast = document.getElementById('lesson-toast');
     if (toast && toast.classList.contains('show')) {
         toast.classList.remove('show');
-        //console.log("[DEBUG レッスン通知終了] プレイヤーのアクションを検知したため、トーストを格納しました。");
     }
 };
 // =========================================================

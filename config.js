@@ -443,14 +443,12 @@ async function applySettingsAndStart() {
         isStartingGame = false;
     }
 
-    //console.log("適用された設定:", { timeCall, timeExchange, confCpuLevel });
 }
 
 // ==========================================
 // 📑 UI制御（タブ切替・隠しコマンド・ログ出力）
 // ==========================================
 function dumpModalStatus(actionName) {
-    //console.log(`\n[LOG] 🔍 【${actionName}】実行直後の状態`);
     const targets = [
         'settings-screen', 'settings-modal', 'howto-modal',
         'yaku-modal', 'mypage-modal', 'achievement-modal'
@@ -462,15 +460,11 @@ function dumpModalStatus(actionName) {
             const style = window.getComputedStyle(el);
             const isVisible = style.display !== 'none';
             if (isVisible) {
-                //console.log(`  ✅ [表示中] #${id} | z-index: ${style.zIndex} | display: ${style.display}`);
             } else {
-                //console.log(`  ❌ [非表示] #${id} | z-index: ${style.zIndex} | display: ${style.display}`);
             }
         } else {
-            //console.log(`  ⚠️ [要素なし] #${id}`);
         }
     });
-    //console.log(`--------------------------------------------------\n`);
 }
 
 function switchSettingsTab(evt, tabId) {
@@ -493,9 +487,7 @@ function switchSettingsTab(evt, tabId) {
     const container = document.querySelector('.settings-content');
     if (container) {
         container.scrollTop = 0;
-        //console.log(`[DEBUG タブ切り替え] 設定タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
     } else {
-        //console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の '.settings-content' が見つかりません。`);
     }
 }
 
