@@ -2206,7 +2206,7 @@ async function checkWinPossible() {
     const isHaitei = (wallCount === 0);
     try {
         const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
-        // 🌟 デバッグ: 友人戦で和了可能か確認用（花槓後の和了ボタン非表示問題用）
+        // 🌟 デバッグ: 友人戦で和了可能か確認用（花槓後の自摸ボタン非表示問題用）
         if (currentGameMode === 'friend') {
             console.log("[FRIEND WIN DEBUG] /check_win 結果:", wd, "pendingIsRinshan:", pendingIsRinshan);
         }
@@ -2607,19 +2607,11 @@ async function checkHumanReaction(discarderIdx, tile) {
     if (!showAny) {
         // 🌟 友人戦: ボタンを出すべきものが無い → skipを送ってcall_resolved待ち
         if (currentGameMode === 'friend') {
-            console.log("[FRIEND REACTION DEBUG] showAny=false → skip 送信");
             if (typeof sendFriendCallAction === 'function') sendFriendCallAction("skip");
             isProc = true;
             return;
         }
         return checkCpuReactions(discarderIdx, tile);
-    }
-
-    // 🌟 デバッグ: showAny=true で、 何のボタンが出るか
-    if (currentGameMode === 'friend') {
-        console.log("[FRIEND REACTION DEBUG] showAny=true (ボタン表示で操作待ち)", {
-            canHumanRon, count, hasSeason, isSeasonDiscard, wallCount
-        });
     }
 
     renderCPU();
@@ -2980,8 +2972,11 @@ async function execMeld(type) {
     showCallout(0, callText);
     await sleep(1500);
 
-    if (type === 'カン' || type === '花槓') {
-        if (type === '花槓' && _isStatsTrackingMode()) {
+    // 🌟 修正：type は "花槓:春" のような形式の場合があるので、 必ず meldType (パース済み) で比較する
+    //   元コードでは type === '花槓' で比較していたため、 "花槓:春" の場合に false となり
+    //   justPonged = true になっていた → 嶺上ツモ後の加槓・自摸ボタンが出ないバグの原因
+    if (meldType === 'カン' || meldType === '明槓' || meldType === '花槓') {
+        if (meldType === '花槓' && _isStatsTrackingMode()) {
             let oldHanakan = playerStats.hanakanCount;
             playerStats.hanakanCount++;
             checkTieredAchievement("hanakan", "花槓マスター", "🌸", oldHanakan, playerStats.hanakanCount, [10, 50, 100, 500]);

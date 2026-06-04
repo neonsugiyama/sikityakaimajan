@@ -1068,6 +1068,9 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         did_joker_swap_in_turn = False
         did_kakan_in_turn = False 
         kakan_tile_in_turn = ""  
+        # 🌟 CPU の暗槓を友人戦で演出表示するため、 明示フラグを追加
+        did_ankan_in_turn = False
+        ankan_tile_in_turn = ""
 
         while game.wall:
             seasons = [t for t in game.hands[cpu_idx] if t in SEASON_TILES]
@@ -1105,6 +1108,9 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                         game.just_drawn = cpu_idx
                         game.last_discard_info = {"player": -1, "tile": ""}
                         game.append_log("self_meld", player=cpu_idx, meld_type="ankan", tile=t)
+                        # 🌟 友人戦の演出用フラグ
+                        did_ankan_in_turn = True
+                        ankan_tile_in_turn = t
                         
                         did_meld = True; break
 
@@ -1219,7 +1225,7 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
         game.last_discard_info = {"player": cpu_idx, "tile": discard}
         print(f"[DEBUG 🤖] CPU {cpu_idx} 打牌: {discard}")
         game.append_log("discard", player=cpu_idx, tile=discard, tsumogiri=(discard == drawn))
-        return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn})
+        return get_safe_state(game, 0, {"discard": discard, "did_joker_swap": did_joker_swap_in_turn, "did_kakan": did_kakan_in_turn, "kakan_tile": kakan_tile_in_turn, "did_ankan": did_ankan_in_turn, "ankan_tile": ankan_tile_in_turn})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
@@ -2064,15 +2070,15 @@ def debug_setup(scenario: str, game: GameState = Depends(get_current_game)):
         game.hands[0] = ["1p","1p","1p","1p","2p","2p","2p","3p","3p","3p","4p","4p","春"]
         game.wall.append("4p")
 
-    elif scenario == "all_waits_1st_turn":
-        game.dealer = 1
-        game.turn = 1 
+    elif scenario == "hanakantest":
+        game.dealer = 0
+        game.turn = 0
         game.is_first_turn = [True] * 4
-        game.hands[0] = ["1p","1p","1p","2p","2p","2p","4p","4p","4p","5p","5p","5p","春"]
-        game.hands[1] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
-        game.hands[2] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
-        game.hands[3] = ["1p","3p","5p","7p","9p","1s","3s","5s","7s","9s","東","西","白"]
-        game.wall.append("北")
+        game.hands[0] = ["1p","1p","2p","2p","3p","3p","4p","4p","5p","5p","5p","夏","春"]
+        game.hands[1] = ["東","東","東","南","南","南","西","西","西","北","北","北","白"]
+        game.hands[2] = ["東","東","東","南","南","南","西","西","西","北","北","北","白"]
+        game.hands[3] = ["東","東","東","南","南","南","西","西","西","北","北","北","白"]
+        game.wall = ["1p", "2p", "3p", "4p", "1p", "1s"]
 
     elif scenario == "cpu_tenhou":
         game.dealer = 1

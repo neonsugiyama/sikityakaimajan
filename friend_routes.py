@@ -1939,6 +1939,24 @@ async def cpu_auto_advance_if_needed(room_id: str):
         did_kakan = result.get("did_kakan", False) if isinstance(result, dict) else False
         did_joker_swap = result.get("did_joker_swap", False) if isinstance(result, dict) else False
         kakan_tile = result.get("kakan_tile", "") if isinstance(result, dict) else ""
+        # 🌟 CPU の暗槓演出用
+        did_ankan = result.get("did_ankan", False) if isinstance(result, dict) else False
+        ankan_tile = result.get("ankan_tile", "") if isinstance(result, dict) else ""
+
+        # 🌟 CPU が暗槓したなら、 打牌の前に friend_self_meld を broadcast して演出表示
+        if did_ankan and ankan_tile:
+            for p in range(4):
+                state = get_friend_state_for_player(game, p)
+                await friend_connections.send_to(room_id, p, {
+                    "type": "friend_self_meld",
+                    "player_idx": seat,
+                    "meld_type": "暗槓",
+                    "tile": ankan_tile,
+                    "season": "",
+                    "state": state
+                })
+            # 演出を見せるための短い待機
+            await asyncio.sleep(friend_cpu.scaled_wait(game, friend_cpu.CPU_WAIT_BETWEEN_TURNS))
 
         # 副露猶予を発生させる必要があるかチェック
         # 既存の friend_discard 関数のロジックと同じ判定を簡略化して実装

@@ -904,7 +904,7 @@ function handleFriendEvent(data) {
         const myDiscardToken = (window.__friend_discard_token || 0) + 1;
         window.__friend_discard_token = myDiscardToken;
 
-        const _applyDiscardUpdate = () => {
+        const _applyDiscardUpdate = async () => {
             if (window.__friend_discard_token !== myDiscardToken) {
                 console.log("[FRIEND] friend_discard 遅延ハンドラ: superseded → skip");
                 return;
@@ -916,6 +916,17 @@ function handleFriendEvent(data) {
             if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
             if (typeof render === 'function') render();
             if (typeof renderCPU === 'function') renderCPU();
+
+            // 🌟 CPU の 加槓・JokerSwap 演出（CPU 戦の挙動と同じ）
+            //   サーバーから did_kakan / did_joker_swap フラグが来るので演出を表示
+            const _spd = (typeof speedMult !== "undefined" ? speedMult : 1);
+            if (data.did_joker_swap && discarderRel !== 0) {
+                if (typeof showCallout === 'function') showCallout(discarderRel, "JokerSwap");
+                await new Promise(r => setTimeout(r, 1500 / _spd));
+            } else if (data.did_kakan && discarderRel !== 0) {
+                if (typeof showCallout === 'function') showCallout(discarderRel, "加槓");
+                await new Promise(r => setTimeout(r, 1000 / _spd));
+            }
 
             // 🌟 演出中は checkT を呼ばない（演出後の handleFriendWin が責任を持って checkT する）
             if (friendWinAnimating) {
@@ -1183,6 +1194,21 @@ async function handleFriendMeld(data) {
     }
 
     await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+
+    // 🌟 デバッグ: 自家副露(花槓等)後、 嶺上ツモ後のアクションボタン表示判定用
+    if (claimerRel === 0) {
+        console.log("[FRIEND MELD DEBUG] 自家副露完了:", {
+            meld_type: data.meld_type,
+            myHand_length: typeof myHand !== 'undefined' ? myHand.length : '?',
+            myMelds_length: typeof myMelds !== 'undefined' ? myMelds.length : '?',
+            myMelds: typeof myMelds !== 'undefined' ? JSON.parse(JSON.stringify(myMelds)) : '?',
+            drawnTile: typeof drawnTile !== 'undefined' ? drawnTile : '?',
+            pendingIsRinshan: typeof pendingIsRinshan !== 'undefined' ? pendingIsRinshan : '?',
+            justPonged: typeof justPonged !== 'undefined' ? justPonged : '?',
+            turn: typeof turn !== 'undefined' ? turn : '?',
+            wallCount: typeof wallCount !== 'undefined' ? wallCount : '?',
+        });
+    }
 
     if (typeof isProc !== 'undefined') isProc = false;
     if (typeof checkT === 'function') checkT();
