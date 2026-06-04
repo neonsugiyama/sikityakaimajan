@@ -1429,6 +1429,10 @@ async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "
                 "state": state
             })
 
+        # 🤖 自分のツモ和了後、 次のターンが CPU なら自動進行（アガリ放題ルールなので局は続く）
+        #   これがないと CPU の番で進行が止まる
+        asyncio.create_task(cpu_auto_advance_if_needed(room_id))
+
         return get_friend_state_for_player(game, player_idx)
     except Exception as e:
         traceback.print_exc()

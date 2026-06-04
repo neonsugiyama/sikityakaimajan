@@ -2607,11 +2607,19 @@ async function checkHumanReaction(discarderIdx, tile) {
     if (!showAny) {
         // 🌟 友人戦: ボタンを出すべきものが無い → skipを送ってcall_resolved待ち
         if (currentGameMode === 'friend') {
+            console.log("[FRIEND REACTION DEBUG] showAny=false → skip 送信");
             if (typeof sendFriendCallAction === 'function') sendFriendCallAction("skip");
             isProc = true;
             return;
         }
         return checkCpuReactions(discarderIdx, tile);
+    }
+
+    // 🌟 デバッグ: showAny=true で、 何のボタンが出るか
+    if (currentGameMode === 'friend') {
+        console.log("[FRIEND REACTION DEBUG] showAny=true (ボタン表示で操作待ち)", {
+            canHumanRon, count, hasSeason, isSeasonDiscard, wallCount
+        });
     }
 
     renderCPU();

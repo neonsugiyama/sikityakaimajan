@@ -925,6 +925,19 @@ function handleFriendEvent(data) {
 
             const canAny = !!(data.can_ron || data.can_pon || data.can_kan || data.can_hanakan);
 
+            // 🌟 デバッグ: 進行が止まる問題の原因究明用
+            console.log("[FRIEND DISCARD DEBUG]", {
+                discarder: data.player_idx,
+                tile: data.tile,
+                can_ron: data.can_ron,
+                can_pon: data.can_pon,
+                can_kan: data.can_kan,
+                can_hanakan: data.can_hanakan,
+                canAny: canAny,
+                pending_call: data.pending_call,
+                friendWinAnimating: friendWinAnimating
+            });
+
             if (canAny) {
                 if (typeof checkHumanReaction === 'function') {
                     lastDiscardPlayer = discarderRel;
@@ -979,6 +992,20 @@ function handleFriendEvent(data) {
         window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
         // 誰かが和了した（ロン or ツモ）
         handleFriendWin(data);
+    } else if (type === "friend_win_tsumo") {
+        // 🌟 CPU のツモ和了（サーバー側で friend_win とは別イベント名で broadcast される）
+        //   フィールド名が違う（winner → player_idx, winning_tile → tile）ので
+        //   正規化してから handleFriendWin に渡す。 これがないとイベントが処理されず進行が止まる。
+        if (typeof cpuDrawnTiles !== 'undefined') {
+            cpuDrawnTiles = [null, null, null, null];
+        }
+        window.__friend_discard_token = (window.__friend_discard_token || 0) + 1;
+        const normalized = Object.assign({}, data, {
+            win_type: "tsumo",
+            player_idx: (data.winner !== undefined ? data.winner : data.player_idx),
+            tile: (data.winning_tile !== undefined ? data.winning_tile : data.tile),
+        });
+        handleFriendWin(normalized);
     } else if (type === "friend_meld") {
         // 副露成立（ポン・カン・花槓）
         handleFriendMeld(data);
