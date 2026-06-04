@@ -19,15 +19,10 @@ let disconnectedPlayers = [false, false, false, false];
 // ==========================================
 function startFriendGame(initData) {
     console.log("[FRIEND] startFriendGame", initData);
-
-    // 🌟 transient な状態を一括初期化（前のゲームの残骸を防ぐ）
-    if (typeof _resetTransientGameState === 'function') {
-        _resetTransientGameState();
-    }
-
     myPlayerIdx = initData.player_idx;
     friendRoomId = initData.room_id;
     friendPlayerNames = initData.player_names || [];
+    console.log("[FRIEND DEBUG] myPlayerIdx:", myPlayerIdx, " friendPlayerNames:", JSON.stringify(friendPlayerNames));
 
     // 🌟 ホストの設定値を CPU戦のグローバル変数に上書き（友人戦中だけ有効）
     if (initData.settings) {
@@ -416,6 +411,15 @@ function connectFriendGameWs() {
 
     friendWs.onopen = () => {
         console.log("[FRIEND] WS接続成功。初期stateを取得します");
+        // 🌟 後勝ちログイン即時切断のため、 接続直後に auth token を送信
+        //   サーバー側で username を WS と紐付け、 別ログイン時に即 kick できる
+        try {
+            const _tok = (typeof authToken !== 'undefined') ? authToken : null;
+            if (_tok && friendWs && friendWs.readyState === WebSocket.OPEN) {
+                friendWs.send(JSON.stringify({ type: "auth", token: _tok }));
+            }
+        } catch (e) { /* ignore */ }
+
         // 🌟 復帰時は _resumeByPhase が UI を組んでいるので、初期stateフローはスキップ
         if (friendSkipInitialStateOnOpen) {
             friendSkipInitialStateOnOpen = false;
@@ -430,6 +434,25 @@ function connectFriendGameWs() {
         const data = JSON.parse(event.data);
         // 🌟 大量に出るので window.DEBUG_FRIEND_WS = true の時のみ詳細ログを出す
         if (window.DEBUG_FRIEND_WS) console.log("[FRIEND] WS受信:", data);
+        // 🌟 後勝ちログイン: サーバーから「session_revoked」 が来たら即時退出
+        if (data && data.type === "session_revoked") {
+            console.log("[FRIEND] サーバーから session_revoked を受信:", data);
+            try {
+                // 通知関数を呼ぶ（window 経由で確実にアクセス）
+                if (typeof window._notifySessionRevoked === 'function') {
+                    window._notifySessionRevoked();
+                } else {
+                    // フォールバック: location.reload() でホーム画面に戻す
+                    //   alert() はバックグラウンドタブで block されるため使わない
+                    console.warn("[FRIEND] _notifySessionRevoked が未定義のため直接リロード");
+                    try { location.reload(); } catch (e) { /* ignore */ }
+                }
+                if (typeof authLogout === 'function') authLogout();
+            } catch (e) {
+                console.error("[FRIEND] session_revoked 処理エラー:", e);
+            }
+            return;
+        }
         handleFriendEvent(data);
     };
 

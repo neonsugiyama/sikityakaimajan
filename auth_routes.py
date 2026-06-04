@@ -79,6 +79,20 @@ def _issue_token(username: str) -> str:
     if revoked:
         print(f"[AUTH] '{username}' の既存セッション {len(revoked)} 個を無効化（後勝ちログイン）")
 
+    # 🌟 友人戦中の旧 WS 接続を即時 kick（HTTP ping 待たずにリアルタイム切断）
+    try:
+        from main import lobby_manager
+        import asyncio
+        # FastAPI のリクエストハンドラから呼ばれるので、 既にイベントループ内
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(lobby_manager.kick_user_sockets(username))
+        except RuntimeError:
+            # ループが取れなければ素で実行（フォールバック）
+            asyncio.run(lobby_manager.kick_user_sockets(username))
+    except Exception as e:
+        print(f"[AUTH] kick_user_sockets 呼出失敗 (無視可): {e}")
+
     token = secrets.token_urlsafe(32)
     _active_tokens[token] = {"username": username, "created": time.time()}
     return token
@@ -195,6 +209,19 @@ def login(body: LoginBody):
         }
     finally:
         conn.close()
+
+
+# ==========================================
+# セッション生存確認用の軽量 ping
+#   クライアントが定期的に呼んで、トークンが無効化されていれば 401 が返る。
+#   後勝ちログイン直後でも、旧セッションを 5秒以内に検知して切断できる。
+# ==========================================
+@router.get("/ping")
+def ping(token: str):
+    username = _resolve_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="セッションが無効です")
+    return {"status": "ok"}
 
 
 # ==========================================

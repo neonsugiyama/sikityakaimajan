@@ -2083,6 +2083,10 @@ async function checkSelfMelds() {
 
     try {
         const data = await apiCall('/get_valid_self_melds', { player_idx: 0 });
+        // 🌟 デバッグ: 友人戦で副露候補が出るか確認用（花槓後の加槓ボタン非表示問題用）
+        if (currentGameMode === 'friend') {
+            console.log("[FRIEND MELD DEBUG] /get_valid_self_melds 結果:", data);
+        }
         if (data.valid_melds && data.valid_melds.length > 0) {
 
             // 🌟 追加：山札が0枚の時は暗槓・加槓を除外し、JokerSwapのみを許可してボタンを出す！
@@ -2202,6 +2206,10 @@ async function checkWinPossible() {
     const isHaitei = (wallCount === 0);
     try {
         const wd = await apiCall('/check_win', { player_idx: 0, is_ron: "false", is_rinshan: pendingIsRinshan, is_haitei: isHaitei, is_chankan: "false" });
+        // 🌟 デバッグ: 友人戦で和了可能か確認用（花槓後の和了ボタン非表示問題用）
+        if (currentGameMode === 'friend') {
+            console.log("[FRIEND WIN DEBUG] /check_win 結果:", wd, "pendingIsRinshan:", pendingIsRinshan);
+        }
         return wd.can_win; // アガれるなら true を返す
     } catch (e) {
         return false;

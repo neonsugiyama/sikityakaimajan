@@ -60,6 +60,9 @@ async function authLogin(username, password) {
 // ログアウト
 // ==========================================
 async function authLogout() {
+    // 🌟 セッション生存確認ポーリングを停止
+    if (typeof _stopSessionPingPolling === 'function') _stopSessionPingPolling();
+
     if (authToken) {
         try {
             await fetch('/auth/logout', {
@@ -92,6 +95,9 @@ async function authLoadAndApply() {
         }
         const data = await res.json();
         _applyServerData(data);
+        // 🌟 ページリロード時の自動ログインでもポーリングを開始する
+        //   （_applyLogin は通らないので明示的に呼ぶ）
+        if (typeof _startSessionPingPolling === 'function') _startSessionPingPolling();
         return true;
     } catch (e) {
         console.error('[AUTH] load失敗:', e);
@@ -135,14 +141,100 @@ async function authSave() {
 // ==========================================
 let _sessionRevokedNotified = false;
 function _notifySessionRevoked() {
+    console.log("[AUTH] _notifySessionRevoked が呼ばれました。 既に通知済み?", _sessionRevokedNotified);
     if (_sessionRevokedNotified) return; // 多重表示を防ぐ
     _sessionRevokedNotified = true;
-    // 少し遅延させて、 他の即時アラート（例: alert）と重ならないようにする
+    // 🌟 alert() はブラウザのバックグラウンドタブ抑制ポリシーで表示されない場合があるため、
+    //    ページ内モーダル DOM で確実に通知する。 (Chrome は非アクティブタブからの alert を block)
     setTimeout(() => {
-        alert("他の場所（タブ・デバイス）で同じアカウントにログインされました。\nこのセッションは終了します。");
-        // ホーム画面に戻すためリロード
-        try { location.reload(); } catch (e) { /* ignore */ }
+        _showSessionRevokedModal();
     }, 100);
+}
+
+// 🌟 セッション失効モーダル: alert() の代わりに DOM で表示
+function _showSessionRevokedModal() {
+    // 既に表示済みなら何もしない
+    if (document.getElementById('session-revoked-modal')) return;
+
+    // 🌟 ゲーム進行を完全停止
+    //   ・apiCall は window._sessionRevoked を見て即座に return するようになる
+    //   ・タイマー、 ポーリング等の setInterval も停止
+    //   ・CPU 戦のローカル進行（時間切れの自動打牌等）もこれで止まる
+    window._sessionRevoked = true;
+    try { if (typeof stopTimer === 'function') stopTimer(); } catch (e) { /* ignore */ }
+    try { if (typeof isProc !== 'undefined') isProc = true; } catch (e) { /* ignore */ }
+    try { if (typeof _stopSessionPingPolling === 'function') _stopSessionPingPolling(); } catch (e) { /* ignore */ }
+    // 友人戦 WS が残っていれば閉じる
+    try {
+        if (typeof friendWs !== 'undefined' && friendWs && friendWs.readyState === WebSocket.OPEN) {
+            friendWs.close();
+        }
+    } catch (e) { /* ignore */ }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'session-revoked-modal';
+    overlay.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'bottom:0',
+        'background:rgba(0,0,0,0.75)', 'z-index:2147483647',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'font-family:sans-serif'
+    ].join(';');
+
+    const box = document.createElement('div');
+    box.style.cssText = [
+        'background:#fff', 'padding:24px 28px', 'border-radius:12px',
+        'max-width:380px', 'width:90%', 'text-align:center',
+        'box-shadow:0 12px 40px rgba(0,0,0,0.6)'
+    ].join(';');
+
+    const title = document.createElement('h2');
+    title.textContent = 'セッション終了';
+    title.style.cssText = 'margin:0 0 14px;font-size:18px;color:#c00;font-weight:bold;';
+    box.appendChild(title);
+
+    const msg = document.createElement('p');
+    msg.style.cssText = 'margin:0 0 18px;font-size:14px;line-height:1.6;color:#333;';
+    msg.innerHTML = '他の場所（タブ・デバイス）で<br>同じアカウントにログインされました。<br>このセッションは終了します。';
+    box.appendChild(msg);
+
+    // 🌟 自動リロード用カウントダウン表示
+    const countdown = document.createElement('p');
+    countdown.style.cssText = 'margin:0 0 16px;font-size:12px;color:#888;';
+    box.appendChild(countdown);
+
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.style.cssText = [
+        'padding:10px 36px', 'font-size:15px', 'font-weight:bold',
+        'background:#2a7d4f', 'color:#fff', 'border:none', 'border-radius:8px',
+        'cursor:pointer'
+    ].join(';');
+    okBtn.addEventListener('click', () => {
+        try { location.reload(); } catch (e) { /* ignore */ }
+    });
+    box.appendChild(okBtn);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // フォーカス（バックグラウンドタブでも Enter で閉じられるよう）
+    try { okBtn.focus(); } catch (e) { /* ignore */ }
+
+    // 🌟 10秒のカウントダウン後に自動リロード（ユーザーが OK を押さなくてもホームに戻る）
+    let remaining = 10;
+    const updateCountdown = () => {
+        countdown.textContent = `${remaining}秒後に自動でホーム画面に戻ります`;
+    };
+    updateCountdown();
+    const cd = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(cd);
+            try { location.reload(); } catch (e) { /* ignore */ }
+            return;
+        }
+        updateCountdown();
+    }, 1000);
 }
 
 // ==========================================
@@ -153,6 +245,43 @@ function _applyLogin(token, username) {
     authUsername = username;
     sessionStorage.setItem('shiki_auth_token', token);
     sessionStorage.setItem('shiki_auth_username', username);
+    // 🌟 後勝ちログイン時に旧セッションを即時切断するため、 定期ポーリングを開始
+    _startSessionPingPolling();
+}
+
+// ==========================================
+// 🌟 セッション生存確認ポーリング
+//   5 秒ごとにサーバーへ ping を投げ、 トークンが無効化されていれば
+//   即座に「他の場所でログインされました」 通知を表示してリロード。
+// ==========================================
+let _sessionPingTimer = null;
+const _SESSION_PING_INTERVAL_MS = 1500;  // 雀魂並みの即時切断のため短縮（1.5秒）
+
+function _startSessionPingPolling() {
+    if (_sessionPingTimer) return; // 既に動いている
+    _sessionPingTimer = setInterval(async () => {
+        if (!authToken) {
+            _stopSessionPingPolling();
+            return;
+        }
+        try {
+            const res = await fetch(`/auth/ping?token=${encodeURIComponent(authToken)}&_t=${Date.now()}`, { cache: 'no-store' });
+            if (res.status === 401) {
+                _stopSessionPingPolling();
+                await authLogout();
+                _notifySessionRevoked();
+            }
+        } catch (e) {
+            // ネットワークエラーは無視（次の ping で再試行）
+        }
+    }, _SESSION_PING_INTERVAL_MS);
+}
+
+function _stopSessionPingPolling() {
+    if (_sessionPingTimer) {
+        clearInterval(_sessionPingTimer);
+        _sessionPingTimer = null;
+    }
 }
 
 // 内部: サーバーから受け取ったデータをゲーム変数に反映
@@ -174,13 +303,7 @@ function _applyServerData(data) {
     }
     if (data.replays !== undefined) {
         // 牌譜はアカウント別キーに保存（タブ独立のため username 付き）
-        // 🛡️ サーバーから来た牌譜はサイズが大きい可能性 → safe wrapper で容量超過対応
-        const replayKey = _replaysKey();
-        if (typeof safeLocalStorageSet === 'function') {
-            safeLocalStorageSet(replayKey, data.replays, { cleanupKey: replayKey });
-        } else {
-            try { localStorage.setItem(replayKey, JSON.stringify(data.replays)); } catch (e) { console.warn('[AUTH] replay保存失敗:', e); }
-        }
+        localStorage.setItem(_replaysKey(), JSON.stringify(data.replays));
     }
     // 🌟 進行中の対局ルームIDを保持
     currentRoomIdInDb = data.current_room_id || null;
@@ -206,49 +329,5 @@ function _lessonsKey() {
 // グローバルに公開（他ファイルから参照）
 window.getReplaysStorageKey = _replaysKey;
 window.getLessonsStorageKey = _lessonsKey;
-
-// ==========================================
-// 🛡️ localStorage 書き込みの安全ラッパ
-//   QuotaExceededError (容量超過) や その他の例外で setItem が失敗するのを補足する。
-//   options:
-//     - cleanupKey: 容量超過時に古いデータを削除して再試行する対象キー
-//       (主に牌譜・lessons 等、 配列で保存されているもの)
-//     - notifyOnFail: true なら失敗時にユーザーへ alert で通知
-//   戻り値: 成功 true / 失敗 false
-// ==========================================
-function safeLocalStorageSet(key, value, options = {}) {
-    const valueStr = (typeof value === 'string') ? value : JSON.stringify(value);
-    try {
-        localStorage.setItem(key, valueStr);
-        return true;
-    } catch (e) {
-        const isQuota = (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014));
-        console.warn(`[STORAGE] setItem '${key}' 失敗 (quota=${isQuota}):`, e);
-
-        // 容量超過 + 配列データなら、 古い半分を削除して再試行
-        if (isQuota && options.cleanupKey) {
-            try {
-                const arr = JSON.parse(localStorage.getItem(options.cleanupKey) || '[]');
-                if (Array.isArray(arr) && arr.length > 1) {
-                    const halved = arr.slice(Math.floor(arr.length / 2));  // 古い半分を捨てる
-                    localStorage.setItem(options.cleanupKey, JSON.stringify(halved));
-                    console.warn(`[STORAGE] '${options.cleanupKey}' を ${arr.length}→${halved.length} 件に圧縮して再試行`);
-                    // 再試行
-                    try {
-                        localStorage.setItem(key, valueStr);
-                        return true;
-                    } catch (e2) { /* 諦める */ }
-                }
-            } catch (e3) { /* cleanup 失敗、 そのまま諦める */ }
-        }
-
-        if (options.notifyOnFail) {
-            const msg = isQuota
-                ? "ブラウザの保存容量が不足しています。\n古い牌譜を削除するか、 ブラウザのキャッシュをクリアしてください。"
-                : "データの保存に失敗しました: " + (e && e.message ? e.message : '不明なエラー');
-            try { alert(msg); } catch (_) { /* ignore */ }
-        }
-        return false;
-    }
-}
-window.safeLocalStorageSet = safeLocalStorageSet;
+// 🌟 friend.js から「他の場所でログインされました」 通知を呼べるよう公開
+window._notifySessionRevoked = _notifySessionRevoked;

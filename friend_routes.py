@@ -2270,6 +2270,24 @@ async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: 
     # 🌟 再接続判定は connect() が「過去に一度でも繋いだ player_idx か」を返す
     is_rejoin = await friend_connections.connect(websocket, room_id, player_idx)
 
+    # 🌟 後勝ちログイン即時切断用: クライアントから auth token を受信して username 登録
+    #   接続直後にクライアントは {"type": "auth", "token": "..."} を送る想定（任意）
+    try:
+        import asyncio
+        first_msg = await asyncio.wait_for(websocket.receive_json(), timeout=2.0)
+        if first_msg.get("type") == "auth":
+            player_token = first_msg.get("token")
+            try:
+                from auth_routes import resolve_token_to_username
+                username = resolve_token_to_username(player_token) if player_token else None
+                if username:
+                    lobby_manager.register_user_socket(username, websocket, room_id, "game")
+                    print(f"[FRIEND WS] '{username}' の対局WS接続を登録 (room={room_id}, seat={player_idx})")
+            except Exception:
+                pass
+    except Exception:
+        pass  # タイムアウト or 受信失敗 = 古いクライアントでも動くようにする
+
     # 🌟 再接続なら他プレイヤーに通知（プレイヤー名も含めて）
     if is_rejoin:
         player_name = None
@@ -2292,8 +2310,17 @@ async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: 
             print(f"[FRIEND WS] Room {room_id} Player {player_idx} から受信: {data}")
     except WebSocketDisconnect:
         friend_connections.disconnect(websocket, room_id)
+        # 🌟 user_sockets からも削除
+        try:
+            lobby_manager.unregister_user_socket(websocket)
+        except Exception:
+            pass
     except Exception as e:
         print(f"[FRIEND WS ERROR] {e}")
         traceback.print_exc()
         friend_connections.disconnect(websocket, room_id)
+        try:
+            lobby_manager.unregister_user_socket(websocket)
+        except Exception:
+            pass
         #デプロイ用コメント1

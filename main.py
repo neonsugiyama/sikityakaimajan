@@ -235,6 +235,47 @@ class ConnectionManager:
         self.charleston_selections = {}
         self.second_charleston_confirms = {}
         self.second_charleston_selections = {}
+        # 🌟 後勝ちログイン即時切断用: username -> [(websocket, room_id, kind), ...]
+        #   kind は "lobby" / "game" の文字列でデバッグ用
+        self.user_sockets: Dict[str, List[tuple]] = {}
+
+    def register_user_socket(self, username: str, websocket: WebSocket, room_id: str, kind: str = "lobby"):
+        """ユーザー名と WS 接続を紐付けて記録"""
+        if not username:
+            return
+        if username not in self.user_sockets:
+            self.user_sockets[username] = []
+        self.user_sockets[username].append((websocket, room_id, kind))
+
+    def unregister_user_socket(self, websocket: WebSocket):
+        """WS 切断時に user_sockets からも削除"""
+        for username in list(self.user_sockets.keys()):
+            self.user_sockets[username] = [
+                t for t in self.user_sockets[username] if t[0] is not websocket
+            ]
+            if not self.user_sockets[username]:
+                del self.user_sockets[username]
+
+    async def kick_user_sockets(self, username: str):
+        """指定ユーザーの全 WS 接続に kick メッセージを送って切断する。
+        後勝ちログイン時に呼ばれ、 旧セッションの友人戦を即座に終了させる。"""
+        if not username or username not in self.user_sockets:
+            return 0
+        targets = list(self.user_sockets[username])  # コピー（イテレート中に削除されるため）
+        count = 0
+        for ws, room_id, kind in targets:
+            try:
+                # 🌟 メッセージを送信。 close はクライアント側に任せる
+                #   （サーバーが即座に close すると、 クライアントの onmessage 処理前に
+                #    onclose が発火してアラートが表示されないケースを防ぐ）
+                await ws.send_json({"type": "session_revoked", "reason": "他の場所でログインされました"})
+                count += 1
+            except Exception as e:
+                print(f"[KICK] {username} {kind} 切断送信失敗: {e}")
+        if username in self.user_sockets:
+            del self.user_sockets[username]
+        print(f"[KICK] '{username}' の WS 接続 {count} 個に session_revoked を送信（後勝ちログイン）")
+        return count
 
     async def connect(self, websocket: WebSocket, room_id: str):
         await websocket.accept()
@@ -250,9 +291,9 @@ class ConnectionManager:
             print(f"[DEBUG] Room {room_id} から切断。残りの人数: {len(self.active_connections[room_id])}")
             if len(self.active_connections[room_id]) == 0:
                 del self.active_connections[room_id]
-                # 🌟 友人戦: games の寿命はロビーと独立。対局WS側で管理する。
-                # ここでは games やチャールストン状態は消さない。
                 print(f"[DEBUG] Room {room_id} のロビー接続を全て削除しました（gamesは保持）。")
+        # user_sockets からも削除
+        self.unregister_user_socket(websocket)
 
     async def broadcast_to_room(self, room_id: str, message: dict):
         if room_id in self.active_connections:
@@ -320,6 +361,10 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
             username = resolve_token_to_username(player_token) if player_token else None
         except Exception:
             username = None
+
+        # 🌟 後勝ちログイン即時切断用: username と WS 接続を紐付け
+        if username:
+            lobby_manager.register_user_socket(username, websocket, room_id, "lobby")
 
         # 席の初期化
         if not hasattr(lobby_manager, 'seats'):

@@ -12,6 +12,12 @@ async function apiCall(endpoint, params = {}) {
         return {};
     }
 
+    // 🌟 セッション失効後はゲーム進行の通信を一切行わない
+    //   （CPU戦のタイマー切れによる自動進行で /cpu_turn 等が呼ばれ続けるのを防ぐ）
+    if (window._sessionRevoked) {
+        return { status: "session_revoked" };
+    }
+
     try {
         let url = endpoint;
         params._t = new Date().getTime();
@@ -113,19 +119,14 @@ async function fetchAndSaveReplay() {
             // ストレージ容量圧迫を防ぐため、最新の30件だけ保存する
             if (savedReplays.length > 30) savedReplays.shift();
 
-            // 🛡️ 容量超過に備えて safeLocalStorageSet を使用
-            //   失敗時は古い牌譜を半分削って再試行（牌譜は古いものから捨ててよい）
-            if (typeof window.safeLocalStorageSet === 'function') {
-                window.safeLocalStorageSet(replayKey, savedReplays, { cleanupKey: replayKey });
-            } else {
-                try { localStorage.setItem(replayKey, JSON.stringify(savedReplays)); } catch (e) { console.warn('[REPLAY] save失敗:', e); }
-            }
+            localStorage.setItem(replayKey, JSON.stringify(savedReplays));
             // 🔐 ログイン中はサーバーにも同期
             if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof authSave === 'function') {
                 authSave();
             }
         }
     } catch (e) {
+        //console.error("牌譜の取得・保存に失敗:", e);
     }
 }
 /*デプロイ用コメント1*/
