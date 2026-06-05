@@ -52,12 +52,14 @@ async function takeResultScreenshot() {
     btn.disabled = true;
 
     try {
+        //console.log("[DEBUG 撮影] クローンを作成して撮影準備を開始します...");
         const clone = resultWrapper.cloneNode(true);
         document.body.appendChild(clone);
 
         // 🌟 役リストの実際の高さを取得し、見切れないようにキャンバスの高さを計算
         const winYakuOrig = document.getElementById('win-yaku');
         const neededHeight = winYakuOrig ? Math.max(940, winYakuOrig.scrollHeight + 100) : 940;
+        //console.log(`[DEBUG 撮影] 撮影サイズ設定: Width = 1750px, Height = ${neededHeight}px`);
 
         // 🌟 幅1750pxを強制し、不要なpaddingなどを削除して絶対配置のズレを防ぐ
         clone.style.cssText = `
@@ -103,6 +105,7 @@ async function takeResultScreenshot() {
 
         await new Promise(r => setTimeout(r, 200));
 
+        //console.log("[DEBUG 撮影] html2canvasによる描画を開始します...");
         const canvas = await html2canvas(clone, {
             backgroundColor: "#0a0a0a",
             scale: 2,
@@ -115,6 +118,7 @@ async function takeResultScreenshot() {
         });
 
         clone.remove();
+        //console.log("[DEBUG 撮影] 描画完了。画像を出力します。");
 
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (!blob) throw new Error("画像データの生成に失敗しました");
@@ -131,8 +135,10 @@ async function takeResultScreenshot() {
         link.click();
 
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+        //console.log("[DEBUG 撮影] 正常に保存が完了しました。");
 
     } catch (e) {
+        //console.error("[DEBUG 撮影エラー] Screenshot Error:", e);
         alert("スクリーンショットの保存に失敗しました。\n" + e.message);
     } finally {
         btn.innerText = originalText;
@@ -141,6 +147,7 @@ async function takeResultScreenshot() {
 }
 
 async function returnToHomeGracefully() {
+    //console.log("[App] 🏠 returnToHomeGracefully 呼び出し");
 
     // 🌟 友人戦中に非表示にしていた退出/ログアウトボタンを元に戻す
     const _showAgain = (id) => {
@@ -166,7 +173,9 @@ async function returnToHomeGracefully() {
     }
 
     if (typeof fetchAndSaveReplay === 'function') {
+        //console.log("[App] 📼 牌譜の保存処理を開始します...");
         await fetchAndSaveReplay();
+        //console.log("[App] 📼 牌譜の保存処理が完了しました");
     }
 
     if (typeof isReplayMode !== 'undefined') isReplayMode = false;
@@ -284,6 +293,7 @@ async function returnToHomeGracefully() {
     updateStampVisibility();
 
     if (typeof applyBGMVolume === 'function') applyBGMVolume();
+    //console.log("[App] 🏠 タイトル画面への帰還処理完了");
 }
 
 function quitGame() {
@@ -311,7 +321,9 @@ function switchYakuTab(evt, tabId) {
     const container = document.getElementById('yaku-list-container');
     if (container) {
         container.scrollTop = 0;
+        //console.log(`[DEBUG タブ切り替え] 役一覧タブ変更 [${tabId}]: スクロール位置を一番上に戻しました。現在の scrollTop = ${container.scrollTop}`);
     } else {
+        //console.error(`[DEBUG タブ切り替え] 🚨 スクロール対象の 'yaku-list-container' が見つかりません。`);
     }
 }
 
@@ -633,6 +645,7 @@ async function _afterAuthShowModeSelect() {
                     localStorage.removeItem('shiki_mahjong_game_mode');
                 }
             } catch (e) {
+                //console.log("[再開ロジック] ❌ エラー発生:", e);
             }
         }
     }
@@ -764,6 +777,70 @@ function _refreshAuthModalUI() {
     }
 }
 
+// ==========================================
+// 🔐 ログイン/登録 中ローディングオーバーレイ
+//   連打対策 + 通信中の視覚フィードバック。 対局復帰画面と同じデザイン。
+//   showAuthLoading は「既に表示中」なら false を返すので、 呼出側で二重実行を防げる。
+// ==========================================
+let _authLoadingActive = false;
+let _authLoadingTimer = null;
+
+function showAuthLoading(title) {
+    if (_authLoadingActive) return false;  // 既に処理中
+    _authLoadingActive = true;
+
+    const overlay = document.getElementById('auth-loading');
+    const titleEl = document.getElementById('auth-loading-title');
+    const bar = document.getElementById('auth-progress-bar');
+    const text = document.getElementById('auth-progress-text');
+    if (!overlay) { _authLoadingActive = false; return false; }
+
+    if (titleEl) titleEl.textContent = title || '🔐 ログイン中...';
+    if (bar) bar.style.width = '0%';
+    if (text) text.textContent = '0%';
+    overlay.style.display = 'flex';
+
+    // 0% → 90% を 1.5 秒で線形に進める（実進捗は不明なので時間ベース、
+    //   レスポンスが速ければ hideAuthLoading で 100% にして閉じる）
+    const totalMs = 1500;
+    const startTime = Date.now();
+    if (_authLoadingTimer) clearInterval(_authLoadingTimer);
+    _authLoadingTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(90, (elapsed / totalMs) * 90);
+        if (bar) bar.style.width = pct + '%';
+        if (text) text.textContent = Math.floor(pct) + '%';
+        if (pct >= 90) {
+            clearInterval(_authLoadingTimer);
+            _authLoadingTimer = null;
+        }
+    }, 50);
+
+    return true;
+}
+
+function hideAuthLoading() {
+    if (!_authLoadingActive) return;
+
+    if (_authLoadingTimer) {
+        clearInterval(_authLoadingTimer);
+        _authLoadingTimer = null;
+    }
+
+    const bar = document.getElementById('auth-progress-bar');
+    const text = document.getElementById('auth-progress-text');
+    // 完了演出: 100% に
+    if (bar) bar.style.width = '100%';
+    if (text) text.textContent = '100%';
+
+    // 200ms 後に閉じる（100% の見た目を一瞬見せる）
+    setTimeout(() => {
+        const overlay = document.getElementById('auth-loading');
+        if (overlay) overlay.style.display = 'none';
+        _authLoadingActive = false;
+    }, 200);
+}
+
 async function uiAuthLogin() {
     if (typeof playSE === 'function') playSE('click');
     const username = (document.getElementById('auth-username').value || '').trim();
@@ -774,6 +851,8 @@ async function uiAuthLogin() {
         if (errEl) errEl.innerText = 'ユーザー名とパスワードを入力してください';
         return;
     }
+    // 🌟 連打防止: 既に処理中なら何もしない（オーバーレイで物理的にもクリック不可）
+    if (!showAuthLoading('🔐 ログイン中...')) return;
     try {
         await authLogin(username, password);
         _refreshAuthModalUI();
@@ -784,7 +863,8 @@ async function uiAuthLogin() {
         }
         if (typeof updateProfileUI === 'function') updateProfileUI();
         if (typeof updateInfoUI === 'function') updateInfoUI();
-        alert(`ログインしました: ${authUsername}`);
+        hideAuthLoading();
+        //alert(`ログインしました: ${authUsername}`);
         // 🔐 GAME START からモーダルを開いていた場合、自動で閉じてモード選択へ
         if (_authModalForModeSelect) {
             _authModalForModeSelect = false;
@@ -793,6 +873,7 @@ async function uiAuthLogin() {
             if (typeof _afterAuthShowModeSelect === 'function') _afterAuthShowModeSelect();
         }
     } catch (e) {
+        hideAuthLoading();
         if (errEl) errEl.innerText = e.message || 'ログインに失敗しました';
     }
 }
@@ -1057,21 +1138,11 @@ function renderLobbySeats(seats) {
         } else if (seat.type === 'human') {
             nameLabel.innerText = '👤 ' + (seat.name || 'Player');
             if (i === (window.lobbyMySeat ?? -1)) {
-                // 🌟 XSS 対策: innerHTML 連結だと既存テキストが再解釈されるため、
-                //   safe な span を appendChild で追加する
-                const youMark = document.createElement('span');
-                youMark.style.cssText = 'color:#f1c40f; font-size:12px;';
-                youMark.innerText = ' (あなた)';
-                nameLabel.appendChild(youMark);
+                nameLabel.innerHTML += ' <span style="color:#f1c40f; font-size:12px;">(あなた)</span>';
             }
         } else if (seat.type === 'cpu') {
             const lvl = (seat.cpu_level !== undefined && seat.cpu_level !== null) ? cpuLevelLabel[seat.cpu_level] : '?';
-            // 🌟 XSS 対策: name の部分はテキストノードで追加、 (Lv) 部分のみ装飾 span
-            nameLabel.innerText = '🤖 ' + (seat.name || '');
-            const lvlMark = document.createElement('span');
-            lvlMark.style.cssText = 'color:#3498db; font-size:12px;';
-            lvlMark.innerText = ' (' + lvl + ')';
-            nameLabel.appendChild(lvlMark);
+            nameLabel.innerHTML = `🤖 ${seat.name} <span style="color:#3498db; font-size:12px;">(${lvl})</span>`;
         }
         row.appendChild(nameLabel);
 
@@ -1147,12 +1218,14 @@ document.addEventListener('contextmenu', (e) => {
 
     // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
     if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
+        //console.log("[DEBUG 操作] 右クリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
         btnRyukyoku.click();
         return;
     }
 
     // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
     if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+        //console.log("[DEBUG 操作] 右クリックを検知: #btn-skip をクリックしてスルーします。");
         btnSkip.click();
         return;
     }
@@ -1180,6 +1253,7 @@ if (gameTable) {
 
         // 1. 海底牌をスルーして流局させるボタン（#btn-ryukyoku）が出ていれば最優先でクリック
         if (btnRyukyoku && (btnRyukyoku.style.display === "block" || btnRyukyoku.style.display === "flex")) {
+            //console.log("[DEBUG 操作] ダブルクリックを検知: #btn-ryukyoku をクリックして海底選択をスルー（流局）します。");
             btnRyukyoku.click();
             window.getSelection().removeAllRanges();
             return;
@@ -1187,6 +1261,7 @@ if (gameTable) {
 
         // 2. 通常の鳴きスキップボタン（#btn-skip）が出ていればクリック
         if (btnSkip && (btnSkip.style.display === "block" || btnSkip.style.display === "flex")) {
+            //console.log("[DEBUG 操作] ダブルクリックを検知: #btn-skip をクリックしてスルーします。");
             btnSkip.click();
             window.getSelection().removeAllRanges();
             return;
@@ -1368,6 +1443,7 @@ async function lockScreen() {
             await screen.orientation.lock("landscape");
         }
     } catch (e) {
+        //console.log("フルスクリーン/画面ロックがブロックされました:", e);
     }
 }
 

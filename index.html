@@ -1662,6 +1662,15 @@
         <div id="rejoin-progress-text" style="margin-top: 12px; color: #ccc;">0%</div>
     </div>
 
+    <!-- 🔐 ログイン/登録 中ローディング画面（連打対策 + 通信中の視覚フィードバック） -->
+    <div id="auth-loading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 99999; align-items: center; justify-content: center; flex-direction: column; color: white; font-family: sans-serif;">
+        <div id="auth-loading-title" style="font-size: 22px; margin-bottom: 24px; color: #2ecc71;">🔐 ログイン中...</div>
+        <div style="width: 360px; max-width: 80vw; height: 24px; background: #222; border: 2px solid #2ecc71; border-radius: 12px; overflow: hidden;">
+            <div id="auth-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.2s ease-out;"></div>
+        </div>
+        <div id="auth-progress-text" style="margin-top: 12px; color: #ccc;">0%</div>
+    </div>
+
     <!-- 🔁 切断/再接続のトーストコメント領域（ニコニコ風 右→左流し） -->
     <div id="reconnect-toast-area" style="position: fixed; top: 100px; left: 0; width: 100%; height: 60px; pointer-events: none; z-index: 99998; overflow: hidden;"></div>
 
