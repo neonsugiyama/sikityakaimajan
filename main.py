@@ -1025,7 +1025,8 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                 if (is_hanari_zentan or is_hanari_qixing) and len(game.wall) > 20:
                     is_pass = True
 
-            if target == "十三幺九":
+            # 🌟 既に和了済みの CPU は見送らず、 再和了する（季節牌等のツモ切り防止）
+            if not has_won_already and target == "十三幺九":
                 waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
                 if len(waits) < 13:
                     remaining = 0
@@ -1036,7 +1037,8 @@ def cpu_turn(cpu_idx: int, game: GameState = Depends(get_current_game)):
                         is_pass = True
 
             # 🌟 修正：「つよい」CPU以外は、欲張らずに即和了する！
-            if getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
+            #    既に和了済みの場合は欲張り見送りせず確実に再和了する
+            if not has_won_already and getattr(game, 'cpu_level', 1) == 2 and len(game.wall) > 20: 
                 waits = get_waits_for_hand(game.hands[cpu_idx], game.melds[cpu_idx])
                 if len(waits) < 27:
                     is_pass = True

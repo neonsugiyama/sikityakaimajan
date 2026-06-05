@@ -38,6 +38,25 @@ let selectedTileIndex = -1; // -1は「何も選択されていない」状態
 let _handleRoundEndInProgress = false;
 
 // ==========================================
+// ⏱️ 演出・待機時間の定数（マジックナンバー定数化）
+//   CPU 戦・友人戦の両方で使う標準的な遅延時間を集約。
+//   speedMult で割る用途のものは、 ms 単位の元値（× 1.0 速度）を保持。
+//   window 経由で公開し friend.js からも参照可能。
+// ==========================================
+const TIMING = {
+    LOADING_HIDE_MS: 300,        // ローディングオーバーレイの非表示遅延
+    GENERIC_WAIT_MS: 500,        // 汎用の短時間待機
+    SHORT_DELAY_MS: 600,         // 副露反映の遅延、 ロン即時クリック
+    STANDARD_DELAY_MS: 800,      // 副露・ツモ和了の標準演出時間
+    KAKAN_DELAY_MS: 1000,        // 加槓演出時間 / CPU ループの最低間隔
+    JOKERSWAP_DELAY_MS: 1500,    // JokerSwap 演出時間
+    LONG_DELAY_MS: 2000,         // 長い演出
+    CENTER_MSG_HIDE_MS: 2500,    // センターメッセージ自動非表示
+    TOAST_AUTO_HIDE_MS: 8100,    // トースト自動消去
+};
+if (typeof window !== 'undefined') window.TIMING = TIMING;
+
+// ==========================================
 // 🔄 局・ゲーム遷移時の状態リセット共通関数
 // 「リセット忘れ」が過去のバグの温床になっていたので、 1か所に集約する。
 //   - 局単位 transient 変数（前局の状態が残ると次局でバグる変数）
@@ -222,7 +241,7 @@ function notifyTimerPenalty() {
     try {
         fetch(`/friend/timer_penalty?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`,
             { cache: 'no-store' }).catch(() => { });
-    } catch (e) { }
+    } catch (e) { /* ignore: タイマー切れペナルティ通知の失敗は無視。 内部の .catch(() => {}) が一次防御、 ここは二次防御 */ }
 }
 
 // ⏹️ 動作中の持ち時間タイマーを停止・破棄する関数
@@ -1518,7 +1537,7 @@ async function finishAskSecondCharleston() {
                 p0: secondCharlestonParticipating[0], p1: secondCharlestonParticipating[1],
                 p2: secondCharlestonParticipating[2], p3: secondCharlestonParticipating[3]
             });
-        } catch (e) { }
+        } catch (e) { /* ignore: 第2交換の同期通信エラーは無視（apiCall が既にユーザー通知を出すため、 ここは続行を保証する目的） */ }
 
         charlestonPhase = false;
         isProc = false;
@@ -1939,11 +1958,11 @@ async function checkT() {
                 // 🌟 2. 槓などのアクションボタンが出ていれば一時停止
                 if (activeSelfActionsCount > 0) {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
-                    setTimeout(hideCenterMessage, 2500);
+                    setTimeout(hideCenterMessage, TIMING.CENTER_MSG_HIDE_MS);
                 } else if (isWinVisible) {
                     // 🌟 3. 自摸ボタンが出ていれば押す
                     isProc = true;
-                    setTimeout(() => { isProc = false; btnWin.click(); }, 600 / speedMult);
+                    setTimeout(() => { isProc = false; btnWin.click(); }, TIMING.SHORT_DELAY_MS / speedMult);
                     autoActed = true;
                 } else {
                     // 🌟 3. 和了でなければ自摸切り
@@ -2032,7 +2051,7 @@ async function checkT() {
             updateWall(wallCount - 1);
         }
 
-        setTimeout(cpu, 1000 / speedMult);
+        setTimeout(cpu, TIMING.KAKAN_DELAY_MS / speedMult);
     }
 }
 
@@ -2457,7 +2476,7 @@ async function cpu() {
 
                     if (isAutoDigest) {
                         isProc = true;
-                        setTimeout(() => { isProc = false; btnWin.click(); }, 800 / speedMult);
+                        setTimeout(() => { isProc = false; btnWin.click(); }, TIMING.STANDARD_DELAY_MS / speedMult);
                     } else {
                         startTimer(timeCall, () => btnSkip.click());
                     }
@@ -2539,7 +2558,7 @@ async function checkHumanReaction(discarderIdx, tile) {
                     higherPriorityCpuWillRon = true;
                 }
             }
-        } catch (e) { }
+        } catch (e) { /* ignore: 個別 CPU の check_win 通信失敗は他 CPU の判定継続のため無視（次のループへ） */ }
     }
 
     let canHumanRon = wd.can_win; // 🟢 修正：頭ハネされる場合でも「ロン」ボタンを堂々と出す！
@@ -4033,7 +4052,7 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             // ポップアップ（トースト）がすべて連続で表示され終わるまでしっかり待機する
             while (isToastShowing || toastQueue.length > 0) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, TIMING.GENERIC_WAIT_MS));
             }
 
             alert(resultMsg);

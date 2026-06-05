@@ -207,7 +207,7 @@ async function rejoinFriendGame() {
         setProgress(100);
 
         // ローディング非表示
-        setTimeout(() => { if (loading) loading.style.display = 'none'; }, 300);
+        setTimeout(() => { if (loading) loading.style.display = 'none'; }, window.TIMING ? window.TIMING.LOADING_HIDE_MS : 300);
         return true;
     } catch (e) {
         console.error('[REJOIN] 失敗:', e);
@@ -231,7 +231,7 @@ async function _resumeByPhase(rejoinData) {
             const endTime = Date.now() + Math.round(csRemaining * 1000);
             try {
                 sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
-            } catch (e) { }
+            } catch (e) { /* ignore: sessionStorage 不可 (プライベートブラウジング等) や quota 超過は無視、 タイマー永続化失敗のみで実害なし */ }
             if (typeof isResuming !== 'undefined') isResuming = true;
         }
     }
@@ -364,7 +364,7 @@ async function _resumeByPhase(rejoinData) {
             const endTime = Date.now() + Math.round(remaining * 1000);
             try {
                 sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
-            } catch (e) { }
+            } catch (e) { /* ignore: sessionStorage 不可 (プライベートブラウジング等) や quota 超過は無視、 タイマー永続化失敗のみで実害なし */ }
             if (typeof isResuming !== 'undefined') isResuming = true;
         }
         if (typeof isProc !== 'undefined') isProc = false;
@@ -497,7 +497,7 @@ async function fetchFriendInitialState() {
             const endTime = Date.now() + Math.round(csRemaining * 1000);
             try {
                 sessionStorage.setItem(`timer_end_time_${currentSessionRoomId}`, endTime);
-            } catch (e) { }
+            } catch (e) { /* ignore: sessionStorage 不可 (プライベートブラウジング等) や quota 超過は無視、 タイマー永続化失敗のみで実害なし */ }
             if (typeof isResuming !== 'undefined') isResuming = true;
         }
         if (typeof startCharlestonSelection === 'function') {
@@ -754,7 +754,7 @@ async function handleSecondCharlestonComplete(data) {
         // 不成立: メッセージ表示
         if (typeof showCenterMessage === 'function') {
             showCenterMessage(`参加者不足<br><span style="color:#e74c3c;font-size:24px;">第2交換はスキップされます</span>`);
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, window.TIMING ? window.TIMING.LONG_DELAY_MS : 2000));
             if (typeof hideCenterMessage === 'function') hideCenterMessage();
         }
     } else {
@@ -922,10 +922,10 @@ function handleFriendEvent(data) {
             const _spd = (typeof speedMult !== "undefined" ? speedMult : 1);
             if (data.did_joker_swap && discarderRel !== 0) {
                 if (typeof showCallout === 'function') showCallout(discarderRel, "JokerSwap");
-                await new Promise(r => setTimeout(r, 1500 / _spd));
+                await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.JOKERSWAP_DELAY_MS : 1500) / _spd));
             } else if (data.did_kakan && discarderRel !== 0) {
                 if (typeof showCallout === 'function') showCallout(discarderRel, "加槓");
-                await new Promise(r => setTimeout(r, 1000 / _spd));
+                await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.KAKAN_DELAY_MS : 1000) / _spd));
             }
 
             // 🌟 演出中は checkT を呼ばない（演出後の handleFriendWin が責任を持って checkT する）
@@ -967,7 +967,7 @@ function handleFriendEvent(data) {
 
         if (didCpuDrawAnim) {
             // ツモ表現を 0.6秒見せてから打牌へ
-            setTimeout(_applyDiscardUpdate, 600 / (typeof speedMult !== "undefined" ? speedMult : 1));
+            setTimeout(_applyDiscardUpdate, (window.TIMING ? window.TIMING.SHORT_DELAY_MS : 600) / (typeof speedMult !== "undefined" ? speedMult : 1));
         } else {
             _applyDiscardUpdate();
         }
@@ -1123,7 +1123,7 @@ function showReconnectToast(text, isDisconnect) {
     el.style.top = offset + 'px';
     area.appendChild(el);
     // アニメ終了後に削除（8秒）
-    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 8100);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, window.TIMING ? window.TIMING.TOAST_AUTO_HIDE_MS : 8100);
 }
 
 // ==========================================
@@ -1139,7 +1139,7 @@ async function handleFriendJokerSwap(data) {
     // 演出: 実行者位置に「JokerSwap」表示
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, "JokerSwap");
-    await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+    await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.STANDARD_DELAY_MS : 800) / (typeof speedMult !== "undefined" ? speedMult : 1)));
 
     if (typeof isProc !== 'undefined') isProc = false;
     if (typeof checkT === 'function') checkT();
@@ -1193,7 +1193,7 @@ async function handleFriendMeld(data) {
         if (typeof renderCPU === 'function') renderCPU();
     }
 
-    await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+    await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.STANDARD_DELAY_MS : 800) / (typeof speedMult !== "undefined" ? speedMult : 1)));
 
     // 🌟 デバッグ: 自家副露(花槓等)後、 嶺上ツモ後のアクションボタン表示判定用
     if (claimerRel === 0) {
@@ -1237,7 +1237,7 @@ async function handleFriendSelfMeld(data) {
         if (typeof justPonged !== 'undefined') justPonged = false;
     }
 
-    await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+    await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.STANDARD_DELAY_MS : 800) / (typeof speedMult !== "undefined" ? speedMult : 1)));
 
     if (typeof isProc !== 'undefined') isProc = false;
     if (typeof checkT === 'function') checkT();
@@ -1285,13 +1285,13 @@ async function handleFriendWin(data) {
             const winnerRel = (current.player_idx - myPlayerIdx + 4) % 4;
             const winText = (current.win_type === "ron") ? "胡" : "自摸";
             if (typeof showCallout === 'function') showCallout(winnerRel, winText);
-            await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+            await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.STANDARD_DELAY_MS : 800) / (typeof speedMult !== "undefined" ? speedMult : 1)));
 
             // 役表示
             if (current.yaku && current.yaku.length > 0) {
                 for (const y of current.yaku) {
                     if (typeof showCallout === 'function') showCallout(winnerRel, y);
-                    await new Promise(r => setTimeout(r, 600 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+                    await new Promise(r => setTimeout(r, (window.TIMING ? window.TIMING.SHORT_DELAY_MS : 600) / (typeof speedMult !== "undefined" ? speedMult : 1)));
                 }
             }
 
