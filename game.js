@@ -2235,11 +2235,6 @@ function setupActionBtn(content, cls, onClick) {
     btn.style.gap = '5px';
     btn.onclick = onClick;
 
-    // 🌟 追加：ボタンに割り当てられたクラスと、描画された後の実際のCSSカラーをログに出す
-    let btnName = html.replace(/<[^>]*>?/gm, '').trim(); // 画像タグなどを消して文字だけ抽出
-    setTimeout(() => {
-    }, 50);
-
     activeSelfActionsCount++;
 }
 

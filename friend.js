@@ -544,37 +544,47 @@ async function friendSubmitCharleston(t1, t2, t3) {
 async function handleCharlestonComplete(data) {
     console.log("[FRIEND] 第1交換完了:", data);
 
-    // 🌟 第2交換用の状態を初期化（次の局のために必ずリセット）
-    //    第1交換完了は局の最初に必ず1回だけ発生するため、ここでリセットするのが安全
-    friendSecondAskedCount = 0;
-    friendSecondParticipating = [false, false, false, false];
-    friendMySecondCharlestonTiles = [];
-    window.__friend_second_charleston_started = false;
+    // 🌟 アニメ中に届くゲーム進行イベントを保留するためにロック
+    window.__friend_animation_lock = true;
+    try {
+        // 🌟 第2交換用の状態を初期化（次の局のために必ずリセット）
+        //    第1交換完了は局の最初に必ず1回だけ発生するため、ここでリセットするのが安全
+        friendSecondAskedCount = 0;
+        friendSecondParticipating = [false, false, false, false];
+        friendMySecondCharlestonTiles = [];
+        window.__friend_second_charleston_started = false;
 
-    // 🌟 修正: アニメーション「前」に safeUpdate しても render しない（手牌の更新は描画しない）
-    // CPU戦と同じ挙動: アニメーション後にまとめて render する
-    if (data.state && typeof safeUpdate === 'function') {
-        safeUpdate(data.state);
-    }
+        // 🌟 修正: アニメーション「前」に safeUpdate しても render しない（手牌の更新は描画しない）
+        // CPU戦と同じ挙動: アニメーション後にまとめて render する
+        if (data.state && typeof safeUpdate === 'function') {
+            safeUpdate(data.state);
+        }
 
-    // サイコロ・交換アニメーション（CPU戦の関数を流用）
-    if (typeof showDiceAnimation === 'function') {
-        await showDiceAnimation(data.dice, data.direction);
-    }
-    if (typeof playExchangeAnimation === 'function') {
-        await playExchangeAnimation(data.direction, [true, true, true, true]);
-    }
+        // サイコロ・交換アニメーション（CPU戦の関数を流用）
+        if (typeof showDiceAnimation === 'function') {
+            await showDiceAnimation(data.dice, data.direction);
+        }
+        if (typeof playExchangeAnimation === 'function') {
+            await playExchangeAnimation(data.direction, [true, true, true, true]);
+        }
 
-    // アニメ完了 → ここで初めて新しい手牌を描画
-    if (typeof hideCpuTiles !== 'undefined') {
-        for (let i = 0; i < 4; i++) hideCpuTiles[i] = 0;
-    }
-    if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
-    if (typeof render === 'function') render();
-    if (typeof renderCPU === 'function') renderCPU();
+        // アニメ完了 → ここで初めて新しい手牌を描画
+        if (typeof hideCpuTiles !== 'undefined') {
+            for (let i = 0; i < 4; i++) hideCpuTiles[i] = 0;
+        }
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
 
-    // 🌟 第2交換へ
-    friendStartSecondCharleston();
+        // 🌟 第2交換へ
+        friendStartSecondCharleston();
+    } finally {
+        // 🌟 ロック解除 → シーケンシャルキューが起動していなければ起動
+        window.__friend_animation_lock = false;
+        if (!window.__friend_seq_processing && window.__friend_seq_queue.length > 0) {
+            _processFriendSeqQueue();
+        }
+    }
 }
 
 // ==========================================
@@ -733,76 +743,165 @@ async function friendSubmitSecondCharleston(participate, t1, t2, t3) {
 async function handleSecondCharlestonComplete(data) {
     console.log("[FRIEND] 第2交換完了:", data);
 
-    // 🌟 開始済みフラグをリセット（次局のため）
-    window.__friend_second_charleston_started = false;
+    // 🌟 アニメ中に届くゲーム進行イベント（friend_draw 等）を保留するためにロック
+    window.__friend_animation_lock = true;
+    try {
+        // 🌟 開始済みフラグをリセット（次局のため）
+        window.__friend_second_charleston_started = false;
 
-    // state 反映（render はまだ）
-    if (data.state && typeof safeUpdate === 'function') {
-        safeUpdate(data.state);
-    }
-
-    // 🌟 まず UI を全部閉じる（早期スキップ時に「3枚選んで」パネルが残るのを防ぐため、
-    //    showCenterMessage の前に閉じる必要がある）
-    const cUiEarly = document.getElementById('charleston-ui');
-    if (cUiEarly) cUiEarly.style.display = "none";
-    const btnExEarly = document.getElementById('btn-exchange');
-    if (btnExEarly) btnExEarly.style.display = "none";
-    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
-    if (typeof stopTimer === 'function') stopTimer();
-
-    if (data.skipped) {
-        // 不成立: メッセージ表示
-        if (typeof showCenterMessage === 'function') {
-            showCenterMessage(`参加者不足<br><span style="color:#e74c3c;font-size:24px;">第2交換はスキップされます</span>`);
-            await new Promise(r => setTimeout(r, 2000));
-            if (typeof hideCenterMessage === 'function') hideCenterMessage();
+        // state 反映（render はまだ）
+        if (data.state && typeof safeUpdate === 'function') {
+            safeUpdate(data.state);
         }
-    } else {
-        // アニメーション
-        if (typeof showDiceAnimation === 'function') {
-            await showDiceAnimation(data.dice, data.direction);
-        }
-        if (typeof playExchangeAnimation === 'function') {
-            // active_players（絶対座席）→ participants（視点回転後）
-            const participants = [false, false, false, false];
-            for (const abs of (data.active_players || [])) {
-                const rel = (abs - myPlayerIdx + 4) % 4;
-                participants[rel] = true;
+
+        // 🌟 まず UI を全部閉じる（早期スキップ時に「3枚選んで」パネルが残るのを防ぐため、
+        //    showCenterMessage の前に閉じる必要がある）
+        const cUiEarly = document.getElementById('charleston-ui');
+        if (cUiEarly) cUiEarly.style.display = "none";
+        const btnExEarly = document.getElementById('btn-exchange');
+        if (btnExEarly) btnExEarly.style.display = "none";
+        if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+        if (typeof stopTimer === 'function') stopTimer();
+
+        if (data.skipped) {
+            // 不成立: メッセージ表示
+            if (typeof showCenterMessage === 'function') {
+                // 🌟 innerHTML 廃止: DocumentFragment で構築して渡す（showCenterMessage は文字列だと textContent 扱い）
+                const _frag = document.createDocumentFragment();
+                _frag.appendChild(document.createTextNode('参加者不足'));
+                _frag.appendChild(document.createElement('br'));
+                const _span = document.createElement('span');
+                _span.style.cssText = 'color:#e74c3c;font-size:24px;';
+                _span.textContent = '第2交換はスキップされます';
+                _frag.appendChild(_span);
+                showCenterMessage(_frag);
+                await new Promise(r => setTimeout(r, 2000));
+                if (typeof hideCenterMessage === 'function') hideCenterMessage();
             }
-            await playExchangeAnimation(data.direction, participants);
+        } else {
+            // アニメーション
+            if (typeof showDiceAnimation === 'function') {
+                await showDiceAnimation(data.dice, data.direction);
+            }
+            if (typeof playExchangeAnimation === 'function') {
+                // active_players（絶対座席）→ participants（視点回転後）
+                const participants = [false, false, false, false];
+                for (const abs of (data.active_players || [])) {
+                    const rel = (abs - myPlayerIdx + 4) % 4;
+                    participants[rel] = true;
+                }
+                await playExchangeAnimation(data.direction, participants);
+            }
+        }
+
+        // 後処理
+        if (typeof hideCpuTiles !== 'undefined') {
+            for (let i = 0; i < 4; i++) hideCpuTiles[i] = 0;
+        }
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
+        if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+        // 🌟 チャールストンUIを閉じる（早期スキップ時にUIが残るのを防止）
+        const cUiClose = document.getElementById('charleston-ui');
+        if (cUiClose) cUiClose.style.display = "none";
+        const btnExClose = document.getElementById('btn-exchange');
+        if (btnExClose) btnExClose.style.display = "none";
+        // 選択状態もクリア
+        if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
+        // タイマー停止
+        if (typeof stopTimer === 'function') stopTimer();
+
+        if (typeof render === 'function') render();
+        if (typeof renderCPU === 'function') renderCPU();
+
+        // 🌟 対局開始: checkT() で親から順にツモ・打牌が進む
+        if (typeof isProc !== 'undefined') isProc = false;
+        if (typeof checkT === 'function') checkT();
+    } finally {
+        // 🌟 ロック解除 → シーケンシャルキューが起動していなければ起動
+        window.__friend_animation_lock = false;
+        if (!window.__friend_seq_processing && window.__friend_seq_queue.length > 0) {
+            _processFriendSeqQueue();
         }
     }
-
-    // 後処理
-    if (typeof hideCpuTiles !== 'undefined') {
-        for (let i = 0; i < 4; i++) hideCpuTiles[i] = 0;
-    }
-    if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
-    if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
-    // 🌟 チャールストンUIを閉じる（早期スキップ時にUIが残るのを防止）
-    const cUiClose = document.getElementById('charleston-ui');
-    if (cUiClose) cUiClose.style.display = "none";
-    const btnExClose = document.getElementById('btn-exchange');
-    if (btnExClose) btnExClose.style.display = "none";
-    // 選択状態もクリア
-    if (typeof exchangeSelection !== 'undefined') exchangeSelection = [];
-    // タイマー停止
-    if (typeof stopTimer === 'function') stopTimer();
-
-    if (typeof render === 'function') render();
-    if (typeof renderCPU === 'function') renderCPU();
-
-    // 🌟 対局開始: checkT() で親から順にツモ・打牌が進む
-    if (typeof isProc !== 'undefined') isProc = false;
-    if (typeof checkT === 'function') checkT();
 }
 
 // ==========================================
 // WS受信イベントのディスパッチ
 // ==========================================
-function handleFriendEvent(data) {
+// 🌟 サーバーから連続して送られてくる「他人のアクション」 イベントを順次再生するためのキュー。
+//   - charleston_player_ready / second_charleston_player_done が CPU 3 人分同時に届く問題、
+//   - friend_draw → friend_discard が即座に処理されて自摸牌の演出が見えない問題、
+//   - 第1/第2交換アニメ中にゲーム進行イベントが先走る問題、
+//   をまとめて解決する。 各イベント間に適切なディレイを入れて「人間が打っているように」 見せる。
+window.__friend_animation_lock = false;
+window.__friend_seq_queue = window.__friend_seq_queue || [];
+window.__friend_seq_processing = false;
+
+const _FRIEND_SEQ_EVENT_TYPES = [
+    "charleston_player_ready",
+    "second_charleston_player_done",
+    "friend_draw", "friend_cpu_draw_preview",
+    "friend_discard",
+    "friend_self_meld", "friend_meld",
+    "call_request", "call_resolved",
+    "friend_win_tsumo",
+    "round_end"
+];
+
+// 各イベント後のディレイ（ms、 speedMult で割られる）
+const _FRIEND_EVENT_DELAYS = {
+    "charleston_player_ready": 600,
+    "second_charleston_player_done": 800,
+    "friend_draw": 250,
+    "friend_cpu_draw_preview": 250,
+    "friend_discard": 700,
+    "friend_self_meld": 800,
+    "friend_meld": 800,
+    "call_request": 100,
+    "call_resolved": 300,
+    "friend_win_tsumo": 1500,
+    "round_end": 1000,
+};
+
+// シーケンシャルキューを処理する非同期関数
+async function _processFriendSeqQueue() {
+    if (window.__friend_seq_processing) return;
+    window.__friend_seq_processing = true;
+    try {
+        while (window.__friend_seq_queue.length > 0) {
+            // 🌟 アニメ・ロック中は処理を一時停止して解除を待つ
+            if (window.__friend_animation_lock) {
+                await new Promise(r => setTimeout(r, 100));
+                continue;
+            }
+            const data = window.__friend_seq_queue.shift();
+            try {
+                // 🌟 bypass フラグを立てて handleFriendEvent を直接呼ぶ
+                handleFriendEvent(data, true);
+            } catch (e) {
+                console.error("[FRIEND] 順次キューイベント処理エラー:", e);
+            }
+            const baseDelay = _FRIEND_EVENT_DELAYS[data.type] || 500;
+            const spd = (typeof speedMult !== "undefined" ? speedMult : 1);
+            await new Promise(r => setTimeout(r, baseDelay / spd));
+        }
+    } finally {
+        window.__friend_seq_processing = false;
+    }
+}
+
+function handleFriendEvent(data, _bypassQueue) {
     const type = data.type;
-    console.log("[FRIEND] イベント受信:", type, data);
+    if (!_bypassQueue) console.log("[FRIEND] イベント受信:", type, data);
+
+    // 🌟 キュー判定（_bypassQueue=true の時はスキップして即時処理）
+    if (!_bypassQueue && _FRIEND_SEQ_EVENT_TYPES.includes(type)) {
+        window.__friend_seq_queue.push(data);
+        if (!window.__friend_seq_processing) {
+            _processFriendSeqQueue();
+        }
+        return;
+    }
 
     if (type === "charleston_player_ready") {
         // 他のプレイヤーが3枚提出した → 中央に裏向き3枚を表示 + 手牌から3枚隠す
@@ -924,7 +1023,7 @@ function handleFriendEvent(data) {
                 if (typeof showCallout === 'function') showCallout(discarderRel, "JokerSwap");
                 await new Promise(r => setTimeout(r, 1500 / _spd));
             } else if (data.did_kakan && discarderRel !== 0) {
-                if (typeof showCallout === 'function') showCallout(discarderRel, "加槓");
+                if (typeof showCallout === 'function') showCallout(discarderRel, "槓");
                 await new Promise(r => setTimeout(r, 1000 / _spd));
             }
 
@@ -1139,7 +1238,27 @@ async function handleFriendJokerSwap(data) {
     // 演出: 実行者位置に「JokerSwap」表示
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, "JokerSwap");
-    await new Promise(r => setTimeout(r, 800 / (typeof speedMult !== "undefined" ? speedMult : 1)));
+    // 🌟 修正: CPU 戦と同じ 1500ms に統一（800ms は短すぎた）
+    const _spd = (typeof speedMult !== "undefined" ? speedMult : 1);
+    await new Promise(r => setTimeout(r, 1500 / _spd));
+
+    // 🌟 修正: 自分自身の JokerSwap の場合、 CPU 戦と同じフラグ設定をする
+    //   （次のツモ和了で「JokerSwap」「妙手回春(春のみ)」 が正しく判定されるため）
+    if (data.player_idx === myPlayerIdx) {
+        if (typeof pendingIsJokerSwap !== 'undefined') pendingIsJokerSwap = true;
+        if (typeof pendingIsMiaoshou !== 'undefined') pendingIsMiaoshou = (data.season === "春");
+        if (typeof justPonged !== 'undefined') justPonged = false;
+
+        // 🏆 統計記録（CPU 戦と同じく「スワップの支配者」 実績更新）
+        if (typeof _isStatsTrackingMode === 'function' && _isStatsTrackingMode()) {
+            let oldSwap = playerStats.jokerSwapCount;
+            playerStats.jokerSwapCount++;
+            if (typeof checkTieredAchievement === 'function') {
+                checkTieredAchievement("jokerswap", "スワップの支配者", "🃏", oldSwap, playerStats.jokerSwapCount, [1, 10, 50, 150]);
+            }
+            if (typeof saveGameData === 'function') saveGameData();
+        }
+    }
 
     if (typeof isProc !== 'undefined') isProc = false;
     if (typeof checkT === 'function') checkT();
@@ -1167,7 +1286,8 @@ async function handleFriendMeld(data) {
     if (typeof renderCPU === 'function') renderCPU();
 
     // 演出: 副露プレイヤー位置に表示
-    const meldLabels = { pong: "碰", minkan: "明槓", hanakan: "花槓" };
+    // 🌟 CPU 戦に合わせて 明槓・花槓 も「槓」 で統一（ポンだけ「碰」）
+    const meldLabels = { pong: "碰", minkan: "槓", hanakan: "槓" };
     const label = meldLabels[data.meld_type] || data.meld_type;
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, label);
@@ -1225,7 +1345,8 @@ async function handleFriendSelfMeld(data) {
     if (typeof renderCPU === 'function') renderCPU();
 
     // 演出
-    const labels = { "暗槓": "暗槓", "暗花槓": "花槓", "加槓": "加槓", "加花槓": "花槓" };
+    // 🌟 CPU 戦に合わせて 暗槓・加槓・花槓 すべて「槓」 で統一
+    const labels = { "暗槓": "槓", "暗花槓": "槓", "加槓": "槓", "加花槓": "槓" };
     const label = labels[data.meld_type] || data.meld_type;
     const claimerRel = (data.player_idx - myPlayerIdx + 4) % 4;
     if (typeof showCallout === 'function') showCallout(claimerRel, label);

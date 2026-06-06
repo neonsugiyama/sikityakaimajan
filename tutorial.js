@@ -418,7 +418,7 @@ async function startTutorial() {
             setup: () => {
                 myHand = [...hand_hanakanPre]; myMelds = [];
                 setOverlay(true);
-                setupActionBtn(`花槓 ${getImg('5s')}${getImg('春')}`, 'btn-flower', async () => {
+                setupActionBtn(['花槓 ', makeTileImg('5s'), makeTileImg('春')], 'btn-flower', async () => {
                     tutLock = true;
                     if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false); clearArrows(); playSE('kan_0');
@@ -460,7 +460,7 @@ async function startTutorial() {
                 myHand = [...hand_hanakanPost]; myMelds = [{ type: "hanakan", tiles: ["5s", "春", "5s", "5s"] }];
                 myAllMelds[1] = [{ type: "hanakan", tiles: ["1s", "秋", "1s", "1s"], is_hidden: false }];
 
-                setupActionBtn(`Joker Swap ${getImg('1s')}`, 'btn-purple', async () => {
+                setupActionBtn(['Joker Swap ', makeTileImg('1s')], 'btn-purple', async () => {
                     tutLock = true;
                     if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false); clearArrows();
@@ -508,7 +508,7 @@ async function startTutorial() {
 
                 setOverlay(true);
 
-                setupActionBtn(`胡 ${getImg('1p')}`, 'btn-red', async () => {
+                setupActionBtn(['胡 ', makeTileImg('1p')], 'btn-red', async () => {
                     tutLock = true;
                     if (navPanel) navPanel.style.display = 'none';
                     setOverlay(false);
