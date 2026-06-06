@@ -241,12 +241,12 @@ async function returnToHomeGracefully() {
 
     for (let i = 0; i < 4; i++) {
         const r = document.getElementById(`river-${i}`);
-        if (r) r.innerHTML = "";
+        if (r) r.replaceChildren();
         const m = document.getElementById(`meld-${i}`);
-        if (m) m.innerHTML = "";
+        if (m) m.replaceChildren();
         const wz = document.getElementById(`win-zone-${i}`);
         if (wz) {
-            wz.innerHTML = "";
+            wz.replaceChildren();
             wz.style.display = "none";
         }
 
@@ -542,7 +542,7 @@ async function _afterAuthShowModeSelect() {
                                                     el.className = "call-text";
                                                     el.innerText = "";
                                                 } else {
-                                                    el.innerHTML = "";
+                                                    el.replaceChildren();
                                                     if (prefix === 'win-zone') el.style.display = "none";
                                                 }
                                             }
@@ -1120,7 +1120,7 @@ function enterWaitingRoom(roomId, hostSettings = null) {
 function renderLobbySeats(seats) {
     const list = document.getElementById('lobby-seats-list');
     if (!list) return;
-    list.innerHTML = '';
+    list.replaceChildren();
     const cpuLevelLabel = ['よわい', 'ふつう', 'つよい'];
     for (let i = 0; i < 4; i++) {
         const seat = seats[i];
@@ -1140,11 +1140,20 @@ function renderLobbySeats(seats) {
         } else if (seat.type === 'human') {
             nameLabel.innerText = '👤 ' + (seat.name || 'Player');
             if (i === (window.lobbyMySeat ?? -1)) {
-                nameLabel.innerHTML += ' <span style="color:#f1c40f; font-size:12px;">(あなた)</span>';
+                // 🌟 innerHTML += 廃止。 createElement で安全に span を追加（既存子要素のハンドラを破壊しない）
+                const youSpan = document.createElement('span');
+                youSpan.style.cssText = 'color:#f1c40f; font-size:12px;';
+                youSpan.textContent = ' (あなた)';
+                nameLabel.appendChild(youSpan);
             }
         } else if (seat.type === 'cpu') {
             const lvl = (seat.cpu_level !== undefined && seat.cpu_level !== null) ? cpuLevelLabel[seat.cpu_level] : '?';
-            nameLabel.innerHTML = `🤖 ${seat.name} <span style="color:#3498db; font-size:12px;">(${lvl})</span>`;
+            // 🌟 innerHTML 廃止。 seat.name にユーザー入力が混入してもエスケープ不要になる
+            nameLabel.textContent = `🤖 ${seat.name} `;
+            const lvlSpan = document.createElement('span');
+            lvlSpan.style.cssText = 'color:#3498db; font-size:12px;';
+            lvlSpan.textContent = `(${lvl})`;
+            nameLabel.appendChild(lvlSpan);
         }
         row.appendChild(nameLabel);
 
@@ -1535,7 +1544,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const m = getMeasureEl();
         m.style.fontSize = MAX_FONT_SIZE + 'px';
-        m.innerHTML = msg.innerHTML;
+        // 🌟 innerHTML 廃止: cloneNode(true) で msg の子要素を深いコピー
+        m.replaceChildren();
+        for (const child of msg.childNodes) {
+            m.appendChild(child.cloneNode(true));
+        }
 
         const naturalWidth = m.offsetWidth;
         let size = MAX_FONT_SIZE;

@@ -329,17 +329,24 @@ function openReplayList() {
     let savedReplays = JSON.parse(localStorage.getItem(_replayKey)) || [];
 
     if (savedReplays.length === 0) {
-        container.innerHTML = "<p style='text-align:center; color:#aaa; margin-top:50px;'>保存された牌譜がありません。<br>対局を終了してロビーに戻ると自動で保存されます。</p>";
+        // 🌟 innerHTML 廃止: createElement で構築
+        container.replaceChildren();
+        const p = document.createElement('p');
+        p.style.cssText = 'text-align:center; color:#aaa; margin-top:50px;';
+        p.appendChild(document.createTextNode('保存された牌譜がありません。'));
+        p.appendChild(document.createElement('br'));
+        p.appendChild(document.createTextNode('対局を終了してロビーに戻ると自動で保存されます。'));
+        container.appendChild(p);
     } else {
-        // 新しい対局が上に来るように reverse() して表示
-        container.innerHTML = savedReplays.slice().reverse().map(replay => {
-
+        // 🌟 innerHTML 廃止: createElement + addEventListener で構築
+        //   p.name にユーザー入力が混入しても安全 + onclick 属性内インジェクション回避
+        container.replaceChildren();
+        savedReplays.slice().reverse().forEach(replay => {
             // 🌟 追加：牌譜の最後の瞬間から最終点数を抽出して順位を計算する
             let finalScores = [0, 0, 0, 0];
             if (replay.rounds && replay.rounds.length > 0) {
                 let lastRound = replay.rounds[replay.rounds.length - 1];
                 if (lastRound.actions && lastRound.actions.length > 0) {
-                    // 後ろから遡って「total_scores」を持っているスナップショットを探す
                     for (let i = lastRound.actions.length - 1; i >= 0; i--) {
                         if (lastRound.actions[i].state_snapshot && lastRound.actions[i].state_snapshot.total_scores) {
                             finalScores = lastRound.actions[i].state_snapshot.total_scores;
@@ -351,40 +358,73 @@ function openReplayList() {
 
             let names = replay.player_names || ["あなた", "CPU 1", "CPU 2", "CPU 3"];
             let players = [0, 1, 2, 3].map(i => ({ name: names[i], score: finalScores[i] }));
-
-            // 🌟 点数で降順（高い順）にソート
             players.sort((a, b) => b.score - a.score);
+            const rankColors = ["#f1c40f", "#bdc3c7", "#cd7f32", "#7f8c8d"];
 
-            // 🌟 順位表のHTMLを構築（2列のグリッドで綺麗に並べる）
-            let scoreHtml = `<div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; font-size: 14px;">`;
+            // ====== カード本体 ======
+            const card = document.createElement('div');
+            card.style.cssText = 'background: rgba(0,0,0,0.5); border: 1px solid #555; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;';
+
+            // ====== 左側: タイトル + 順位表 ======
+            const leftDiv = document.createElement('div');
+            leftDiv.style.cssText = 'flex-grow: 1; padding-right: 20px;';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.style.cssText = 'color: #3498db; font-weight: bold; margin-bottom: 5px; font-size: 16px;';
+            titleDiv.appendChild(document.createTextNode(`📅 ${replay.start_time || "日時不明"} `));
+            const roundsBadge = document.createElement('span');
+            roundsBadge.style.cssText = 'color: #aaa; font-size: 12px; margin-left: 12px; font-weight: normal; background: #2c3e50; padding: 2px 6px; border-radius: 4px;';
+            roundsBadge.textContent = `全 ${replay.rounds.length} 局`;
+            titleDiv.appendChild(roundsBadge);
+            leftDiv.appendChild(titleDiv);
+
+            // 順位グリッド
+            const scoreGrid = document.createElement('div');
+            scoreGrid.style.cssText = 'margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; font-size: 14px;';
             players.forEach((p, rank) => {
-                let rankColors = ["#f1c40f", "#bdc3c7", "#cd7f32", "#7f8c8d"]; // 1位:金, 2位:銀, 3位:銅, 4位:鉄
-                let rColor = rankColors[rank];
-                scoreHtml += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;">
-                        <span style="color: ${rColor}; font-weight: bold;">${rank + 1}位 ${p.name}</span>
-                        <span style="color: #ecf0f1; font-weight: bold;">${p.score} <span style="font-size: 10px; color: #aaa; font-weight: normal;">点</span></span>
-                    </div>`;
-            });
-            scoreHtml += `</div>`;
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;';
 
-            // 🌟 UIの構造をリッチに変更（ボタンを右側に縦並びにしてスッキリさせる）
-            return `
-            <div style="background: rgba(0,0,0,0.5); border: 1px solid #555; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="flex-grow: 1; padding-right: 20px;">
-                    <div style="color: #3498db; font-weight: bold; margin-bottom: 5px; font-size: 16px;">
-                        📅 ${replay.start_time || "日時不明"} 
-                        <span style="color: #aaa; font-size: 12px; margin-left: 12px; font-weight: normal; background: #2c3e50; padding: 2px 6px; border-radius: 4px;">全 ${replay.rounds.length} 局</span>
-                    </div>
-                    ${scoreHtml}
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; width: 100px;">
-                    <button class="btn-act btn-blue" style="display: block; padding: 10px; font-size: 14px; font-weight: bold;" onclick="startReplay('${replay.id}')">▶ 再生</button>
-                    <button class="btn-act" style="display: block; padding: 8px; font-size: 12px; background: #c0392b; color: white; opacity: 0.8;" onclick="deleteReplay('${replay.id}')">🗑️ 削除</button>
-                </div>
-            </div>
-            `;
-        }).join('');
+                const nameSpan = document.createElement('span');
+                nameSpan.style.cssText = `color: ${rankColors[rank]}; font-weight: bold;`;
+                nameSpan.textContent = `${rank + 1}位 ${p.name}`;  // textContent で XSS 安全
+                row.appendChild(nameSpan);
+
+                const scoreSpan = document.createElement('span');
+                scoreSpan.style.cssText = 'color: #ecf0f1; font-weight: bold;';
+                scoreSpan.appendChild(document.createTextNode(`${p.score} `));
+                const pointSpan = document.createElement('span');
+                pointSpan.style.cssText = 'font-size: 10px; color: #aaa; font-weight: normal;';
+                pointSpan.textContent = '点';
+                scoreSpan.appendChild(pointSpan);
+                row.appendChild(scoreSpan);
+
+                scoreGrid.appendChild(row);
+            });
+            leftDiv.appendChild(scoreGrid);
+            card.appendChild(leftDiv);
+
+            // ====== 右側: ボタン群 ======
+            const btnGroup = document.createElement('div');
+            btnGroup.style.cssText = 'display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; width: 100px;';
+
+            const playBtn = document.createElement('button');
+            playBtn.className = 'btn-act btn-blue';
+            playBtn.style.cssText = 'display: block; padding: 10px; font-size: 14px; font-weight: bold;';
+            playBtn.textContent = '▶ 再生';
+            playBtn.addEventListener('click', () => startReplay(replay.id));
+            btnGroup.appendChild(playBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-act';
+            deleteBtn.style.cssText = 'display: block; padding: 8px; font-size: 12px; background: #c0392b; color: white; opacity: 0.8;';
+            deleteBtn.textContent = '🗑️ 削除';
+            deleteBtn.addEventListener('click', () => deleteReplay(replay.id));
+            btnGroup.appendChild(deleteBtn);
+
+            card.appendChild(btnGroup);
+            container.appendChild(card);
+        });
     }
 
     document.getElementById('replay-modal').style.display = 'flex';
@@ -565,7 +605,7 @@ window.applyReplayState = async function () {
         for (let i = 0; i < 4; i++) {
             const handDiv = document.getElementById(`hand-${i}`);
             if (handDiv) {
-                handDiv.innerHTML = "";
+                handDiv.replaceChildren();
                 let hand = stateToRender.all_hands ? [...stateToRender.all_hands[i]] : [];
 
                 // ========================================================
@@ -661,7 +701,7 @@ window.applyReplayState = async function () {
 
             const meldDiv = document.getElementById(`meld-${i}`);
             if (meldDiv) {
-                meldDiv.innerHTML = "";
+                meldDiv.replaceChildren();
                 const melds = stateToRender.all_melds ? stateToRender.all_melds[i] : [];
                 melds.forEach(m => {
                     let mWrap = document.createElement('div');
@@ -688,7 +728,7 @@ window.applyReplayState = async function () {
 
             const riverDiv = document.getElementById(`river-${i}`);
             if (riverDiv) {
-                riverDiv.innerHTML = "";
+                riverDiv.replaceChildren();
                 const discards = stateToRender.discards ? stateToRender.discards[i] : [];
                 discards.forEach((t, idx) => {
                     if (hideDiscardPlayer === i && idx === discards.length - 1 && hideDiscardTile === t) return;
@@ -704,7 +744,7 @@ window.applyReplayState = async function () {
 
             const winDiv = document.getElementById(`win-zone-${i}`);
             if (winDiv) {
-                winDiv.innerHTML = "";
+                winDiv.replaceChildren();
                 const winTiles = stateToRender.all_win_tiles ? stateToRender.all_win_tiles[i] : [];
                 if (winTiles && winTiles.length > 0) {
                     winDiv.style.display = "flex";
@@ -737,13 +777,27 @@ window.applyReplayState = async function () {
                 msg.style.display = 'block';
                 msg.className = "fade-in";
                 let msgText = action.type === "first" ? "第1交換" : "第2交換";
-                msg.innerHTML = `${msgText}<br><span style="font-size:14px; color:#f1c40f;">待機中</span>`;
+                // 🌟 innerHTML 廃止: DOM API で msg を構築（msgText は静的だが、 一貫性のため）
+                msg.replaceChildren();
+                msg.appendChild(document.createTextNode(msgText));
+                msg.appendChild(document.createElement('br'));
+                const waitSpan = document.createElement('span');
+                waitSpan.style.cssText = 'font-size:14px; color:#f1c40f;';
+                waitSpan.textContent = '待機中';
+                msg.appendChild(waitSpan);
             }
         } else {
             updateDOM(stateToRender, null, "incoming");
             if (msg) {
                 let msgText = action.type === "first" ? "第1交換" : "第2交換";
-                msg.innerHTML = `${msgText}<br><span style="font-size:14px; color:#2ecc71;">完了</span>`;
+                // 🌟 innerHTML 廃止: DOM API で msg を構築
+                msg.replaceChildren();
+                msg.appendChild(document.createTextNode(msgText));
+                msg.appendChild(document.createElement('br'));
+                const doneSpan = document.createElement('span');
+                doneSpan.style.cssText = 'font-size:14px; color:#2ecc71;';
+                doneSpan.textContent = '完了';
+                msg.appendChild(doneSpan);
             }
         }
     } else {
@@ -755,9 +809,12 @@ window.applyReplayState = async function () {
             const pIdx = action.player !== undefined ? action.player : action.turn;
 
             let msgText = "";
+            // 🌟 「第2交換不成立」 だけ <br><span> 構造を持つので、 別フラグで判別する
+            let msgIsCharlestonFail = false;
             const _nm = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
             if (isCharleston && isSkippedCharleston) {
-                msgText = `第2交換<br><span style="font-size:14px; color:#e74c3c;">不成立</span>`;
+                msgText = `第2交換`;
+                msgIsCharlestonFail = true;
             } else if (action.type === "draw" || action.type === "discard") {
                 msgText = (pIdx === 0) ? "↓打牌↓" : _nm;
             } else if (action.type === "meld" || action.type === "self_meld") {
@@ -790,7 +847,16 @@ window.applyReplayState = async function () {
             } else {
                 msgText = _nm;
             }
-            msg.innerHTML = msgText;
+            // 🌟 innerHTML 廃止 (XSS リスク回避): _nm にユーザー入力が混入しても安全に描画
+            msg.replaceChildren();
+            msg.appendChild(document.createTextNode(msgText));
+            if (msgIsCharlestonFail) {
+                msg.appendChild(document.createElement('br'));
+                const failSpan = document.createElement('span');
+                failSpan.style.cssText = 'font-size:14px; color:#e74c3c;';
+                failSpan.textContent = '不成立';
+                msg.appendChild(failSpan);
+            }
 
             // ========================================================
             // 🌟 修正：カタカナ（カン）や漢字（暗槓）の表記ブレに完全対応！
@@ -969,17 +1035,44 @@ window.renderReplayResult = function (pIdx) {
     window.animateWinScore(document.getElementById('win-score'), finalScoreAmount, isWinner);
 
     const controls = document.getElementById('result-controls');
-    if (!controls.dataset.originalHtml) {
-        controls.dataset.originalHtml = controls.innerHTML;
+    // 🌟 innerHTML 廃止: cloneNode で元の子要素を保存（dataset.originalHtml は文字列依存だったため）
+    if (!window._originalResultControlsFragment) {
+        const frag = document.createDocumentFragment();
+        Array.from(controls.childNodes).forEach(n => frag.appendChild(n.cloneNode(true)));
+        window._originalResultControlsFragment = frag;
     }
 
     controls.style.cssText = "display: block !important;";
-    controls.innerHTML = `
-        <button id="btn-replay-screenshot" class="btn-act btn-blue" onclick="takeResultScreenshot()">📸 撮影</button>
-        <button id="btn-replay-prev" class="btn-act btn-gray" onclick="prevReplayResult()">⏮️ 前へ</button>
-        <button id="btn-replay-next" class="btn-act btn-blue" onclick="nextReplayResult()">次へ ⏭️</button>
-        <div id="btn-replay-peek" class="btn-act btn-red" style="cursor: help; user-select: none;">盤面を見る</div>
-    `;
+    // 🌟 innerHTML 廃止: createElement + addEventListener で 4 つのボタンを構築
+    controls.replaceChildren();
+
+    const btnScreenshot = document.createElement('button');
+    btnScreenshot.id = 'btn-replay-screenshot';
+    btnScreenshot.className = 'btn-act btn-blue';
+    btnScreenshot.textContent = '📸 撮影';
+    btnScreenshot.addEventListener('click', () => takeResultScreenshot());
+    controls.appendChild(btnScreenshot);
+
+    const btnPrev = document.createElement('button');
+    btnPrev.id = 'btn-replay-prev';
+    btnPrev.className = 'btn-act btn-gray';
+    btnPrev.textContent = '⏮️ 前へ';
+    btnPrev.addEventListener('click', () => prevReplayResult());
+    controls.appendChild(btnPrev);
+
+    const btnNext = document.createElement('button');
+    btnNext.id = 'btn-replay-next';
+    btnNext.className = 'btn-act btn-blue';
+    btnNext.textContent = '次へ ⏭️';
+    btnNext.addEventListener('click', () => nextReplayResult());
+    controls.appendChild(btnNext);
+
+    const btnPeek = document.createElement('div');
+    btnPeek.id = 'btn-replay-peek';
+    btnPeek.className = 'btn-act btn-red';
+    btnPeek.style.cssText = 'cursor: help; user-select: none;';
+    btnPeek.textContent = '盤面を見る';
+    controls.appendChild(btnPeek);
 
     document.getElementById('overlay').scrollTop = 0;
     document.getElementById('overlay').style.display = "flex";
@@ -1237,8 +1330,11 @@ window.exitReplay = function () {
 
     // 🌟 リザルト画面のボタンをCPU戦用の元の状態に戻す
     const resultControls = document.getElementById('result-controls');
-    if (resultControls && resultControls.dataset.originalHtml) {
-        resultControls.innerHTML = resultControls.dataset.originalHtml;
+    if (resultControls && window._originalResultControlsFragment) {
+        // 🌟 innerHTML 廃止: cloneNode で保存した子要素を再構築（Fragment は再利用のため cloneNode）
+        resultControls.replaceChildren();
+        const restored = window._originalResultControlsFragment.cloneNode(true);
+        resultControls.appendChild(restored);
     }
 
     if (typeof returnToHomeGracefully === 'function') returnToHomeGracefully();

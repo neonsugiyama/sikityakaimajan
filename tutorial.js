@@ -115,7 +115,7 @@ async function startTutorial() {
     if (!document.getElementById('tut-zindex-fix')) {
         const style = document.createElement('style');
         style.id = 'tut-zindex-fix';
-        style.innerHTML = `
+        style.textContent = `
             .modal-overlay, #settings-modal, #friend-match-modal, #howto-modal, #yaku-modal, #mypage-modal, #achievement-modal { z-index: 100000 !important; }
             #sidebar-overlay { z-index: 99998 !important; }
             #sidebar-menu { z-index: 99999 !important; }
@@ -135,9 +135,9 @@ async function startTutorial() {
 
     // 盤面をクリアして初期化
     for (let i = 0; i < 4; i++) {
-        document.getElementById(`river-${i}`).innerHTML = "";
-        document.getElementById(`meld-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`river-${i}`).replaceChildren();
+        document.getElementById(`meld-${i}`).replaceChildren();
+        document.getElementById(`win-zone-${i}`).replaceChildren();
         document.getElementById(`win-zone-${i}`).style.display = "none";
     }
     clearCharlestonStatus();
@@ -183,7 +183,7 @@ async function startTutorial() {
         prevBtn.id = 'ingame-tutorial-prev-btn';
         prevBtn.className = 'btn-act btn-gray';
         prevBtn.style.cssText = 'display: none; padding: 12px 30px; font-size: 20px; box-shadow: 0 5px #7f8c8d;';
-        prevBtn.innerHTML = '◀ 戻る';
+        prevBtn.textContent = '◀ 戻る';
 
         nextBtnOld.parentNode.insertBefore(btnContainer, nextBtnOld);
         btnContainer.appendChild(prevBtn);
@@ -277,7 +277,7 @@ async function startTutorial() {
             if (target && target.parentElement) {
                 const arrow = document.createElement('div');
                 arrow.className = 'tut-dynamic-arrow';
-                arrow.innerHTML = '👇';
+                arrow.textContent = '👇';
                 arrow.style.position = 'absolute';
                 arrow.style.fontSize = '40px';
                 arrow.style.zIndex = '90000';
@@ -326,11 +326,15 @@ async function startTutorial() {
         for (let i = 0; i < 4; i++) {
             const r = document.getElementById(`river-${i}`);
             if (r) {
-                let html = "";
+                // 🌟 innerHTML 廃止: createElement で img を構築
+                r.replaceChildren();
                 dummyDiscards[i].forEach(t => {
-                    html += `<img class="tile" src="images/${t}.png" style="box-shadow: none; border: none;">`;
+                    const img = document.createElement('img');
+                    img.className = 'tile';
+                    img.src = `images/${t}.png`;
+                    img.style.cssText = 'box-shadow: none; border: none;';
+                    r.appendChild(img);
                 });
-                r.innerHTML = html;
             }
         }
     };
@@ -622,8 +626,8 @@ async function startTutorial() {
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
         resetActionBtnPool();
         for (let i = 0; i < 4; i++) {
-            document.getElementById(`river-${i}`).innerHTML = "";
-            document.getElementById(`win-zone-${i}`).innerHTML = "";
+            document.getElementById(`river-${i}`).replaceChildren();
+            document.getElementById(`win-zone-${i}`).replaceChildren();
             document.getElementById(`win-zone-${i}`).style.display = "none";
         }
         document.getElementById('charleston-ui').style.display = "none";
@@ -682,7 +686,7 @@ async function startTutorial() {
         nextBtn.style.display = step.hideNext ? 'none' : 'block';
 
         if (stepIndex === steps.length - 1) {
-            nextBtn.innerHTML = "終了する";
+            nextBtn.textContent = "終了する";
             nextBtn.onclick = () => {
                 playSE('click');
                 isIngameTutorial = false;
@@ -690,7 +694,7 @@ async function startTutorial() {
                 returnToHomeGracefully();
             };
         } else {
-            nextBtn.innerHTML = "次へ ▶";
+            nextBtn.textContent = "次へ ▶";
             nextBtn.onclick = () => { if (!tutLock) { playSE('click'); goToStep(currentTutStep + 1); } };
         }
 
@@ -726,7 +730,7 @@ async function startLesson(lessonId) {
     if (!document.getElementById('tut-zindex-fix')) {
         const style = document.createElement('style');
         style.id = 'tut-zindex-fix';
-        style.innerHTML = `
+        style.textContent = `
             .modal-overlay, #settings-modal, #friend-match-modal, #howto-modal, #yaku-modal, #mypage-modal, #achievement-modal { z-index: 100000 !important; }
             #sidebar-overlay { z-index: 99998 !important; }
             #sidebar-menu { z-index: 99999 !important; }
@@ -983,9 +987,9 @@ async function startLesson(lessonId) {
     if (_ccfm) _ccfm.style.display = "none";
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
     for (let i = 0; i < 4; i++) {
-        let r = document.getElementById(`river-${i}`); if (r) r.innerHTML = "";
-        let m = document.getElementById(`meld-${i}`); if (m) m.innerHTML = "";
-        let wz = document.getElementById(`win-zone-${i}`); if (wz) { wz.innerHTML = ""; wz.style.display = "none"; }
+        let r = document.getElementById(`river-${i}`); if (r) r.replaceChildren();
+        let m = document.getElementById(`meld-${i}`); if (m) m.replaceChildren();
+        let wz = document.getElementById(`win-zone-${i}`); if (wz) { wz.replaceChildren(); wz.style.display = "none"; }
     }
     drawnTile = ""; lastDiscardPlayer = -1; justPonged = false;
     pendingIsJokerSwap = false; pendingIsRinshan = false; pendingIsMiaoshou = false;
@@ -1034,7 +1038,7 @@ function renderLessonPage() {
         prevBtn.style.display = "none";
         nextBtn.style.display = "inline-block";
         nextBtn.className = "btn-act btn-blue tut-btn-next";
-        nextBtn.innerHTML = "次へ ▶";
+        nextBtn.textContent = "次へ ▶";
         nextBtn.onclick = () => { playSE('click'); currentLessonPage++; renderLessonPage(); };
 
     } else if (currentLessonPage === 1) {
@@ -1081,7 +1085,7 @@ function renderLessonPage() {
         // 正解するまでは「次へ」ボタンを隠す
         nextBtn.style.display = isQuizAnswered ? "inline-block" : "none";
         nextBtn.className = "btn-act btn-blue tut-btn-next";
-        nextBtn.innerHTML = "次へ ▶";
+        nextBtn.textContent = "次へ ▶";
         nextBtn.onclick = () => { playSE('click'); currentLessonPage++; renderLessonPage(); };
 
     } else if (currentLessonPage === 2) {
@@ -1091,7 +1095,7 @@ function renderLessonPage() {
         prevBtn.onclick = () => { playSE('click'); currentLessonPage--; renderLessonPage(); };
         nextBtn.style.display = "inline-block";
         nextBtn.className = "btn-act btn-red tut-btn-next";
-        nextBtn.innerHTML = "挑戦する！ ⚔️";
+        nextBtn.textContent = "挑戦する！ ⚔️";
         nextBtn.onclick = () => {
             playSE('start');
             navPanel.style.display = 'none';
@@ -1139,7 +1143,14 @@ function selectQuizOption(idx) {
         selectedBtn.style.transform = "scale(1.05)";
 
         resultMsg.style.color = "#2ecc71";
-        resultMsg.innerHTML = `⭕ 正解！<br><span style="font-size: 18px; color: #ecf0f1;">${lessonQuizData.explanation}</span>`;
+        // 🌟 innerHTML 廃止: <br><span> を DOM 構築
+        resultMsg.replaceChildren();
+        resultMsg.appendChild(document.createTextNode('⭕ 正解！'));
+        resultMsg.appendChild(document.createElement('br'));
+        const expSpan = document.createElement('span');
+        expSpan.style.cssText = 'font-size: 18px; color: #ecf0f1;';
+        expSpan.textContent = lessonQuizData.explanation;
+        resultMsg.appendChild(expSpan);
 
         isQuizAnswered = true;
 
@@ -1164,7 +1175,7 @@ function selectQuizOption(idx) {
         ], { duration: 300 });
 
         resultMsg.style.color = "#e74c3c";
-        resultMsg.innerHTML = "❌ ざんねん！もう一度考えてみよう。";
+        resultMsg.textContent = "❌ ざんねん！もう一度考えてみよう。";
 
         // 1秒後に元に戻して再選択可能にする
         setTimeout(() => {
@@ -1177,7 +1188,7 @@ function selectQuizOption(idx) {
                     btn.style.opacity = "1";
                 }
             }
-            resultMsg.innerHTML = "";
+            resultMsg.replaceChildren();
         }, 1200);
     }
 }
@@ -1212,18 +1223,18 @@ function reviewTutorial() {
 
         nextBtn.style.display = "inline-block";
         nextBtn.className = "btn-act btn-gray tut-btn-next";
-        nextBtn.innerHTML = "閉じる";
+        nextBtn.textContent = "閉じる";
         nextBtn.onclick = () => {
             playSE('click');
             navPanel.style.display = 'none';
         };
         navPanel.style.display = 'block';
     } else {
-        navText.innerHTML = "チュートリアルの進行状況を確認します...";
+        navText.textContent = "チュートリアルの進行状況を確認します...";
         prevBtn.style.display = "none";
         nextBtn.style.display = "inline-block";
         nextBtn.className = "btn-act btn-gray tut-btn-next";
-        nextBtn.innerHTML = "閉じる";
+        nextBtn.textContent = "閉じる";
         nextBtn.onclick = () => { navPanel.style.display = 'none'; };
         navPanel.style.display = 'block';
     }

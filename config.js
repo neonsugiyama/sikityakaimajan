@@ -336,7 +336,7 @@ function toggleDevMode(isChecked) {
     if (!toggleBtn) {
         toggleBtn = document.createElement('button');
         toggleBtn.id = 'btn-toggle-debug-ui';
-        toggleBtn.innerHTML = '👁️ UI非表示';
+        toggleBtn.textContent = '👁️ UI非表示';
         toggleBtn.style.position = 'absolute';
         toggleBtn.style.bottom = '15px';
         toggleBtn.style.right = '15px';
@@ -358,17 +358,17 @@ function toggleDevMode(isChecked) {
             isDebugUIHidden = !isDebugUIHidden;
 
             if (isDebugUIHidden) {
-                toggleBtn.innerHTML = '👁️ UI表示';
+                toggleBtn.textContent = '👁️ UI表示';
                 toggleBtn.style.borderColor = '#e74c3c';
                 if (debugPanel) debugPanel.style.display = 'none';
                 if (debugLog) debugLog.style.display = 'none';
                 if (achieveDebugPanel) achieveDebugPanel.style.display = 'none';
             } else {
-                toggleBtn.innerHTML = '👁️ UI非表示';
+                toggleBtn.textContent = '👁️ UI非表示';
                 toggleBtn.style.borderColor = '#f1c40f';
                 if (isDevMode) {
                     if (debugPanel) debugPanel.style.display = 'flex';
-                    if (debugLog && debugLog.innerHTML !== '') debugLog.style.display = 'block';
+                    if (debugLog && debugLog.textContent !== '') debugLog.style.display = 'block';
                     if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
                 }
             }
@@ -381,12 +381,12 @@ function toggleDevMode(isChecked) {
         if (!isDebugUIHidden) {
             if (debugPanel) debugPanel.style.display = 'flex';
             if (achieveDebugPanel) achieveDebugPanel.style.display = 'flex';
-            if (debugLog && debugLog.innerHTML !== '') debugLog.style.display = 'block';
+            if (debugLog && debugLog.textContent !== '') debugLog.style.display = 'block';
         }
     } else {
         toggleBtn.style.display = 'none';
         isDebugUIHidden = false;
-        toggleBtn.innerHTML = '👁️ UI非表示';
+        toggleBtn.textContent = '👁️ UI非表示';
         toggleBtn.style.borderColor = '#f1c40f';
 
         if (debugPanel) debugPanel.style.display = 'none';

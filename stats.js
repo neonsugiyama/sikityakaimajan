@@ -124,7 +124,8 @@ async function updateProfileUI() {
     const profNameEl = document.getElementById('prof-name');
     if (profNameEl) {
         // 🌟 名前変更フォームは一旦廃止したので、 ✏️ アイコンも非表示。
-        profNameEl.innerHTML = escapeHTML(playerStats.playerName);
+        // 🌟 innerHTML → textContent で escapeHTML 不要に（より安全 + シンプル）
+        profNameEl.textContent = playerStats.playerName;
     }
 
     const profRankEl = document.getElementById('prof-rank');
@@ -184,27 +185,44 @@ async function updateProfileUI() {
 
     document.getElementById('best-score-val').innerText = `${playerStats.maxScore} 点`;
     const handTiles = document.getElementById('best-hand-tiles');
-    handTiles.innerHTML = '';
+    handTiles.replaceChildren();
 
     if (playerStats.maxScoreHand) {
         const { tiles, melds, winTile } = playerStats.maxScoreHand;
+        // 🌟 innerHTML += 廃止: createElement で各画像/区切りを appendChild
         if (melds && melds.length > 0) {
             melds.forEach((m) => {
                 m.tiles.forEach((t, i) => {
                     let src = (m.type === 'ankan' && (i === 0 || i === 3)) ? 'ura' : t;
-                    handTiles.innerHTML += `<img src="images/${src}.png" style="width:20px; height:28px; border-radius:2px; margin-right:1px;">`;
+                    const img = document.createElement('img');
+                    img.src = `images/${src}.png`;
+                    img.style.cssText = 'width:20px; height:28px; border-radius:2px; margin-right:1px;';
+                    handTiles.appendChild(img);
                 });
-                handTiles.innerHTML += `<div style="width:3px; display:inline-block;"></div>`;
+                const sp = document.createElement('div');
+                sp.style.cssText = 'width:3px; display:inline-block;';
+                handTiles.appendChild(sp);
             });
-            handTiles.innerHTML += `<div style="width:2px; height:24px; background:#f1c40f; display:inline-block; vertical-align:middle; margin: 0 6px; opacity: 0.8;"></div>`;
+            const sep = document.createElement('div');
+            sep.style.cssText = 'width:2px; height:24px; background:#f1c40f; display:inline-block; vertical-align:middle; margin: 0 6px; opacity: 0.8;';
+            handTiles.appendChild(sep);
         }
 
         [...tiles].sort((a, b) => SM[a] - SM[b]).forEach(t => {
-            handTiles.innerHTML += `<img src="images/${t}.png" style="width:20px; height:28px; border-radius:2px; margin-right:1px;">`;
+            const img = document.createElement('img');
+            img.src = `images/${t}.png`;
+            img.style.cssText = 'width:20px; height:28px; border-radius:2px; margin-right:1px;';
+            handTiles.appendChild(img);
         });
 
         if (winTile) {
-            handTiles.innerHTML += `<div style="width:8px; display:inline-block;"></div><img src="images/${winTile}.png" style="width:20px; height:28px; border:2px solid #f1c40f; border-radius:2px; box-sizing:border-box; box-shadow: 0 0 5px #f1c40f;">`;
+            const sp = document.createElement('div');
+            sp.style.cssText = 'width:8px; display:inline-block;';
+            handTiles.appendChild(sp);
+            const winImg = document.createElement('img');
+            winImg.src = `images/${winTile}.png`;
+            winImg.style.cssText = 'width:20px; height:28px; border:2px solid #f1c40f; border-radius:2px; box-sizing:border-box; box-shadow: 0 0 5px #f1c40f;';
+            handTiles.appendChild(winImg);
         }
     }
     updateHomeStats();
@@ -213,7 +231,15 @@ async function updateProfileUI() {
 function updateHomeStats() {
     let totalScore = playerStats.totalScoreSum || 0;
     const scoreEl = document.getElementById('home-lifetime-score');
-    if (scoreEl) scoreEl.innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 14px; color: #aaa;">点</span>`;
+    if (scoreEl) {
+        // 🌟 innerHTML 廃止: 数値 + span を DOM 構築
+        scoreEl.replaceChildren();
+        scoreEl.appendChild(document.createTextNode(`${totalScore.toLocaleString()} `));
+        const unitSpan = document.createElement('span');
+        unitSpan.style.cssText = 'font-size: 14px; color: #aaa;';
+        unitSpan.textContent = '点';
+        scoreEl.appendChild(unitSpan);
+    }
 
     let yakuData = playerStats.yakuCollected || {};
     let collectedCount = Object.values(yakuData).filter(count => count > 0).length;
@@ -245,15 +271,26 @@ function updateStatsModalUI(targetStats) {
     document.getElementById('stat-total-games').innerText = totalG;
     document.getElementById('stat-avg-rank').innerText = avgRank;
     document.getElementById('stat-top-rate').innerText = topRate + "%";
-    document.getElementById('stat-lifetime-score').innerHTML = `${totalScore.toLocaleString()} <span style="font-size: 18px; color: #aaa;">点</span>`;
+    // 🌟 innerHTML 廃止: 数値 + span を DOM 構築
+    const lsEl = document.getElementById('stat-lifetime-score');
+    lsEl.replaceChildren();
+    lsEl.appendChild(document.createTextNode(`${totalScore.toLocaleString()} `));
+    const lsUnitSpan = document.createElement('span');
+    lsUnitSpan.style.cssText = 'font-size: 18px; color: #aaa;';
+    lsUnitSpan.textContent = '点';
+    lsEl.appendChild(lsUnitSpan);
 
     // ========================================================
     // 1. レーダーチャート（ゼロから実数値へアニメーションさせる）
     // ========================================================
     let radarContainer = document.getElementById('mypage-radar-wrapper');
     if (radarContainer) {
-        // DOMを綺麗に初期化（余計な非表示処理を排除）
-        radarContainer.innerHTML = `<canvas id="mypage-radar-chart" style="width:100%; height:100%; display:block;"></canvas>`;
+        // 🌟 innerHTML 廃止: createElement で canvas を構築
+        radarContainer.replaceChildren();
+        const canvasRadarEl = document.createElement('canvas');
+        canvasRadarEl.id = 'mypage-radar-chart';
+        canvasRadarEl.style.cssText = 'width:100%; height:100%; display:block;';
+        radarContainer.appendChild(canvasRadarEl);
         let canvasRadar = document.getElementById('mypage-radar-chart');
 
         if (typeof radarChart !== 'undefined' && radarChart) radarChart.destroy();
@@ -303,12 +340,20 @@ function updateStatsModalUI(targetStats) {
         pieWrapper.style.alignItems = 'center';
         pieWrapper.style.justifyContent = 'center';
         pieWrapper.style.gap = '20px';
-        pieWrapper.innerHTML = `
-            <div style="width: 180px; height: 180px; flex-shrink: 0; position: relative;">
-                <canvas id="mypage-rank-pie-chart" style="width:100%; height:100%; display:block;"></canvas>
-            </div>
-            <div id="mypage-pie-legend" style="display: flex; flex-direction: column; justify-content: center; gap: 10px; font-size: 14px; color: #fff; min-width: 120px;"></div>
-        `;
+        // 🌟 innerHTML 廃止: createElement で canvas + legend を構築
+        pieWrapper.replaceChildren();
+        const canvasContainer = document.createElement('div');
+        canvasContainer.style.cssText = 'width: 180px; height: 180px; flex-shrink: 0; position: relative;';
+        const newCanvasPie = document.createElement('canvas');
+        newCanvasPie.id = 'mypage-rank-pie-chart';
+        newCanvasPie.style.cssText = 'width:100%; height:100%; display:block;';
+        canvasContainer.appendChild(newCanvasPie);
+        pieWrapper.appendChild(canvasContainer);
+
+        const pieLegend = document.createElement('div');
+        pieLegend.id = 'mypage-pie-legend';
+        pieLegend.style.cssText = 'display: flex; flex-direction: column; justify-content: center; gap: 10px; font-size: 14px; color: #fff; min-width: 120px;';
+        pieWrapper.appendChild(pieLegend);
 
         if (typeof pieChart !== 'undefined' && pieChart) pieChart.destroy();
         let isZeroData = totalG === 0;
@@ -348,24 +393,42 @@ function updateStatsModalUI(targetStats) {
         // 凡例の生成
         let legendDiv = document.getElementById('mypage-pie-legend');
         if (isZeroData) {
-            legendDiv.innerHTML = `<span style="color: #aaa;">データなし</span>`;
+            // 🌟 innerHTML 廃止: span を DOM 構築
+            legendDiv.replaceChildren();
+            const noDataSpan = document.createElement('span');
+            noDataSpan.style.cssText = 'color: #aaa;';
+            noDataSpan.textContent = 'データなし';
+            legendDiv.appendChild(noDataSpan);
         } else {
             const colors = ['#e74c3c', '#e67e22', '#3498db', '#95a5a6'];
             const labels = ['1位', '2位', '3位', '4位'];
-            let html = '';
+            // 🌟 innerHTML 廃止: createElement で各凡例エントリを構築
+            legendDiv.replaceChildren();
             for (let i = 0; i < 4; i++) {
                 const count = targetStats.rankCounts[i];
                 const percentage = totalG > 0 ? ((count / totalG) * 100).toFixed(1) : 0;
-                html += `
-                <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
-                    <div style="width:12px; height:12px; background-color:${colors[i]}; border-radius:2px; flex-shrink:0;"></div>
-                    <div style="display:flex; flex-direction:column; line-height:1.2;">
-                        <span style="font-weight:bold;">${labels[i]} ${percentage}%</span>
-                        <span style="font-size:11px; color:#aaa;">(${count}回)</span>
-                    </div>
-                </div>`;
+
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex; align-items:center; gap:8px; white-space:nowrap;';
+
+                const colorBox = document.createElement('div');
+                colorBox.style.cssText = `width:12px; height:12px; background-color:${colors[i]}; border-radius:2px; flex-shrink:0;`;
+                row.appendChild(colorBox);
+
+                const textCol = document.createElement('div');
+                textCol.style.cssText = 'display:flex; flex-direction:column; line-height:1.2;';
+                const labelSpan = document.createElement('span');
+                labelSpan.style.cssText = 'font-weight:bold;';
+                labelSpan.textContent = `${labels[i]} ${percentage}%`;
+                const countSpan = document.createElement('span');
+                countSpan.style.cssText = 'font-size:11px; color:#aaa;';
+                countSpan.textContent = `(${count}回)`;
+                textCol.appendChild(labelSpan);
+                textCol.appendChild(countSpan);
+                row.appendChild(textCol);
+
+                legendDiv.appendChild(row);
             }
-            legendDiv.innerHTML = html;
         }
     }
 }
@@ -463,7 +526,7 @@ function getYakuRankClass(yakuName, count) {
 function renderAchievements() {
     const container = document.getElementById('achieve-container');
     if (!container) return;
-    container.innerHTML = '';
+    container.replaceChildren();
 
     let currentRate = playerRatings[0];
     let totalScore = playerStats.totalScoreSum || 0;
@@ -518,7 +581,8 @@ function renderAchievements() {
         { id: "oya_shirazu", icon: "🦷", title: "親知らず", desc: "一回も荘家（親番）をやらずに連帯（2位以上）する", val: playerStats.oyaShirazuCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false }
     ];
 
-    let gridHtml = ``;
+    // 🌟 innerHTML 廃止: createElement で各カードを直接 container に追加
+    container.replaceChildren();
 
     achievements.forEach(a => {
         let rank = 0;
@@ -546,28 +610,56 @@ function renderAchievements() {
             medalClass += " secret-achievement";
         }
 
-        gridHtml += `
-            <div class="achieve-card ${medalClass}">
-                <div class="achieve-icon">${displayIcon}</div>
-                <div class="achieve-title">${displayTitle}</div>
-                <div class="achieve-desc">${displayDesc}</div>
-                <div class="achieve-progress-bg">
-                    <div class="achieve-progress-bar" style="width: ${progressPercent}%; background: ${statusColor};"></div>
-                </div>
-                <div style="width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 5px;">
-                    <span>現在: ${a.secret && rank === 0 ? "?" : a.val} ${a.unit === "R" ? "" : a.unit}</span>
-                    <span>${(rank >= 4 || (isOneShot && rank >= 1)) ? "MAX" : "次: " + (a.secret && rank === 0 ? "?" : nextTarget) + (a.unit === "R" ? "" : " " + a.unit)}</span>
-                </div>
-                <div class="achieve-status" style="color: ${statusColor};">${statusText}</div>
-            </div>
-        `;
+        // === カード組み立て ===
+        const card = document.createElement('div');
+        card.className = `achieve-card ${medalClass}`;
+
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'achieve-icon';
+        iconDiv.textContent = displayIcon;
+        card.appendChild(iconDiv);
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'achieve-title';
+        titleDiv.textContent = displayTitle;
+        card.appendChild(titleDiv);
+
+        const descDiv = document.createElement('div');
+        descDiv.className = 'achieve-desc';
+        descDiv.textContent = displayDesc;
+        card.appendChild(descDiv);
+
+        const progBg = document.createElement('div');
+        progBg.className = 'achieve-progress-bg';
+        const progBar = document.createElement('div');
+        progBar.className = 'achieve-progress-bar';
+        progBar.style.cssText = `width: ${progressPercent}%; background: ${statusColor};`;
+        progBg.appendChild(progBar);
+        card.appendChild(progBg);
+
+        const numRow = document.createElement('div');
+        numRow.style.cssText = 'width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 5px;';
+        const curSpan = document.createElement('span');
+        curSpan.textContent = `現在: ${a.secret && rank === 0 ? "?" : a.val} ${a.unit === "R" ? "" : a.unit}`;
+        const nextSpan = document.createElement('span');
+        nextSpan.textContent = `${(rank >= 4 || (isOneShot && rank >= 1)) ? "MAX" : "次: " + (a.secret && rank === 0 ? "?" : nextTarget) + (a.unit === "R" ? "" : " " + a.unit)}`;
+        numRow.appendChild(curSpan);
+        numRow.appendChild(nextSpan);
+        card.appendChild(numRow);
+
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'achieve-status';
+        statusDiv.style.color = statusColor;
+        statusDiv.textContent = statusText;
+        card.appendChild(statusDiv);
+
+        container.appendChild(card);
     });
-    container.innerHTML = gridHtml;
 
     // --- 役図鑑 ---
     const dexContainer = document.getElementById('yaku-dex-container');
     if (!dexContainer || typeof yakuJaMap === 'undefined') return;
-    dexContainer.innerHTML = '';
+    dexContainer.replaceChildren();
 
     const allYakuList = Object.keys(yakuJaMap);
     let collectedCount = 0;
@@ -601,32 +693,62 @@ function renderAchievements() {
         const yakuList = yakuByTier[tierKey];
         if (yakuList.length === 0) return;
         let names = tierNameMap[tierKey];
-        let tierHtml = `
-            <div class="yaku-dex-tier-group">
-                <div class="yaku-dex-tier-header">
-                    <span class="zh">${names.zh}</span><span class="ja">${names.ja}</span><span class="en">${names.en}</span>
-                </div>
-                <div class="yaku-dex-card-grid">`;
+
+        // 🌟 innerHTML += 廃止: createElement で tier ブロックを構築して直接 appendChild
+        const tierGroup = document.createElement('div');
+        tierGroup.className = 'yaku-dex-tier-group';
+
+        const tierHeader = document.createElement('div');
+        tierHeader.className = 'yaku-dex-tier-header';
+        const zhSpan = document.createElement('span');
+        zhSpan.className = 'zh';
+        zhSpan.textContent = names.zh;
+        const jaSpan = document.createElement('span');
+        jaSpan.className = 'ja';
+        jaSpan.textContent = names.ja;
+        const enSpan = document.createElement('span');
+        enSpan.className = 'en';
+        enSpan.textContent = names.en;
+        tierHeader.appendChild(zhSpan);
+        tierHeader.appendChild(jaSpan);
+        tierHeader.appendChild(enSpan);
+        tierGroup.appendChild(tierHeader);
+
+        const cardGrid = document.createElement('div');
+        cardGrid.className = 'yaku-dex-card-grid';
 
         yakuList.forEach(yakuZh => {
             let count = playerStats.yakuCollected[yakuZh] || 0;
             if (count > 0) collectedCount++;
             let rankClass = getYakuRankClass(yakuZh, count);
 
-            tierHtml += `
-                <div class="yaku-dex-card ${rankClass}">
-                    <div class="dex-title-area" style="margin-bottom: 0;">
-                        <span class="dex-yaku-name">
-                            <span class="zh">${yakuZh}</span>
-                            <span class="ja">${getJaYakuName(yakuZh)}</span>
-                            <span class="en">${getEnYakuName(yakuZh)}</span>
-                        </span>
-                        <span class="dex-points">和了: ${count} 回</span>
-                    </div>
-                </div>`;
+            const card = document.createElement('div');
+            card.className = `yaku-dex-card ${rankClass}`;
+
+            const titleArea = document.createElement('div');
+            titleArea.className = 'dex-title-area';
+            titleArea.style.marginBottom = '0';
+
+            const yakuNameSpan = document.createElement('span');
+            yakuNameSpan.className = 'dex-yaku-name';
+            const cZh = document.createElement('span'); cZh.className = 'zh'; cZh.textContent = yakuZh;
+            const cJa = document.createElement('span'); cJa.className = 'ja'; cJa.textContent = getJaYakuName(yakuZh);
+            const cEn = document.createElement('span'); cEn.className = 'en'; cEn.textContent = getEnYakuName(yakuZh);
+            yakuNameSpan.appendChild(cZh);
+            yakuNameSpan.appendChild(cJa);
+            yakuNameSpan.appendChild(cEn);
+            titleArea.appendChild(yakuNameSpan);
+
+            const pointsSpan = document.createElement('span');
+            pointsSpan.className = 'dex-points';
+            pointsSpan.textContent = `和了: ${count} 回`;
+            titleArea.appendChild(pointsSpan);
+
+            card.appendChild(titleArea);
+            cardGrid.appendChild(card);
         });
-        tierHtml += `</div></div>`;
-        dexContainer.innerHTML += tierHtml;
+        tierGroup.appendChild(cardGrid);
+        dexContainer.appendChild(tierGroup);
     });
 
     document.getElementById('dex-comp-count').innerText = collectedCount;

@@ -194,7 +194,12 @@ function _showSessionRevokedModal() {
 
     const msg = document.createElement('p');
     msg.style.cssText = 'margin:0 0 18px;font-size:14px;line-height:1.6;color:#333;';
-    msg.innerHTML = '他の場所（タブ・デバイス）で<br>同じアカウントにログインされました。<br>このセッションは終了します。';
+    // 🌟 innerHTML 廃止: createElement で安全に構築（<br> をテキストと混ぜずに）
+    msg.appendChild(document.createTextNode('他の場所（タブ・デバイス）で'));
+    msg.appendChild(document.createElement('br'));
+    msg.appendChild(document.createTextNode('同じアカウントにログインされました。'));
+    msg.appendChild(document.createElement('br'));
+    msg.appendChild(document.createTextNode('このセッションは終了します。'));
     box.appendChild(msg);
 
     // 🌟 自動リロード用カウントダウン表示

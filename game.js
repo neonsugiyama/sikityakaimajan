@@ -38,25 +38,6 @@ let selectedTileIndex = -1; // -1は「何も選択されていない」状態
 let _handleRoundEndInProgress = false;
 
 // ==========================================
-// ⏱️ 演出・待機時間の定数（マジックナンバー定数化）
-//   CPU 戦・友人戦の両方で使う標準的な遅延時間を集約。
-//   speedMult で割る用途のものは、 ms 単位の元値（× 1.0 速度）を保持。
-//   window 経由で公開し friend.js からも参照可能。
-// ==========================================
-const TIMING = {
-    LOADING_HIDE_MS: 300,        // ローディングオーバーレイの非表示遅延
-    GENERIC_WAIT_MS: 500,        // 汎用の短時間待機
-    SHORT_DELAY_MS: 600,         // 副露反映の遅延、 ロン即時クリック
-    STANDARD_DELAY_MS: 800,      // 副露・ツモ和了の標準演出時間
-    KAKAN_DELAY_MS: 1000,        // 加槓演出時間 / CPU ループの最低間隔
-    JOKERSWAP_DELAY_MS: 1500,    // JokerSwap 演出時間
-    LONG_DELAY_MS: 2000,         // 長い演出
-    CENTER_MSG_HIDE_MS: 2500,    // センターメッセージ自動非表示
-    TOAST_AUTO_HIDE_MS: 8100,    // トースト自動消去
-};
-if (typeof window !== 'undefined') window.TIMING = TIMING;
-
-// ==========================================
 // 🔄 局・ゲーム遷移時の状態リセット共通関数
 // 「リセット忘れ」が過去のバグの温床になっていたので、 1か所に集約する。
 //   - 局単位 transient 変数（前局の状態が残ると次局でバグる変数）
@@ -241,7 +222,7 @@ function notifyTimerPenalty() {
     try {
         fetch(`/friend/timer_penalty?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`,
             { cache: 'no-store' }).catch(() => { });
-    } catch (e) { /* ignore: タイマー切れペナルティ通知の失敗は無視。 内部の .catch(() => {}) が一次防御、 ここは二次防御 */ }
+    } catch (e) { }
 }
 
 // ⏹️ 動作中の持ち時間タイマーを停止・破棄する関数
@@ -461,15 +442,27 @@ function hideCenterMessage() {
 function showCharlestonStatus(idx, isParticipating) {
     const el = document.getElementById(`c-status-${idx}`);
     if (isParticipating) {
-        el.innerHTML = `<img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png">`;
+        // 🌟 innerHTML 廃止: ura ×3 を createElement で構築
+        el.replaceChildren();
+        for (let k = 0; k < 3; k++) {
+            const img = document.createElement('img');
+            img.className = 'tile';
+            img.src = 'images/ura.png';
+            el.appendChild(img);
+        }
     } else {
-        el.innerHTML = `<div class="guo-stamp">過</div>`;
+        // 🌟 innerHTML 廃止: 過 スタンプを DOM 構築
+        el.replaceChildren();
+        const stamp = document.createElement('div');
+        stamp.className = 'guo-stamp';
+        stamp.textContent = '過';
+        el.appendChild(stamp);
     }
 }
 
 // 🧹 画面上のチャールストン交換牌をすべてクリアする関数
 function clearCharlestonStatus() {
-    for (let i = 0; i < 4; i++) document.getElementById(`c-status-${i}`).innerHTML = "";
+    for (let i = 0; i < 4; i++) document.getElementById(`c-status-${i}`).replaceChildren();
 }
 
 // 📍 各プレイヤー（0~3）の画面上の座標（位置と回転）を返す関数
@@ -493,12 +486,24 @@ async function showDiceAnimation(targetDice, directionMsg) {
         playSE('dice');
         for (let i = 0; i < 15; i++) {
             let r = Math.floor(Math.random() * 6) + 1;
-            diceEl.innerHTML = `🎲 ${r}`;
+            diceEl.textContent = `🎲 ${r}`;
             await sleep(50);
         }
-        diceEl.innerHTML = `🎲 ${targetDice}<br><span style="font-size:30px; color:#f1c40f;">${directionMsg}</span>`;
+        // 🌟 innerHTML 廃止: 🎲 + 数値 + <br> + span を DOM 構築
+        diceEl.replaceChildren();
+        diceEl.appendChild(document.createTextNode(`🎲 ${targetDice}`));
+        diceEl.appendChild(document.createElement('br'));
+        const dirSpan = document.createElement('span');
+        dirSpan.style.cssText = 'font-size:30px; color:#f1c40f;';
+        dirSpan.textContent = directionMsg;
+        diceEl.appendChild(dirSpan);
     } else {
-        diceEl.innerHTML = `<span style="font-size:30px; color:#f1c40f;">${directionMsg}</span>`;
+        // 🌟 innerHTML 廃止: span を DOM 構築
+        diceEl.replaceChildren();
+        const dirSpan2 = document.createElement('span');
+        dirSpan2.style.cssText = 'font-size:30px; color:#f1c40f;';
+        dirSpan2.textContent = directionMsg;
+        diceEl.appendChild(dirSpan2);
     }
 
     await sleep(1500);
@@ -509,7 +514,7 @@ async function showDiceAnimation(targetDice, directionMsg) {
 async function playExchangeAnimation(dirStr, participants) {
     for (let i = 0; i < 4; i++) {
         if (participants[i]) {
-            document.getElementById(`c-status-${i}`).innerHTML = "";
+            document.getElementById(`c-status-${i}`).replaceChildren();
         }
     }
 
@@ -542,7 +547,13 @@ async function playExchangeAnimation(dirStr, participants) {
     for (let i of activeIndices) {
         let pack = document.createElement('div');
         pack.className = 'flying-pack';
-        pack.innerHTML = `<img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png"><img class="tile" src="images/ura.png">`;
+        // 🌟 innerHTML 廃止: ura ×3 を createElement で構築
+        for (let k = 0; k < 3; k++) {
+            const img = document.createElement('img');
+            img.className = 'tile';
+            img.src = 'images/ura.png';
+            pack.appendChild(img);
+        }
 
         let startPos = getPlayerPos(i);
         pack.style.left = startPos.left;
@@ -639,7 +650,7 @@ function safeUpdate(data) {
         for (let i = 0; i < 4; i++) {
             const r = document.getElementById(`river-${i}`);
             if (r) {
-                r.innerHTML = "";
+                r.replaceChildren();
                 data.discards[i].forEach(t => {
                     const img = document.createElement('img');
                     img.className = 'tile'; // 🌟 アニメーションなしの素のクラスにする
@@ -715,7 +726,7 @@ function updateInfoUI() {
 
         // 🌟 修正：点差表示モード中でなければ通常の持ち点を表示
         if (!isDiffMode) {
-            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.textContent = `持ち点: ${totalScores[i]}`;
             scoreEl.style.color = "#fff";
         }
 
@@ -761,7 +772,7 @@ function toggleScoreDiff(baseIdx) {
         let scoreEl = document.getElementById(`player-score-${i}`);
         if (i === baseIdx) {
             // 基準プレイヤーはそのままの点数を表示
-            scoreEl.innerHTML = `持ち点: ${totalScores[i]}`;
+            scoreEl.textContent = `持ち点: ${totalScores[i]}`;
             scoreEl.style.color = "#f1c40f"; // 黄色でハイライト
         } else {
             // 🌟 修正：計算式を逆転（基準の点数 - 相手の点数）
@@ -770,7 +781,17 @@ function toggleScoreDiff(baseIdx) {
             let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
             let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
 
-            scoreEl.innerHTML = `<span style="font-size:12px; color:#aaa;">点差:</span> <span style="font-weight:bold;">${diffStr}</span>`;
+            // 🌟 innerHTML 廃止: span ×2 を DOM 構築
+            scoreEl.replaceChildren();
+            const labelSpan = document.createElement('span');
+            labelSpan.style.cssText = 'font-size:12px; color:#aaa;';
+            labelSpan.textContent = '点差:';
+            scoreEl.appendChild(labelSpan);
+            scoreEl.appendChild(document.createTextNode(' '));
+            const diffSpan = document.createElement('span');
+            diffSpan.style.cssText = 'font-weight:bold;';
+            diffSpan.textContent = diffStr;
+            scoreEl.appendChild(diffSpan);
             scoreEl.style.color = diffColor;
         }
     }
@@ -964,7 +985,7 @@ function showWaitsPanel() {
         return;
     }
 
-    list.innerHTML = '';
+    list.replaceChildren();
     panel.style.zIndex = "9999";
 
     // 「何切る」モード（14枚の時）の表示処理
@@ -1047,7 +1068,14 @@ function showWaitsPanel() {
             let rem = Math.max(0, 4 - visible);
             const div = document.createElement('div');
             div.className = 'wait-item';
-            div.innerHTML = `<img class="tile" src="images/${w}.png"><span>残り ${rem} 枚</span>`;
+            // 🌟 innerHTML 廃止: img + span を DOM 構築
+            const wImg = document.createElement('img');
+            wImg.className = 'tile';
+            wImg.src = `images/${w}.png`;
+            div.appendChild(wImg);
+            const remSpan = document.createElement('span');
+            remSpan.textContent = `残り ${rem} 枚`;
+            div.appendChild(remSpan);
             list.appendChild(div);
         });
     }
@@ -1120,9 +1148,9 @@ async function loadDebugScenario(scenario) {
     clearCharlestonStatus();
 
     for (let i = 0; i < 4; i++) {
-        document.getElementById(`river-${i}`).innerHTML = "";
-        document.getElementById(`meld-${i}`).innerHTML = "";
-        document.getElementById(`win-zone-${i}`).innerHTML = "";
+        document.getElementById(`river-${i}`).replaceChildren();
+        document.getElementById(`meld-${i}`).replaceChildren();
+        document.getElementById(`win-zone-${i}`).replaceChildren();
         document.getElementById(`win-zone-${i}`).style.display = "none";
     }
 
@@ -1283,7 +1311,7 @@ function toggleExchange(idx) {
         // 🌟 第1交換：3枚選んだ時だけ「決定」ボタンを表示（スルーはさせない）
         if (exchangeSelection.length === 3) {
             btn.style.display = "block";
-            btn.innerHTML = "📤 決定 (3枚交換)";
+            btn.textContent = "📤 決定 (3枚交換)";
             btn.className = "btn-act btn-blue";
         } else {
             btn.style.display = "none";
@@ -1292,10 +1320,10 @@ function toggleExchange(idx) {
         // 🌟 第2交換：常にボタンを表示し、3枚選んだら決定ボタンに化ける
         btn.style.display = "block";
         if (exchangeSelection.length === 3) {
-            btn.innerHTML = "📤 決定 (3枚交換)";
+            btn.textContent = "📤 決定 (3枚交換)";
             btn.className = "btn-act btn-blue";
         } else {
-            btn.innerHTML = "⏭️ スルー (過)";
+            btn.textContent = "⏭️ スルー (過)";
             btn.className = "btn-act btn-gray";
         }
     }
@@ -1443,7 +1471,7 @@ async function askNextSecondCharleston() {
         exchangeSelection = [];
         const btn = document.getElementById('btn-exchange');
         btn.style.display = "block";
-        btn.innerHTML = "⏭️ スルー (過)";
+        btn.textContent = "⏭️ スルー (過)";
         btn.className = "btn-act btn-gray";
 
         render(); // クリックできるように再描画
@@ -1537,7 +1565,7 @@ async function finishAskSecondCharleston() {
                 p0: secondCharlestonParticipating[0], p1: secondCharlestonParticipating[1],
                 p2: secondCharlestonParticipating[2], p3: secondCharlestonParticipating[3]
             });
-        } catch (e) { /* ignore: 第2交換の同期通信エラーは無視（apiCall が既にユーザー通知を出すため、 ここは続行を保証する目的） */ }
+        } catch (e) { }
 
         charlestonPhase = false;
         isProc = false;
@@ -1618,7 +1646,7 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
 function render() {
     try {
         myHand.sort((a, b) => SM[a] - SM[b]);
-        const c = document.getElementById('hand-0'); c.innerHTML = "";
+        const c = document.getElementById('hand-0'); c.replaceChildren();
 
         let displayHand = [...myHand];
         let dTile = "";
@@ -1710,7 +1738,7 @@ function render() {
 // 🤖 CPU3人の手牌（裏向き・または開発者モードの表向き）を描画する関数
 function renderCPU() {
     for (let i = 1; i <= 3; i++) {
-        const c = document.getElementById(`hand-${i}`); c.innerHTML = "";
+        const c = document.getElementById(`hand-${i}`); c.replaceChildren();
         // 🌟 友人戦の開発者モード: 実手牌を別保持 myDevAllHands から取得
         let sourceHands = (currentGameMode === 'friend' && isDevMode && myDevAllHands && myDevAllHands[i])
             ? myDevAllHands : myAllHands;
@@ -1788,7 +1816,7 @@ function renderCPU() {
 
 // 🀄 指定プレイヤーの鳴き牌（ポン・カン）を描画する関数
 function renderMelds(idx) {
-    const m = document.getElementById(`meld-${idx}`); m.innerHTML = "";
+    const m = document.getElementById(`meld-${idx}`); m.replaceChildren();
     let melds = (idx === 0) ? myMelds : (myAllMelds[idx] || []);
     melds.forEach(meld => {
         if (!meld || !Array.isArray(meld.tiles)) return;
@@ -1825,7 +1853,7 @@ function renderMelds(idx) {
 
 // 🏆 アガリ牌（ロン・ツモした牌）を専用ゾーンに描画する関数
 function renderWinTiles(idx) {
-    const wz = document.getElementById(`win-zone-${idx}`); wz.innerHTML = "";
+    const wz = document.getElementById(`win-zone-${idx}`); wz.replaceChildren();
     let winTiles = (idx === 0) ? myWinTiles : (myAllWinTiles[idx] || []);
     if (winTiles.length === 0) {
         wz.style.display = "none";
@@ -1927,7 +1955,13 @@ async function checkT() {
                 const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
 
                 btnWin.className = 'btn-act btn-red';
-                btnWin.innerHTML = `自摸 ${getImg(winTile)}`;
+                // 🌟 innerHTML 廃止: テキスト + img を DOM 構築
+                btnWin.replaceChildren();
+                btnWin.appendChild(document.createTextNode('自摸 '));
+                const tImg = document.createElement('img');
+                tImg.src = `images/${winTile}.png`;
+                tImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+                btnWin.appendChild(tImg);
                 btnWin.onclick = () => execTsumo();
 
                 // 💥 古い「オートONならボタンを隠す」バグを完全削除。常に表示する。
@@ -1958,11 +1992,11 @@ async function checkT() {
                 // 🌟 2. 槓などのアクションボタンが出ていれば一時停止
                 if (activeSelfActionsCount > 0) {
                     showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
-                    setTimeout(hideCenterMessage, TIMING.CENTER_MSG_HIDE_MS);
+                    setTimeout(hideCenterMessage, 2500);
                 } else if (isWinVisible) {
                     // 🌟 3. 自摸ボタンが出ていれば押す
                     isProc = true;
-                    setTimeout(() => { isProc = false; btnWin.click(); }, TIMING.SHORT_DELAY_MS / speedMult);
+                    setTimeout(() => { isProc = false; btnWin.click(); }, 600 / speedMult);
                     autoActed = true;
                 } else {
                     // 🌟 3. 和了でなければ自摸切り
@@ -2051,7 +2085,7 @@ async function checkT() {
             updateWall(wallCount - 1);
         }
 
-        setTimeout(cpu, TIMING.KAKAN_DELAY_MS / speedMult);
+        setTimeout(cpu, 1000 / speedMult);
     }
 }
 
@@ -2422,7 +2456,13 @@ async function cpu() {
                     const btnSkip = document.getElementById('btn-skip');
 
                     let kTile = data.kakan_tile;
-                    btnWin.innerHTML = `胡 <img src="images/${kTile}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;">`;
+                    // 🌟 innerHTML 廃止: テキスト + img を DOM 構築
+                    btnWin.replaceChildren();
+                    btnWin.appendChild(document.createTextNode('胡 '));
+                    const kImg = document.createElement('img');
+                    kImg.src = `images/${kTile}.png`;
+                    kImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+                    btnWin.appendChild(kImg);
 
                     let isAutoDigest = (isAutoPlay);
                     if (!isAutoDigest) {
@@ -2476,7 +2516,7 @@ async function cpu() {
 
                     if (isAutoDigest) {
                         isProc = true;
-                        setTimeout(() => { isProc = false; btnWin.click(); }, TIMING.STANDARD_DELAY_MS / speedMult);
+                        setTimeout(() => { isProc = false; btnWin.click(); }, 800 / speedMult);
                     } else {
                         startTimer(timeCall, () => btnSkip.click());
                     }
@@ -2558,7 +2598,7 @@ async function checkHumanReaction(discarderIdx, tile) {
                     higherPriorityCpuWillRon = true;
                 }
             }
-        } catch (e) { /* ignore: 個別 CPU の check_win 通信失敗は他 CPU の判定継続のため無視（次のループへ） */ }
+        } catch (e) { }
     }
 
     let canHumanRon = wd.can_win; // 🟢 修正：頭ハネされる場合でも「ロン」ボタンを堂々と出す！
@@ -2569,7 +2609,13 @@ async function checkHumanReaction(discarderIdx, tile) {
     if (canHumanRon) {
         const btn = document.getElementById('btn-win');
         btn.className = 'btn-act btn-red';
-        btn.innerHTML = `胡 ${getImg(tile)}`;
+        // 🌟 innerHTML 廃止: 文字 + img を DOM 構築
+        btn.replaceChildren();
+        btn.appendChild(document.createTextNode('胡 '));
+        const ronImg = document.createElement('img');
+        ronImg.src = `images/${tile}.png`;
+        ronImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+        btn.appendChild(ronImg);
         btn.style.display = "flex";
         btn.style.alignItems = "center";
         btn.style.gap = "5px";
@@ -2585,7 +2631,13 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (count >= 2 && wallCount > 0) {
             const btn = document.getElementById('btn-pon');
             btn.className = 'btn-act btn-green';
-            btn.innerHTML = `碰 ${getImg(tile)}`;
+            // 🌟 innerHTML 廃止: 文字 + img を DOM 構築
+            btn.replaceChildren();
+            btn.appendChild(document.createTextNode('碰 '));
+            const ponImg = document.createElement('img');
+            ponImg.src = `images/${tile}.png`;
+            ponImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+            btn.appendChild(ponImg);
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
@@ -2594,7 +2646,13 @@ async function checkHumanReaction(discarderIdx, tile) {
         if (count >= 3 && wallCount > 0) {
             const btn = document.getElementById('btn-kan');
             btn.className = 'btn-act btn-blue';
-            btn.innerHTML = `明槓 ${getImg(tile)}`;
+            // 🌟 innerHTML 廃止: 文字 + img を DOM 構築
+            btn.replaceChildren();
+            btn.appendChild(document.createTextNode('明槓 '));
+            const kanImg = document.createElement('img');
+            kanImg.src = `images/${tile}.png`;
+            kanImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+            btn.appendChild(kanImg);
             btn.style.display = "flex";
             btn.style.alignItems = "center";
             btn.style.gap = "5px";
@@ -2610,10 +2668,31 @@ async function checkHumanReaction(discarderIdx, tile) {
             btnHanakan.style.gap = '5px';
 
             if (seasonsInHand.length === 1) {
-                btnHanakan.innerHTML = `花槓 ${getImg(tile)}${getImg(seasonsInHand[0])}`;
+                // 🌟 innerHTML 廃止: 文字 + img×2 を DOM 構築
+                btnHanakan.replaceChildren();
+                btnHanakan.appendChild(document.createTextNode('花槓 '));
+                const hkTileImg = document.createElement('img');
+                hkTileImg.src = `images/${tile}.png`;
+                hkTileImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+                btnHanakan.appendChild(hkTileImg);
+                const hkSeasonImg = document.createElement('img');
+                hkSeasonImg.src = `images/${seasonsInHand[0]}.png`;
+                hkSeasonImg.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+                btnHanakan.appendChild(hkSeasonImg);
                 btnHanakan.onclick = () => execMeld(`花槓:${seasonsInHand[0]}`);
             } else {
-                btnHanakan.innerHTML = `花槓 ${getImg(tile)} <span style="font-size:14px;">(選択)</span>`;
+                // 🌟 innerHTML 廃止: 文字 + img + span を DOM 構築
+                btnHanakan.replaceChildren();
+                btnHanakan.appendChild(document.createTextNode('花槓 '));
+                const hkTileImg2 = document.createElement('img');
+                hkTileImg2.src = `images/${tile}.png`;
+                hkTileImg2.style.cssText = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); vertical-align: middle;';
+                btnHanakan.appendChild(hkTileImg2);
+                btnHanakan.appendChild(document.createTextNode(' '));
+                const selectSpan = document.createElement('span');
+                selectSpan.style.cssText = 'font-size:14px;';
+                selectSpan.textContent = '(選択)';
+                btnHanakan.appendChild(selectSpan);
                 btnHanakan.onclick = () => renderReactionSubMenu(tile, seasonsInHand);
             }
             showAny = true;
@@ -3186,7 +3265,7 @@ async function handleRoundEnd(isReplayingResult = false) {
         document.getElementById('waits-panel').style.display = 'none';
 
         isProc = true;
-        document.getElementById('msg').innerHTML = "点数計算中...";
+        document.getElementById('msg').textContent = "点数計算中...";
         document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = 'none');
 
         isAutoPlay = false;
@@ -3575,6 +3654,7 @@ async function handleRoundEnd(isReplayingResult = false) {
             const overlayElement = document.getElementById('overlay');
 
             // 盤面を元に戻すためのバックアップ変数
+            // 🌟 innerHTML 廃止: 子要素を cloneNode で保存（ハンドラごと復元可能）
             let originalHandsHTML = {};
             let originalMeldsHTML = {};
 
@@ -3587,8 +3667,9 @@ async function handleRoundEnd(isReplayingResult = false) {
                         const handDiv = document.getElementById(`hand-${i}`);
                         if (handDiv && typeof myAllHands !== 'undefined' && myAllHands[i]) {
                             // 現在の裏向きになっているDOMを保存
-                            originalHandsHTML[i] = handDiv.innerHTML;
-                            handDiv.innerHTML = ""; // 一旦クリア
+                            // 🌟 innerHTML 廃止: 子要素配列を cloneNode で保存
+                            originalHandsHTML[i] = Array.from(handDiv.childNodes).map(n => n.cloneNode(true));
+                            handDiv.replaceChildren(); // 一旦クリア
 
                             // 実際の手牌を取り出してソート
                             let sorted = [...myAllHands[i]];
@@ -3621,8 +3702,9 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                         if (meldDiv && pMelds.length > 0) {
                             // 現在のDOMを保存
-                            originalMeldsHTML[i] = meldDiv.innerHTML;
-                            meldDiv.innerHTML = ""; // 一旦クリア
+                            // 🌟 innerHTML 廃止: 子要素配列を cloneNode で保存
+                            originalMeldsHTML[i] = Array.from(meldDiv.childNodes).map(n => n.cloneNode(true));
+                            meldDiv.replaceChildren(); // 一旦クリア
 
                             pMelds.forEach(m => {
                                 let mWrap = document.createElement('div');
@@ -3650,13 +3732,17 @@ async function handleRoundEnd(isReplayingResult = false) {
                     for (let i = 1; i <= 3; i++) {
                         const handDiv = document.getElementById(`hand-${i}`);
                         if (handDiv && originalHandsHTML[i] !== undefined) {
-                            handDiv.innerHTML = originalHandsHTML[i];
+                            // 🌟 innerHTML 廃止: 保存していた子要素を復元
+                            handDiv.replaceChildren();
+                            originalHandsHTML[i].forEach(n => handDiv.appendChild(n));
                         }
                     }
                     for (let i = 0; i < 4; i++) {
                         const meldDiv = document.getElementById(`meld-${i}`);
                         if (meldDiv && originalMeldsHTML[i] !== undefined) {
-                            meldDiv.innerHTML = originalMeldsHTML[i];
+                            // 🌟 innerHTML 廃止: 保存していた子要素を復元
+                            meldDiv.replaceChildren();
+                            originalMeldsHTML[i].forEach(n => meldDiv.appendChild(n));
                         }
                     }
                 };
@@ -3732,8 +3818,16 @@ async function handleRoundEnd(isReplayingResult = false) {
                 let mainCls = roundScore > 0 ? "score-main-plus" : (roundScore < 0 ? "score-main-minus" : "score-main-zero");
                 let rankCls = rankPoint > 0 ? "score-rank-plus" : "score-rank-zero";
 
-                rsEl.innerHTML = `<div class="${mainCls}">${sign}${roundScore}</div>
-                                  <div class="${rankCls}">順位点 +${rankPoint}</div>`;
+                // 🌟 innerHTML 廃止: div ×2 を DOM 構築
+                rsEl.replaceChildren();
+                const mainDiv = document.createElement('div');
+                mainDiv.className = mainCls;
+                mainDiv.textContent = `${sign}${roundScore}`;
+                rsEl.appendChild(mainDiv);
+                const rankDiv = document.createElement('div');
+                rankDiv.className = rankCls;
+                rankDiv.textContent = `順位点 +${rankPoint}`;
+                rsEl.appendChild(rankDiv);
                 rsEl.className = `player-round-score show-score`;
 
                 if (!isReplayingResult) playSE('coin');
@@ -3743,7 +3837,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
 
                 let scoreEl = document.getElementById(`player-score-${targetIdx}`);
-                scoreEl.innerHTML = `持ち点: ${totalScores[targetIdx]}`;
+                scoreEl.textContent = `持ち点: ${totalScores[targetIdx]}`;
 
                 // 🌟 修正：JSのタイマーによる直接操作を完全撤廃し、CSSアニメーションに任せる。
                 scoreEl.style.transform = ""; // 過去の負の遺産(インラインスタイル)を破壊
@@ -4052,7 +4146,7 @@ async function handleRoundEnd(isReplayingResult = false) {
 
             // ポップアップ（トースト）がすべて連続で表示され終わるまでしっかり待機する
             while (isToastShowing || toastQueue.length > 0) {
-                await new Promise(resolve => setTimeout(resolve, TIMING.GENERIC_WAIT_MS));
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             alert(resultMsg);
@@ -4076,9 +4170,9 @@ async function handleRoundEnd(isReplayingResult = false) {
         await apiCall('/next_round');
 
         for (let i = 0; i < 4; i++) {
-            document.getElementById(`river-${i}`).innerHTML = "";
-            document.getElementById(`meld-${i}`).innerHTML = "";
-            document.getElementById(`win-zone-${i}`).innerHTML = "";
+            document.getElementById(`river-${i}`).replaceChildren();
+            document.getElementById(`meld-${i}`).replaceChildren();
+            document.getElementById(`win-zone-${i}`).replaceChildren();
             document.getElementById(`win-zone-${i}`).style.display = "none";
         }
 
