@@ -101,6 +101,20 @@ if (!window.tutExitHooked) {
 }
 // =========================================================
 
+// 🌟 innerHTML 廃止のための安全なヘルパー
+//   信頼できる内部 HTML 文字列（チュートリアル定義など）を DOM 要素に変換する。
+//   createContextualFragment は <script> タグを実行しないため innerHTML より安全。
+function _setSafeHtml(el, htmlString) {
+    if (!el) return;
+    el.replaceChildren();
+    if (htmlString) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const frag = range.createContextualFragment(String(htmlString));
+        el.appendChild(frag);
+    }
+}
+
 // 🎮 実戦形式のチュートリアルを開始する関数
 async function startTutorial() {
     closeAllModals();
@@ -204,7 +218,7 @@ async function startTutorial() {
     navText.style.setProperty('font-size', '22px', 'important');
     navPanel.style.display = 'block';
 
-    const showMsg = (msg) => { navText.innerHTML = msg; };
+    const showMsg = (msg) => { _setSafeHtml(navText, msg); };
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; vertical-align: middle;">`;
 
     // 🌟 暗転＆ハイライト管理システム
@@ -1113,7 +1127,7 @@ function renderLessonPage() {
         };
     }
 
-    navText.innerHTML = contentHtml;
+    _setSafeHtml(navText, contentHtml);
 }
 
 // 🎯 クイズの選択肢をクリックした時の正誤判定処理
@@ -1218,7 +1232,7 @@ function reviewTutorial() {
                 🏆 ミッション：<br>${lessonMission}
             </div>
         `;
-        navText.innerHTML = contentHtml;
+        _setSafeHtml(navText, contentHtml);
         prevBtn.style.display = "none";
 
         nextBtn.style.display = "inline-block";
@@ -1423,7 +1437,7 @@ function checkLessonMessage(eventType, tile = null, fromPlayer = -1) {
                     toast.className = 'toast-hint';
                     icon.innerText = '💡';
                 }
-                text.innerHTML = msg.text; // 🌟 念のため改行タグ等も効くように innerHTML に変更
+                _setSafeHtml(text, msg.text); // 🌟 innerHTML 廃止: 改行タグ等も効くように _setSafeHtml で安全に DOM 化
 
                 toast.classList.add('show');
                 if (typeof playSE === 'function') playSE('click');

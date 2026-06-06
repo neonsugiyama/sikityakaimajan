@@ -931,14 +931,16 @@ window.renderReplayResult = function (pIdx) {
     }
 
     let diff = (calcData.scores && calcData.scores[pIdx]) !== undefined ? calcData.scores[pIdx] : 0;
-    let yakuHtml = "";
+    // 🌟 innerHTML 廃止: 文字列ではなく、 直接 DOM 要素を構築
+    const winYakuEl = document.getElementById('win-yaku');
+    winYakuEl.replaceChildren();
     let titleText = "";
     let scoreText = "";
 
     if (isWinner && winData) {
         const _nmW = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
         titleText = (pIdx === 0 && !isReplayMode) ? "あなたの和了！" : `${_nmW} の和了！`;
-        scoreText = `${winData.total_score} 点`; // 🌟 文字列の組み立ては後でアニメーション関数が上書きします
+        scoreText = `${winData.total_score} 点`;
 
         let groupedDetails = {};
         for (let detail of (winData.details || [])) {
@@ -967,23 +969,60 @@ window.renderReplayResult = function (pIdx) {
                 return orderA - orderB;
             });
 
-            let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px; white-space: nowrap;">×${d.count}枚</span>` : "";
-            let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa; white-space: nowrap;">(${d.score}点 × ${d.count})</span> <br> <span style="white-space: nowrap;">${d.total_score}点</span>` : `<span style="white-space: nowrap;">${d.score}点</span>`;
+            // 役 row を DOM 構築
+            const row = document.createElement('div');
+            row.style.cssText = 'font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;';
 
-            // 🌟 修正：「和了牌」の文字を完全に削除したバージョンで統一
-            yakuHtml += `
-                <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
-                    <div style="display: flex; align-items: center; width: 100px; flex-shrink: 0;">
-                        <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px; flex-shrink: 0;">
-                        ${countStr}
-                    </div>
-                    <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
-                        ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${typeof getJaYakuName === 'function' ? getJaYakuName(y) : ''}</span><span class="en">${typeof getEnYakuName === 'function' ? getEnYakuName(y) : ''}</span></span>`).join("")}
-                    </div>
-                    <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right; flex-shrink: 0;">
-                        ${scoreDetailStr}
-                    </div>
-                </div>`;
+            const leftDiv = document.createElement('div');
+            leftDiv.style.cssText = 'display: flex; align-items: center; width: 100px; flex-shrink: 0;';
+            const tileImg = document.createElement('img');
+            tileImg.src = `images/${tile}.png`;
+            tileImg.style.cssText = 'width:28px; height:39px; border-radius: 2px; flex-shrink: 0;';
+            leftDiv.appendChild(tileImg);
+            if (d.count > 1) {
+                const countSpan = document.createElement('span');
+                countSpan.style.cssText = 'color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px; white-space: nowrap;';
+                countSpan.textContent = `×${d.count}枚`;
+                leftDiv.appendChild(countSpan);
+            }
+            row.appendChild(leftDiv);
+
+            const centerDiv = document.createElement('div');
+            centerDiv.style.cssText = 'flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;';
+            d.yaku.forEach(y => {
+                const tag = document.createElement('span');
+                tag.className = `yaku-tag ${getYakuTierClass(y)}`;
+                const zh = document.createElement('span'); zh.className = 'zh'; zh.textContent = y;
+                const ja = document.createElement('span'); ja.className = 'ja';
+                ja.textContent = (typeof getJaYakuName === 'function' ? getJaYakuName(y) : '');
+                const en = document.createElement('span'); en.className = 'en';
+                en.textContent = (typeof getEnYakuName === 'function' ? getEnYakuName(y) : '');
+                tag.appendChild(zh); tag.appendChild(ja); tag.appendChild(en);
+                centerDiv.appendChild(tag);
+            });
+            row.appendChild(centerDiv);
+
+            const rightDiv = document.createElement('div');
+            rightDiv.style.cssText = 'color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right; flex-shrink: 0;';
+            if (d.count > 1) {
+                const detailSpan = document.createElement('span');
+                detailSpan.style.cssText = 'font-size: 14px; color:#aaa; white-space: nowrap;';
+                detailSpan.textContent = `(${d.score}点 × ${d.count})`;
+                rightDiv.appendChild(detailSpan);
+                rightDiv.appendChild(document.createElement('br'));
+                const totalSpan = document.createElement('span');
+                totalSpan.style.cssText = 'white-space: nowrap;';
+                totalSpan.textContent = ` ${d.total_score}点`;
+                rightDiv.appendChild(totalSpan);
+            } else {
+                const ptSpan = document.createElement('span');
+                ptSpan.style.cssText = 'white-space: nowrap;';
+                ptSpan.textContent = `${d.score}点`;
+                rightDiv.appendChild(ptSpan);
+            }
+            row.appendChild(rightDiv);
+
+            winYakuEl.appendChild(row);
         }
     } else {
         const _nmR = (typeof getDisplayPlayerName === 'function') ? getDisplayPlayerName(pIdx) : (pIdx === 0 ? "あなた" : `CPU ${pIdx}`);
@@ -991,13 +1030,11 @@ window.renderReplayResult = function (pIdx) {
         let diffStr = diff > 0 ? `${diff}` : (diff === 0 ? `0` : `${diff}`);
         scoreText = `${diffStr} 点`;
 
-        // 🌟 修正：こちらも同様に条件分岐を完全に削除して「ー」で固定
-        let resultLabel = "ー";
-
-        yakuHtml = `
-            <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
-                ${resultLabel}
-            </div>`;
+        // 失点の概念がないため「ー」で固定
+        const resultDiv = document.createElement('div');
+        resultDiv.style.cssText = 'font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;';
+        resultDiv.textContent = 'ー';
+        winYakuEl.appendChild(resultDiv);
     }
 
     let endAction = roundData.actions[roundData.actions.length - 1];
@@ -1005,30 +1042,44 @@ window.renderReplayResult = function (pIdx) {
     let melds = endAction.state_snapshot.all_melds[pIdx] || [];
     let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
 
-    let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
-    handHtml += `<div style="display: flex; gap: 2px;">`;
-    for (let t of sortedHand) {
-        handHtml += `<img src="images/${t}.png" style="width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">`;
-    }
-    handHtml += `</div>`;
+    // 🌟 innerHTML 廃止: 手牌表示も DOM 構築
+    const winHandEl = document.getElementById('win-hand-display');
+    winHandEl.replaceChildren();
+
+    const handContainer = document.createElement('div');
+    handContainer.style.cssText = 'display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);';
+
+    const handTilesDiv = document.createElement('div');
+    handTilesDiv.style.cssText = 'display: flex; gap: 2px;';
+    sortedHand.forEach(t => {
+        const tImg = document.createElement('img');
+        tImg.src = `images/${t}.png`;
+        tImg.style.cssText = 'width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);';
+        handTilesDiv.appendChild(tImg);
+    });
+    handContainer.appendChild(handTilesDiv);
 
     if (melds.length > 0) {
-        handHtml += `<div style="width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;"></div>`;
+        const sep = document.createElement('div');
+        sep.style.cssText = 'width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;';
+        handContainer.appendChild(sep);
         for (let m of melds) {
-            handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
+            const meldDiv = document.createElement('div');
+            meldDiv.style.cssText = 'display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);';
             for (let idx = 0; idx < m.tiles.length; idx++) {
                 let t = m.tiles[idx];
                 let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
-                handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
+                const mImg = document.createElement('img');
+                mImg.src = `images/${src}.png`;
+                mImg.style.cssText = 'width: 36px; height: 50px; border-radius: 3px;';
+                meldDiv.appendChild(mImg);
             }
-            handHtml += `</div>`;
+            handContainer.appendChild(meldDiv);
         }
     }
-    handHtml += `</div>`;
+    winHandEl.appendChild(handContainer);
 
     document.getElementById('win-label-text').innerText = titleText;
-    document.getElementById('win-yaku').innerHTML = yakuHtml; // 🌟 修正：アニメーション関数の「前」に役リストをDOMに入れる！
-    document.getElementById('win-hand-display').innerHTML = handHtml;
 
     // 🌟 修正：点数カウントアップのアニメーション関数を呼び出す
     let finalScoreAmount = (isWinner && winData) ? winData.total_score : diff;

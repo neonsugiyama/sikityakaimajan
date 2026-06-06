@@ -424,10 +424,21 @@ function showCallout(playerIdx, text) {
 }
 
 // 📢 画面中央に大きめのお知らせメッセージを表示する関数
-function showCenterMessage(html) {
+// 🌟 innerHTML 廃止: 引数を DOM ノード or 配列 or 文字列に変更
+function showCenterMessage(content) {
     const el = document.getElementById('center-message');
     if (!el) return;
-    el.innerHTML = html;
+    el.replaceChildren();
+    if (typeof content === 'string') {
+        el.textContent = content;
+    } else if (content instanceof Node) {
+        el.appendChild(content);
+    } else if (Array.isArray(content)) {
+        content.forEach(c => {
+            if (c instanceof Node) el.appendChild(c);
+            else el.appendChild(document.createTextNode(String(c)));
+        });
+    }
     el.style.zIndex = "9999";
     el.style.display = "block";
 }
@@ -696,33 +707,53 @@ function updateInfoUI() {
         let rateStr = `<span style="font-size:12px; color:#bdc3c7;">(R:${playerRatings[i]})</span>`;
 
         // 🌟 友人戦時は友人戦の名前リストを使用
+        // 🌟 修正: escapeHTML 呼出を削除 (下で textContent を使うため、 二重 escape バグも併せて修正)
         let opponentName;
         if (typeof getDisplayPlayerName === 'function') {
-            opponentName = escapeHTML(getDisplayPlayerName(i));
+            opponentName = getDisplayPlayerName(i);
         } else if (currentGameMode === 'friend' && typeof getFriendPlayerName === 'function') {
-            opponentName = escapeHTML(getFriendPlayerName(i));
+            opponentName = getFriendPlayerName(i);
         } else {
             opponentName = `CPU ${i}`;
         }
         let selfName;
         if (typeof getDisplayPlayerName === 'function') {
-            selfName = escapeHTML(getDisplayPlayerName(0));
+            selfName = getDisplayPlayerName(0);
         } else {
-            selfName = escapeHTML(playerStats.playerName);
+            selfName = playerStats.playerName;
         }
         // 🔁 友人戦で切断中なら名前を赤文字で表示
-        let nameColor = '';
-        if (currentGameMode === 'friend' && typeof disconnectedPlayers !== 'undefined' && disconnectedPlayers[i]) {
-            nameColor = ' style="color:#e74c3c;"';
+        let nameColorRed = (currentGameMode === 'friend' && typeof disconnectedPlayers !== 'undefined' && disconnectedPlayers[i]);
+
+        // 🌟 innerHTML 廃止: nameEl を DOM API で構築（XSS リスク完全排除）
+        nameEl.replaceChildren();
+        if (dealer === i) {
+            const dealerSpan = document.createElement('span');
+            dealerSpan.className = 'dealer-mark';
+            dealerSpan.textContent = '🀄親';
+            nameEl.appendChild(dealerSpan);
         }
-        let name = i === 0 ?
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br><span${nameColor}>${escapeHTML(selfName)}</span>` :
-            `<span style="color:${titleColor}; font-size:12px;">【${title}】</span><br><span${nameColor}>${escapeHTML(opponentName)}</span>`;
 
-        let isDealer = (dealer === i) ? `<span class="dealer-mark">🀄親</span>` : "";
-        let aiTarget = (i !== 0 && cpuTargets[i] && isDevMode) ? `<br><span style="color:#2ecc71; font-size:12px;">[${cpuPersonalities[i]}] ${cpuTargets[i]}</span>` : "";
+        const titleSpan = document.createElement('span');
+        titleSpan.style.cssText = `color:${titleColor}; font-size:12px;`;
+        titleSpan.textContent = `【${title}】`;
+        nameEl.appendChild(titleSpan);
+        nameEl.appendChild(document.createElement('br'));
 
-        nameEl.innerHTML = `${isDealer}${name}${aiTarget}`;
+        const nameSpan = document.createElement('span');
+        if (nameColorRed) {
+            nameSpan.style.color = '#e74c3c';
+        }
+        nameSpan.textContent = i === 0 ? selfName : opponentName;
+        nameEl.appendChild(nameSpan);
+
+        if (i !== 0 && cpuTargets[i] && isDevMode) {
+            nameEl.appendChild(document.createElement('br'));
+            const aiSpan = document.createElement('span');
+            aiSpan.style.cssText = 'color:#2ecc71; font-size:12px;';
+            aiSpan.textContent = `[${cpuPersonalities[i]}] ${cpuTargets[i]}`;
+            nameEl.appendChild(aiSpan);
+        }
 
         // 🌟 修正：点差表示モード中でなければ通常の持ち点を表示
         if (!isDiffMode) {
@@ -819,12 +850,21 @@ function showScoreDiff(baseIdx) {
         : (baseIdx === 0 ? playerStats.playerName : `CPU ${baseIdx}`);
     let baseScore = totalScores[baseIdx];
 
-    // パネルのヘッダー部分
-    let html = `<div style="text-align:center; font-weight:bold; color:#3498db; margin-bottom:10px; border-bottom:2px solid #3498db; padding-bottom:8px; font-size:18px;">
-                    現在の順位と点差 <br><span style="font-size:13px; color:#bdc3c7;">(基準: ${baseName})</span>
-                </div>`;
+    // 🌟 innerHTML 廃止: name にユーザー入力混入の可能性があったため XSS リスク解消 + DOM API で構築
+    panel.replaceChildren();
 
-    // 各プレイヤーの行を生成
+    // ヘッダー
+    const header = document.createElement('div');
+    header.style.cssText = 'text-align:center; font-weight:bold; color:#3498db; margin-bottom:10px; border-bottom:2px solid #3498db; padding-bottom:8px; font-size:18px;';
+    header.appendChild(document.createTextNode('現在の順位と点差 '));
+    header.appendChild(document.createElement('br'));
+    const baseSpan = document.createElement('span');
+    baseSpan.style.cssText = 'font-size:13px; color:#bdc3c7;';
+    baseSpan.textContent = `(基準: ${baseName})`;
+    header.appendChild(baseSpan);
+    panel.appendChild(header);
+
+    // 各プレイヤーの行
     sortedIndices.forEach((idx, rank) => {
         let name = (typeof getDisplayPlayerName === 'function')
             ? getDisplayPlayerName(idx)
@@ -835,31 +875,45 @@ function showScoreDiff(baseIdx) {
         let diffStr = diff > 0 ? `+${diff}` : (diff === 0 ? `±0` : `${diff}`);
         let diffColor = diff > 0 ? '#2ecc71' : (diff < 0 ? '#e74c3c' : '#aaa');
 
-        // 基準にしたプレイヤー自身の行は点差をハイフンにする
         if (idx === baseIdx) {
             diffStr = "-";
             diffColor = "#fff";
         }
 
-        // プレイヤー自身(0番)の行は黄色くハイライトして目立たせる
         let rowStyle = idx === 0
             ? 'color: #f1c40f; font-weight: bold; background: rgba(241, 196, 15, 0.15); border-radius: 4px;'
             : 'color: #fff;';
 
-        html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 10px; margin-bottom: 2px; ${rowStyle}">
-                <span style="width: 110px;">${rank + 1}位: ${name}</span>
-                <div style="display:flex; justify-content:flex-end; align-items:center; gap:15px; width: 140px;">
-                    <span style="text-align:right; width: 60px;">${score}</span>
-                    <span style="text-align:right; width: 65px; color:${diffColor}; font-size:16px;">${diffStr}</span>
-                </div>
-            </div>
-        `;
+        const row = document.createElement('div');
+        row.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding: 8px 10px; margin-bottom: 2px; ${rowStyle}`;
+
+        const nameSp = document.createElement('span');
+        nameSp.style.cssText = 'width: 110px;';
+        nameSp.textContent = `${rank + 1}位: ${name}`;
+        row.appendChild(nameSp);
+
+        const rightDiv = document.createElement('div');
+        rightDiv.style.cssText = 'display:flex; justify-content:flex-end; align-items:center; gap:15px; width: 140px;';
+
+        const scoreSp = document.createElement('span');
+        scoreSp.style.cssText = 'text-align:right; width: 60px;';
+        scoreSp.textContent = String(score);
+        rightDiv.appendChild(scoreSp);
+
+        const diffSp = document.createElement('span');
+        diffSp.style.cssText = `text-align:right; width: 65px; color:${diffColor}; font-size:16px;`;
+        diffSp.textContent = diffStr;
+        rightDiv.appendChild(diffSp);
+
+        row.appendChild(rightDiv);
+        panel.appendChild(row);
     });
 
-    html += `<div style="text-align:center; font-size:12px; color:#7f8c8d; margin-top:12px;">(画面クリックで閉じます)</div>`;
+    const footer = document.createElement('div');
+    footer.style.cssText = 'text-align:center; font-size:12px; color:#7f8c8d; margin-top:12px;';
+    footer.textContent = '(画面クリックで閉じます)';
+    panel.appendChild(footer);
 
-    panel.innerHTML = html;
     panel.style.display = 'flex';
 
     // 5秒後に自動で閉じる（邪魔にならないように）
@@ -1010,17 +1064,40 @@ function showWaitsPanel() {
                 .filter(w => !["春", "夏", "秋", "冬"].includes(w))
                 .sort((a, b) => SM[a] - SM[b]);
 
-            row.innerHTML = `
-                        <div style="display:flex; flex-direction:column; align-items:center; min-width:50px;">
-                            <span style="font-size:10px; color:#aaa;">打</span>
-                            <img src="images/${discardTile}.png" style="width:24px; height:34px; border-radius:2px;">
-                        </div>
-                        <div style="font-size:20px; color:#e67e22;">→</div>
-                        <div style="display:flex; flex-wrap:wrap; gap:5px; align-items:center;">
-                            <span style="font-size:10px; color:#aaa;">待</span>
-                            ${waits.map(w => `<img src="images/${w}.png" style="width:24px; height:34px; border-radius:2px;">`).join('')}
-                        </div>
-                    `;
+            // 🌟 innerHTML 廃止: 打牌 → 待ち牌 の行を DOM 構築
+            row.replaceChildren();
+
+            const discardCol = document.createElement('div');
+            discardCol.style.cssText = 'display:flex; flex-direction:column; align-items:center; min-width:50px;';
+            const discardLabel = document.createElement('span');
+            discardLabel.style.cssText = 'font-size:10px; color:#aaa;';
+            discardLabel.textContent = '打';
+            discardCol.appendChild(discardLabel);
+            const discardImg = document.createElement('img');
+            discardImg.src = `images/${discardTile}.png`;
+            discardImg.style.cssText = 'width:24px; height:34px; border-radius:2px;';
+            discardCol.appendChild(discardImg);
+            row.appendChild(discardCol);
+
+            const arrow = document.createElement('div');
+            arrow.style.cssText = 'font-size:20px; color:#e67e22;';
+            arrow.textContent = '→';
+            row.appendChild(arrow);
+
+            const waitsCol = document.createElement('div');
+            waitsCol.style.cssText = 'display:flex; flex-wrap:wrap; gap:5px; align-items:center;';
+            const waitLabel = document.createElement('span');
+            waitLabel.style.cssText = 'font-size:10px; color:#aaa;';
+            waitLabel.textContent = '待';
+            waitsCol.appendChild(waitLabel);
+            waits.forEach(w => {
+                const wImg = document.createElement('img');
+                wImg.src = `images/${w}.png`;
+                wImg.style.cssText = 'width:24px; height:34px; border-radius:2px;';
+                waitsCol.appendChild(wImg);
+            });
+            row.appendChild(waitsCol);
+
             list.appendChild(row);
         }
     }
@@ -1543,7 +1620,15 @@ async function finishAskSecondCharleston() {
     let activeCount = secondCharlestonParticipating.filter(p => p).length;
 
     if (activeCount <= 1) {
-        showCenterMessage(`参加者不足<br><span style="color:#e74c3c;font-size:24px;">第2交換はスキップされます</span>`);
+        // 🌟 innerHTML 廃止: DocumentFragment で構築して渡す
+        const _frag = document.createDocumentFragment();
+        _frag.appendChild(document.createTextNode('参加者不足'));
+        _frag.appendChild(document.createElement('br'));
+        const _span = document.createElement('span');
+        _span.style.cssText = 'color:#e74c3c;font-size:24px;';
+        _span.textContent = '第2交換はスキップされます';
+        _frag.appendChild(_span);
+        showCenterMessage(_frag);
         await sleep(2000);
         hideCenterMessage();
 
@@ -1622,7 +1707,11 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
     }
 
     if (data.direction.includes("不成立")) {
-        showCenterMessage(`<span style="color:#e74c3c;font-size:24px;">${data.direction}</span>`);
+        // 🌟 innerHTML 廃止: span 単独要素を渡す
+        const _dirSpan = document.createElement('span');
+        _dirSpan.style.cssText = 'color:#e74c3c;font-size:24px;';
+        _dirSpan.textContent = data.direction;
+        showCenterMessage(_dirSpan);
         await sleep(1500);
         hideCenterMessage();
     } else {
@@ -1991,7 +2080,13 @@ async function checkT() {
 
                 // 🌟 2. 槓などのアクションボタンが出ていれば一時停止
                 if (activeSelfActionsCount > 0) {
-                    showCenterMessage(`<span style="color:#f39c12;font-size:24px;">アクション可能なため<br>オート進行を一時待機します</span>`);
+                    // 🌟 innerHTML 廃止: span 内に br を含む構造を DOM 構築
+                    const _waitSpan = document.createElement('span');
+                    _waitSpan.style.cssText = 'color:#f39c12;font-size:24px;';
+                    _waitSpan.appendChild(document.createTextNode('アクション可能なため'));
+                    _waitSpan.appendChild(document.createElement('br'));
+                    _waitSpan.appendChild(document.createTextNode('オート進行を一時待機します'));
+                    showCenterMessage(_waitSpan);
                     setTimeout(hideCenterMessage, 2500);
                 } else if (isWinVisible) {
                     // 🌟 3. 自摸ボタンが出ていれば押す
@@ -2106,13 +2201,34 @@ function resetActionBtnPool() {
     activeSelfActionsCount = 0;
 }
 
+// 🌟 ヘルパー: 牌画像の img 要素を返す（innerHTML 廃止のため）
+function makeTileImg(tile, withVMid = false) {
+    const img = document.createElement('img');
+    img.src = `images/${tile}.png`;
+    let style = 'height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);';
+    if (withVMid) style += ' vertical-align: middle;';
+    img.style.cssText = style;
+    return img;
+}
+
 // 空いているボタンを取り出して色と文字を設定する関数
-function setupActionBtn(html, cls, onClick) {
+// 🌟 innerHTML 廃止: content を文字列 or 配列 or DOM ノードで受け付ける
+function setupActionBtn(content, cls, onClick) {
     let btn = document.getElementById(`btn-self-${activeSelfActionsCount}`);
     if (!btn) return; // 万が一足りなくなった場合は安全に無視
 
     btn.className = `btn-act ${cls}`;
-    btn.innerHTML = html;
+    btn.replaceChildren();
+    if (typeof content === 'string') {
+        btn.textContent = content;
+    } else if (Array.isArray(content)) {
+        content.forEach(c => {
+            if (c instanceof Node) btn.appendChild(c);
+            else btn.appendChild(document.createTextNode(String(c)));
+        });
+    } else if (content instanceof Node) {
+        btn.appendChild(content);
+    }
     btn.style.display = 'flex';
     btn.style.alignItems = 'center';
     btn.style.justifyContent = 'center';
@@ -2185,11 +2301,16 @@ function renderSelfMeldsMenu() {
 
     Object.values(groups).forEach(g => {
         if (g.type === "暗槓") {
-            setupActionBtn(`暗槓 ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-purple', () => renderAnkanSubMenu(g.tile));
+            (() => {
+                const sp = document.createElement('span');
+                sp.style.cssText = 'font-size:14px;';
+                sp.textContent = '(選択)';
+                setupActionBtn(['暗槓 ', makeTileImg(g.tile), ' ', sp], 'btn-purple', () => renderAnkanSubMenu(g.tile));
+            })();
         } else if (g.type === "加槓" || g.type === "JokerSwap") {
             let btnClass = g.type.includes("槓") ? 'btn-blue' : 'btn-purple';
             let label = g.type === "JokerSwap" ? "Joker Swap" : "明槓"; // ここを「明槓」に
-            setupActionBtn(`${label} ${getImg(g.tile)}`, btnClass, () => {
+            setupActionBtn([`${label} `, makeTileImg(g.tile)], btnClass, () => {
                 if (g.type === "JokerSwap") execJokerSwap(g.tile, g.original.season, g.original.target_idx);
                 else execSelfMeld(g.type, g.tile, '');
             });
@@ -2198,10 +2319,15 @@ function renderSelfMeldsMenu() {
 
             if (g.seasons.length === 1) {
                 // 🚨 ここに 'btn-blue' が残っていたのが原因です！ 'btn-flower' に書き換えました！
-                setupActionBtn(`${btnLabel} ${getImg(g.tile)}${getImg(g.seasons[0])}`, 'btn-flower', () => execSelfMeld(g.type, g.tile, g.seasons[0]));
+                setupActionBtn([`${btnLabel} `, makeTileImg(g.tile), makeTileImg(g.seasons[0])], 'btn-flower', () => execSelfMeld(g.type, g.tile, g.seasons[0]));
             } else {
                 // 🚨 ここに 'btn-green' が残っていたのが原因です！ 'btn-flower' に書き換えました！
-                setupActionBtn(`${btnLabel} ${getImg(g.tile)} <span style="font-size:14px;">(選択)</span>`, 'btn-flower', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons));
+                (() => {
+                    const sp = document.createElement('span');
+                    sp.style.cssText = 'font-size:14px;';
+                    sp.textContent = '(選択)';
+                    setupActionBtn([`${btnLabel} `, makeTileImg(g.tile), ' ', sp], 'btn-flower', () => renderSelfMeldsSubMenu(g.type, g.tile, g.seasons));
+                })();
             }
         }
     });
@@ -2212,11 +2338,11 @@ function renderSelfMeldsSubMenu(type, tile, seasons) {
     resetActionBtnPool();
     const getImg = (tileName) => `<img src="images/${tileName}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
-    setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
+    setupActionBtn('◀ 戻る', 'btn-gray', () => renderSelfMeldsMenu());
 
     seasons.forEach(s => {
         let btnLabel = "花槓";
-        setupActionBtn(`${btnLabel} ${getImg(tile)}${getImg(s)}`, 'btn-flower', () => execSelfMeld(type, tile, s));
+        setupActionBtn([`${btnLabel} `, makeTileImg(tile), makeTileImg(s)], 'btn-flower', () => execSelfMeld(type, tile, s));
     });
 }
 
@@ -2234,11 +2360,11 @@ function renderReactionSubMenu(tile, seasons) {
     const getImg = (t) => `<img src="images/${t}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
     // 戻るボタン：元の鳴き判定状態に戻る
-    setupActionBtn(`◀ 戻る`, 'btn-gray', () => checkHumanReaction(lastDiscardPlayer, lastT));
+    setupActionBtn('◀ 戻る', 'btn-gray', () => checkHumanReaction(lastDiscardPlayer, lastT));
 
     seasons.forEach(s => {
         // ツモ番と同じく execMeld を呼ぶ（内部で season 分解処理済み）
-        setupActionBtn(`花槓 ${getImg(tile)}${getImg(s)}`, 'btn-flower', () => execMeld(`花槓:${s}`));
+        setupActionBtn(['花槓 ', makeTileImg(tile), makeTileImg(s)], 'btn-flower', () => execMeld(`花槓:${s}`));
     });
 }
 
@@ -2247,11 +2373,11 @@ function renderAnkanSubMenu(tile) {
     resetActionBtnPool();
     const getImg = (tileName) => `<img src="images/${tileName}.png" style="height: 28px; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5);">`;
 
-    setupActionBtn(`◀ 戻る`, 'btn-gray', () => renderSelfMeldsMenu());
+    setupActionBtn('◀ 戻る', 'btn-gray', () => renderSelfMeldsMenu());
 
-    setupActionBtn(`伏せる ${getImg('ura')}${getImg('ura')}${getImg('ura')}${getImg('ura')}`, 'btn-purple', () => execSelfMeld('暗槓', tile, '', true));
+    setupActionBtn(['伏せる ', makeTileImg('ura'), makeTileImg('ura'), makeTileImg('ura'), makeTileImg('ura')], 'btn-purple', () => execSelfMeld('暗槓', tile, '', true));
 
-    setupActionBtn(`見せる ${getImg('ura')}${getImg(tile)}${getImg(tile)}${getImg('ura')}`, 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
+    setupActionBtn(['見せる ', makeTileImg('ura'), makeTileImg(tile), makeTileImg(tile), makeTileImg('ura')], 'btn-blue', () => execSelfMeld('暗槓', tile, '', false));
 }
 
 // 🏆 現在の手牌でアガれるか（役があるか）をサーバーにデータだけ確認する関数
@@ -3508,7 +3634,9 @@ async function handleRoundEnd(isReplayingResult = false) {
             }
 
             let diff = (calcData.scores && calcData.scores[i]) !== undefined ? calcData.scores[i] : 0;
-            let yakuHtml = "";
+            // 🌟 innerHTML 廃止: 文字列ではなく、 直接 DOM 要素を構築
+            const winYakuEl = document.getElementById('win-yaku');
+            winYakuEl.replaceChildren();
             let titleText = "";
             let scoreText = "";
             let scoreColor = "";
@@ -3560,22 +3688,55 @@ async function handleRoundEnd(isReplayingResult = false) {
                         return orderA - orderB;
                     });
 
-                    let countStr = d.count > 1 ? `<span style="color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;">×${d.count}枚</span>` : "";
-                    let scoreDetailStr = d.count > 1 ? `<span style="font-size: 14px; color:#aaa;">(${d.score}点 × ${d.count})</span> <br> ${d.total_score}点` : `${d.score}点`;
+                    // 役 row を DOM 構築
+                    const row = document.createElement('div');
+                    row.style.cssText = 'font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;';
 
-                    yakuHtml += `
-                        <div style="font-size: 20px; display: flex; align-items: center; justify-content: space-between; width: 100%; background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 8px; border-left: 5px solid #f39c12; box-sizing: border-box; margin-bottom: 5px;">
-                            <div style="display: flex; align-items: center; width: 160px;">
-                                <img src="images/${tile}.png" style="width:28px; height:39px; border-radius: 2px;">
-                                ${countStr}
-                            </div>
-                            <div style="flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;">
-                                ${d.yaku.map(y => `<span class="yaku-tag ${getYakuTierClass(y)}"><span class="zh">${y}</span><span class="ja">${getJaYakuName(y)}</span><span class="en">${getEnYakuName(y)}</span></span>`).join("")}
-                            </div>
-                            <div style="color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;">
-                                ${scoreDetailStr}
-                            </div>
-                        </div>`;
+                    // 左: アガリ牌画像 + countStr
+                    const leftDiv = document.createElement('div');
+                    leftDiv.style.cssText = 'display: flex; align-items: center; width: 160px;';
+                    const tileImg = document.createElement('img');
+                    tileImg.src = `images/${tile}.png`;
+                    tileImg.style.cssText = 'width:28px; height:39px; border-radius: 2px;';
+                    leftDiv.appendChild(tileImg);
+                    if (d.count > 1) {
+                        const countSpan = document.createElement('span');
+                        countSpan.style.cssText = 'color: #ff9ff3; font-weight: bold; margin-left: 5px; font-size: 18px;';
+                        countSpan.textContent = `×${d.count}枚`;
+                        leftDiv.appendChild(countSpan);
+                    }
+                    row.appendChild(leftDiv);
+
+                    // 中央: 役タグ群
+                    const centerDiv = document.createElement('div');
+                    centerDiv.style.cssText = 'flex-grow: 1; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 0 10px;';
+                    d.yaku.forEach(y => {
+                        const tag = document.createElement('span');
+                        tag.className = `yaku-tag ${getYakuTierClass(y)}`;
+                        const zh = document.createElement('span'); zh.className = 'zh'; zh.textContent = y;
+                        const ja = document.createElement('span'); ja.className = 'ja'; ja.textContent = getJaYakuName(y);
+                        const en = document.createElement('span'); en.className = 'en'; en.textContent = getEnYakuName(y);
+                        tag.appendChild(zh); tag.appendChild(ja); tag.appendChild(en);
+                        centerDiv.appendChild(tag);
+                    });
+                    row.appendChild(centerDiv);
+
+                    // 右: スコア
+                    const rightDiv = document.createElement('div');
+                    rightDiv.style.cssText = 'color: #2ecc71; font-weight: bold; min-width: 140px; text-align: right;';
+                    if (d.count > 1) {
+                        const detailSpan = document.createElement('span');
+                        detailSpan.style.cssText = 'font-size: 14px; color:#aaa;';
+                        detailSpan.textContent = `(${d.score}点 × ${d.count})`;
+                        rightDiv.appendChild(detailSpan);
+                        rightDiv.appendChild(document.createElement('br'));
+                        rightDiv.appendChild(document.createTextNode(` ${d.total_score}点`));
+                    } else {
+                        rightDiv.appendChild(document.createTextNode(`${d.score}点`));
+                    }
+                    row.appendChild(rightDiv);
+
+                    winYakuEl.appendChild(row);
                 }
             } else {
                 // 🌟 リプレイ・友人戦・CPU戦すべて統一的に名前取得
@@ -3595,45 +3756,55 @@ async function handleRoundEnd(isReplayingResult = false) {
                 scoreText = `${diffStr} 点`;
                 scoreColor = diff > 0 ? "#2ecc71" : (diff < 0 ? "#e74c3c" : "#bdc3c7");
 
-                // 🌟 修正：失点の概念がないため、条件分岐を完全に削除して「ー」で固定
-                let resultLabel = "ー";
-
-                yakuHtml = `
-                    <div style="font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;">
-                        ${resultLabel}
-                    </div>`;
+                // 失点の概念がないため「ー」で固定
+                const resultDiv = document.createElement('div');
+                resultDiv.style.cssText = 'font-size: 24px; font-weight: bold; color: #bdc3c7; background: rgba(0,0,0,0.6); padding: 15px 40px; border-radius: 8px; border: 2px solid #555; text-align: center; margin-top: 10px;';
+                resultDiv.textContent = 'ー';
+                winYakuEl.appendChild(resultDiv);
             }
 
             let closedHand = (i === 0) ? myHand : (myAllHands[i] || []);
             let melds = (i === 0) ? myMelds : (myAllMelds[i] || []);
             let sortedHand = [...closedHand].sort((a, b) => SM[a] - SM[b]);
 
-            let handHtml = `<div style="display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">`;
+            // 🌟 innerHTML 廃止: 手牌表示も DOM 構築
+            const winHandEl = document.getElementById('win-hand-display');
+            winHandEl.replaceChildren();
 
-            handHtml += `<div style="display: flex; gap: 2px;">`;
-            for (let t of sortedHand) {
-                handHtml += `<img src="images/${t}.png" style="width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);">`;
-            }
-            handHtml += `</div>`;
+            const handContainer = document.createElement('div');
+            handContainer.style.cssText = 'display: flex; gap: 4px; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);';
+
+            const handTilesDiv = document.createElement('div');
+            handTilesDiv.style.cssText = 'display: flex; gap: 2px;';
+            sortedHand.forEach(t => {
+                const tImg = document.createElement('img');
+                tImg.src = `images/${t}.png`;
+                tImg.style.cssText = 'width: 36px; height: 50px; border-radius: 3px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);';
+                handTilesDiv.appendChild(tImg);
+            });
+            handContainer.appendChild(handTilesDiv);
 
             if (melds.length > 0) {
-                handHtml += `<div style="width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;"></div>`;
+                const sep = document.createElement('div');
+                sep.style.cssText = 'width: 4px; height: 50px; background: #f1c40f; margin: 0 15px; border-radius: 2px; box-shadow: 0 0 8px #f39c12;';
+                handContainer.appendChild(sep);
 
-                for (let m of melds) {
-                    handHtml += `<div style="display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);">`;
-                    for (let idx = 0; idx < m.tiles.length; idx++) {
-                        let t = m.tiles[idx];
-                        let src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
-                        handHtml += `<img src="images/${src}.png" style="width: 36px; height: 50px; border-radius: 3px;">`;
-                    }
-                    handHtml += `</div>`;
-                }
+                melds.forEach(m => {
+                    const meldDiv = document.createElement('div');
+                    meldDiv.style.cssText = 'display: flex; gap: 2px; margin-right: 8px; background: rgba(0,0,0,0.4); padding: 4px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2);';
+                    m.tiles.forEach((t, idx) => {
+                        const src = (m.type === 'ankan' && (idx === 0 || idx === 3)) ? 'ura' : t;
+                        const mImg = document.createElement('img');
+                        mImg.src = `images/${src}.png`;
+                        mImg.style.cssText = 'width: 36px; height: 50px; border-radius: 3px;';
+                        meldDiv.appendChild(mImg);
+                    });
+                    handContainer.appendChild(meldDiv);
+                });
             }
-            handHtml += `</div>`;
+            winHandEl.appendChild(handContainer);
 
             document.getElementById('win-label-text').innerText = titleText;
-            document.getElementById('win-yaku').innerHTML = yakuHtml; // 🌟 修正：アニメーション関数を呼ぶ「前」に役リストを入れる！
-            document.getElementById('win-hand-display').innerHTML = handHtml;
 
             // 🌟 修正：役がDOMに入った「後」にアニメーション関数を呼ぶ！
             let finalScoreAmount = (isWinner && winData) ? winData.total_score : diff;
