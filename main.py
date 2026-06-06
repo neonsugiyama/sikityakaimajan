@@ -1371,6 +1371,58 @@ def check_cpu_reaction(discarder_idx: int, tile: str, is_kakan: str = "false", g
         traceback.print_exc()
         return {"error": str(e)}
 
+# ==========================================
+# 🌟 他人の打牌に対する副露 (pong/minkan/hanakan) の核心処理
+#   CPU 戦・友人戦で共通化。 重複していた手牌削除 / メルド追加 / 嶺上ツモ / 河削除を集約。
+# ==========================================
+def _apply_claim_meld(game: GameState, claimer: int, meld_type: str, tile: str,
+                      discarder: int = -1, season: str = None,
+                      include_from_player: bool = False):
+    """他人の打牌に対する副露の核心処理。
+    手牌削除 / メルド追加 / 嶺上ツモ (minkan/hanakan) / 河からの削除 / hands sort /
+    last_discard_info リセットを行う。
+    呼出側で any_meld_occurred 設定、 is_first_turn 変更、 game.turn 設定、
+    ログ、 broadcast、 next_tsumo_rinshan 設定等を担当する。
+    戻り値: 嶺上ツモ牌（minkan / hanakan で wall から取った牌、 それ以外は空文字列）"""
+    drawn = ""
+
+    if meld_type == "pong":
+        for _ in range(2): game.hands[claimer].remove(tile)
+        meld_entry = {"type": "pong", "tiles": [tile] * 3}
+    elif meld_type == "minkan":
+        for _ in range(3): game.hands[claimer].remove(tile)
+        meld_entry = {"type": "minkan", "tiles": [tile] * 4}
+    elif meld_type == "hanakan":
+        for _ in range(2): game.hands[claimer].remove(tile)
+        if season:
+            game.hands[claimer].remove(season)
+        meld_entry = {"type": "hanakan", "tiles": [tile, season, tile, tile]}
+    else:
+        return ""
+
+    if include_from_player and discarder != -1:
+        meld_entry["from_player"] = discarder
+
+    game.melds[claimer].append(meld_entry)
+
+    # 嶺上ツモ (minkan / hanakan のみ)
+    if meld_type in ("minkan", "hanakan") and game.wall:
+        drawn = game.wall.pop()
+        game.hands[claimer].append(drawn)
+        game.last_drawn[claimer] = drawn
+        game.just_drawn = claimer
+
+    # 河から打牌牌を削除
+    if discarder != -1 and game.discards[discarder] and game.discards[discarder][-1] == tile:
+        game.discards[discarder].pop()
+
+    # 後処理
+    game.hands[claimer] = game.sort_hand(game.hands[claimer])
+    game.last_discard_info = {"player": -1, "tile": ""}
+
+    return drawn
+
+
 @app.get("/meld")
 def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder: int = -1, game: GameState = Depends(get_current_game)):
     try:
@@ -1387,7 +1439,9 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                 return get_safe_state(game, 0, {"intercepted": True, "type": "ron", "player": i, "yaku": interceptor["yaku"], "score": interceptor["score"]})
 
         drawn_tile = ""
-        game.any_meld_occurred = True 
+        game.any_meld_occurred = True
+
+        # 🌟 共通化された副露処理を呼出（CPU 戦は from_player をメルドに含めない既存挙動を維持）
         if type == "花槓":
             if game.hands[player_idx].count(tile) < 2: return {"error": "同期エラー：指定された牌が手牌に足りません。"}
             season_used = ""
@@ -1396,40 +1450,19 @@ def process_meld(player_idx: int = 0, type: str = "", tile: str = "", discarder:
                     season_used = s
                     break
             if not season_used: return {"error": "同期エラー：手牌に四季牌がありません。"}
-            
-            game.hands[player_idx].remove(tile)
-            game.hands[player_idx].remove(tile)
-            game.hands[player_idx].remove(season_used)
-            
-            game.melds[player_idx].append({"type": "hanakan", "tiles": [tile, season_used, tile, tile]})
+
+            drawn_tile = _apply_claim_meld(game, player_idx, "hanakan", tile, discarder=discarder, season=season_used)
             game.turn = player_idx
-            if game.wall:
-                drawn_tile = game.wall.pop()
-                game.hands[player_idx].append(drawn_tile)
-                game.last_drawn[player_idx] = drawn_tile
-                game.just_drawn = player_idx 
         else:
             count = 3 if type == "カン" else 2
             if game.hands[player_idx].count(tile) < count: return {"error": "同期エラー：指定された牌が手牌に足りません。"}
-                
-            for _ in range(count): game.hands[player_idx].remove(tile)
-            game.melds[player_idx].append({"type": "pong" if type == "ポン" else "minkan", "tiles": [tile] * (count + 1)})
+
+            internal_type = "minkan" if type == "カン" else "pong"
+            drawn_tile = _apply_claim_meld(game, player_idx, internal_type, tile, discarder=discarder)
             game.turn = player_idx
-            if type == "カン" and game.wall:
-                drawn_tile = game.wall.pop()
-                game.hands[player_idx].append(drawn_tile)
-                game.last_drawn[player_idx] = drawn_tile
-                game.just_drawn = player_idx 
-            else:
-                game.just_drawn = -1 
-                
-        # 🌟 修正：牌譜を記録（append_log）する前に、確実に河から対象の牌を消しておく！
-        if discarder != -1 and game.discards[discarder] and game.discards[discarder][-1] == tile:
-            game.discards[discarder].pop()
-            
-        game.hands[player_idx] = game.sort_hand(game.hands[player_idx])
-        game.last_discard_info = {"player": -1, "tile": ""}
-        
+            if internal_type != "minkan":
+                game.just_drawn = -1
+
         # 🌟 ここで記録される状態（snapshot）には、すでに河から消えた綺麗なデータが入る
         game.append_log("meld", player=player_idx, meld_type=type, tile=tile, from_player=discarder)
         return get_safe_state(game, 0, {"drawn_tile": drawn_tile})
@@ -1493,13 +1526,9 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                 return get_safe_state(game, 0, {"chankan_occurred": True, "winner": chankan_winner, "tile": tile})
 
             game.last_discard_info = {"player": player_idx, "tile": tile}
+            # 🌟 修正：以前は槍槓判定後にもう 1 回 pong→minkan 化ループがあったが、
+            #   上で既に minkan 化済みなので無意味な死んだコードだった。 削除。
 
-            for m in game.melds[player_idx]:
-                if m["type"] == "pong" and m["tiles"][0] == tile:
-                    m["type"] = "minkan" 
-                    m["tiles"].append(tile)
-                    break
-                    
         elif type in ["加花槓", "自摸花槓"]: 
             if season not in game.hands[player_idx]: return {"error": "同期エラー：指定された四季牌が足りません。"}
             game.hands[player_idx].remove(season)
@@ -1508,7 +1537,10 @@ def process_self_meld(player_idx: int = 0, type: str = "", tile: str = "", seaso
                     m["type"] = "hanakan"
                     m["tiles"] = [tile, season, tile, tile]
                     break
-                game.last_discard_info = {"player": -1, "tile": ""}
+            # 🌟 修正：以前は last_discard_info リセットが for ループ内にあったため、
+            #   メルドの並び順次第で実行されたりされなかったりする潜在バグだった。
+            #   正しくは「ループ後に必ずリセット」 なので、 ここに移動。
+            game.last_discard_info = {"player": -1, "tile": ""}
 
         game.turn = player_idx
         if game.wall:
@@ -1551,37 +1583,95 @@ def process_joker_swap(player_idx: int = 0, tile: str = "", season: str = "", ta
     except Exception as e:
         return {"error": str(e)}
 
+# ==========================================
+# 🌟 ツモ和了の核心処理（CPU 戦・友人戦で共通化）
+#   呼び出し側は事前/事後の状態更新（turn 進行、 broadcast 等）を担当する。
+#   重複していた ctx 構築 / win_records / win_tiles 更新を 1 箇所に集約。
+# ==========================================
+def _apply_tsumo_win(game: GameState, player_idx: int, is_joker_swap: bool,
+                     is_rinshan: bool, is_miaoshou: bool = False):
+    """ツモ和了時の共通処理。 (ctx, effects, tile) を返す。
+    呼出側で turn 進行・broadcast・タイマー開始等を行う想定。"""
+    tile = game.last_drawn[player_idx]
+    if tile in game.hands[player_idx]:
+        game.hands[player_idx].remove(tile)
+
+    ctx = {
+        "winning_tile": tile,
+        "is_tsumo": True,
+        "is_haitei": len(game.wall) == 0,
+        "is_joker_swap": is_joker_swap,
+        "is_rinshan": is_rinshan,
+        "is_miaoshou": is_miaoshou,
+        "is_first_turn": game.is_first_turn[player_idx],
+        "any_meld_occurred": game.any_meld_occurred,
+        "is_dealer": game.dealer == player_idx,
+        "discards_count": game.discards_count
+    }
+
+    game.win_records[player_idx].append(ctx)
+    game.win_tiles[player_idx].append(tile)
+    game.last_discard_info = {"player": -1, "tile": ""}
+    game.is_first_turn[player_idx] = False
+
+    effects = get_special_effects(game, player_idx, ctx)
+    game.append_log("win", player=player_idx, method="tsumo", tile=tile)
+    return ctx, effects, tile
+
+
 @app.get("/win_tsumo")
 def process_win_tsumo(player_idx: int = 0, is_joker_swap: str = "false", is_rinshan: str = "false", game: GameState = Depends(get_current_game)):
     try:
-        tile = game.last_drawn[player_idx]
-        if tile in game.hands[player_idx]: game.hands[player_idx].remove(tile)
-        
-        ctx = {
-            "winning_tile": tile, 
-            "is_tsumo": True, 
-            "is_haitei": len(game.wall)==0,
-            "is_joker_swap": is_joker_swap.lower() == "true",
-            "is_rinshan": is_rinshan.lower() == "true",
-            "is_first_turn": game.is_first_turn[player_idx], 
-            "any_meld_occurred": game.any_meld_occurred,
-            "is_dealer": game.dealer == player_idx,
-            "discards_count": game.discards_count
-        }
-        
-        game.win_records[player_idx].append(ctx)
-        game.win_tiles[player_idx].append(tile)
-        game.turn = (player_idx + 1) % 4 
-        game.last_discard_info = {"player": -1, "tile": ""}
-        game.is_first_turn[player_idx] = False
-        
-        # 🌟 追加：演出用の役を即席判定してフロントに渡す
-        effects = get_special_effects(game, player_idx, ctx)
-        game.append_log("win", player=player_idx, method="tsumo", tile=tile)
+        # 🌟 共通化された和了処理を呼出
+        ctx, effects, tile = _apply_tsumo_win(
+            game, player_idx,
+            is_joker_swap=is_joker_swap.lower() == "true",
+            is_rinshan=is_rinshan.lower() == "true",
+        )
+        game.turn = (player_idx + 1) % 4
         return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()
         return {"error": str(e)}
+
+# ==========================================
+# 🌟 ロン和了の核心処理（CPU 戦・友人戦で共通化）
+#   呼出側で頭ハネ・interceptor・槍槓・broadcast 等の前後処理を行う想定。
+#   重複していた ctx 構築 / win_records / win_tiles / effects 取得を 1 箇所に集約。
+# ==========================================
+def _apply_ron_win(game: GameState, winner: int, tile: str, discarder: int,
+                   is_chankan: bool = False):
+    """ロン和了時の共通処理。 (ctx, effects) を返す。
+    - 河から打牌牌を取り除く（槍槓除く、 既に削除済みでも安全に動作）
+    - ctx 構築 / win_records・win_tiles 追加 / last_discard_info リセット
+    - effects 取得 / append_log
+    呼出側で turn 進行・broadcast・interceptor 等を担当する。"""
+    # 河から打牌牌を取り除く（槍槓は別ロジックで処理されるためここでは触らない）
+    if not is_chankan and discarder != -1:
+        if game.discards[discarder] and game.discards[discarder][-1] == tile:
+            game.discards[discarder].pop()
+
+    ctx = {
+        "winning_tile": tile,
+        "is_tsumo": False,
+        "is_haitei": len(game.wall) == 0,
+        "is_joker_swap": False,
+        "is_rinshan": False,
+        "is_chankan": is_chankan,
+        "is_first_turn": game.is_first_turn[winner],
+        "any_meld_occurred": game.any_meld_occurred,
+        "is_dealer": game.dealer == winner,
+        "discards_count": game.discards_count,
+    }
+
+    game.win_records[winner].append(ctx)
+    game.win_tiles[winner].append(tile)
+    game.last_discard_info = {"player": -1, "tile": ""}
+
+    effects = get_special_effects(game, winner, ctx)
+    game.append_log("win", player=winner, method="ron", tile=tile, from_player=discarder)
+    return ctx, effects
+
 
 @app.get("/win_ron")
 def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "false", discarder: int = -1, game: GameState = Depends(get_current_game)):
@@ -1631,37 +1721,14 @@ def process_win_ron(player_idx: int = 0, tile: str = "", is_chankan: str = "fals
             if game.discards[discarder] and game.discards[discarder][-1] == tile:
                 game.discards[discarder].pop()
 
-        ctx = {
-            "winning_tile": tile, 
-            "is_tsumo": False, 
-            "is_haitei": len(game.wall)==0,
-            "is_joker_swap": False,
-            "is_rinshan": False,
-            "is_chankan": is_chankan_bool,
-            "is_first_turn": game.is_first_turn[player_idx],
-            "any_meld_occurred": game.any_meld_occurred,
-            "is_dealer": game.dealer == player_idx,
-            "discards_count": game.discards_count
-        }
-        
-        win_data = {
-            "closed_tiles": " ".join(game.hands[player_idx]),
-            "melds": game.melds[player_idx],
-            "win_context": ctx
-        }
-        # 🌟 修正：evaluate_hand を削除し、最後の return もダミーにする！
-
-        game.win_records[player_idx].append(ctx)
-        game.win_tiles[player_idx].append(tile)
+        # 🌟 共通化された和了処理を呼出
+        #   既に上のブロックで河からの削除を試みているが、 _apply_ron_win 内でも条件付きで削除する。
+        #   重複削除しても discards[discarder][-1] == tile の条件で安全。
+        ctx, effects = _apply_ron_win(game, player_idx, tile, discarder, is_chankan=is_chankan_bool)
 
         if is_chankan_bool and robbed_player_idx != -1:
             game.turn = (robbed_player_idx + 1) % 4
 
-        game.last_discard_info = {"player": -1, "tile": ""}
-
-        # 🌟 追加：演出用の役を即席判定してフロントに渡す
-        effects = get_special_effects(game, player_idx, ctx)
-        game.append_log("win", player=player_idx, method="ron", tile=tile, from_player=discarder)
         return get_safe_state(game, player_idx, {"yaku": effects, "score": 0})
     except Exception as e:
         traceback.print_exc()

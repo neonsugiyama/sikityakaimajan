@@ -1147,33 +1147,14 @@ async def _resolve_friend_call(room_id: str, game):
         order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
         winner = next((p for p in order if p in ron_claimers), ron_claimers[0])
 
-        # 河から打牌牌を取り除く
-        if game.discards[discarder] and game.discards[discarder][-1] == tile:
-            game.discards[discarder].pop()
-
-        # 和了処理
-        ctx = {
-            "winning_tile": tile,
-            "is_tsumo": False,
-            "is_haitei": is_haitei,
-            "is_joker_swap": False,
-            "is_rinshan": False,
-            "is_chankan": False,
-            "is_first_turn": game.is_first_turn[winner],
-            "any_meld_occurred": game.any_meld_occurred,
-            "is_dealer": game.dealer == winner,
-            "discards_count": game.discards_count,
-        }
-        game.win_records[winner].append(ctx)
-        game.win_tiles[winner].append(tile)
-        # 🌟 ロン和了は「自分のツモ番じゃない時の他人の打牌への反応」なので、
+        # 🌟 共通化された和了処理を呼出（main.py の _apply_ron_win）
+        #   ctx 構築 / win_records / win_tiles / 河からの削除 / effects 取得 / ログ を担当
+        from main import _apply_ron_win
+        ctx, effects = _apply_ron_win(game, winner, tile, discarder, is_chankan=False)
+        # 🌟 補足: ロン和了は「自分のツモ番じゃない時の他人の打牌への反応」なので、
         #   ロンしても自分はまだ打牌していない → is_first_turn は True のまま維持する。
-        #   （CPU戦の process_win_ron でもロン時に is_first_turn を変更していないので、
-        #    友人戦も挙動を合わせる。 これがないとロン後の自分の第一自摸で地胡が成立しなくなる）
-        game.last_discard_info = {"player": -1, "tile": ""}
-
-        effects = get_special_effects(game, winner, ctx)
-        game.append_log("win", player=winner, method="ron", tile=tile, from_player=discarder)
+        #   （CPU戦の _apply_ron_win でもロン時に is_first_turn を変更していないので、
+        #    友人戦も挙動が一致する）
 
         # アガリ放題: ターンは打牌者の次に進む（勝者ではない）
         # ただし山が空（海底ロン後）なら局終了は後のステップで実装
@@ -1201,23 +1182,13 @@ async def _resolve_friend_call(room_id: str, game):
         order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
         claimer = next((p for p in order if p in kan_claimers), kan_claimers[0])
         if game.hands[claimer].count(tile) >= 3:
-            for _ in range(3): game.hands[claimer].remove(tile)
-            game.melds[claimer].append({"type": "minkan", "tiles": [tile]*4, "from_player": discarder})
-            if game.discards[discarder] and game.discards[discarder][-1] == tile:
-                game.discards[discarder].pop()
+            # 🌟 共通化された副露処理（手牌削除 / メルド追加 / 嶺上ツモ / 河削除 / sort）
+            from main import _apply_claim_meld
+            _apply_claim_meld(game, claimer, "minkan", tile, discarder=discarder, include_from_player=True)
             game.any_meld_occurred = True
             game.is_first_turn[claimer] = False
-            game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
             _start_turn_timer(game, room_id)
-            # 嶺上ツモ
-            drawn = ""
-            if game.wall:
-                drawn = game.wall.pop()
-                game.hands[claimer].append(drawn)
-                game.last_drawn[claimer] = drawn
-                game.just_drawn = claimer
-            game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="minkan", tile=tile, from_player=discarder)
             game.pending_call = None
             # 🌟 次のツモ和了で「槓上開花」を有効に
@@ -1248,24 +1219,13 @@ async def _resolve_friend_call(room_id: str, game):
                     season_tile = s
                     break
         if season_tile and game.hands[claimer].count(tile) >= 2 and season_tile in game.hands[claimer]:
-            for _ in range(2): game.hands[claimer].remove(tile)
-            game.hands[claimer].remove(season_tile)
-            game.melds[claimer].append({"type": "hanakan", "tiles": [tile, season_tile, tile, tile], "from_player": discarder})
-            if game.discards[discarder] and game.discards[discarder][-1] == tile:
-                game.discards[discarder].pop()
+            # 🌟 共通化された副露処理（手牌削除 / メルド追加 / 嶺上ツモ / 河削除 / sort）
+            from main import _apply_claim_meld
+            _apply_claim_meld(game, claimer, "hanakan", tile, discarder=discarder, season=season_tile, include_from_player=True)
             game.any_meld_occurred = True
             game.is_first_turn[claimer] = False
-            game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
             _start_turn_timer(game, room_id)
-            # 嶺上ツモ
-            drawn = ""
-            if game.wall:
-                drawn = game.wall.pop()
-                game.hands[claimer].append(drawn)
-                game.last_drawn[claimer] = drawn
-                game.just_drawn = claimer
-            game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="hanakan", tile=tile, season=season_tile, from_player=discarder)
             game.pending_call = None
             # 🌟 次のツモ和了で「槓上開花」を有効に
@@ -1289,16 +1249,13 @@ async def _resolve_friend_call(room_id: str, game):
         order = [(discarder + 1) % 4, (discarder + 2) % 4, (discarder + 3) % 4]
         claimer = next((p for p in order if p in pon_claimers), pon_claimers[0])
         if game.hands[claimer].count(tile) >= 2:
-            for _ in range(2): game.hands[claimer].remove(tile)
-            game.melds[claimer].append({"type": "pong", "tiles": [tile]*3, "from_player": discarder})
-            if game.discards[discarder] and game.discards[discarder][-1] == tile:
-                game.discards[discarder].pop()
+            # 🌟 共通化された副露処理（手牌削除 / メルド追加 / 河削除 / sort）
+            from main import _apply_claim_meld
+            _apply_claim_meld(game, claimer, "pong", tile, discarder=discarder, include_from_player=True)
             game.any_meld_occurred = True
             game.is_first_turn[claimer] = False
-            game.last_discard_info = {"player": -1, "tile": ""}
             game.turn = claimer
             _start_turn_timer(game, room_id)
-            game.hands[claimer] = game.sort_hand(game.hands[claimer])
             game.append_log("meld", player=claimer, meld_type="pong", tile=tile, from_player=discarder)
             game.pending_call = None
             for p in range(4):
@@ -1373,49 +1330,35 @@ async def friend_call_action(room_id: str, player_idx: int, action: str, season:
 @router.get("/win_tsumo")
 async def friend_win_tsumo(room_id: str, player_idx: int, is_joker_swap: str = "false", is_rinshan: str = "false"):
     """ツモ和了処理。アガリ放題なので局は終わらず、ターンが次に進む。"""
-    from main import lobby_manager, get_special_effects
+    # 🌟 共通化された和了処理を import
+    from main import lobby_manager, _apply_tsumo_win
     if room_id not in lobby_manager.games:
         raise HTTPException(status_code=404, detail="対局が見つかりません")
     game = lobby_manager.games[room_id]
 
     try:
-        tile = game.last_drawn[player_idx]
-        if tile in game.hands[player_idx]:
-            game.hands[player_idx].remove(tile)
-
         # 🌟 サーバー側に保持しているフラグも OR で使う（CPU戦と違い、フロントのフラグは保持できないため）
         server_rinshan = getattr(game, 'next_tsumo_rinshan', False)
         server_joker_swap = getattr(game, 'next_tsumo_joker_swap', False)
         server_miaoshou = getattr(game, 'next_tsumo_miaoshou', False)
 
-        ctx = {
-            "winning_tile": tile,
-            "is_tsumo": True,
-            "is_haitei": len(game.wall) == 0,
-            "is_joker_swap": is_joker_swap.lower() == "true" or server_joker_swap,
-            "is_rinshan": is_rinshan.lower() == "true" or server_rinshan,
-            "is_miaoshou": server_miaoshou,
-            "is_first_turn": game.is_first_turn[player_idx],
-            "any_meld_occurred": game.any_meld_occurred,
-            "is_dealer": game.dealer == player_idx,
-            "discards_count": game.discards_count
-        }
+        # 🌟 共通化された和了処理を呼出
+        ctx, effects, tile = _apply_tsumo_win(
+            game, player_idx,
+            is_joker_swap=is_joker_swap.lower() == "true" or server_joker_swap,
+            is_rinshan=is_rinshan.lower() == "true" or server_rinshan,
+            is_miaoshou=server_miaoshou,
+        )
+
         # フラグ消費
         game.next_tsumo_rinshan = False
         game.next_tsumo_joker_swap = False
         game.next_tsumo_miaoshou = False
 
-        game.win_records[player_idx].append(ctx)
-        game.win_tiles[player_idx].append(tile)
-        game.last_discard_info = {"player": -1, "tile": ""}
-        game.is_first_turn[player_idx] = False
         game.just_drawn = -1
         # アガリ放題: ターンを次に進める
         game.turn = (player_idx + 1) % 4
         _start_turn_timer(game, room_id)
-
-        effects = get_special_effects(game, player_idx, ctx)
-        game.append_log("win", player=player_idx, method="tsumo", tile=tile)
 
         # 全プレイヤーに friend_win を broadcast
         for p in range(4):

@@ -779,6 +779,70 @@ function _refreshAuthModalUI() {
     }
 }
 
+// ==========================================
+// 🔐 ログイン/登録 中ローディングオーバーレイ
+//   連打対策 + 通信中の視覚フィードバック。 対局復帰画面と同じデザイン。
+//   showAuthLoading は「既に表示中」なら false を返すので、 呼出側で二重実行を防げる。
+// ==========================================
+let _authLoadingActive = false;
+let _authLoadingTimer = null;
+
+function showAuthLoading(title) {
+    if (_authLoadingActive) return false;  // 既に処理中
+    _authLoadingActive = true;
+
+    const overlay = document.getElementById('auth-loading');
+    const titleEl = document.getElementById('auth-loading-title');
+    const bar = document.getElementById('auth-progress-bar');
+    const text = document.getElementById('auth-progress-text');
+    if (!overlay) { _authLoadingActive = false; return false; }
+
+    if (titleEl) titleEl.textContent = title || '🔐 ログイン中...';
+    if (bar) bar.style.width = '0%';
+    if (text) text.textContent = '0%';
+    overlay.style.display = 'flex';
+
+    // 0% → 90% を 1.5 秒で線形に進める（実進捗は不明なので時間ベース、
+    //   レスポンスが速ければ hideAuthLoading で 100% にして閉じる）
+    const totalMs = 1500;
+    const startTime = Date.now();
+    if (_authLoadingTimer) clearInterval(_authLoadingTimer);
+    _authLoadingTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(90, (elapsed / totalMs) * 90);
+        if (bar) bar.style.width = pct + '%';
+        if (text) text.textContent = Math.floor(pct) + '%';
+        if (pct >= 90) {
+            clearInterval(_authLoadingTimer);
+            _authLoadingTimer = null;
+        }
+    }, 50);
+
+    return true;
+}
+
+function hideAuthLoading() {
+    if (!_authLoadingActive) return;
+
+    if (_authLoadingTimer) {
+        clearInterval(_authLoadingTimer);
+        _authLoadingTimer = null;
+    }
+
+    const bar = document.getElementById('auth-progress-bar');
+    const text = document.getElementById('auth-progress-text');
+    // 完了演出: 100% に
+    if (bar) bar.style.width = '100%';
+    if (text) text.textContent = '100%';
+
+    // 200ms 後に閉じる（100% の見た目を一瞬見せる）
+    setTimeout(() => {
+        const overlay = document.getElementById('auth-loading');
+        if (overlay) overlay.style.display = 'none';
+        _authLoadingActive = false;
+    }, 200);
+}
+
 async function uiAuthLogin() {
     if (typeof playSE === 'function') playSE('click');
     const username = (document.getElementById('auth-username').value || '').trim();
@@ -789,6 +853,8 @@ async function uiAuthLogin() {
         if (errEl) errEl.innerText = 'ユーザー名とパスワードを入力してください';
         return;
     }
+    // 🌟 連打防止: 既に処理中なら何もしない（オーバーレイで物理的にもクリック不可）
+    if (!showAuthLoading('🔐 ログイン中...')) return;
     try {
         await authLogin(username, password);
         _refreshAuthModalUI();
@@ -799,6 +865,7 @@ async function uiAuthLogin() {
         }
         if (typeof updateProfileUI === 'function') updateProfileUI();
         if (typeof updateInfoUI === 'function') updateInfoUI();
+        hideAuthLoading();
         //alert(`ログインしました: ${authUsername}`);
         // 🔐 GAME START からモーダルを開いていた場合、自動で閉じてモード選択へ
         if (_authModalForModeSelect) {
@@ -808,6 +875,7 @@ async function uiAuthLogin() {
             if (typeof _afterAuthShowModeSelect === 'function') _afterAuthShowModeSelect();
         }
     } catch (e) {
+        hideAuthLoading();
         if (errEl) errEl.innerText = e.message || 'ログインに失敗しました';
     }
 }
