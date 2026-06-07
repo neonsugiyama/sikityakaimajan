@@ -570,13 +570,13 @@ function renderAchievements() {
         { id: "sacrilege", icon: "🚮", title: "罰当たり", desc: "1局で四季牌を2枚切る", val: playerStats.sacrilegeCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "suanko_troll", icon: "😎", title: "四暗刻！", desc: "碰碰胡を面前で和了する", val: playerStats.suankoTrollCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "chanta_troll", icon: "🤪", title: "チャンタってある？", desc: "無番和かつチャンタの形で和了する", val: playerStats.chantaTrollCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "evil_rationalism", icon: "😈", title: "悪の合理主義", desc: "4局全て全単で和了する", val: playerStats.evilRationalismCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "evil_rationalism", icon: "😈", title: "悪の合理主義", desc: "第1局から第4局まで、各局で1回以上「全単」役を含む和了をする", val: playerStats.evilRationalismCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "kyuka_sanfuku", icon: "☀️", title: "九夏三伏", desc: "手牌の数牌の数の合計が30以下もしくは90以上", val: playerStats.kyukaSanfukuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "senshu_bandai", icon: "⏳", title: "千秋万代", desc: "1局の中で最初の和了と最後の和了をする", val: playerStats.senshuBandaiCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "senshu_bandai", icon: "⏳", title: "千秋万代", desc: "1局の中で、最初の和了と最後の和了の両方を自分が達成する（同じ局で2回以上の和了が必要）", val: playerStats.senshuBandaiCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "tougetsu_sekisoku", icon: "👣", title: "冬月赤足", desc: "1,9萬と1,6,7筒を手牌に含めて和了", val: playerStats.tougetsuSekisokuCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "無花の状態で春を自摸", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "一度も和了をせずに対局終了", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
-        { id: "muhana_addiction", icon: "🍂", title: "無花果依存症", desc: "4局全てで一回以上無花果で和了する", val: playerStats.muhanaAddictionCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "tousen_karo", icon: "⛄", title: "冬扇夏炉", desc: "手牌に他の花牌（夏・秋・冬）が無い状態で「春」を新たに手にする（自摸／嶺上ツモ／JokerSwapのいずれでも可、花槓に使った分は手牌にカウントしない）", val: playerStats.tousenKaroCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "no_win_game", icon: "☕", title: "暖かい紅茶でもいかが？", desc: "対局（第1局～第4局）を通して一度も和了せずに終える", val: playerStats.noWinGameCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
+        { id: "muhana_addiction", icon: "🍂", title: "無花果依存症", desc: "第1局から第4局まで、各局で1回以上「無花果」役を含む和了をする", val: playerStats.muhanaAddictionCount, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "he_jue_zhang", icon: "🀄", title: "和絶張", desc: "場に3枚見えている牌の最後の1枚で和了する(四季牌除く)", val: playerStats.hezuezhangCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false },
         { id: "oya_shirazu", icon: "🦷", title: "親知らず", desc: "一回も荘家（親番）をやらずに連帯（2位以上）する", val: playerStats.oyaShirazuCount || 0, tiers: [1, 1, 1, 1], unit: "回", secret: false }
     ];

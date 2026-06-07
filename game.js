@@ -611,6 +611,18 @@ function safeUpdate(data) {
         drawnTile = data.drawn_tile;
     }
 
+    // 🏆 冬扇夏炉実績: 手牌に他の花牌(夏秋冬)が無い状態で「春」を手に入れた瞬間
+    //    自摸 / 嶺上ツモ / JokerSwap のいずれも drawnTile === '春' でここを通る
+    if (drawnTile === "春" && playerStats.tousenKaroCount === 0 &&
+        typeof _isStatsTrackingMode === 'function' && _isStatsTrackingMode()) {
+        const hasOtherFlower = myHand.some(t => ["夏", "秋", "冬"].includes(t));
+        if (!hasOtherFlower) {
+            playerStats.tousenKaroCount = 1;
+            if (typeof saveGameData === 'function') saveGameData();
+            if (typeof showAchievementUnlock === 'function') showAchievementUnlock("冬扇夏炉", "⛄");
+        }
+    }
+
     // 🌟 追加：他家が捨てた直後かどうかの判定用
     if (data.last_discard_info !== undefined) {
         lastDiscardPlayer = data.last_discard_info.player;
@@ -1301,6 +1313,14 @@ async function init() {
 
     // 🌟 ここに1行追加：新ゲーム開始時に親知らずフラグをリセット！
     playerStats._tempWasDealer = false;
+
+    // 🌟 追加：途中離脱で値が残るのを防ぐため、 4 局単位 / 試合単位の _temp 変数を新ゲーム開始時に確実にリセット
+    //   （これらは通常 4 局終了時にリセットされるが、 「ホームに戻る」 等で中断した場合に残るリスクがある）
+    playerStats._tempGameWins = 0;
+    playerStats._tempZentanRounds = 0;
+    playerStats._tempMuhanaRounds = 0;
+    playerStats._tempFirstWin = false;  // 既に未使用だが念のためクリア
+    playerStats._tempLastWin = false;
 
     // 🌟🌟 新規追加：実績ポップアップをゲーム終了時までストックする「キューシステム」を起動
     window.pendingAchievements = [];
@@ -3426,10 +3446,7 @@ async function handleRoundEnd(isReplayingResult = false) {
 
                 if (!isReplayingResult && _isStatsTrackingMode()) {
                     playerStats._tempGameWins = (playerStats._tempGameWins || 0) + 1;
-                    if (calcData.results.length > 0) {
-                        if (calcData.results[0].player === selfIdx) playerStats._tempFirstWin = true;
-                        if (calcData.results[calcData.results.length - 1].player === selfIdx) playerStats._tempLastWin = true;
-                    }
+                    // 🌟 千秋万代の判定はループ外で「1 局単位」 で行うため、 ここでの _tempFirstWin / _tempLastWin 更新は削除
 
                     let hasMenzen = myMelds.filter(m => m.type !== "ankan").length === 0;
                     let combinedYaku = (res.details || []).flatMap(d => d.yaku || []);
@@ -3476,13 +3493,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                         }
                     }
 
-                    if (playerStats.tousenKaroCount === 0) {
-                        let hasFlower = allMyTiles.some(t => ["春", "夏", "秋", "冬"].includes(t));
-                        if (!hasFlower && (res.details || []).some(d => d.tile === "春" && (d.yaku || []).includes("自摸"))) {
-                            playerStats.tousenKaroCount = 1;
-                            showAchievementUnlock("冬扇夏炉", "⛄");
-                        }
-                    }
+                    // 🌟 冬扇夏炉の判定は safeUpdate に移動（春を手にした瞬間に判定）
 
                     let winTile = (res.details && res.details.length > 0) ? res.details[0].tile : null;
                     if (winTile && !["春", "夏", "秋", "冬"].includes(winTile)) {
@@ -3588,6 +3599,16 @@ async function handleRoundEnd(isReplayingResult = false) {
                     }
                 }
             }
+        }
+
+        // 🏆 千秋万代: 1 局の中で最初と最後の和了の両方を自分が達成（results.length >= 2 が必須）
+        if (!isReplayingResult && _isStatsTrackingMode() &&
+            playerStats.senshuBandaiCount === 0 &&
+            calcData && calcData.results && calcData.results.length >= 2 &&
+            calcData.results[0].player === 0 &&
+            calcData.results[calcData.results.length - 1].player === 0) {
+            playerStats.senshuBandaiCount = 1;
+            if (typeof showAchievementUnlock === 'function') showAchievementUnlock("千秋万代", "⏳");
         }
 
         if (!isReplayingResult) saveGameData();
@@ -4165,14 +4186,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                 }
                 playerStats._tempMuhanaRounds = 0;
 
-                if (playerStats._tempFirstWin && playerStats._tempLastWin && playerStats.senshuBandaiCount === 0) {
-                    if ((calcData.results || []).length >= 2) {
-                        playerStats.senshuBandaiCount = 1;
-                        showAchievementUnlock("千秋万代", "⏳");
-                    }
-                }
-                playerStats._tempFirstWin = false;
-                playerStats._tempLastWin = false;
+                // 🌟 千秋万代の判定は 1 局終了時に移動（_tempFirstWin / _tempLastWin は廃止）
 
                 if (rankBeforeFinalRound === 4 && myRank === 1 && playerStats.comebackCount === 0) {
                     playerStats.comebackCount = 1;
@@ -4195,7 +4209,7 @@ async function handleRoundEnd(isReplayingResult = false) {
                     if (playerStats.currentWinStreak > playerStats.maxWinStreak) {
                         let oldStreak = playerStats.maxWinStreak;
                         playerStats.maxWinStreak = playerStats.currentWinStreak;
-                        checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 10, 20]);
+                        checkTieredAchievement("streak", "連勝記録", "🔥", oldStreak, playerStats.maxWinStreak, [2, 5, 7, 10]);
                     }
                 } else {
                     playerStats.currentWinStreak = 0;
