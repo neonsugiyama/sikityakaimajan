@@ -388,9 +388,13 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
             return
 
         # ws と席番号を紐付け（切断時の解放用）
+        # 🌟 修正：以前は id(websocket) をキーにしていたが、id() はソケットが GC される
+        #   と別オブジェクトに再利用され得るため、切断時に席解放のルックアップが外れて
+        #   ホストの亡霊が席0に残る原因になっていた。WebSocket オブジェクトそのものを
+        #   キーにすれば接続が生きている間は一意・安定する。
         if not hasattr(lobby_manager, 'seat_owner'):
             lobby_manager.seat_owner = {}
-        lobby_manager.seat_owner[(id(websocket), room_id)] = my_seat_idx
+        lobby_manager.seat_owner[(websocket, room_id)] = my_seat_idx
 
         print(f"[LOBBY] Room {room_id}: 席 {my_seat_idx} に {player_name} (human) が着席")
 
@@ -454,25 +458,49 @@ async def websocket_lobby(websocket: WebSocket, room_id: str):
 
     except WebSocketDisconnect:
         print(f"[LOBBY] Room {room_id}: 切断")
-        lobby_manager.disconnect(websocket, room_id)
-        # 自分の席を解放（ゲーム開始前のみ）
-        try:
-            seat_key = (id(websocket), room_id)
-            if hasattr(lobby_manager, 'seat_owner') and seat_key in lobby_manager.seat_owner:
-                idx = lobby_manager.seat_owner.pop(seat_key)
-                if room_id not in getattr(lobby_manager, 'games', {}):
-                    if room_id in lobby_manager.seats and 0 <= idx < 4:
-                        lobby_manager.seats[room_id][idx] = None
-                        await _broadcast_seats_update(room_id)
-        except Exception as e:
-            print(f"[LOBBY] 切断時席解放失敗: {e}")
+        await _release_lobby_seat(websocket, room_id)
     except Exception as e:
+        # 🌟 修正：WebSocketDisconnect 以外の例外（RuntimeError, ConnectionClosed 等）でも
+        # 席を解放しないとホストの亡霊が残り、 後続の入室で席計算が壊れる原因になっていた。
         print(f"[LOBBY ERROR] {e}")
         traceback.print_exc()
-        try:
-            lobby_manager.disconnect(websocket, room_id)
-        except Exception:
-            pass
+        await _release_lobby_seat(websocket, room_id)
+
+
+async def _release_lobby_seat(websocket, room_id: str):
+    """ロビーWSの切断時に席・席オーナー・user_sockets を安全に解放し、 席一覧を再ブロードキャストする。
+    WebSocketDisconnect / その他の例外どちらの経路からでも呼ばれる共通処理。
+    """
+    try:
+        lobby_manager.disconnect(websocket, room_id)
+    except Exception as e:
+        print(f"[LOBBY] disconnect 失敗（無視可）: {e}")
+    try:
+        seat_key = (websocket, room_id)
+        if hasattr(lobby_manager, 'seat_owner') and seat_key in lobby_manager.seat_owner:
+            idx = lobby_manager.seat_owner.pop(seat_key)
+            # 既にゲーム開始済みの卓は席状態を維持（途中復帰時に席を識別するため）
+            if room_id not in getattr(lobby_manager, 'games', {}):
+                if room_id in getattr(lobby_manager, 'seats', {}) and 0 <= idx < 4:
+                    lobby_manager.seats[room_id][idx] = None
+                    await _broadcast_seats_update(room_id)
+                    # 🌟 ロビーに誰も残っていなければ部屋自体も完全に破棄する。
+                    # こうしないとホストの亡霊が seats[room_id] に残ったまま新規入室を待ち続けてしまう。
+                    if room_id in getattr(lobby_manager, 'seats', {}):
+                        if all(s is None for s in lobby_manager.seats[room_id]):
+                            try:
+                                del lobby_manager.seats[room_id]
+                            except Exception:
+                                pass
+                            for attr in ('room_settings', 'room_speed_mult'):
+                                d = getattr(lobby_manager, attr, None)
+                                if isinstance(d, dict) and room_id in d:
+                                    try:
+                                        del d[room_id]
+                                    except Exception:
+                                        pass
+    except Exception as e:
+        print(f"[LOBBY] 切断時席解放失敗: {e}")
 
 
 async def _broadcast_seats_update(room_id: str):
@@ -563,7 +591,7 @@ async def _start_friend_game(room_id: str):
         if room_id in lobby_manager.active_connections:
             for conn in lobby_manager.active_connections[room_id]:
                 for key, seat_idx in getattr(lobby_manager, 'seat_owner', {}).items():
-                    if key[1] == room_id and key[0] == id(conn):
+                    if key[1] == room_id and key[0] is conn:
                         connections_by_seat[seat_idx] = conn
                         break
 

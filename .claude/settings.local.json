@@ -24,7 +24,13 @@
       "Bash(curl -s \"http://127.0.0.1:8765/app.js\")",
       "Bash(curl -s \"http://127.0.0.1:8765/main.py\")",
       "PowerShell(& \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\" log --oneline -20)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "PowerShell($g = \\(Get-Command git -ErrorAction SilentlyContinue\\); if\\($g\\){$g.Source}else{ foreach\\($p in @\\(\"$env:ProgramFiles\\\\Git\\\\cmd\\\\git.exe\",\"${env:ProgramFiles\\(x86\\)}\\\\Git\\\\cmd\\\\git.exe\",\"$env:LOCALAPPDATA\\\\Programs\\\\Git\\\\cmd\\\\git.exe\"\\)\\){ if\\(Test-Path $p\\){$p} } })",
+      "PowerShell($git = \\(Get-Command git -ErrorAction SilentlyContinue\\).Source; if \\(-not $git\\) { $candidates = @\\(\"C:\\\\Program Files\\\\Git\\\\cmd\\\\git.exe\",\"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\",\"$env:LOCALAPPDATA\\\\Programs\\\\Git\\\\cmd\\\\git.exe\"\\); foreach \\($c in $candidates\\) { if \\(Test-Path $c\\) { $git = $c; break } } }; Write-Output \"GIT=$git\"; if \\($git\\) { & $git -C \"C:\\\\MyLocal\\\\sikityakaimajan\" log --oneline -20 })",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(git *)",
+      "PowerShell($py = \\(Get-Command python -ErrorAction SilentlyContinue\\).Source; if\\(-not $py\\){ $py=\\(Get-Command py -ErrorAction SilentlyContinue\\).Source }; Write-Output \"PY=$py\"; if\\($py\\){ & $py -m py_compile \"C:\\\\MyLocal\\\\sikityakaimajan\\\\friend_routes.py\" \"C:\\\\MyLocal\\\\sikityakaimajan\\\\main.py\"; if\\($?\\){ Write-Output \"PY_COMPILE_OK\" } })",
+      "PowerShell($node = \\(Get-Command node -ErrorAction SilentlyContinue\\).Source; Write-Output \"NODE=$node\"; if\\($node\\){ foreach\\($f in @\\(\"app.js\",\"friend.js\"\\)\\){ & $node --check \"C:\\\\MyLocal\\\\sikityakaimajan\\\\$f\"; if\\($?\\){ Write-Output \"$f OK\" } } } else { Write-Output \"node not available\" })"
     ]
   }
 }

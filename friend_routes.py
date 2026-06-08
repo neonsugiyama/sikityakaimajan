@@ -26,7 +26,11 @@ class FriendGameConnections:
     こちらは対局中のリアルタイム同期用。"""
 
     # 🌟 切断時のクリーンアップ猶予秒数（この間に再接続があれば対局を保持）
-    CLEANUP_GRACE_SEC = 60.0
+    #   修正：60秒は短く、全員が一時的に切断（サーバー側の瞬断・回線揺れ・全員リロード等）
+    #   しただけで対局が完全削除され、各プレイヤーの current_room_id もクリアされてしまい
+    #   「勝手に切断されて復帰できない」状態を招いていた。猶予を長めに取り、一時的な
+    #   全切断では対局を保持して復帰できる余地を残す。
+    CLEANUP_GRACE_SEC = 180.0
 
     def __init__(self):
         # room_id → [WebSocket, WebSocket, WebSocket, WebSocket]（player_idx順）
@@ -689,6 +693,17 @@ async def friend_charleston_submit(room_id: str, player_idx: int, t1: str, t2: s
     game.last_discard_info = {"player": -1, "tile": ""}
     game.charleston_done = True
 
+    # 🌟 修正：友人戦の牌譜で第1交換が表示されない不具合の修正。
+    # CPU戦の /charleston と同様に append_log を呼ぶ。
+    try:
+        game.append_log(
+            "charleston", type="first", dice=dice, direction=msg,
+            passed_tiles=[list(p) for p in all_passed],
+            received_tiles=[list(r) for r in received_tiles],
+        )
+    except Exception as e:
+        print(f"[FRIEND] 第1交換 append_log 失敗（無視可）: {e}")
+
     # 🌟 第2交換開始: 最初の質問対象は親
     game.second_charleston_current_asker = game.dealer
 
@@ -822,6 +837,17 @@ async def friend_second_charleston_submit(
                 game.hands[p].extend(selections[p])
                 game.hands[p] = game.sort_hand(game.hands[p])
         game.second_charleston_done = True
+        # 🌟 修正：友人戦の牌譜に第2交換（不成立）を残す
+        try:
+            game.append_log(
+                "charleston", type="second", dice=0,
+                direction="不成立(参加者不足)",
+                active_players=list(active),
+                passed_tiles=[[], [], [], []],
+                received_tiles=[[], [], [], []],
+            )
+        except Exception as e:
+            print(f"[FRIEND] 第2交換(不成立) append_log 失敗（無視可）: {e}")
         # 🌟 交換タイマー終了 + 親のターンタイマー開始
         _clear_charleston_timer(game)
         _start_turn_timer(game, room_id)
@@ -849,6 +875,10 @@ async def friend_second_charleston_submit(
     dice = random.randint(1, 6)
     msg = ""
 
+    # 🌟 修正：友人戦の牌譜に第2交換を残すための受け渡し記録
+    passed_tiles_list = [list(selections.get(i, [])) if i in active else [] for i in range(4)]
+    received_tiles_list = [[] for _ in range(4)]
+
     if len(active) == 4:
         if dice in [1, 2]: offset, msg = -1, "下家(右)へ交換"
         elif dice in [3, 4]: offset, msg = -2, "対面(正面)へ交換"
@@ -856,6 +886,7 @@ async def friend_second_charleston_submit(
         for i in range(4):
             giver_idx = (i + offset) % 4
             game.hands[i].extend(selections[giver_idx])
+            received_tiles_list[i] = list(selections[giver_idx])
 
     elif len(active) == 3:
         if dice in [1, 2, 3]: offset_idx, msg = -1, "参加者間で右回り(下家方向)に交換"
@@ -863,18 +894,32 @@ async def friend_second_charleston_submit(
         for idx, player in enumerate(active):
             giver_idx = active[(idx + offset_idx) % len(active)]
             game.hands[player].extend(selections[giver_idx])
+            received_tiles_list[player] = list(selections[giver_idx])
 
     elif len(active) == 2:
         dice, msg = 0, "2人で直接交換"
         pA, pB = active[0], active[1]
         game.hands[pA].extend(selections[pB])
         game.hands[pB].extend(selections[pA])
+        received_tiles_list[pA] = list(selections[pB])
+        received_tiles_list[pB] = list(selections[pA])
 
     for i in range(4):
         game.hands[i] = game.sort_hand(game.hands[i])
     game.just_drawn = -1
     game.last_discard_info = {"player": -1, "tile": ""}
     game.second_charleston_done = True
+
+    # 🌟 修正：友人戦の牌譜に第2交換を残す
+    try:
+        game.append_log(
+            "charleston", type="second", dice=dice, direction=msg,
+            active_players=list(active),
+            passed_tiles=passed_tiles_list,
+            received_tiles=received_tiles_list,
+        )
+    except Exception as e:
+        print(f"[FRIEND] 第2交換 append_log 失敗（無視可）: {e}")
     # 🌟 交換タイマー終了 + 親（先頭打牌者）のターンタイマー開始
     _clear_charleston_timer(game)
     _start_turn_timer(game, room_id)
@@ -1528,10 +1573,141 @@ async def friend_calculate_round_scores(room_id: str, player_idx: int):
 # ==========================================
 # REST: リザルト演出完了通知 → 4人揃ったら自動で次局へ
 # ==========================================
+# 🌟 リザルト確認の AFK/離席タイムアウト（この時間で未確認席を強制 ready にして次局へ）
+_ROUND_READY_TIMEOUT_SEC = 60.0
+
+
+def _auto_ready_absent_seats(game, room_id: str):
+    """「自分では確認できない席」を自動 ready 扱いにする。
+    - CPU 席: 常に ready
+    - 切断中の人間席: 確認操作ができないので ready 扱い
+    これがないと、誰か1人でも切断・離席するとリザルト画面で卓全体が止まり、
+    「全員がレートを確認しないと画面が戻らない」状態になる。"""
+    if not hasattr(game, 'round_ready'):
+        game.round_ready = set()
+    types = getattr(game, 'friend_seat_types', None)
+    if types:
+        for seat in range(4):
+            if types[seat] == "cpu":
+                game.round_ready.add(seat)
+    conns = friend_connections.connections.get(room_id)
+    if conns:
+        for seat in range(4):
+            if seat < len(conns) and conns[seat] is None:
+                game.round_ready.add(seat)
+
+
+async def _advance_round_if_all_ready(room_id: str):
+    """round_ready が4人揃っていれば次局（または対局終了）へ進める。
+    エンドポイントとタイムアウト監視タスクの両方から呼ばれる共通処理。"""
+    from main import lobby_manager, next_round
+    if room_id not in lobby_manager.games:
+        return
+    game = lobby_manager.games[room_id]
+    if len(getattr(game, 'round_ready', set())) < 4:
+        return
+    if getattr(game, 'next_round_processing', False):
+        return
+
+    game.next_round_processing = True
+    game.round_ready = set()  # クリア
+    game.round_ready_watchdog_started = False  # 次局のために解除
+
+    # 4局終了判定
+    if game.current_round >= 4:
+        # 🌟 ログイン中ユーザーの current_room_id をクリア（途中復帰の対象から外す）
+        try:
+            from auth_routes import set_user_current_room
+            if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
+                for username in lobby_manager.player_usernames[room_id]:
+                    if username:
+                        set_user_current_room(username, None)
+        except Exception as e:
+            print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
+        for p in range(4):
+            await friend_connections.send_to(room_id, p, {
+                "type": "friend_game_end",
+                "total_scores": game.total_scores
+            })
+        return
+
+    # 次局へ
+    next_round(game=game)
+    game.next_round_processing = False
+
+    # 🌟 第1交換用のタイマーを開始
+    _start_charleston_timer(game, room_id)
+
+    # 各プレイヤーに視点回転済み state を broadcast
+    for p in range(4):
+        state = get_friend_state_for_player(game, p)
+        await friend_connections.send_to(room_id, p, {
+            "type": "friend_next_round",
+            "state": state
+        })
+
+    # 🤖 CPU 席があれば第1交換の自動 submit を起動
+    types = getattr(game, 'friend_seat_types', None)
+    if types:
+        for seat in range(4):
+            if types[seat] == "cpu":
+                asyncio.create_task(_cpu_submit_charleston_after_delay(room_id, seat, friend_cpu.CPU_WAIT_CHARLESTON))
+
+
+async def _watch_round_ready_timeout(room_id: str):
+    """リザルト確認（round_ready）が全員揃わないまま一定時間経過したら、
+    残りの席を自動 ready 扱いにして次局へ進める。
+    AFK・離席している人間が1人いるだけで卓全体が止まり続けるのを防ぐ。"""
+    from main import lobby_manager
+    try:
+        elapsed = 0.0
+        STEP = 1.0
+        while elapsed < _ROUND_READY_TIMEOUT_SEC:
+            await asyncio.sleep(STEP)
+            elapsed += STEP
+            if room_id not in lobby_manager.games:
+                return
+            game = lobby_manager.games[room_id]
+            # 🌟 既にリザルト中でない（=他経路で次局が始まった/対局終了）→ 監視終了。
+            #   これがないと、前局の監視タスクが次局へ侵入して誤って強制進行してしまう。
+            if not getattr(game, 'round_calculated', False):
+                return
+            if getattr(game, 'next_round_processing', False):
+                return
+            if not hasattr(game, 'round_ready'):
+                return
+            # 切断席を拾って揃ったら進める
+            _auto_ready_absent_seats(game, room_id)
+            if len(game.round_ready) >= 4:
+                await _advance_round_if_all_ready(room_id)
+                return
+        # タイムアウト到達 → 残り全席を強制 ready にして進行
+        if room_id not in lobby_manager.games:
+            return
+        game = lobby_manager.games[room_id]
+        if not getattr(game, 'round_calculated', False):
+            return
+        if getattr(game, 'next_round_processing', False):
+            return
+        if not hasattr(game, 'round_ready'):
+            game.round_ready = set()
+        for seat in range(4):
+            game.round_ready.add(seat)
+        print(f"[FRIEND] Room {room_id} リザルト確認タイムアウト → 強制的に次局へ")
+        await _advance_round_if_all_ready(room_id)
+    except asyncio.CancelledError:
+        return
+    except Exception as e:
+        print(f"[FRIEND] _watch_round_ready_timeout 失敗: {e}")
+        traceback.print_exc()
+
+
 @router.get("/round_ready")
 async def friend_round_ready(room_id: str, player_idx: int):
-    """各プレイヤーがリザルト演出完了を通知。4人揃ったらサーバーが next_round を実行して broadcast。"""
-    from main import lobby_manager, next_round
+    """各プレイヤーがリザルト演出完了を通知。4人揃ったらサーバーが next_round を実行して broadcast。
+    切断/AFK の席で卓全体が止まらないよう、確認できない席は自動 ready 扱いにし、
+    一定時間で揃わなければタイムアウトで強制進行する。"""
+    from main import lobby_manager
     if room_id not in lobby_manager.games:
         raise HTTPException(status_code=404, detail="対局が見つかりません")
     game = lobby_manager.games[room_id]
@@ -1540,62 +1716,20 @@ async def friend_round_ready(room_id: str, player_idx: int):
         game.round_ready = set()
     game.round_ready.add(player_idx)
 
-    # 🤖 CPU 席は常に自動 ready 扱い（人間プレイヤーがリザルト演出完了するのを待たない）
-    types = getattr(game, 'friend_seat_types', None)
-    if types:
-        for seat in range(4):
-            if types[seat] == "cpu":
-                game.round_ready.add(seat)
+    # 🤖 CPU 席 + 切断中の人間席を自動 ready 扱い（誰も確認できない席で止めない）
+    _auto_ready_absent_seats(game, room_id)
 
     print(f"[FRIEND] Room {room_id} round_ready: {len(game.round_ready)}/4 (player {player_idx})")
 
-    # 4人揃った時点で次局へ進める
-    if len(game.round_ready) >= 4 and not getattr(game, 'next_round_processing', False):
-        game.next_round_processing = True
-        game.round_ready = set()  # クリア
+    # 🌟 まだ揃っていない場合、AFK/離席対策のタイムアウト監視を一度だけ起動
+    if len(game.round_ready) < 4 and not getattr(game, 'round_ready_watchdog_started', False):
+        game.round_ready_watchdog_started = True
+        asyncio.create_task(_watch_round_ready_timeout(room_id))
 
-        # 4局終了判定
-        if game.current_round >= 4:
-            # 🌟 ログイン中ユーザーの current_room_id をクリア（途中復帰の対象から外す）
-            try:
-                from auth_routes import set_user_current_room
-                from main import lobby_manager
-                if hasattr(lobby_manager, 'player_usernames') and room_id in lobby_manager.player_usernames:
-                    for username in lobby_manager.player_usernames[room_id]:
-                        if username:
-                            set_user_current_room(username, None)
-            except Exception as e:
-                print(f"[FRIEND] game_end current_room_id クリア失敗: {e}")
-            for p in range(4):
-                await friend_connections.send_to(room_id, p, {
-                    "type": "friend_game_end",
-                    "total_scores": game.total_scores
-                })
-            return {"status": "game_end", "total_scores": game.total_scores}
+    # 4人揃っていれば次局へ進める
+    await _advance_round_if_all_ready(room_id)
 
-        # 次局へ
-        next_round(game=game)
-        game.next_round_processing = False
-
-        # 🌟 第1交換用のタイマーを開始
-        _start_charleston_timer(game, room_id)
-
-        # 各プレイヤーに視点回転済み state を broadcast
-        for p in range(4):
-            state = get_friend_state_for_player(game, p)
-            await friend_connections.send_to(room_id, p, {
-                "type": "friend_next_round",
-                "state": state
-            })
-
-        # 🤖 CPU 席があれば第1交換の自動 submit を起動
-        types = getattr(game, 'friend_seat_types', None)
-        if types:
-            for seat in range(4):
-                if types[seat] == "cpu":
-                    asyncio.create_task(_cpu_submit_charleston_after_delay(room_id, seat, friend_cpu.CPU_WAIT_CHARLESTON))
-
-    return {"status": "ok", "ready_count": len(game.round_ready)}
+    return {"status": "ok", "ready_count": len(getattr(game, 'round_ready', set()))}
 
 
 # ==========================================
@@ -2272,7 +2406,27 @@ async def friend_game_websocket(websocket: WebSocket, room_id: str, player_idx: 
     try:
         while True:
             data = await websocket.receive_json()
+            mtype = data.get("type") if isinstance(data, dict) else None
+            # 🌟 keepalive ping：プロキシのアイドル切断対策。 ログを汚さないため出力前に処理。
+            if mtype == "ping":
+                try:
+                    await websocket.send_json({"type": "pong", "t": data.get("t")})
+                except Exception:
+                    pass
+                continue
             print(f"[FRIEND WS] Room {room_id} Player {player_idx} から受信: {data}")
+            # 🌟 スタンプ機能: 友人戦で誰かがスタンプを送ったら他プレイヤーに配信
+            try:
+                if mtype == "stamp":
+                    content = str(data.get("content", ""))[:64]  # 念のため長さ制限
+                    if content:
+                        await friend_connections.send_to_others(room_id, player_idx, {
+                            "type": "friend_stamp",
+                            "player_idx": player_idx,
+                            "content": content,
+                        })
+            except Exception as e:
+                print(f"[FRIEND WS] stamp 配信失敗（無視可）: {e}")
     except WebSocketDisconnect:
         friend_connections.disconnect(websocket, room_id)
         # 🌟 user_sockets からも削除

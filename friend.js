@@ -325,6 +325,13 @@ async function _resumeByPhase(rejoinData) {
             if (typeof friendAskNextPlayer === 'function') friendAskNextPlayer();
         }
     } else if (phase === 'pending_call') {
+        // 🌟 安全のため、 charleston UI を明示的に閉じる（前局の残骸対策）
+        const cUi = document.getElementById('charleston-ui');
+        if (cUi) cUi.style.display = 'none';
+        const cConfirmUi = document.getElementById('charleston-confirm-ui');
+        if (cConfirmUi) cConfirmUi.style.display = 'none';
+        if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
         // 副露猶予中
         const pc = rejoinData.pending_can;
         const remaining = rejoinData.pending_remaining;
@@ -351,11 +358,26 @@ async function _resumeByPhase(rejoinData) {
             if (typeof isProc !== 'undefined') isProc = true;
         }
     } else if (phase === 'round_end') {
+        // 🌟 安全のため、 charleston UI を明示的に閉じる
+        const cUi = document.getElementById('charleston-ui');
+        if (cUi) cUi.style.display = 'none';
+        const cConfirmUi = document.getElementById('charleston-confirm-ui');
+        if (cConfirmUi) cConfirmUi.style.display = 'none';
+        if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
         // リザルト画面中 → 自分も同様にリザルト画面表示
         if (typeof handleRoundEnd === 'function') {
             handleRoundEnd(true);
         }
     } else {
+        // 🌟 安全のため、 play フェーズに入る前に charleston UI を明示的に閉じる。
+        // リフレッシュ時に何らかの理由で前局の交換UIが残っていると操作不能になる事象の対策。
+        const cUi = document.getElementById('charleston-ui');
+        if (cUi) cUi.style.display = 'none';
+        const cConfirmUi = document.getElementById('charleston-confirm-ui');
+        if (cConfirmUi) cConfirmUi.style.display = 'none';
+        if (typeof charlestonPhase !== 'undefined') charlestonPhase = false;
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
         // play フェーズ（通常ターン）
         // 🌟 自分のターンでサーバーが残り時間を返してきていたら、
         //    既存の isResuming/sessionStorage 経由で startTimer に引き継ぐ
@@ -402,6 +424,31 @@ let friendSkipInitialStateOnOpen = false;
 // ==========================================
 // 対局中のWebSocket接続
 // ==========================================
+// 🌟 WS keepalive 用のタイマーハンドラ（プロキシ・ロードバランサのアイドル切断を防ぐ）
+let _friendWsKeepaliveTimer = null;
+function _stopFriendWsKeepalive() {
+    if (_friendWsKeepaliveTimer) {
+        clearInterval(_friendWsKeepaliveTimer);
+        _friendWsKeepaliveTimer = null;
+    }
+}
+function _startFriendWsKeepalive() {
+    _stopFriendWsKeepalive();
+    // 25 秒間隔。 Render などの一般的なプロキシは 30〜60 秒の無通信で切るため、
+    // それより短い間隔で常に「生きている」信号を送る。
+    _friendWsKeepaliveTimer = setInterval(() => {
+        try {
+            if (friendWs && friendWs.readyState === WebSocket.OPEN) {
+                friendWs.send(JSON.stringify({ type: "ping", t: Date.now() }));
+            } else {
+                _stopFriendWsKeepalive();
+            }
+        } catch (e) {
+            // 送信失敗は無視（次の周期で再試行）
+        }
+    }, 25000);
+}
+
 function connectFriendGameWs() {
     // 🌟 HTTPS ページからは wss:// を使う必要がある (Render等の本番環境対応)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -419,6 +466,9 @@ function connectFriendGameWs() {
                 friendWs.send(JSON.stringify({ type: "auth", token: _tok }));
             }
         } catch (e) { /* ignore */ }
+
+        // 🌟 WS keepalive を開始（プロキシによるアイドル切断対策）
+        _startFriendWsKeepalive();
 
         // 🌟 復帰時は _resumeByPhase が UI を組んでいるので、初期stateフローはスキップ
         if (friendSkipInitialStateOnOpen) {
@@ -458,6 +508,34 @@ function connectFriendGameWs() {
 
     friendWs.onclose = () => {
         console.log("[FRIEND] WS切断");
+        _stopFriendWsKeepalive();
+        // 🌟 修正：友人戦中に予期せず WS が切れた場合、 自動的に再接続を試みる。
+        //   ・ゲーム終了済み (returnToHomeGracefully で friendWs を捨てている) は対象外
+        //   ・friendRoomId / myPlayerIdx が無効なら再接続できない
+        //   ・短時間で連続接続するとサーバーが詰まるので 1.5 秒待ってから繋ぎ直す
+        try {
+            const stillInGame = (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend'
+                && typeof friendRoomId === 'string' && friendRoomId
+                && typeof myPlayerIdx === 'number' && myPlayerIdx >= 0);
+            if (stillInGame) {
+                console.log("[FRIEND] 予期せぬ切断を検知 → 1.5 秒後に再接続を試みる");
+                setTimeout(() => {
+                    if (currentGameMode !== 'friend') return;
+                    // 既に他経路で繋ぎ直っている場合は何もしない
+                    if (friendWs && friendWs.readyState === WebSocket.OPEN) return;
+                    // 再接続時は _resumeByPhase 相当の初期化は不要（既に画面は組まれている）。
+                    // 接続だけ作り直して onopen 側の初期 state 取得をスキップさせる。
+                    friendSkipInitialStateOnOpen = true;
+                    try {
+                        connectFriendGameWs();
+                    } catch (e) {
+                        console.error("[FRIEND] 再接続失敗:", e);
+                    }
+                }, 1500);
+            }
+        } catch (e) {
+            // 何かおかしくても無視（次のユーザー操作 or リロードで復帰可能）
+        }
     };
 
     friendWs.onerror = (e) => {
@@ -484,6 +562,33 @@ async function fetchFriendInitialState() {
         }
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
+
+        // 🌟 修正：以前は state を無視して必ず startCharlestonSelection() を呼んでいたため、
+        // タイミングによってはリフレッシュ復帰時に既に第1交換が終わっているのに
+        // 第1交換UIだけ復活して操作不能になっていた。サーバーの charleston_done /
+        // second_charleston_done を見て、 既に終わっているフェーズへは入らないようにする。
+        if (state && state.charleston_done) {
+            console.log("[FRIEND] 既に第1交換完了 → charleston UI スキップ。 _resumeByPhase に委譲");
+            // /friend/state には phase が無いので、 charleston_done / second_charleston_done /
+            // round_calculated から擬似的に phase を再構築して _resumeByPhase を呼ぶ。
+            let phase = "play";
+            if (!state.second_charleston_done) phase = "second_charleston";
+            else if (state.round_calculated) phase = "round_end";
+            try {
+                await _resumeByPhase({
+                    phase,
+                    charleston_timer_remaining: state.charleston_timer_remaining,
+                    turn_timer_remaining: state.turn_timer_remaining,
+                    second_charleston_asked_count: 0,
+                    second_charleston_answered: [false, false, false, false],
+                    second_charleston_participating: [false, false, false, false],
+                    second_charleston_my_answered: false,
+                });
+            } catch (e) {
+                console.error("[FRIEND] fetchFriendInitialState フォールバック失敗:", e);
+            }
+            return;
+        }
 
         // 🌟 第1交換の選択画面を表示（CPU戦と同じ関数を流用）
         if (typeof charlestonCount !== 'undefined') {
@@ -840,6 +945,12 @@ window.__friend_seq_processing = false;
 const _FRIEND_SEQ_EVENT_TYPES = [
     "charleston_player_ready",
     "second_charleston_player_done",
+    // 🌟 修正：second_charleston_complete をキューに載せる。
+    //   以前はキュー外で即時処理していたため、まだキューに残っている
+    //   second_charleston_player_done（特に最後の人の「過」スタンプ描画）が
+    //   clearCharlestonStatus の「後」に実行され、「過」演出が残ったままになっていた。
+    //   キューに載せることで「全員の回答演出 → 完了演出（クリア）」の順序を保証する。
+    "second_charleston_complete",
     "friend_draw", "friend_cpu_draw_preview",
     "friend_discard",
     "friend_self_meld", "friend_meld",
@@ -852,6 +963,7 @@ const _FRIEND_SEQ_EVENT_TYPES = [
 const _FRIEND_EVENT_DELAYS = {
     "charleston_player_ready": 600,
     "second_charleston_player_done": 800,
+    "second_charleston_complete": 300,
     "friend_draw": 250,
     "friend_cpu_draw_preview": 250,
     "friend_discard": 700,
@@ -968,6 +1080,10 @@ function handleFriendEvent(data, _bypassQueue) {
         }
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
+        // 🌟 修正：他プレイヤーのツモ音が鳴らない不具合の修正
+        if (drawerRel !== 0 && typeof playSE === 'function') {
+            playSE('tsumo');
+        }
         // ターンは進めない（打牌するまでは tsumo 中の表示）
     } else if (type === "friend_cpu_draw_preview") {
         // 🤖 CPU がツモった瞬間（演出用） → state 反映して自摸表現をセット
@@ -981,6 +1097,10 @@ function handleFriendEvent(data, _bypassQueue) {
         }
         if (typeof render === 'function') render();
         if (typeof renderCPU === 'function') renderCPU();
+        // 🌟 修正：CPU ツモ時の音も鳴らす
+        if (drawerRel !== 0 && typeof playSE === 'function') {
+            playSE('tsumo');
+        }
     } else if (type === "friend_discard") {
         // 🤖 CPU の打牌の場合: safeUpdate 前に「ツモ後14枚状態」を擬似的に再構成して
         // renderCPU で自摸表現を表示する（CPU戦と同じ手法）。
@@ -1015,6 +1135,11 @@ function handleFriendEvent(data, _bypassQueue) {
             if (data.state && typeof safeUpdate === 'function') safeUpdate(data.state);
             if (typeof render === 'function') render();
             if (typeof renderCPU === 'function') renderCPU();
+            // 🌟 修正：他プレイヤーの打牌音が鳴らない不具合の修正。
+            // 自分の打牌は discard() 内 addR() で既に再生済みなので二重再生しないようにする。
+            if (discarderRel !== 0 && typeof playSE === 'function') {
+                playSE('dahai');
+            }
 
             // 🌟 CPU の 加槓・JokerSwap 演出（CPU 戦の挙動と同じ）
             //   サーバーから did_kakan / did_joker_swap フラグが来るので演出を表示
@@ -1174,6 +1299,10 @@ function handleFriendEvent(data, _bypassQueue) {
                 winZone.style.display = "none";
             }
         }
+        // 🌟 修正：前局の第2交換で表示された「過」スタンプや裏3枚プレースホルダーが
+        // c-status-* に残ったまま次局に持ち越されるケースがあったので、 次局開始時に
+        // 必ず全員ぶんを明示クリアする。
+        if (typeof clearCharlestonStatus === 'function') clearCharlestonStatus();
 
         // チャールストン開始
         if (typeof charlestonCount !== 'undefined') charlestonCount = 1;
@@ -1184,6 +1313,16 @@ function handleFriendEvent(data, _bypassQueue) {
         console.log("[FRIEND] ゲーム終了:", data.total_scores);
         if (typeof returnToHomeGracefully === 'function') {
             returnToHomeGracefully();
+        }
+    } else if (type === "friend_stamp") {
+        // 🌟 修正：他プレイヤーのスタンプを表示する。
+        // 旧実装では sendStamp が自分の画面にしか描画していなかったため、
+        // 他プレイヤーのスタンプが見えない不具合があった。
+        const senderAbs = data.player_idx;
+        const senderRel = (senderAbs - myPlayerIdx + 4) % 4;
+        // 自分発のスタンプは既に showStamp(0,...) で描画済みなので無視
+        if (senderRel !== 0 && typeof showStamp === 'function') {
+            showStamp(senderRel, String(data.content || ""));
         }
     } else if (type === "player_disconnected") {
         // 🔁 他プレイヤー切断 → 名前を赤文字に + 通知トースト

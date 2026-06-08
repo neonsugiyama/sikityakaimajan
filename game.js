@@ -1860,7 +1860,15 @@ function renderCPU() {
         // 🌟 友人戦: ツモ牌は cpuDrawnTiles で明示的に管理（副露があると剰余ロジックが破綻するため）
         if (currentGameMode === 'friend') {
             if (cpuDrawnTiles[i]) {
-                drawnTileImg = cpuDrawnTiles[i];
+                // 🌟 修正：手牌から末尾を取り出してツモ牌として分離しないと
+                // 「手牌14枚＋ツモ牌1枚＝15枚」になり多牌表示になる不具合があった。
+                // 通常時は手牌が "ura" の配列なので末尾を pop しても見た目は変わらず、
+                // 開発者モード/リザルト時は実牌が pop されてツモ牌位置に表示される（理想挙動）。
+                if (tilesToRender.length > 0) {
+                    drawnTileImg = tilesToRender.pop();
+                } else {
+                    drawnTileImg = cpuDrawnTiles[i];
+                }
             }
         } else {
             // CPU戦: 既存ロジック（ツモ番なら手牌の末尾を分離）
@@ -4332,9 +4340,16 @@ async function handleRoundEnd(isReplayingResult = false) {
             alert(resultMsg);
 
             if (currentGameMode === 'friend') {
-                // 🌟 友人戦: 完了通知を送るだけ。実際の終了処理は friend_game_end 受信時に friend.js で行う
-                await fetch(`/friend/round_ready?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`, { cache: 'no-store' });
-                return; // 待機（friend_game_end 受信で returnToHomeGracefully）
+                // 🌟 修正：完了通知は投げるだけにして、 friend_game_end を待たずに即座にホームへ戻る。
+                // 旧実装では全員がレート確認の alert を閉じるまで friend_game_end が来ず、
+                // 1人でも遅いと全員が画面に張り付くため。サーバー側 round_ready が 4 揃った時点で
+                // game 状態は別途破棄される。
+                try {
+                    fetch(`/friend/round_ready?room_id=${friendRoomId}&player_idx=${myPlayerIdx}&_t=${Date.now()}`, { cache: 'no-store' })
+                        .catch(e => console.log("[FRIEND] round_ready 通知失敗（無視可）:", e));
+                } catch (e) { /* ignore */ }
+                returnToHomeGracefully();
+                return;
             }
             await apiCall('/next_round');
             returnToHomeGracefully();

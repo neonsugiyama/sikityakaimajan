@@ -516,6 +516,25 @@ async function _afterAuthShowModeSelect() {
             currentSessionRoomId = "";
             localStorage.removeItem('shiki_mahjong_room_id');
             localStorage.removeItem('shiki_mahjong_game_mode');
+        } else if (savedMode === 'friend') {
+            // 🌟 修正：友人戦のセッションを CPU 戦の復帰ロジック
+            //   (/get_room_state → /next_round → startCharlestonSelection) に絶対に通さない。
+            //   通してしまうと、
+            //     ・サーバー上で生きている友人戦 game に reset_round が走り、対局中の
+            //       全員分の状態が壊れる
+            //     ・既に第1交換が終わっているのに第1交換UIが復活し、操作不能になる
+            //   という不具合（リフレッシュ時の「第一交換できてしまい操作不能」）が起きていた。
+            //   友人戦は専用の rejoinFriendGame() でのみ復帰する。
+            let rejoined = false;
+            if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof rejoinFriendGame === 'function') {
+                try { rejoined = await rejoinFriendGame(); } catch (e) { rejoined = false; }
+            }
+            if (rejoined) return; // 復帰成功 → 対局画面へ
+            // 復帰不可（ゲスト or 部屋が消滅）→ ローカルのセッション参照だけ消して
+            //   通常のモード選択へ。サーバー側の友人戦 game には一切触れない。
+            currentSessionRoomId = "";
+            localStorage.removeItem('shiki_mahjong_room_id');
+            localStorage.removeItem('shiki_mahjong_game_mode');
         } else {
             try {
                 const res = await fetch(`/check_room?room_id=${currentSessionRoomId}&_t=${new Date().getTime()}`);
@@ -1028,13 +1047,29 @@ function applyFriendSettingsAndCreate() {
     enterWaitingRoom(roomId, settings);
 }
 
-function joinRoom() {
+async function joinRoom() {
     if (typeof playSE === 'function') playSE('click');
     const inputEl = document.getElementById('room-id-input');
     if (!inputEl) return;
     const inputVal = inputEl.value.trim().toUpperCase();
     if (!inputVal) {
         alert("ルームIDを入力してください！");
+        return;
+    }
+    // 🌟 修正：存在しない（または既に破棄された）部屋に join すると、
+    //   サーバーは「一番若い空席=席0」に着席させ、その人をホストにしてしまう。
+    //   結果、元のホストの亡霊が残った状態で別の人もホストとして入室でき、
+    //   「ホストが二人」状態になっていた。事前に部屋の存在を確認する。
+    try {
+        const res = await fetch(`/friend/check_lobby_room?room_id=${encodeURIComponent(inputVal)}&_t=${Date.now()}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!data || !data.exists) {
+            alert("そのルームは存在しません。ルームIDを確認してください。");
+            return;
+        }
+    } catch (e) {
+        console.error("[FRIEND] ルーム存在確認に失敗:", e);
+        alert("ルームの確認に失敗しました。通信環境を確認してください。");
         return;
     }
     enterWaitingRoom(inputVal);
@@ -1377,6 +1412,16 @@ function sendStamp(stampContent) {
     const menu = document.getElementById('stamp-menu');
     if (menu) menu.style.display = 'none';
     showStamp(0, stampContent);
+    // 🌟 修正：友人戦時は friendWs 経由で他プレイヤーにも配信する。
+    // 以前は自分の画面にしか表示されず、他プレイヤーからスタンプが見えない不具合があった。
+    try {
+        if (typeof currentGameMode !== 'undefined' && currentGameMode === 'friend'
+            && typeof friendWs !== 'undefined' && friendWs && friendWs.readyState === WebSocket.OPEN) {
+            friendWs.send(JSON.stringify({ type: "stamp", content: String(stampContent) }));
+        }
+    } catch (e) {
+        console.log("[STAMP] friendWs 送信失敗（無視可）:", e);
+    }
 }
 
 function showStamp(playerIdx, content) {
