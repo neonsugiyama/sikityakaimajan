@@ -22,6 +22,65 @@ let myDevAllHands = []; // 🌟 友人戦の開発者モード用：全員の実
 // 🌟 追加：引く前からテンパイしていたかを記憶するフラグ
 let isAlreadyTenpai = false;
 let isAutoPlay = false;
+// 🌟 雀魂風の追加オプション (localStorage で永続化)
+//   - autoSortEnabled: true = 自動理牌 ON（既存動作、 手牌をソートして表示）、 false = OFF（ツモ牌を末尾に分離してソート維持）
+//   - autoSkipMeldEnabled: true = 副露候補が出ても自動で「過」 を選んでスキップ
+let autoSortEnabled = (function () {
+    try {
+        const v = localStorage.getItem('shiki_auto_sort');
+        return v === null ? true : v === 'true';  // デフォルト ON
+    } catch (e) { return true; }
+})();
+let autoSkipMeldEnabled = (function () {
+    try {
+        const v = localStorage.getItem('shiki_auto_skip_meld');
+        return v === null ? false : v === 'true';  // デフォルト OFF
+    } catch (e) { return false; }
+})();
+
+// 🌟 自動理牌 OFF 時のユーザー独自並び順を保持する配列
+//   - サーバーから myHand が更新されると、 _syncMyHandOrder で差分のみ反映（既存順序は維持）
+//   - 新規に追加された牌（ツモ等）は末尾に追加される
+//   - ユーザーがドラッグで並び替えると、 この配列の順序が変わる
+let myHandOrder = [];
+
+// 🌟 myHand と myHandOrder の整合性を取る
+//   myHand に増えた牌は末尾に追加、 myHand から減った牌は myHandOrder から削除
+function _syncMyHandOrder() {
+    // 空なら myHand の現在の順序でフレッシュ初期化
+    if (myHandOrder.length === 0) {
+        myHandOrder = [...myHand];
+        return;
+    }
+    // myHand の各牌の枚数をカウント
+    const handCounts = {};
+    for (const t of myHand) {
+        handCounts[t] = (handCounts[t] || 0) + 1;
+    }
+    // myHandOrder から「myHand にもう存在しない牌」 を取り除き、 既存順序を保持
+    const newOrder = [];
+    const orderCounts = {};
+    for (const t of myHandOrder) {
+        if ((orderCounts[t] || 0) < (handCounts[t] || 0)) {
+            newOrder.push(t);
+            orderCounts[t] = (orderCounts[t] || 0) + 1;
+        }
+    }
+    // myHand に新しく追加された牌（ツモ等）を末尾に追加
+    for (const t of myHand) {
+        const diff = (handCounts[t] || 0) - (orderCounts[t] || 0);
+        if (diff > 0) {
+            for (let i = 0; i < diff; i++) {
+                newOrder.push(t);
+                orderCounts[t] = (orderCounts[t] || 0) + 1;
+            }
+        }
+    }
+    myHandOrder = newOrder;
+}
+
+// 🌟 ドラッグ中フラグ: 牌のクリック (打牌選択) と区別するため
+let _isDraggingTile = false;
 // 🌟 追加：リロードからの再開中であることを示すフラグ
 let isResuming = false;
 let isResumingResult = false;
@@ -244,22 +303,110 @@ function toggleAutoPlay() {
     const btn = document.getElementById('btn-auto-play');
 
     if (isAutoPlay) {
-        // ON状態（聴牌前でも緑色にする）
-        btn.innerText = "オート(和了後): ON";
-        btn.style.background = "#27ae60";
-        btn.style.boxShadow = "0 3px #2ecc71";
-        btn.classList.remove('auto-off'); // 🌟 これを追加
+        // ON状態
+        btn.innerText = "自動和了: ON";
+        btn.classList.remove('auto-off');
+        btn.classList.add('auto-on');
+        // インラインスタイルをクリアして CSS クラスに任せる
+        btn.style.background = "";
+        btn.style.boxShadow = "";
 
         // もしONにした瞬間にすでに聴牌・打牌番なら即座に実行を試みる
         triggerAutoPlayIfNeeded();
     } else {
         // OFF状態
-        btn.innerText = "オート(和了後): OFF";
-        btn.style.background = "#7f8c8d";
-        btn.style.boxShadow = "0 3px #95a5a6";
-        btn.classList.add('auto-off'); // 🌟 これを追加
+        btn.innerText = "自動和了: OFF";
+        btn.classList.remove('auto-on');
+        btn.classList.add('auto-off');
+        btn.style.background = "";
+        btn.style.boxShadow = "";
     }
 }
+
+// 🌟 自動理牌 ON/OFF: OFF にすると手牌が並び替えられず、 ツモ牌は右端に分離されたまま
+function toggleAutoSort() {
+    autoSortEnabled = !autoSortEnabled;
+    try { localStorage.setItem('shiki_auto_sort', String(autoSortEnabled)); } catch (e) { }
+    const btn = document.getElementById('btn-auto-sort');
+    if (btn) {
+        if (autoSortEnabled) {
+            btn.innerText = "自動理牌: ON";
+            btn.classList.remove('auto-off');
+            btn.classList.add('auto-on');
+        } else {
+            btn.innerText = "自動理牌: OFF";
+            btn.classList.remove('auto-on');
+            btn.classList.add('auto-off');
+        }
+    }
+    // 🌟 OFF → ON にする時は myHandOrder をクリア（次回 OFF にした時に再初期化される）
+    // ON → OFF にする時は現在の myHand 順序をベースに myHandOrder を初期化
+    if (autoSortEnabled) {
+        myHandOrder = [];
+    } else {
+        myHandOrder = [...myHand];
+    }
+    // 切替直後に手牌を再描画して反映
+    if (typeof render === 'function') render();
+}
+
+// 🌟 副露自動スキップ ON/OFF: ON にすると鳴き候補が出ても即時 skip
+function toggleAutoSkipMeld() {
+    autoSkipMeldEnabled = !autoSkipMeldEnabled;
+    try { localStorage.setItem('shiki_auto_skip_meld', String(autoSkipMeldEnabled)); } catch (e) { }
+    const btn = document.getElementById('btn-auto-skip-meld');
+    if (btn) {
+        if (autoSkipMeldEnabled) {
+            btn.innerText = "副露自動スキップ: ON";
+            btn.classList.remove('auto-off');
+            btn.classList.add('auto-on');
+        } else {
+            btn.innerText = "副露自動スキップ: OFF";
+            btn.classList.remove('auto-on');
+            btn.classList.add('auto-off');
+        }
+    }
+    // 既に副露ボタンが表示されている場合は、 ON にした瞬間スキップする
+    if (autoSkipMeldEnabled && typeof _autoSkipMeldIfPossible === 'function') {
+        _autoSkipMeldIfPossible();
+    }
+}
+
+// 🌟 副露自動スキップ ON の瞬間、 既に副露ボタンが表示されているなら即座にスキップを押す。
+//   ただしロンボタンが出ている時はユーザー判断を尊重してスキップしない。
+function _autoSkipMeldIfPossible() {
+    if (!autoSkipMeldEnabled) return;
+    const btnSkip = document.getElementById('btn-skip');
+    const btnWin = document.getElementById('btn-win');
+    if (!btnSkip) return;
+    if (btnSkip.style.display === 'none') return;
+    if (btnWin && btnWin.style.display !== 'none') return; // ロン候補がある → スキップしない
+    try { btnSkip.click(); } catch (e) { /* ignore */ }
+}
+
+// 初期表示反映（ページロード時に localStorage の状態を UI に反映）
+window.addEventListener('DOMContentLoaded', () => {
+    const sortBtn = document.getElementById('btn-auto-sort');
+    if (sortBtn) {
+        if (autoSortEnabled) {
+            sortBtn.innerText = "自動理牌: ON";
+            sortBtn.classList.add('auto-on'); sortBtn.classList.remove('auto-off');
+        } else {
+            sortBtn.innerText = "自動理牌: OFF";
+            sortBtn.classList.add('auto-off'); sortBtn.classList.remove('auto-on');
+        }
+    }
+    const skipBtn = document.getElementById('btn-auto-skip-meld');
+    if (skipBtn) {
+        if (autoSkipMeldEnabled) {
+            skipBtn.innerText = "副露自動スキップ: ON";
+            skipBtn.classList.add('auto-on'); skipBtn.classList.remove('auto-off');
+        } else {
+            skipBtn.innerText = "副露自動スキップ: OFF";
+            skipBtn.classList.add('auto-off'); skipBtn.classList.remove('auto-on');
+        }
+    }
+});
 
 // 🌟 修正：プレイヤーがテンパイしているか（副露も考慮して）正確に判定する関数
 // 🌟 海底牌でツモらず流局スキップする時の処理
@@ -1754,25 +1901,89 @@ async function execSecondCharleston(t1 = "", t2 = "", t3 = "") {
 // 🀄 自分の手牌（画像）を画面上に並べて描画する関数
 function render() {
     try {
-        myHand.sort((a, b) => SM[a] - SM[b]);
+        // 🌟 自動理牌 ON: サーバーから返ってきた手牌をそのままソート（雀魂デフォルト）
+        // 自動理牌 OFF: myHandOrder（ユーザー並び替え可能な独自順序）を使う
+        if (autoSortEnabled) {
+            myHand.sort((a, b) => SM[a] - SM[b]);
+        } else {
+            _syncMyHandOrder();
+        }
         const c = document.getElementById('hand-0'); c.replaceChildren();
 
-        let displayHand = [...myHand];
+        // 🌟 表示用ベース配列: ON は myHand を、 OFF は myHandOrder を使う
+        const baseHand = autoSortEnabled ? [...myHand] : [...myHandOrder];
+
+        let displayHand = baseHand;
         let dTile = "";
+        // 🌟 ツモ牌の右端分離: ON/OFF 両方で常に実行（雀魂仕様）
         if (turn === 0 && drawnTile !== "" && displayHand.includes(drawnTile)) {
+            displayHand = [...baseHand];
             displayHand.splice(displayHand.indexOf(drawnTile), 1);
             dTile = drawnTile;
         }
 
+        // 🌟 自動理牌 OFF 時: displayHand のインデックス → myHandOrder のインデックスへの変換マップ
+        //   ツモ牌を分離している場合、 myHandOrder の対応要素はスキップする
+        const orderIndexMap = (() => {
+            if (autoSortEnabled) return [];
+            const map = [];
+            let drawnSkipped = false;
+            for (let j = 0; j < myHandOrder.length; j++) {
+                if (!drawnSkipped && myHandOrder[j] === dTile && dTile !== "") {
+                    drawnSkipped = true;
+                    continue;
+                }
+                map.push(j);
+            }
+            return map;
+        })();
+
         displayHand.forEach((t, idx) => {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
             i.id = `my-tile-${idx}`;
+
+            // 🌟 自動理牌 OFF + 自分のターン: ドラッグで並び替え可能にする
+            if (!autoSortEnabled && turn === 0 && !charlestonPhase) {
+                i.draggable = true;
+                i.dataset.orderIdx = String(orderIndexMap[idx]);
+
+                i.addEventListener('dragstart', (e) => {
+                    _isDraggingTile = true;
+                    try {
+                        e.dataTransfer.setData('text/plain', String(orderIndexMap[idx]));
+                        e.dataTransfer.effectAllowed = 'move';
+                    } catch (_) { }
+                    i.classList.add('dragging-tile');
+                });
+                i.addEventListener('dragend', () => {
+                    i.classList.remove('dragging-tile');
+                    // クリック誤発火を防ぐため、 少し遅延してフラグ解除
+                    setTimeout(() => { _isDraggingTile = false; }, 80);
+                });
+                i.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                });
+                i.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    let fromOrderIdx;
+                    try { fromOrderIdx = parseInt(e.dataTransfer.getData('text/plain'), 10); } catch (_) { return; }
+                    const toOrderIdx = orderIndexMap[idx];
+                    if (isNaN(fromOrderIdx) || fromOrderIdx === toOrderIdx) return;
+                    // myHandOrder の並び替え
+                    const [moved] = myHandOrder.splice(fromOrderIdx, 1);
+                    myHandOrder.splice(toOrderIdx, 0, moved);
+                    render();
+                });
+            }
 
             if (charlestonPhase && exchangeSelection.includes(idx)) i.classList.add('selected-exchange');
 
             if (!charlestonPhase && selectedTileIndex === idx) i.classList.add('selected-discard');
 
             i.onclick = () => {
+                // 🌟 ドラッグ操作直後はクリック扱いしない（並び替えと打牌選択の区別）
+                if (_isDraggingTile) return;
                 // ① チャールストン中なら専用処理をしてすぐ終わる
                 if (charlestonPhase) {
                     toggleExchange(idx);
@@ -2887,6 +3098,12 @@ async function checkHumanReaction(discarderIdx, tile) {
         }
     }
 
+    // 🌟 副露自動スキップ: 自動和了 OFF でも、 ロン候補がなければ副露を即スキップ
+    //   ロン候補があれば自動スキップしない（ユーザーがロンを選べるように残す）
+    if (!shouldAutoRon && !shouldAutoSkip && autoSkipMeldEnabled && !canHumanRon) {
+        shouldAutoSkip = true;
+    }
+
     if (!shouldAutoRon && !shouldAutoSkip) {
         playSE('alert');
         document.getElementById('btn-skip').style.display = "block";
@@ -3420,7 +3637,7 @@ async function handleRoundEnd(isReplayingResult = false) {
         isAutoPlay = false;
         const btnAuto = document.getElementById('btn-auto-play');
         if (btnAuto) {
-            btnAuto.innerText = "オート(和了後): OFF";
+            btnAuto.innerText = "自動和了: OFF";
             btnAuto.style.background = "#7f8c8d";
             btnAuto.style.boxShadow = "0 3px #95a5a6";
             btnAuto.classList.add('auto-off');

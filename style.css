@@ -808,6 +808,13 @@ html, body {
     color: #fff !important; /* 白文字を維持 */
 }
 
+/* 🌟 自動理牌 OFF 時のドラッグ並び替え用スタイル */
+.tile.dragging-tile {
+    opacity: 0.4;
+    transform: scale(0.95);
+    transition: none !important;
+}
+
 /* --- 待ち牌・オート・透過ボタン --- */
 .pos-waits-btn {
     position: absolute;
@@ -828,6 +835,52 @@ html, body {
     transform-style: flat !important;
     pointer-events: none !important;
 }
+
+/* 🌟 雀魂風 3 ボタン縦並びコンテナ（自動和了 / 自動理牌 / 副露自動スキップ） */
+.pos-auto-btn-stack {
+    position: absolute;
+    bottom: 120px;
+    left: calc(50% + 120px);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transform: translateZ(20px) !important;
+    transform-style: flat !important;
+    pointer-events: none !important;
+}
+
+    .pos-auto-btn-stack .btn-waits {
+        min-width: 200px;
+        pointer-events: auto !important;
+    }
+
+/* 状態別の色: ON は緑、 OFF はグレー寄りオレンジ */
+.btn-waits.auto-on {
+    background: #27ae60;
+    box-shadow: 0 3px #1e8449;
+}
+
+    .btn-waits.auto-on:not(:disabled):hover {
+        background: #2ecc71;
+    }
+
+    .btn-waits.auto-on:not(:disabled):active {
+        box-shadow: 0 0 #1e8449;
+    }
+
+.btn-waits.auto-off {
+    background: #7f8c8d;
+    box-shadow: 0 3px #5d6d6e;
+}
+
+    .btn-waits.auto-off:not(:disabled):hover {
+        background: #95a5a6;
+    }
+
+    .btn-waits.auto-off:not(:disabled):active {
+        box-shadow: 0 0 #5d6d6e;
+    }
 
 .btn-waits {
     background: #e67e22;
