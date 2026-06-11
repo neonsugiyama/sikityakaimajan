@@ -476,15 +476,34 @@ async function showModeSelect() {
         _authInitPromise = null; // 一度待ったら以降不要
     }
 
-    // 🔁 ログイン中 + 進行中の対局があれば自動的に復帰
+    // 🔁 ログイン中 + 進行中の対局があれば、 ユーザーに確認してから復帰
     if (typeof isLoggedIn === 'function' && isLoggedIn()
         && typeof currentRoomIdInDb !== 'undefined' && currentRoomIdInDb) {
-        if (typeof rejoinFriendGame === 'function') {
-            const ok = await rejoinFriendGame();
-            if (ok) {
-                return; // 復帰成功 → 対局画面へ
+        // 🌟 CPU 戦と同様に、 途中対局への復帰可否をユーザーに選ばせる（自動復帰しない）
+        const wantsResume = confirm("途中の対局があります。 戻りますか？\n（「キャンセル」 を選ぶとモードセレクト画面に進みます。 対局は他プレイヤーが続行可能です）");
+        if (wantsResume) {
+            if (typeof rejoinFriendGame === 'function') {
+                const ok = await rejoinFriendGame();
+                if (ok) {
+                    return; // 復帰成功 → 対局画面へ
+                }
+                // 復帰失敗（部屋が消えている等）→ そのまま通常モード選択へフォールスルー
             }
-            // 復帰失敗（部屋が消えている等）→ そのまま通常モード選択へフォールスルー
+        } else {
+            // 🌟 キャンセル: サーバー側の current_room_id もクリアして、次回 Start で再度聞かれないようにする
+            try {
+                const tokenStr = (typeof authToken !== 'undefined') ? authToken : null;
+                if (tokenStr) {
+                    await fetch(`/friend/forget_room?token=${encodeURIComponent(tokenStr)}`, {
+                        method: 'POST',
+                        cache: 'no-store'
+                    });
+                }
+            } catch (e) {
+                console.log("[App] /friend/forget_room 呼出失敗（無視可）:", e);
+            }
+            currentRoomIdInDb = null;
+            // モードセレクトへフォールスルー
         }
     }
 
@@ -525,15 +544,38 @@ async function _afterAuthShowModeSelect() {
             //     ・既に第1交換が終わっているのに第1交換UIが復活し、操作不能になる
             //   という不具合（リフレッシュ時の「第一交換できてしまい操作不能」）が起きていた。
             //   友人戦は専用の rejoinFriendGame() でのみ復帰する。
-            let rejoined = false;
-            if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof rejoinFriendGame === 'function') {
-                try { rejoined = await rejoinFriendGame(); } catch (e) { rejoined = false; }
+
+            // 🌟 自動復帰せず、 ユーザーに復帰可否を確認（line 481 の経路と統一）
+            const wantsResume = confirm("途中の対局があります。 戻りますか？\n（「キャンセル」 を選ぶとモードセレクト画面に進みます。 対局は他プレイヤーが続行可能です）");
+            if (!wantsResume) {
+                // ローカルセッションをクリアして通常モード選択へ
+                try {
+                    const tokenStr = (typeof authToken !== 'undefined') ? authToken : null;
+                    if (tokenStr) {
+                        await fetch(`/friend/forget_room?token=${encodeURIComponent(tokenStr)}`, {
+                            method: 'POST',
+                            cache: 'no-store'
+                        });
+                    }
+                } catch (e) {
+                    console.log("[App] /friend/forget_room 呼出失敗（無視可）:", e);
+                }
+                currentSessionRoomId = "";
+                localStorage.removeItem('shiki_mahjong_room_id');
+                localStorage.removeItem('shiki_mahjong_game_mode');
+                currentRoomIdInDb = null;
+                // モードセレクトへフォールスルー（後段の処理に進む）
+            } else {
+                let rejoined = false;
+                if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof rejoinFriendGame === 'function') {
+                    try { rejoined = await rejoinFriendGame(); } catch (e) { rejoined = false; }
+                }
+                if (rejoined) return; // 復帰成功 → 対局画面へ
+                // 復帰不可（ゲスト or 部屋が消滅）→ ローカルのセッション参照だけ消して
+                //   通常のモード選択へ。サーバー側の友人戦 game には一切触れない。
+                currentSessionRoomId = "";
+                localStorage.removeItem('shiki_mahjong_room_id');
             }
-            if (rejoined) return; // 復帰成功 → 対局画面へ
-            // 復帰不可（ゲスト or 部屋が消滅）→ ローカルのセッション参照だけ消して
-            //   通常のモード選択へ。サーバー側の友人戦 game には一切触れない。
-            currentSessionRoomId = "";
-            localStorage.removeItem('shiki_mahjong_room_id');
             localStorage.removeItem('shiki_mahjong_game_mode');
         } else {
             try {

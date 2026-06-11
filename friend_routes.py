@@ -2194,6 +2194,24 @@ async def _cpu_respond_to_pending_call(room_id: str):
 
 # REST: 途中復帰
 # ==========================================
+@router.post("/forget_room")
+async def friend_forget_room(token: str):
+    """「途中の対局に戻らない」 を選んだユーザーの current_room_id をクリアする。
+    次回 Start ボタン押下時に復帰ダイアログが再表示されないようにするための明示的な放棄 API。
+    部屋自体は他プレイヤーや watchdog が継続処理するためそのまま残す。"""
+    from auth_routes import resolve_token_to_username, set_user_current_room
+    username = resolve_token_to_username(token)
+    if not username:
+        return {"status": "no_token"}
+    try:
+        set_user_current_room(username, None)
+        print(f"[FRIEND] '{username}' が途中対局への復帰を辞退 → current_room_id クリア")
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"[FRIEND forget_room ERROR] {e}")
+        return {"status": "error", "error": str(e)}
+
+
 @router.get("/rejoin")
 async def friend_rejoin(token: str):
     """ログイン中ユーザーの current_room_id に基づいて途中復帰用の state を返す。"""
