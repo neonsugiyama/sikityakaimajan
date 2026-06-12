@@ -304,9 +304,9 @@ function toggleAutoPlay() {
 
     if (isAutoPlay) {
         // ON状態
-        btn.innerText = "自動和了: ON";
-        btn.classList.remove('auto-off');
-        btn.classList.add('auto-on');
+        btn.innerText = "和";
+        btn.classList.remove('side-off', 'auto-off');
+        btn.classList.add('side-on');
         // インラインスタイルをクリアして CSS クラスに任せる
         btn.style.background = "";
         btn.style.boxShadow = "";
@@ -315,9 +315,9 @@ function toggleAutoPlay() {
         triggerAutoPlayIfNeeded();
     } else {
         // OFF状態
-        btn.innerText = "自動和了: OFF";
-        btn.classList.remove('auto-on');
-        btn.classList.add('auto-off');
+        btn.innerText = "和";
+        btn.classList.remove('side-on', 'auto-on');
+        btn.classList.add('side-off');
         btn.style.background = "";
         btn.style.boxShadow = "";
     }
@@ -329,14 +329,13 @@ function toggleAutoSort() {
     try { localStorage.setItem('shiki_auto_sort', String(autoSortEnabled)); } catch (e) { }
     const btn = document.getElementById('btn-auto-sort');
     if (btn) {
+        btn.innerText = "理";
         if (autoSortEnabled) {
-            btn.innerText = "自動理牌: ON";
-            btn.classList.remove('auto-off');
-            btn.classList.add('auto-on');
+            btn.classList.remove('side-off', 'auto-off');
+            btn.classList.add('side-on');
         } else {
-            btn.innerText = "自動理牌: OFF";
-            btn.classList.remove('auto-on');
-            btn.classList.add('auto-off');
+            btn.classList.remove('side-on', 'auto-on');
+            btn.classList.add('side-off');
         }
     }
     // 🌟 OFF → ON にする時は myHandOrder をクリア（次回 OFF にした時に再初期化される）
@@ -356,14 +355,13 @@ function toggleAutoSkipMeld() {
     try { localStorage.setItem('shiki_auto_skip_meld', String(autoSkipMeldEnabled)); } catch (e) { }
     const btn = document.getElementById('btn-auto-skip-meld');
     if (btn) {
+        btn.innerText = "鳴";
         if (autoSkipMeldEnabled) {
-            btn.innerText = "副露自動スキップ: ON";
-            btn.classList.remove('auto-off');
-            btn.classList.add('auto-on');
+            btn.classList.remove('side-off', 'auto-off');
+            btn.classList.add('side-on');
         } else {
-            btn.innerText = "副露自動スキップ: OFF";
-            btn.classList.remove('auto-on');
-            btn.classList.add('auto-off');
+            btn.classList.remove('side-on', 'auto-on');
+            btn.classList.add('side-off');
         }
     }
     // 既に副露ボタンが表示されている場合は、 ON にした瞬間スキップする
@@ -386,25 +384,56 @@ function _autoSkipMeldIfPossible() {
 
 // 初期表示反映（ページロード時に localStorage の状態を UI に反映）
 window.addEventListener('DOMContentLoaded', () => {
-    const sortBtn = document.getElementById('btn-auto-sort');
-    if (sortBtn) {
-        if (autoSortEnabled) {
-            sortBtn.innerText = "自動理牌: ON";
-            sortBtn.classList.add('auto-on'); sortBtn.classList.remove('auto-off');
+    // 自動和了
+    const autoPlayBtn = document.getElementById('btn-auto-play');
+    if (autoPlayBtn) {
+        autoPlayBtn.innerText = "和";
+        if (isAutoPlay) {
+            autoPlayBtn.classList.add('side-on'); autoPlayBtn.classList.remove('side-off');
         } else {
-            sortBtn.innerText = "自動理牌: OFF";
-            sortBtn.classList.add('auto-off'); sortBtn.classList.remove('auto-on');
+            autoPlayBtn.classList.add('side-off'); autoPlayBtn.classList.remove('side-on');
         }
     }
+    // 自動理牌
+    const sortBtn = document.getElementById('btn-auto-sort');
+    if (sortBtn) {
+        sortBtn.innerText = "理";
+        if (autoSortEnabled) {
+            sortBtn.classList.add('side-on'); sortBtn.classList.remove('side-off');
+        } else {
+            sortBtn.classList.add('side-off'); sortBtn.classList.remove('side-on');
+        }
+    }
+    // 副露自動スキップ
     const skipBtn = document.getElementById('btn-auto-skip-meld');
     if (skipBtn) {
+        skipBtn.innerText = "鳴";
         if (autoSkipMeldEnabled) {
-            skipBtn.innerText = "副露自動スキップ: ON";
-            skipBtn.classList.add('auto-on'); skipBtn.classList.remove('auto-off');
+            skipBtn.classList.add('side-on'); skipBtn.classList.remove('side-off');
         } else {
-            skipBtn.innerText = "副露自動スキップ: OFF";
-            skipBtn.classList.add('auto-off'); skipBtn.classList.remove('auto-on');
+            skipBtn.classList.add('side-off'); skipBtn.classList.remove('side-on');
         }
+    }
+    // 🌟 「隠」 ボタン: hover でアクションボタン群を透明化（旧 CSS 兄弟セレクタの代替）
+    const hideBtn = document.getElementById('action-hide-area');
+    if (hideBtn) {
+        hideBtn.innerText = "隠";
+        const _dim = () => {
+            document.querySelectorAll('.action-wrapper').forEach(w => w.classList.add('action-wrapper-dim'));
+            const rc = document.getElementById('replay-controls');
+            if (rc) rc.classList.add('replay-controls-dim');
+        };
+        const _undim = () => {
+            document.querySelectorAll('.action-wrapper').forEach(w => w.classList.remove('action-wrapper-dim'));
+            const rc = document.getElementById('replay-controls');
+            if (rc) rc.classList.remove('replay-controls-dim');
+        };
+        hideBtn.addEventListener('mouseenter', _dim);
+        hideBtn.addEventListener('mouseleave', _undim);
+        // タッチデバイス対応: 押している間だけ隠す
+        hideBtn.addEventListener('touchstart', _dim, { passive: true });
+        hideBtn.addEventListener('touchend', _undim);
+        hideBtn.addEventListener('touchcancel', _undim);
     }
 });
 

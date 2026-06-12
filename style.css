@@ -836,52 +836,6 @@ html, body {
     pointer-events: none !important;
 }
 
-/* 🌟 雀魂風 3 ボタン縦並びコンテナ（自動和了 / 自動理牌 / 副露自動スキップ） */
-.pos-auto-btn-stack {
-    position: absolute;
-    bottom: 120px;
-    left: calc(50% + 120px);
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transform: translateZ(20px) !important;
-    transform-style: flat !important;
-    pointer-events: none !important;
-}
-
-    .pos-auto-btn-stack .btn-waits {
-        min-width: 200px;
-        pointer-events: auto !important;
-    }
-
-/* 状態別の色: ON は緑、 OFF はグレー寄りオレンジ */
-.btn-waits.auto-on {
-    background: #27ae60;
-    box-shadow: 0 3px #1e8449;
-}
-
-    .btn-waits.auto-on:not(:disabled):hover {
-        background: #2ecc71;
-    }
-
-    .btn-waits.auto-on:not(:disabled):active {
-        box-shadow: 0 0 #1e8449;
-    }
-
-.btn-waits.auto-off {
-    background: #7f8c8d;
-    box-shadow: 0 3px #5d6d6e;
-}
-
-    .btn-waits.auto-off:not(:disabled):hover {
-        background: #95a5a6;
-    }
-
-    .btn-waits.auto-off:not(:disabled):active {
-        box-shadow: 0 0 #5d6d6e;
-    }
-
 .btn-waits {
     background: #e67e22;
     color: white;
@@ -913,27 +867,58 @@ html, body {
         transform: none !important;
     }
 
-#action-hide-area {
+/* 🌟 雀魂風 縦並びアクションボタンスタック
+   game-container の直下に配置することで:
+     - resizeGame による scale 変換に追従する
+     - .table の rotateX(20deg) の影響を受けず「真っすぐ」 立つ
+     - position: absolute なので game-container の左端を基準に配置される
+     - left: -40% で game-container の左外側にはみ出る形で配置 */
+#side-action-stack {
     position: absolute;
-    bottom: 250px;
-    left: 50%;
-    transform: translateX(-50%) translateZ(20px) rotateX(-20deg) !important;
-    width: 220px;
-    height: 45px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px dashed #7f8c8d;
-    border-radius: 8px;
-    color: #bdc3c7;
+    left: -40%;
+    top: 73%;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 14px;
-    z-index: 10000;
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    pointer-events: auto !important;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 100;
+    pointer-events: auto;
 }
+
+    #side-action-stack .side-btn {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: none;
+        font-size: 32px;
+        font-weight: bold;
+        color: white;
+        cursor: pointer;
+        user-select: none;
+        font-family: inherit;
+        transition: transform 0.1s ease, filter 0.1s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+
+        #side-action-stack .side-btn:hover {
+            filter: brightness(1.15);
+        }
+
+        #side-action-stack .side-btn:active {
+            transform: scale(0.92);
+        }
+
+        #side-action-stack .side-btn.side-on {
+            background: #27ae60;
+            box-shadow: 0 4px #1e8449;
+        }
+
+        #side-action-stack .side-btn.side-off {
+            background: #7f8c8d;
+            box-shadow: 0 4px #5d6d6e;
+        }
 
 /* --- リプレイ専用コントローラー --- */
 #replay-controls {
@@ -970,9 +955,9 @@ html, body {
     margin: 0 10px; /* 左右の隙間 */
 }
 
-/* 🌟 アクション隠しボタンに触れた時、通常ボタンとリプレイボタンを両方とも透明にする純粋なCSS */
-#action-hide-area:hover ~ .action-wrapper,
-#action-hide-area:hover ~ #replay-controls {
+/* 🌟 「隠」 ボタン hover 時にアクション系を透明化（JS で wrapper にクラス付与） */
+.action-wrapper.action-wrapper-dim,
+#replay-controls.replay-controls-dim {
     opacity: 0 !important;
     pointer-events: none !important;
 }

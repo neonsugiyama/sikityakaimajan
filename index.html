@@ -1544,10 +1544,6 @@
             <div class="pos-waits-btn">
                 <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
             </div>
-            <div class="pos-auto-btn">
-                <button id="btn-auto-play" class="btn-waits auto-off" onclick="toggleAutoPlay()">オート(和了後): OFF</button>
-            </div>
-            <div id="action-hide-area" style="display: none;">アクションボタンを隠す</div>
 
             <div id="replay-controls" style="display: none;">
                 <button class="btn-act btn-gray" onclick="prevToRoundStart()">⏮️ 前局</button>
@@ -1646,6 +1642,14 @@
             <div id="debug-log" class="debug-log-panel" style="display: none;"></div>
             <div id="tut-dark-overlay" class="tut-dark-overlay" style="display: none;"></div>
         </div>
+
+        <!-- 🌟 右端アクションボタンスタック (game-container 直下 = .table の 3D 変形外で「真っすぐ」立つ) -->
+        <aside id="side-action-stack">
+            <button id="btn-auto-play" class="side-btn side-off" onclick="toggleAutoPlay()" title="自動和了 ON/OFF">和</button>
+            <button id="btn-auto-sort" class="side-btn side-on" onclick="toggleAutoSort()" title="自動理牌 ON/OFF">理</button>
+            <button id="btn-auto-skip-meld" class="side-btn side-off" onclick="toggleAutoSkipMeld()" title="副露自動スキップ ON/OFF">鳴</button>
+            <button id="action-hide-area" class="side-btn side-off" style="display: none;" title="マウスを乗せている間、 アクションボタン群を一時的に隠す">隠</button>
+        </aside>
     </div>
 
 
@@ -1660,15 +1664,6 @@
             <div id="rejoin-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #f39c12, #f1c40f); transition: width 0.2s ease-out;"></div>
         </div>
         <div id="rejoin-progress-text" style="margin-top: 12px; color: #ccc;">0%</div>
-    </div>
-
-    <!-- 🔐 ログイン/登録 中ローディング画面（連打対策 + 通信中の視覚フィードバック） -->
-    <div id="auth-loading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 99999; align-items: center; justify-content: center; flex-direction: column; color: white; font-family: sans-serif;">
-        <div id="auth-loading-title" style="font-size: 22px; margin-bottom: 24px; color: #2ecc71;">🔐 ログイン中...</div>
-        <div style="width: 360px; max-width: 80vw; height: 24px; background: #222; border: 2px solid #2ecc71; border-radius: 12px; overflow: hidden;">
-            <div id="auth-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.2s ease-out;"></div>
-        </div>
-        <div id="auth-progress-text" style="margin-top: 12px; color: #ccc;">0%</div>
     </div>
 
     <!-- 🔁 切断/再接続のトーストコメント領域（ニコニコ風 右→左流し） -->

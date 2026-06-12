@@ -279,7 +279,7 @@ async function returnToHomeGracefully() {
     if (typeof isAutoPlay !== 'undefined') isAutoPlay = false;
     const btnAuto = document.getElementById('btn-auto-play');
     if (btnAuto) {
-        btnAuto.innerText = "オート(和了後): OFF";
+        btnAuto.innerText = "自動和了: OFF";
         btnAuto.style.background = "#7f8c8d";
         btnAuto.style.boxShadow = "0 3px #95a5a6";
         btnAuto.classList.add('auto-off');
