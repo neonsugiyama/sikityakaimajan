@@ -81,6 +81,8 @@ function _syncMyHandOrder() {
 
 // 🌟 ドラッグ中フラグ: 牌のクリック (打牌選択) と区別するため
 let _isDraggingTile = false;
+// 🌟 ドラッグ中の牌の「現在の myHandOrder 内インデックス」 (dragenter で動的に更新される)
+let _draggingFromOrderIdx = -1;
 // 🌟 追加：リロードからの再開中であることを示すフラグ
 let isResuming = false;
 let isResumingResult = false;
@@ -1971,38 +1973,63 @@ function render() {
             const i = document.createElement('img'); i.className = 'tile'; i.src = `images/${t}.png`;
             i.id = `my-tile-${idx}`;
 
-            // 🌟 自動理牌 OFF + 自分のターン: ドラッグで並び替え可能にする
-            if (!autoSortEnabled && turn === 0 && !charlestonPhase) {
+            // 🌟 自動理牌 OFF + ドラッグ中: swap 後も「現在ドラッグ中の牌」 に半透明マーカーを継続適用
+            //   render() で要素が再生成されるたびに、 _draggingFromOrderIdx が指す位置の牌に
+            //   dragging-tile クラスを付け直す
+            if (!autoSortEnabled && _isDraggingTile && orderIndexMap[idx] === _draggingFromOrderIdx) {
+                i.classList.add('dragging-tile');
+            }
+
+            // 🌟 自動理牌 OFF: 手番に関係なくいつでもドラッグで並び替え可能 (charleston 中のみ除外)
+            //   ドラッグ中に隣の牌の上を通過するたびに 1 マスずつ swap される動的並び替え
+            if (!autoSortEnabled && !charlestonPhase) {
                 i.draggable = true;
                 i.dataset.orderIdx = String(orderIndexMap[idx]);
 
                 i.addEventListener('dragstart', (e) => {
                     _isDraggingTile = true;
+                    _draggingFromOrderIdx = orderIndexMap[idx];
                     try {
                         e.dataTransfer.setData('text/plain', String(orderIndexMap[idx]));
                         e.dataTransfer.effectAllowed = 'move';
                     } catch (_) { }
-                    i.classList.add('dragging-tile');
+                    // 🌟 dragstart 内では classList.add('dragging-tile') を呼ばない。
+                    //   即時に opacity を変えるとブラウザのドラッグセッション確立処理と
+                    //   競合してドラッグが機能不全になるケースがある。
+                    //   半透明マーカーは render 内 (dragenter 経由で呼ばれる次の描画) で付ける。
                 });
                 i.addEventListener('dragend', () => {
-                    i.classList.remove('dragging-tile');
                     // クリック誤発火を防ぐため、 少し遅延してフラグ解除
-                    setTimeout(() => { _isDraggingTile = false; }, 80);
+                    setTimeout(() => {
+                        _isDraggingTile = false;
+                        _draggingFromOrderIdx = -1;
+                        // dragging-tile クラスが付いた牌が残らないよう、 最後に render し直す
+                        if (typeof render === 'function') render();
+                    }, 80);
                 });
                 i.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'move';
                 });
+                // 🌟 dragenter: 「ドラッグ中の牌」 と「カーソルが入った牌」 を 1 マスだけ swap
+                //   通り過ぎるたびに swap されるので、 結果としてドラッグ中の牌が
+                //   カーソルに追従するように 1 枚ずつ移動するアニメ的挙動になる
+                i.addEventListener('dragenter', (e) => {
+                    e.preventDefault();
+                    if (!_isDraggingTile || _draggingFromOrderIdx < 0) return;
+                    const toOrderIdx = orderIndexMap[idx];
+                    if (_draggingFromOrderIdx === toOrderIdx) return;
+                    // 1 マスだけ swap (insert ではなく swap)
+                    const tmp = myHandOrder[_draggingFromOrderIdx];
+                    myHandOrder[_draggingFromOrderIdx] = myHandOrder[toOrderIdx];
+                    myHandOrder[toOrderIdx] = tmp;
+                    // ドラッグ中の牌の「現在位置」 を更新
+                    _draggingFromOrderIdx = toOrderIdx;
+                    render();
+                });
+                // 🌟 drop は dragenter で既に swap 済みなので、 重複処理は不要
                 i.addEventListener('drop', (e) => {
                     e.preventDefault();
-                    let fromOrderIdx;
-                    try { fromOrderIdx = parseInt(e.dataTransfer.getData('text/plain'), 10); } catch (_) { return; }
-                    const toOrderIdx = orderIndexMap[idx];
-                    if (isNaN(fromOrderIdx) || fromOrderIdx === toOrderIdx) return;
-                    // myHandOrder の並び替え
-                    const [moved] = myHandOrder.splice(fromOrderIdx, 1);
-                    myHandOrder.splice(toOrderIdx, 0, moved);
-                    render();
                 });
             }
 

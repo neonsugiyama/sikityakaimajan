@@ -809,6 +809,7 @@ html, body {
 }
 
 /* 🌟 自動理牌 OFF 時のドラッグ並び替え用スタイル */
+/* 🌟 自動理牌 OFF 時のドラッグ並び替え用スタイル */
 .tile.dragging-tile {
     opacity: 0.4;
     transform: scale(0.95);
