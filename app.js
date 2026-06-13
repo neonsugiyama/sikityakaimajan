@@ -279,10 +279,11 @@ async function returnToHomeGracefully() {
     if (typeof isAutoPlay !== 'undefined') isAutoPlay = false;
     const btnAuto = document.getElementById('btn-auto-play');
     if (btnAuto) {
-        btnAuto.innerText = "自動和了: OFF";
-        btnAuto.style.background = "#7f8c8d";
-        btnAuto.style.boxShadow = "0 3px #95a5a6";
-        btnAuto.classList.add('auto-off');
+        btnAuto.innerText = "和";
+        btnAuto.style.background = "";
+        btnAuto.style.boxShadow = "";
+        btnAuto.classList.remove('side-on', 'auto-on');
+        btnAuto.classList.add('side-off');
     }
 
     if (typeof updateProfileUI === 'function') updateProfileUI();

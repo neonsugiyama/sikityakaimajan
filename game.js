@@ -1619,7 +1619,15 @@ async function execExchange() {
         isProc = true;
         document.getElementById('charleston-ui').style.display = "none";
 
-        let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+        // 🌟 自動理牌 OFF 時はユーザーが並べた myHandOrder の順序を使う
+        //   (render() の displayHand 生成ロジックと完全に一致させ、 表示と選択の不一致を防ぐ)
+        let displayHand;
+        if (autoSortEnabled) {
+            displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+        } else {
+            if (typeof _syncMyHandOrder === 'function') _syncMyHandOrder();
+            displayHand = [...myHandOrder];
+        }
         let t1 = displayHand[exchangeSelection[0]];
         let t2 = displayHand[exchangeSelection[1]];
         let t3 = displayHand[exchangeSelection[2]];
@@ -1682,7 +1690,14 @@ async function execExchange() {
         let willDo = exchangeSelection.length === 3;
 
         if (willDo) {
-            let displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            // 🌟 自動理牌 OFF 時は myHandOrder の順序を使う (render() と一致させる)
+            let displayHand;
+            if (autoSortEnabled) {
+                displayHand = [...myHand].sort((a, b) => SM[a] - SM[b]);
+            } else {
+                if (typeof _syncMyHandOrder === 'function') _syncMyHandOrder();
+                displayHand = [...myHandOrder];
+            }
             // 🌟 3枚選んだ場合は一旦手牌から消して記憶しておく
             humanSecondCharlestonTiles = [
                 displayHand[exchangeSelection[0]],
@@ -1980,9 +1995,9 @@ function render() {
                 i.classList.add('dragging-tile');
             }
 
-            // 🌟 自動理牌 OFF: 手番に関係なくいつでもドラッグで並び替え可能 (charleston 中のみ除外)
-            //   ドラッグ中に隣の牌の上を通過するたびに 1 マスずつ swap される動的並び替え
-            if (!autoSortEnabled && !charlestonPhase) {
+            // 🌟 自動理牌 OFF: 手番に関係なくいつでもドラッグで並び替え可能
+            //   charleston (第1/第2交換) 中も並び替えできるようにする
+            if (!autoSortEnabled) {
                 i.draggable = true;
                 i.dataset.orderIdx = String(orderIndexMap[idx]);
 
@@ -2023,6 +2038,15 @@ function render() {
                     const tmp = myHandOrder[_draggingFromOrderIdx];
                     myHandOrder[_draggingFromOrderIdx] = myHandOrder[toOrderIdx];
                     myHandOrder[toOrderIdx] = tmp;
+                    // 🌟 charleston 中: 選択した 3 枚 (exchangeSelection) も swap に追従させる
+                    //   選択した牌が並び替えで動いた場合、 新しい位置でも「同じ牌」 が選択状態になるよう
+                    //   exchangeSelection 内のインデックスを from <-> to で入れ替える
+                    if (charlestonPhase && exchangeSelection.length > 0) {
+                        const fromInSel = exchangeSelection.indexOf(_draggingFromOrderIdx);
+                        const toInSel = exchangeSelection.indexOf(toOrderIdx);
+                        if (fromInSel >= 0) exchangeSelection[fromInSel] = toOrderIdx;
+                        if (toInSel >= 0) exchangeSelection[toInSel] = _draggingFromOrderIdx;
+                    }
                     // ドラッグ中の牌の「現在位置」 を更新
                     _draggingFromOrderIdx = toOrderIdx;
                     render();
@@ -3687,10 +3711,11 @@ async function handleRoundEnd(isReplayingResult = false) {
         isAutoPlay = false;
         const btnAuto = document.getElementById('btn-auto-play');
         if (btnAuto) {
-            btnAuto.innerText = "自動和了: OFF";
-            btnAuto.style.background = "#7f8c8d";
-            btnAuto.style.boxShadow = "0 3px #95a5a6";
-            btnAuto.classList.add('auto-off');
+            btnAuto.innerText = "和";
+            btnAuto.style.background = "";
+            btnAuto.style.boxShadow = "";
+            btnAuto.classList.remove('side-on', 'auto-on');
+            btnAuto.classList.add('side-off');
         }
 
         // 🌟 友人戦: 専用エンドポイントを叩く（最初に呼んだ人がサーバー側で計算、全員に broadcast）

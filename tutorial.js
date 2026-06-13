@@ -567,7 +567,7 @@ async function startTutorial() {
             }
         },
         { // 14: オート機能
-            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右下の<span style='color:#2ecc71;'>「オート(和了後)」</span>をONにすると、<br>和了できる時は自動で和了り、それ以外の時はツモ切りするようになります。",
+            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右の<span style='color:#2ecc71;'>「和」</span>(自動和了)ボタンをONにすると、<br>和了できる時は自動で和了り、それ以外の時はツモ切りするようになります。",
             setup: () => {
                 setupDummyRivers();
                 setOverlay(true); hlIds(['btn-auto-play'], true, true); myWinTiles = ["1p"];
