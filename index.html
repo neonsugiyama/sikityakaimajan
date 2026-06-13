@@ -277,6 +277,17 @@
         </div>
     </div>
 
+    <!-- 🌟 認証処理中のローディングオーバーレイ (ログイン中のプログレスバー演出) -->
+    <div id="auth-loading" style="display: none;">
+        <div class="auth-loading-card">
+            <div id="auth-loading-title">🔐 ログイン中...</div>
+            <div class="auth-progress-track">
+                <div id="auth-progress-bar"></div>
+            </div>
+            <div id="auth-progress-text">0%</div>
+        </div>
+    </div>
+
     <!-- 🤝 友人戦用ホスト設定モーダル -->
     <div id="friend-settings-screen" class="modal-overlay" style="display: none;">
         <div class="modal-content match-settings-content">
@@ -1541,10 +1552,6 @@
                 <button id="btn-review-tutorial" class="btn-waits tut-review-btn" onclick="reviewTutorial()">💡 ミッション確認</button>
             </div>
 
-            <div class="pos-waits-btn">
-                <button id="btn-show-waits" class="btn-waits" onclick="showWaitsPanel()">待ち牌確認</button>
-            </div>
-
             <div id="replay-controls" style="display: none;">
                 <button class="btn-act btn-gray" onclick="prevToRoundStart()">⏮️ 前局</button>
 
@@ -1648,7 +1655,7 @@
             <button id="btn-auto-play" class="side-btn side-off" onclick="toggleAutoPlay()" title="自動和了 ON/OFF">和</button>
             <button id="btn-auto-sort" class="side-btn side-on" onclick="toggleAutoSort()" title="自動理牌 ON/OFF">理</button>
             <button id="btn-auto-skip-meld" class="side-btn side-off" onclick="toggleAutoSkipMeld()" title="副露自動スキップ ON/OFF">鳴</button>
-            <button id="action-hide-area" class="side-btn side-off" style="display: none;" title="マウスを乗せている間、 アクションボタン群を一時的に隠す">隠</button>
+            <button id="btn-show-waits" class="side-btn side-off" onclick="showWaitsPanel()" title="待ち牌確認">待</button>
         </aside>
     </div>
 

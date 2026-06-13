@@ -414,27 +414,6 @@ window.addEventListener('DOMContentLoaded', () => {
             skipBtn.classList.add('side-off'); skipBtn.classList.remove('side-on');
         }
     }
-    // 🌟 「隠」 ボタン: hover でアクションボタン群を透明化（旧 CSS 兄弟セレクタの代替）
-    const hideBtn = document.getElementById('action-hide-area');
-    if (hideBtn) {
-        hideBtn.innerText = "隠";
-        const _dim = () => {
-            document.querySelectorAll('.action-wrapper').forEach(w => w.classList.add('action-wrapper-dim'));
-            const rc = document.getElementById('replay-controls');
-            if (rc) rc.classList.add('replay-controls-dim');
-        };
-        const _undim = () => {
-            document.querySelectorAll('.action-wrapper').forEach(w => w.classList.remove('action-wrapper-dim'));
-            const rc = document.getElementById('replay-controls');
-            if (rc) rc.classList.remove('replay-controls-dim');
-        };
-        hideBtn.addEventListener('mouseenter', _dim);
-        hideBtn.addEventListener('mouseleave', _undim);
-        // タッチデバイス対応: 押している間だけ隠す
-        hideBtn.addEventListener('touchstart', _dim, { passive: true });
-        hideBtn.addEventListener('touchend', _undim);
-        hideBtn.addEventListener('touchcancel', _undim);
-    }
 });
 
 // 🌟 修正：プレイヤーがテンパイしているか（副露も考慮して）正確に判定する関数
@@ -1125,34 +1104,54 @@ async function updateWaitsButton() {
     const waitsBtn = document.getElementById('btn-show-waits');
     if (!waitsBtn) return;
 
+    // 🌟 共通ヘルパー: 「待」 1 文字に統一し、 状態を side-on/side-off と title で表現
+    const _setWaitsState = (state) => {
+        // state: 'tenpai' | 'listen' | 'noten' | 'hidden'
+        if (state === 'hidden') {
+            waitsBtn.style.display = 'none';
+            return;
+        }
+        waitsBtn.style.display = 'flex';
+        waitsBtn.innerText = "待";
+        if (state === 'tenpai') {
+            waitsBtn.disabled = false;
+            waitsBtn.title = "待ち牌確認";
+            waitsBtn.classList.add('side-on'); waitsBtn.classList.remove('side-off');
+        } else if (state === 'listen') {
+            waitsBtn.disabled = false;
+            waitsBtn.title = "聴牌確認 (何切る)";
+            waitsBtn.classList.add('side-on'); waitsBtn.classList.remove('side-off');
+        } else {
+            // noten
+            waitsBtn.disabled = true;
+            waitsBtn.title = "ノーテン";
+            waitsBtn.classList.add('side-off'); waitsBtn.classList.remove('side-on');
+        }
+    };
+
     // 🌟 修正：明示的に通常モード（CPU戦・オンライン）とそれ以外（Tutorial/Lesson）を分ける
     if (currentGameMode === 'tutorial') {
         const isTenpai = (currentWaits && currentWaits.length > 0);
-        waitsBtn.style.display = 'block';
-        waitsBtn.disabled = !isTenpai;
-        waitsBtn.innerText = isTenpai ? "待ち牌確認" : "ノーテン";
+        _setWaitsState(isTenpai ? 'tenpai' : 'noten');
         if (isTenpai) applyEffectiveHint();
         return;
     }
 
     // --- ここから下が通常対局（CPU戦・オンライン）の処理 ---
     if (!currentSessionRoomId) {
-        waitsBtn.style.display = 'none';
+        _setWaitsState('hidden');
         return;
     }
 
     if (!confWaitsHint) {
-        waitsBtn.style.display = 'none';
+        _setWaitsState('hidden');
         hideWaitsPanel();
         return;
-    } else {
-        waitsBtn.style.display = 'block';
     }
 
     // charlestonPhaseチェックは通常戦では不要なはずですが、念のため維持
     if (typeof charlestonPhase !== 'undefined' && charlestonPhase) {
-        waitsBtn.disabled = true;
-        waitsBtn.innerText = "ノーテン";
+        _setWaitsState('noten');
         return;
     }
 
@@ -1174,13 +1173,14 @@ async function updateWaitsButton() {
         const isTenpai = currentWaits.length > 0;
         const canListen = currentNanikiru && Object.keys(currentNanikiru).length > 0;
 
-        if (isTenpai || canListen) {
-            waitsBtn.disabled = false;
-            waitsBtn.innerText = isTenpai ? "待ち牌確認" : "聴牌確認(何切る)";
+        if (isTenpai) {
+            _setWaitsState('tenpai');
+            applyEffectiveHint();
+        } else if (canListen) {
+            _setWaitsState('listen');
             applyEffectiveHint();
         } else {
-            waitsBtn.disabled = true;
-            waitsBtn.innerText = "ノーテン";
+            _setWaitsState('noten');
             hideWaitsPanel();
         }
     } catch (e) {
@@ -3280,7 +3280,6 @@ async function execTsumo() {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     let currentDrawnTile = drawnTile;
 
@@ -3334,7 +3333,6 @@ async function execRon(isChankan = false) {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     // 🌟 友人戦: サーバーに ron を送信して friend_win イベント待ち（実際の和了処理はサーバー側で集約）
     if (currentGameMode === 'friend') {
@@ -3404,7 +3402,6 @@ async function execMeld(type) {
     document.querySelectorAll('.action-layer .btn-act').forEach(b => b.style.display = "none");
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     // 🌟 修正：非同期通信(apiCall)によって記憶が上書きされる前に、ターゲットを退避する
     let targetDiscarder = lastDiscardPlayer;
@@ -3491,7 +3488,6 @@ async function execSelfMeld(type, t, s, isHidden = false) {
     resetActionBtnPool(); // 🌟 修正
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     if (type.includes("花槓") && _isStatsTrackingMode()) {
         // 🏆 ここを変更！【花槓マスター】（暗花槓など）
@@ -3573,7 +3569,6 @@ async function execJokerSwap(t, season, targetIdx) {
     resetActionBtnPool(); // 🌟 修正
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
 
     // 🌟 友人戦: 専用エンドポイントを叩く（サーバー側で全員に friend_joker_swap broadcast）
     if (currentGameMode === 'friend') {
@@ -3620,7 +3615,6 @@ function skipAction() {
     resetActionBtnPool(); // 🌟 修正
 
     // 🌟 追加：透過箱を即座に消す
-    const hideArea = document.getElementById('action-hide-area'); if (hideArea) hideArea.style.display = "none";
     checkCpuReactions(lastDiscardPlayer, lastT);
 }
 

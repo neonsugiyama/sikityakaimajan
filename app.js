@@ -356,7 +356,7 @@ function resizeGame() {
     // 🌟 1. 卓の「ベースサイズ（箱の大きさ）」と「視覚的な広さ（余白込み）」を定義
     const BASE_WIDTH = 1520;
     const BASE_HEIGHT = 1080;
-    const VISUAL_WIDTH = 1620;
+    const VISUAL_WIDTH = 1720;
     const VISUAL_HEIGHT = 900;
 
     const scaleX = window.innerWidth / VISUAL_WIDTH;
@@ -856,7 +856,9 @@ function showAuthLoading(title) {
     const titleEl = document.getElementById('auth-loading-title');
     const bar = document.getElementById('auth-progress-bar');
     const text = document.getElementById('auth-progress-text');
-    if (!overlay) { _authLoadingActive = false; return false; }
+    // 🌟 オーバーレイ要素が HTML に無くても、ロックは取得済みなので処理を進める
+    //   (旧 index.html にはこの要素が無いケースに対応。 連打防止だけ効かせる)
+    if (!overlay) return true;
 
     if (titleEl) titleEl.textContent = title || '🔐 ログイン中...';
     if (bar) bar.style.width = '0%';
@@ -1546,41 +1548,11 @@ async function lockScreen() {
 }
 
 // ==========================================
-// 👁️ アクションボタン透過（隠ボタン: 副露ボタン表示時のみ自動的に表示する監視のみ）
-//   ※ hover 時の透過処理と DOM 移動・スタイル直書きは廃止。
-//     hover の挙動は game.js の DOMContentLoaded ハンドラで CSS クラスベースに統一済み。
-//     ここでは「副露ボタンが 1 つでも表示されていれば 隠ボタンを表示、 全部消えたら隠す」
-//     という 200ms ポーリングだけを残す。
+// 👁️ アクションボタン透過機能は削除済み
+//   タイマー/アクションボタンの位置調整により「隠す」ボタンが不要になったため、
+//   200ms ポーリング監視と関連ハンドラを撤去。
+//   待ち牌確認ボタン(「待」)が同位置に置き換えられている。
 // ==========================================
-window.addEventListener('DOMContentLoaded', () => {
-    const hideArea = document.getElementById('action-hide-area');
-    const actionWrapper = document.querySelector('.action-wrapper');
-    if (!hideArea || !actionWrapper) return;
-
-    actionWrapper.style.transition = 'opacity 0.2s ease';
-
-    // 🌟 メモリリーク対策: 匿名 setInterval を変数化（多重起動防止 + デバッグ用に外から参照可能化）
-    if (window._actionHideAreaMonitor) clearInterval(window._actionHideAreaMonitor);
-    window._actionHideAreaMonitor = setInterval(() => {
-        const visibleBtns = Array.from(document.querySelectorAll('.action-layer .btn-act'))
-            .filter(b => b.style.display === 'block' || b.style.display === 'flex');
-
-        if (visibleBtns.length > 0) {
-            if (hideArea.style.display === 'none') hideArea.style.display = 'flex';
-        } else {
-            if (hideArea.style.display !== 'none') {
-                hideArea.style.display = 'none';
-                // 念のため透過解除（ボタンが消えたタイミングで透過状態が残らないように）
-                actionWrapper.classList.remove('action-wrapper-dim');
-                const rc = document.getElementById('replay-controls');
-                if (rc) rc.classList.remove('replay-controls-dim');
-                document.querySelectorAll('.action-layer .btn-act').forEach(btn => {
-                    btn.style.removeProperty('pointer-events');
-                });
-            }
-        }
-    }, 200);
-});
 
 // ==========================================
 // 🔠 中央パネル #msg の文字サイズ自動調整（最大18px・一行収まり）
