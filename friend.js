@@ -24,6 +24,9 @@ function startFriendGame(initData) {
     friendPlayerNames = initData.player_names || [];
     console.log("[FRIEND DEBUG] myPlayerIdx:", myPlayerIdx, " friendPlayerNames:", JSON.stringify(friendPlayerNames));
 
+    // 🌟 便利機能ボタンを初期設定に戻す (和=OFF, 理=ON, 鳴=OFF)
+    if (typeof resetActionButtonsToDefault === 'function') resetActionButtonsToDefault();
+
     // 🌟 ホストの設定値を CPU戦のグローバル変数に上書き（友人戦中だけ有効）
     if (initData.settings) {
         if (typeof timeDiscard !== 'undefined') {
@@ -1272,6 +1275,8 @@ function handleFriendEvent(data, _bypassQueue) {
         if (typeof cpuDrawnTiles !== 'undefined') {
             cpuDrawnTiles = [null, null, null, null];
         }
+        // 🌟 便利機能ボタンを初期設定に戻す (和=OFF, 理=ON, 鳴=OFF)
+        if (typeof resetActionButtonsToDefault === 'function') resetActionButtonsToDefault();
         // 次局へ: state を反映 → リザルト画面を閉じて新局の初期化
         console.log("[FRIEND] 次局へ broadcast");
         // 🌟 次局開始のタイミングで handleRoundEnd の二重実行ガードを解除

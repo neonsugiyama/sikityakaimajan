@@ -276,15 +276,9 @@ async function returnToHomeGracefully() {
 
     if (typeof hideWaitsPanel === 'function') hideWaitsPanel();
 
-    if (typeof isAutoPlay !== 'undefined') isAutoPlay = false;
-    const btnAuto = document.getElementById('btn-auto-play');
-    if (btnAuto) {
-        btnAuto.innerText = "和";
-        btnAuto.style.background = "";
-        btnAuto.style.boxShadow = "";
-        btnAuto.classList.remove('side-on', 'auto-on');
-        btnAuto.classList.add('side-off');
-    }
+    // 🌟 ホーム画面に戻る時、 便利機能ボタンを初期設定に戻す
+    //   (次回どの対局モードを始めても 和=OFF / 理=ON / 鳴=OFF からスタートする)
+    if (typeof resetActionButtonsToDefault === 'function') resetActionButtonsToDefault();
 
     if (typeof updateProfileUI === 'function') updateProfileUI();
     const modeScreen = document.getElementById('mode-select-screen');

@@ -185,7 +185,7 @@ html, body {
 }
 
 .meld-0 {
-    bottom: 105px;
+    bottom: 100px;
     left: 50%;
     transform: translateX(-50%);
     flex-direction: row;
@@ -706,7 +706,7 @@ html, body {
 /* --- アクションボタン群 --- */
 .action-wrapper {
     position: absolute;
-    bottom: 170px;
+    bottom: 160px;
     left: 50%;
     transform: translateX(-50%) translateZ(200px) !important;
     display: flex;
@@ -813,6 +813,14 @@ html, body {
 .tile.dragging-tile {
     opacity: 0.4;
     transform: scale(0.95);
+    transition: none !important;
+}
+
+/* 🌟 ドラッグ中は手牌の transition (transform 0.1s ease-out) を全て無効化。
+   render() が dragenter のたびに要素を再生成するため、 transition が走ると
+   selected-exchange の translateY が毎回 0 → -20px のアニメで「ぴょこぴょこ」 動いて見える。
+   ドラッグ中はアニメーションを止めて即時反映させる。 */
+body.tile-dragging .hand-0 .tile {
     transition: none !important;
 }
 

@@ -43,7 +43,8 @@ window.cleanupTutorialUI = function () {
     const backgroundUI = [
         'center-info', 'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
         'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
-        'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
+        'btn-auto-play', 'btn-auto-sort', 'btn-auto-skip-meld',
+        'btn-show-waits', 'charleston-confirm-ui'
     ];
     backgroundUI.forEach(id => {
         const el = document.getElementById(id);
@@ -124,6 +125,8 @@ async function startTutorial() {
     window.cleanupTutorialUI();
     currentWaits = [];
     currentNanikiru = null;
+    // 🌟 便利機能ボタンを初期設定に戻す (和=OFF, 理=ON, 鳴=OFF)
+    if (typeof resetActionButtonsToDefault === 'function') resetActionButtonsToDefault();
 
     // 🚨 修正1：全モーダル画面のIDを明示的に指定し、チュートリアルパネルよりも確実に手前に来るようZ-indexを固定
     if (!document.getElementById('tut-zindex-fix')) {
@@ -236,7 +239,8 @@ async function startTutorial() {
         const backgroundUI = [
             'center-info', 'player-name-0', 'player-name-1', 'player-name-2', 'player-name-3',
             'player-score-0', 'player-score-1', 'player-score-2', 'player-score-3',
-            'btn-auto-play', 'btn-show-waits', 'charleston-confirm-ui'
+            'btn-auto-play', 'btn-auto-sort', 'btn-auto-skip-meld',
+            'btn-show-waits', 'charleston-confirm-ui'
         ];
 
         setTimeout(() => {
@@ -263,8 +267,18 @@ async function startTutorial() {
                     el.classList.add('tut-highlight');
                     el.style.setProperty('z-index', '90000', 'important');
                     if (useGlow) {
-                        el.style.setProperty('box-shadow', '0 0 20px rgba(241, 196, 15, 1)', 'important');
-                        el.style.setProperty('border-radius', '8px', 'important');
+                        // 🌟 side-btn (画面右の便利機能ボタン群) は円形を維持。 box-shadow も
+                        //   側面影 + 黄色発光を組み合わせて見た目を崩さない。
+                        //   それ以外のボタンは従来通り box-shadow 単独 + 角丸 8px に。
+                        if (el.classList.contains('side-btn')) {
+                            el.style.setProperty('box-shadow',
+                                '0 4px #5d6d6e, 0 0 20px 4px rgba(241, 196, 15, 0.95)',
+                                'important');
+                            // border-radius は CSS の 50% (円形) をそのまま使うので上書きしない
+                        } else {
+                            el.style.setProperty('box-shadow', '0 0 20px rgba(241, 196, 15, 1)', 'important');
+                            el.style.setProperty('border-radius', '8px', 'important');
+                        }
                     }
                     if (window.getComputedStyle(el).position === 'static') {
                         el.style.setProperty('position', 'relative', 'important');
@@ -487,7 +501,7 @@ async function startTutorial() {
             }
         },
         { // 11: 胡アクション（決定待ち）
-            msg: "<span style='color:#e74c3c; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 4: 和了後の無限継続】</span><br>聴牌(テンパイ)しました！万能牌のおかげで<span style='color:#f1c40f;'>超多面待ち</span>です！<br>左下の<span style='color:#e67e22;'>「待ち牌確認」</span>で待ち牌をチェックしたら「胡(フー)」ボタンを<br>押してください。",
+            msg: "<span style='color:#e74c3c; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【STEP 4: 和了後の無限継続】</span><br>聴牌(テンパイ)しました！万能牌のおかげで<span style='color:#f1c40f;'>超多面待ち</span>です！<br>左下の<span style='color:#e67e22;'>「待」</span>(待ち牌確認)ボタンで待ち牌をチェックしたら「胡(フー)」ボタンを<br>押してください。",
             hideNext: true,
             setup: () => {
                 myHand = [...hand_swapPost];
@@ -503,7 +517,7 @@ async function startTutorial() {
                 }
 
                 if (navPanel) {
-                    navPanel.style.top = "58%";
+                    navPanel.style.top = "55%";
                 }
 
                 setOverlay(true);
@@ -566,11 +580,27 @@ async function startTutorial() {
                 setupDummyRivers();
             }
         },
-        { // 14: オート機能
+        { // 14: オート機能（自動和了）
             msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右の<span style='color:#2ecc71;'>「和」</span>(自動和了)ボタンをONにすると、<br>和了できる時は自動で和了り、それ以外の時はツモ切りするようになります。",
             setup: () => {
                 setupDummyRivers();
                 setOverlay(true); hlIds(['btn-auto-play'], true, true); myWinTiles = ["1p"];
+                myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
+            }
+        },
+        { // 14b: 自動理牌
+            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右の<span style='color:#2ecc71;'>「理」</span>(自動理牌)ボタンは標準で<span style='color:#2ecc71;'>ON</span>になっています。<br>OFFにすると手牌が自動でソートされなくなり、<br><span style='color:#f1c40f;'>ドラッグ操作で好きな順番に並び替え</span>できるようになります。",
+            setup: () => {
+                setupDummyRivers();
+                setOverlay(true); hlIds(['btn-auto-sort'], true, true); myWinTiles = ["1p"];
+                myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
+            }
+        },
+        { // 14c: 副露自動スキップ
+            msg: "<span style='color:#3498db; font-size:1.2em; display:inline-block; margin-bottom:8px;'>【その他の便利機能】</span><br>右の<span style='color:#2ecc71;'>「鳴」</span>(副露自動スキップ)ボタンをONにすると、<br>他家の打牌に対する<span style='color:#f1c40f;'>碰(ポン)・槓(ガン)等の鳴き候補</span>が<br>表示されても自動でスルーするようになります。<br>(和了候補がある場合は手動判断が残ります)",
+            setup: () => {
+                setupDummyRivers();
+                setOverlay(true); hlIds(['btn-auto-skip-meld'], true, true); myWinTiles = ["1p"];
                 myAllMelds[1] = [{ type: "minkan", tiles: ["1s", "1s", "1s", "1s"], is_hidden: false }];
             }
         },
@@ -655,7 +685,11 @@ async function startTutorial() {
                 currentWaits = ["1p", "2p", "3p", "4p", "5p", "8p", "東"];
                 isAlreadyTenpai = true;
                 waitsBtn.disabled = false;
-                waitsBtn.innerText = "待ち牌確認";
+                // 🌟 新仕様: 円形ボタンに「待」 1 文字 + 緑 (side-on) でテンパイ状態を表現
+                waitsBtn.innerText = "待";
+                waitsBtn.title = "待ち牌確認";
+                waitsBtn.classList.add('side-on');
+                waitsBtn.classList.remove('side-off');
 
                 waitsBtn.onclick = () => {
                     const wp = document.getElementById('waits-panel');
@@ -673,7 +707,11 @@ async function startTutorial() {
                 };
             } else {
                 waitsBtn.disabled = true;
-                waitsBtn.innerText = 'ノーテン';
+                // 🌟 新仕様: ノーテン時もボタン形は維持 (グレー / side-off)
+                waitsBtn.innerText = "待";
+                waitsBtn.title = "ノーテン";
+                waitsBtn.classList.add('side-off');
+                waitsBtn.classList.remove('side-on');
                 waitsBtn.onclick = null;
             }
         }
@@ -740,6 +778,8 @@ async function startLesson(lessonId) {
     window.cleanupTutorialUI();
     currentWaits = [];
     currentNanikiru = null;
+    // 🌟 便利機能ボタンを初期設定に戻す (和=OFF, 理=ON, 鳴=OFF)
+    if (typeof resetActionButtonsToDefault === 'function') resetActionButtonsToDefault();
 
     if (!document.getElementById('tut-zindex-fix')) {
         const style = document.createElement('style');
